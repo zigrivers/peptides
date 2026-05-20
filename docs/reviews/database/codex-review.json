@@ -1,0 +1,3729 @@
+Reading additional input from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: /Users/kenallred/Documents/dev-projects/peptides
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 019e46ff-f068-73b2-b5a0-68705bf9e7b1
+--------
+user
+Perform a deep review of the database schema (docs/database-schema.md) against the PRD, Domain Models, and System Architecture. Focus on: 1. Coverage — Are all domain entities and lifecycle requests (e.g., Export, Deletion) represented? 2. Consistency — Does the schema respect all architectural constraints? 3. Correctness — Are relationships, constraints, and JSON usage optimal? 4. Readiness — Are the indexes sufficient for the defined query patterns? Respond with a JSON array of findings: [{"severity": "P0|P1|P2|P3", "category": "coverage|consistency|correctness|readiness", "location": "table or field reference", "description": "description of the issue", "suggestion": "recommended fix"}]
+
+<stdin>
+# Database Schema Design
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**Tech Stack source:** `docs/tech-stack.md`  
+**Domain Model source:** `docs/domain-models/`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Schema Definition (Prisma DSL)
+
+We use Prisma as our ORM. The following models define the PostgreSQL 16 schema.
+
+```prisma
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --- Auth Domain ---
+
+enum UserRole {
+  POWER_USER
+  MANAGED_USER
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  role          UserRole  @default(POWER_USER)
+  managedBy     String?   // FK to Power User
+  status        String    @default("ACTIVE")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  protocols     Protocol[]
+  cycles        Cycle[]
+  doseLogs      DoseLog[]
+  outcomeLogs   OutcomeLog[]
+  vials         Vial[]
+  orders        Order[]
+  invitesSent   Invite[]   @relation("InvitesSent")
+  telegramSession TelegramSession?
+}
+
+model Invite {
+  id            String    @id @default(uuid())
+  email         String
+  token         String    @unique
+  powerUserId   String
+  powerUser     User      @relation("InvitesSent", fields: [powerUserId], references: [id])
+  status        String    @default("PENDING")
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+}
+
+// --- Reference Domain ---
+
+model Compound {
+  id                  String    @id @default(uuid())
+  name                String    @unique
+  iupacName           String?
+  mechanismOfAction   String?
+  administrationRoutes String[] // PostgreSQL text array
+  status              String    @default("PUBLISHED")
+  
+  profile             CompoundProfile?
+  products            VendorProduct[]
+  protocols           Protocol[]
+  vials               Vial[]
+}
+
+model CompoundProfile {
+  id              String    @id @default(uuid())
+  compoundId      String    @unique
+  compound        Compound  @relation(fields: [compoundId], references: [id])
+  dosingLow       Json      // DoseAmount object
+  dosingTypical   Json      // DoseAmount object
+  dosingHigh      Json      // DoseAmount object
+  sideEffects     String?
+  stackingNotes   String?
+  citations       Citation[]
+}
+
+model Citation {
+  id                String    @id @default(uuid())
+  profileId         String
+  profile           CompoundProfile @relation(fields: [profileId], references: [id])
+  title             String
+  url               String
+  doi               String?
+  pmid              String?
+}
+
+// --- Tracker Domain ---
+
+model Protocol {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id])
+  compoundId          String
+  compound            Compound  @relation(fields: [compoundId], references: [id])
+  cycleId             String?
+  cycle               Cycle?    @relation(fields: [cycleId], references: [id])
+  dose                Json      // DoseAmount object
+  schedule            Json      // Schedule object
+  administrationRoute String
+  status              String    @default("ACTIVE")
+  startDate           DateTime
+  endDate             DateTime?
+  
+  doseLogs            DoseLog[]
+}
+
+model Cycle {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  name        String
+  startDate   DateTime
+  endDate     DateTime?
+  status      String    @default("ACTIVE")
+  
+  protocols   Protocol[]
+}
+
+model DoseLog {
+  id              String    @id @default(uuid())
+  protocolId      String
+  protocol        Protocol  @relation(fields: [protocolId], references: [id])
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  vialId          String?
+  vial            Vial?     @relation(fields: [vialId], references: [id])
+  idempotencyKey  String    @unique // user:protocol:date
+  loggedAt        DateTime  @default(now())
+  scheduledDate   DateTime
+  amount          Json      // DoseAmount object
+  status          String    @default("LOGGED")
+  injectionSite   Json?     // InjectionSite object
+}
+
+// --- Reconstitution Domain ---
+
+model Vial {
+  id                    String    @id @default(uuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id])
+  compoundId            String
+  compound              Compound  @relation(fields: [compoundId], references: [id])
+  totalMg               Float
+  bacWaterMl            Float?
+  remainingMg           Float
+  status                String    @default("DRY")
+  reconstitutedAt       DateTime?
+  expiresAt             DateTime?
+  
+  doseLogs              DoseLog[]
+}
+
+// --- Ordering Domain ---
+
+model Vendor {
+  id                String    @id @default(uuid())
+  name              String
+  telegramUsername  String
+  status            String    @default("ACTIVE")
+  
+  products          VendorProduct[]
+  orders            Order[]
+}
+
+model VendorProduct {
+  id          String    @id @default(uuid())
+  vendorId    String
+  vendor      Vendor    @relation(fields: [vendorId], references: [id])
+  compoundId  String
+  compound    Compound  @relation(fields: [compoundId], references: [id])
+  name        String
+  priceUsd    Float
+  inStock     Boolean   @default(true)
+  
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id])
+  vendorId            String
+  vendor              Vendor    @relation(fields: [vendorId], references: [id])
+  status              String    @default("DRAFT")
+  paymentConfirmation Json?     // PaymentConfirmation object
+  telegramMessageId   String?
+  idempotencyKey      String    @unique
+  createdAt           DateTime  @default(now())
+  
+  items               OrderItem[]
+}
+
+model OrderItem {
+  id          String    @id @default(uuid())
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id])
+  productId   String
+  product     VendorProduct @relation(fields: [productId], references: [id])
+  quantity    Int
+}
+
+model TelegramSession {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+  sessionString String    // Encrypted AES-256
+  isActive      Boolean   @default(true)
+  updatedAt     DateTime  @updatedAt
+}
+
+// --- Audit Domain ---
+
+model AuditEvent {
+  id            String    @id @default(uuid())
+  timestamp     DateTime  @default(now())
+  actorUserId   String
+  category      String
+  action        String
+  resourceId    String
+  resourceType  String
+  metadata      Json
+  
+  @@index([timestamp])
+  @@index([actorUserId])
+}
+```
+
+---
+
+## 2. Normalization Analysis
+
+- **3NF Compliance**: All tables are in 3NF.
+- **JSON Usage**: `DoseAmount`, `Schedule`, and `PaymentConfirmation` are stored as JSON to allow flexibility in v1 without high schema churn. Core relational integrity (FKs) is maintained for all entity linkages.
+- **PostgreSQL Arrays**: Used for `administrationRoutes` on `Compound` for simple multi-select storage without a junction table.
+
+---
+
+## 3. Indexing Strategy
+
+| Table | Index | Purpose |
+|-------|-------|---------|
+| `User` | `email` (Unique) | Auth lookup. |
+| `Invite` | `token` (Unique) | Link resolution. |
+| `DoseLog` | `userId`, `scheduledDate` | Dashboard schedule rendering. |
+| `DoseLog` | `idempotencyKey` (Unique) | PWA sync conflict prevention. |
+| `Protocol` | `userId`, `status` | Active protocol list. |
+| `Order` | `userId`, `status` | Order history filters. |
+| `AuditEvent` | `timestamp`, `actorUserId` | Admin auditing and log purge. |
+
+---
+
+## 4. Migration Strategy
+
+We use **Prisma Migrate** for all schema changes.
+
+1. **Development**: `pnpm prisma migrate dev`
+   - Creates SQL migration file.
+   - Updates generated client.
+2. **Production**: `pnpm prisma migrate deploy`
+   - Runs automatically on Railway start command.
+   - Fails safe if migrations are missing.
+3. **Rollback**: Manual SQL rollback if needed; however, Prisma's forward-only approach is preferred. Breaking changes require a forward migration that handles data migration.
+
+---
+
+## 5. Seed Data Strategy
+
+`prisma/seed.ts` will provide:
+- Standard `Compound` definitions from the QSC catalog.
+- One default `Vendor` (QSC).
+- System-wide `VendorProduct` entries for the initial catalog.
+
+---
+
+## 6. Multi-Environment Considerations
+
+- **Railway Managed Postgres**: Handles backups, encryption at rest, and point-in-time recovery.
+- **Local Dev**: Docker-compose Postgres instance to match production version (PG 16).
+# Audit Domain
+
+The Audit Domain provides a system-wide record of all sensitive mutations and security events.
+
+## Ubiquitous Language
+- **Audit Event**: A persistent, immutable record of a specific action.
+
+## Entities
+
+### AuditEvent (Aggregate Root)
+An immutable log entry.
+- **Attributes**:
+  - `id`: UUID
+  - `timestamp`: timestamp
+  - `actorUserId`: UUID (FK)
+  - `subjectUserId`: UUID (FK, optional)
+  - `category`: enum (Security, Protocol, Order, Admin)
+  - `action`: string (e.g., "PROTOCOL_CREATED")
+  - `resourceId`: UUID (Identity of the affected entity)
+  - `resourceType`: string (e.g., "Protocol")
+  - `metadata`: JSON (Captured request context, IP, User Agent)
+  - `oldValues`: JSON (optional)
+  - `newValues`: JSON (optional)
+
+## Aggregate: System Audit Trail
+- **Consistency Boundary**: A single AuditEvent record.
+- **Root**: AuditEvent
+- **Invariants**:
+  - Audit events are immutable; they can be created but never updated or deleted.
+  - Every event must be linked to an `actorUserId`.
+  - **Retention**: Events are retained for 90 days, then purged by a scheduled background job.
+
+## Invariants
+- `auditEvent.timestamp >= createdAt`
+- `auditEvent.action.length > 0`
+# Auth Domain
+
+The Auth Domain manages user accounts, sessions, and managed user invitations.
+
+## Ubiquitous Language
+- **User**: An authenticated person (Power User or Delegated Participant).
+- **Power User**: The system administrator who manages other users and the ordering module.
+- **Delegated Participant**: A user invited by a Power User (Managed User role).
+- **Invite**: A token-based invitation to join the app.
+
+## Entities
+
+### User (Aggregate Root)
+An account entity.
+- **Attributes**:
+  - `id`: UUID
+  - `email`: string (Unique)
+  - `passwordHash`: PasswordHash (Value Object)
+  - `role`: enum (PowerUser, ManagedUser)
+  - `managedBy`: UUID (FK, optional)
+  - `status`: enum (Active, Deactivated, Pending)
+  - `createdAt`: timestamp
+
+### PasswordResetToken (Entity)
+A single-use token for password recovery.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `tokenHash`: string
+  - `expiresAt`: timestamp
+  - `used`: boolean
+
+### AccountDeletionRequest (Entity)
+A request to wipe all user data.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `requestedAt`: timestamp
+  - `scheduledFor`: timestamp (48h delay)
+  - `status`: enum (Pending, Executed, Cancelled)
+
+### DataExportRequest (Entity)
+A request for data portability.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `format`: enum (JSON, CSV)
+  - `status`: enum (Pending, Processing, Completed, Failed)
+  - `downloadUrl`: string (optional)
+  - `expiresAt`: timestamp (optional)
+
+### OnboardingState (Value Object)
+Tracks the user's progress through the setup wizard.
+- **Attributes**:
+  - `step`: enum (Catalog, Protocol, Telegram, Done)
+  - `completedAt`: timestamp (optional)
+  - `dismissed`: boolean
+
+## Value Objects
+
+### PasswordHash
+Securely hashed password.
+- **Attributes**:
+  - `hash`: string
+  - `algorithm`: string (bcrypt)
+  - `cost`: number (default 12)
+
+## Aggregate: Account Identity
+- **Consistency Boundary**: A User and their auth-related state (tokens, sessions).
+- **Root**: User
+- **Invariants**:
+  - Password hash must use bcrypt with cost >= 12.
+  - Deleting a Power User requires all linked Managed Users to be deactivated first.
+
+## Domain Events
+- `UserRegistered`: A new Power User signs up.
+- `UserInvited`: A Power User sends an invite.
+- `InviteAccepted`: A Managed User completes registration.
+- `AccountDeletionScheduled`: A user requests data wipe.
+
+## Invariants
+- `invite.expiresAt == invite.createdAt + 72h`
+- `passwordResetToken.expiresAt == passwordResetToken.createdAt + 1h`
+# Domain Models Overview
+
+This directory contains the domain models for the Peptides application, organized by pillar and bounded context.
+
+## Bounded Contexts
+
+| Context | Description | Key Aggregates |
+|---------|-------------|----------------|
+| **Reference** | Static compound knowledge and research data. | `Compound` |
+| **Tracker** | Dosing schedules, logs, and subjective outcomes. | `Cycle`, `Protocol` |
+| **Reconstitution** | Vial inventory and math calculations. | `Vial` |
+| **Ordering** | Vendor products and Telegram order transactions. | `Order`, `Vendor` |
+| **Auth** | User accounts, sessions, and multi-user logic. | `User` |
+| **Audit** | Immutable system-wide record of sensitive mutations. | `AuditEvent` |
+
+## Context Map (High Level)
+
+- **Auth** provides the identity foundation for all other contexts (via `userId`).
+- **Audit** listens to events from all other domains to persist the audit trail.
+- **Tracker** references **Reference** (via `compoundId`) for dosing ranges and safety data.
+- **Tracker** references **Reconstitution** (via `vialId`) for inventory decrementing.
+- **Reconstitution** references **Reference** (via `compoundId`) for concentration calculations.
+- **Reconstitution** references **Ordering** (via `orderId`) for inventory updates on receipt.
+- **Ordering** references **Reference** (via `compoundId`) for catalog product linking.
+
+## Domain Model Files
+- [Reference Domain](reference.md)
+- [Tracker Domain](tracker.md)
+- [Reconstitution Domain](reconstitution.md)
+- [Ordering Domain](ordering.md)
+- [Auth Domain](auth.md)
+# Ordering Domain
+
+The Ordering Domain manages vendor product catalogs, Telegram communication, and the order lifecycle.
+
+## Ubiquitous Language
+- **Order**: A purchase transaction for one or more vendor products.
+- **Payment Confirmation**: The explicit step where a user verifies the destination wallet and amount.
+
+## Entities
+
+### Order (Aggregate Root)
+A purchase transaction.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `vendorId`: UUID (FK)
+  - `status`: enum (Draft, Sent, Confirmed, PaymentSent, Received, Cancelled, Stale)
+  - `paymentConfirmation`: PaymentConfirmation (Value Object, optional)
+  - `telegramMessageId`: string (optional)
+  - `idempotencyKey`: string (UUID)
+
+## Value Objects
+
+### PaymentConfirmation
+The safety gate for crypto payments.
+- **Attributes**:
+  - `confirmedTotal`: number
+  - `currency`: string (e.g., "USDT")
+  - `walletAddress`: string
+  - `acknowledgedAt`: timestamp
+  - `acknowledgedByUserId`: UUID
+
+## Aggregate: Order Transaction
+- **Consistency Boundary**: Order status and payment acknowledgement.
+- **Root**: Order
+- **Invariants**:
+  - `status` cannot transition to `PaymentSent` without a completed `paymentConfirmation`.
+  - `paymentConfirmation.walletAddress` must be non-empty.
+
+## Domain Events
+- `OrderSent`: Telegram message dispatched.
+- `PaymentAcknowledged`: User completes the safety gate verification.
+- `OrderReceived`: User confirms delivery and updates inventory.
+
+## Invariants
+- `order.idempotencyKey` is unique per order attempt.
+# Reconstitution Domain
+
+The Reconstitution Domain manages vial inventory and the mathematical calculations for concentration and syringe units.
+
+## Ubiquitous Language
+- **Vial**: A container of a compound in powder or liquid form.
+- **Concentration**: The resulting amount of compound per mL of liquid.
+- **Syringe Units**: The measurement on a 100-unit insulin syringe (1 unit = 0.01mL).
+
+## Entities
+
+### Vial (Aggregate Root)
+A single unit of inventory.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `compoundId`: UUID (FK)
+  - `totalMg`: number
+  - `bacWaterMl`: number (optional)
+  - `remainingMg`: number
+  - `status`: enum (Dry, Reconstituted, Empty, Expired)
+  - `reconstitutedAt`: timestamp (optional)
+  - `expiresAt`: timestamp (optional)
+
+## Value Objects
+
+### ReconstitutionResult
+The output of a reconstitution calculation.
+- **Attributes**:
+  - `concentrationMcgPerMl`: number
+  - `syringeUnitsPerDose`: number
+  - `injectionVolMl`: number
+
+## Domain Services
+
+### ReconstitutionCalculator
+Performs safe reconstitution math with warning policy evaluation.
+- **Warning Policy**:
+  - `injectionVolMl > 1.5` -> Trigger "High Volume" warning.
+  - `bacWaterMl < 0.5` -> Trigger "Low BAC Volume" warning.
+  - `dose > Profile.maxDose` -> Trigger "Above Reference Range" warning.
+
+## Domain Events
+- `VialReconstituted`: BAC water is added to a vial.
+- `SafetyWarningTriggered`: A calculation results in a policy violation.
+
+## Invariants
+- `vial.remainingMg >= 0`
+- `vial.totalMg > 0`
+- `bacWaterMl > 0` (once reconstituted)
+# Reference Domain
+
+The Reference Domain manages the static knowledge base of compounds, their physiological profiles, and the vendor product catalog.
+
+## Ubiquitous Language
+- **Compound**: A biological substance (peptide) with defined mechanism and safety data.
+- **Profile**: Detailed research-backed data associated with a compound.
+- **Catalog**: A searchable collection of compounds available to the user.
+
+## Entities
+
+### Compound (Aggregate Root)
+A peptide or biological substance.
+- **Attributes**:
+  - `id`: UUID
+  - `name`: string (e.g., "BPC-157")
+  - `iupacName`: string (optional)
+  - `synonyms`: string[]
+  - `mechanismOfAction`: text
+  - `administrationRoutes`: enum[] (SC, IM, Oral, Nasal)
+  - `status`: enum (Draft, Published, Archived)
+  - `archivedAt`: timestamp (optional)
+
+### Profile (Entity)
+Detailed research data for a Compound.
+- **Attributes**:
+  - `id`: UUID
+  - `compoundId`: UUID (FK)
+  - `dosingLow`: DoseAmount
+  - `dosingTypical`: DoseAmount
+  - `dosingHigh`: DoseAmount
+  - `sideEffects`: text
+  - `contraindications`: text
+  - `stackingNotes`: text (curated)
+  - `citations`: Citation[] (Value Objects)
+
+## Value Objects
+
+### Citation
+A research reference.
+- **Attributes**:
+  - `title`: string
+  - `url`: string (URL)
+  - `doi`: string (optional)
+  - `pmid`: string (optional)
+- **Invariants**:
+  - Must have either a URL, DOI, or PMID.
+
+## Aggregate: Compound Catalog
+- **Consistency Boundary**: A Compound and its Profile must be consistent.
+- **Root**: Compound
+- **Invariants**:
+  - A published Compound must have at least one administration route.
+  - A Compound name must be unique within the catalog.
+
+## Domain Events
+- `CompoundCreated`: Triggered when a new compound is added.
+- `CompoundProfileUpdated`: Triggered when mechanism or dosing data changes.
+- `CompoundArchived`: Triggered when a compound is soft-deleted.
+
+## Invariants
+- `compound.name.length > 0`
+- `count(compound.administrationRoutes) > 0` if `status == Published`
+# Tracker Domain
+
+The Tracker Domain manages user protocols, daily dosing logs, cycles, and subjective outcomes.
+
+## Ubiquitous Language
+- **Protocol**: A scheduled plan for a specific compound (e.g., "BPC-157 250mcg daily").
+- **Dose Log**: A record of a completed or skipped dose event.
+- **Cycle**: A logical grouping of protocols over a defined period.
+- **Outcome Log**: A subjective rating of wellbeing and notes for a given day.
+- **Injection Site**: The physiological location of an administration (e.g., "Left Abdomen").
+
+## Entities
+
+### Protocol (Aggregate Root)
+A scheduled dosing plan.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `compoundId`: UUID (FK)
+  - `cycleId`: UUID (FK, optional)
+  - `dose`: DoseAmount (Value Object)
+  - `schedule`: Schedule (Value Object)
+  - `administrationRoute`: enum (SC, IM, Oral, Nasal)
+  - `startDate`: date
+  - `endDate`: date (optional)
+  - `status`: enum (Active, Paused, Completed, Deactivated)
+  - `notes`: text
+
+### Cycle (Aggregate Root)
+A logical container for one or more protocols.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `name`: string
+  - `startDate`: date
+  - `endDate`: date (optional)
+  - `status`: enum (Active, Completed, Archived)
+
+### Dose Log (Entity)
+A record of a dose event.
+- **Attributes**:
+  - `id`: UUID
+  - `protocolId`: UUID (FK)
+  - `idempotencyKey`: string (UUID, unique per user-scheduledDate-protocolId)
+  - `loggedAt`: timestamp
+  - `scheduledDate`: date
+  - `amount`: DoseAmount (Value Object)
+  - `status`: enum (Logged, Skipped)
+  - `injectionSite`: InjectionSite (Value Object)
+  - `isBatchLog`: boolean
+  - `loggedByUserId`: UUID (FK)
+
+## Value Objects
+
+### DoseAmount
+- **Attributes**:
+  - `value`: number
+  - `unit`: enum (mcg, mg, IU, mL)
+
+### Schedule
+- **Attributes**:
+  - `frequency`: enum (Daily, EOD, MWF, CustomInterval)
+  - `intervalDays`: number (optional)
+
+### InjectionSite
+- **Attributes**:
+  - `location`: string (e.g., "Left Abdomen")
+  - `group`: enum (Abdomen, Thigh, Deltoid, Glute)
+
+## Domain Services
+
+### SiteRotationPolicy
+Calculates the next suggested injection site based on a user's `DoseLog` history for a specific route.
+- **Rule**: Round-robin through available sites in the preferred group.
+
+## Aggregate: Dose Adherence
+- **Consistency Boundary**: Protocol and its Dose Logs.
+- **Root**: Protocol
+- **Invariants**:
+  - Cannot log a future dose.
+  - Cannot edit a dose log past the same calendar day.
+
+## Domain Events
+- `DoseLogged`: A user confirms a dose.
+- `DoseSkipped`: A user explicitly skips a dose.
+- `InjectionSiteSuggested`: The rotation policy produces a new suggestion.
+
+## Invariants
+- `dose.value > 0`
+- `cycle.startDate <= cycle.endDate` (if exists)
+# System Architecture
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**PRD source:** `docs/plan.md`  
+**ADR source:** `docs/adrs/`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Architectural Style: Modular Monolith
+
+We use a modular monolith architecture built on Next.js 15. The system is organized into bounded contexts that can be isolated (ADR-015) or eventually extracted into microservices if needed.
+
+### 1.1 Layered Structure (Per Module)
+- **UI Layer**: React components (RSC or Client) in `app/`.
+- **Application Layer**: Server Actions and Services in `lib/{module}/application/`.
+- **Domain Layer**: Entities and business logic in `lib/{module}/domain/`.
+- **Infrastructure Layer**: Persistence and external integrations in `lib/{module}/infrastructure/`.
+
+---
+
+## 2. Component Design
+
+### 2.1 Component Overview
+
+| Component | Responsibility | Tech Stack |
+|-----------|----------------|------------|
+| **App Shell** | PWA Layout, Navigation, Auth Guards | Next.js, shadcn/ui |
+| **Auth** | Registration, Login, Session Mgmt | Auth.js v5 |
+| **Tracker** | Dose Logging, Protocols, PWA Sync | React, TanStack Query |
+| **Reminders** | Web Push & Email Notification logic | Serwist, Resend |
+| **Reference** | Peptide Catalog, Profile Reference | RSC (Next.js) |
+| **Ordering** | Vendor Catalog, Telegram MTProto | GramJS, Server Actions |
+| **Reconstitution** | Concentration Math, Vial Inventory | lib (Typescript) |
+| **Audit** | Immutable Mutation Logs | Prisma (Postgres) |
+| **Observability** | Error tracking & Alerting | Sentry, Railway |
+
+---
+
+## 3. Data Flows
+
+### 3.1 Flow: Log a Dose (Offline-First)
+1. **User Action**: User taps "Confirm" or "Skip" on dashboard.
+2. **Client Layer**:
+   - Record event in IndexedDB (via Serwist).
+   - If Online: Trigger background sync to `/api/sync`.
+3. **Server Layer**:
+   - **Case: Logged**: Validate `idempotencyKey`, decrement `Vial.remainingMg` (if vial linked), write `DoseLog`, write `AuditLog`.
+   - **Case: Skipped**: Write `DoseLog` (status: Skipped), write `AuditLog`.
+   - **Case: Edited**: Only allowed same calendar day; update `DoseLog`, adjust `Vial`, write `AuditLog`.
+
+### 3.2 Flow: Place Telegram Order (Payment Safety Gate)
+1. **Draft -> Sent**: Power User clicks "Send Order"; GramJS dispatches message.
+2. **Sent -> Confirmed**: User receives Telegram reply, enters quoted total and wallet address in app.
+3. **Confirmed -> PaymentSent**: **Hard Gate**: App displays Wallet + Amount; user verifies on screen and clicks "Mark payment sent".
+4. **PaymentSent -> Received**: User confirms delivery; app prompts to add line items to Vial Inventory.
+5. **Audit**: Every status transition emits a signed `AuditEvent`.
+
+---
+
+## 4. Module Structure (Bounded Context Slices)
+
+```
+/
+├── app/                        # UI Layer (Next.js)
+│   ├── (auth)/                 # Registration, Login, Reset
+│   ├── (dashboard)/            # Main App Layout
+│   │   ├── tracker/            # Tracker UI
+│   │   ├── reference/          # Reference UI
+│   │   └── reconstitution/     # Calculator UI
+│   ├── ordering/               # Isolated Ordering UI (ADR-015)
+│   ├── actions/                # Server Action Entrypoints (grouped by context)
+│   │   ├── auth/
+│   │   ├── tracker/
+│   │   └── ordering/
+│   └── api/                    # Route Handlers
+│       ├── cron/               # Railway Cron Endpoints (Secured)
+│       └── sync/               # PWA Sync Handler
+├── lib/                        # Core Logic (Domain & Application)
+│   ├── {context}/              # auth, tracker, ordering, reference, jobs, audit
+│   │   ├── domain/             # Pure entities, invariants, events
+│   │   ├── application/        # Use cases, service logic
+│   │   └── infrastructure/     # Prisma repos, external API clients
+│   ├── jobs/                   # Background job implementations
+│   └── shared/                 # Common types, utils, cross-domain services
+├── prisma/                     # Global Schema
+└── worker/                     # Serwist Service Worker
+```
+
+---
+
+## 5. State Management Design
+
+- **Server State (TanStack Query)**: MTProto connection, Sync status, Adherence metrics.
+- **Client UI State (React Context)**: Onboarding wizard, Ordering cart.
+- **Client Persistence (IndexedDB)**: Offline dose log queue, optimistic inventory projection.
+
+---
+
+## 6. Scheduled Jobs (Railway Cron)
+
+| Job Name | Frequency | Responsibility |
+|----------|-----------|----------------|
+| **Dose Reminder** | Hourly | Check for users with reminders due; dispatch Push or Email. |
+| **Stale Order Checker** | Daily | Flag orders in "Sent" status > 14 days. |
+| **Audit Purge** | Daily | Delete `AuditEvent` records > 90 days old. |
+| **Vial Expiry Check** | Daily | Notify users of vials nearing 14-day expiry. |
+
+---
+
+## 7. Deployment Topology
+
+- **Runtime**: Node.js 20 on Railway Container (Always-on for MTProto).
+- **Database**: PostgreSQL 16 (Railway Managed).
+- **Email**: Resend (ADR-011).
+- **Storage**: Cloudflare R2 (ADR-014).
+- **Monitoring**: Sentry (ADR-013).
+
+---
+
+## 8. Failure Modes
+
+- **MTProto Logout**: Session invalidated; system falls back to display message + deep-link.
+- **Offline Sync Conflict**: Idempotency key `user:protocol:date` wins.
+- **Audit Write Failure**: Mutation rolled back via DB transaction.
+
+---
+
+## 9. Testing Architecture
+
+We follow a Pyramid strategy:
+- **Unit Tests (Vitest)**: Math calculations in `lib/reconstitution`, domain invariants in `lib/*/domain`.
+- **Integration Tests (Vitest)**: Server Actions, repository transactions, MTProto session encryption.
+- **E2E Tests (Playwright)**:
+  - **Hard Gate**: Payment safety verification screen.
+  - **Critical Path**: Offline dose log queuing and sync replay.
+  - **Auth**: Managed user invitation and permission isolation.
+</stdin>
+codex
+I’ll use the superpowers workflow first as required, then read the source docs directly so the review is anchored to the repo rather than only the pasted excerpt.
+exec
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+---
+name: using-superpowers
+description: Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions
+---
+
+<SUBAGENT-STOP>
+If you were dispatched as a subagent to execute a specific task, skip this skill.
+</SUBAGENT-STOP>
+
+<EXTREMELY-IMPORTANT>
+If you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.
+
+IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.
+
+This is not negotiable. This is not optional. You cannot rationalize your way out of this.
+</EXTREMELY-IMPORTANT>
+
+## Instruction Priority
+
+Superpowers skills override default system prompt behavior, but **user instructions always take precedence**:
+
+1. **User's explicit instructions** (CLAUDE.md, GEMINI.md, AGENTS.md, direct requests) — highest priority
+2. **Superpowers skills** — override default system behavior where they conflict
+3. **Default system prompt** — lowest priority
+
+If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "always use TDD," follow the user's instructions. The user is in control.
+
+## How to Access Skills
+
+**In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you—follow it directly. Never use the Read tool on skill files.
+
+**In Copilot CLI:** Use the `skill` tool. Skills are auto-discovered from installed plugins. The `skill` tool works the same as Claude Code's `Skill` tool.
+
+**In Gemini CLI:** Skills activate via the `activate_skill` tool. Gemini loads skill metadata at session start and activates the full content on demand.
+
+**In other environments:** Check your platform's documentation for how skills are loaded.
+
+## Platform Adaptation
+
+Skills use Claude Code tool names. Non-CC platforms: see `references/copilot-tools.md` (Copilot CLI), `references/codex-tools.md` (Codex) for tool equivalents. Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
+
+# Using Skills
+
+## The Rule
+
+**Invoke relevant or requested skills BEFORE any response or action.** Even a 1% chance a skill might apply means that you should invoke the skill to check. If an invoked skill turns out to be wrong for the situation, you don't need to use it.
+
+```dot
+digraph skill_flow {
+    "User message received" [shape=doublecircle];
+    "About to EnterPlanMode?" [shape=doublecircle];
+    "Already brainstormed?" [shape=diamond];
+    "Invoke brainstorming skill" [shape=box];
+    "Might any skill apply?" [shape=diamond];
+    "Invoke Skill tool" [shape=box];
+    "Announce: 'Using [skill] to [purpose]'" [shape=box];
+    "Has checklist?" [shape=diamond];
+    "Create TodoWrite todo per item" [shape=box];
+    "Follow skill exactly" [shape=box];
+    "Respond (including clarifications)" [shape=doublecircle];
+
+    "About to EnterPlanMode?" -> "Already brainstormed?";
+    "Already brainstormed?" -> "Invoke brainstorming skill" [label="no"];
+    "Already brainstormed?" -> "Might any skill apply?" [label="yes"];
+    "Invoke brainstorming skill" -> "Might any skill apply?";
+
+    "User message received" -> "Might any skill apply?";
+    "Might any skill apply?" -> "Invoke Skill tool" [label="yes, even 1%"];
+    "Might any skill apply?" -> "Respond (including clarifications)" [label="definitely not"];
+    "Invoke Skill tool" -> "Announce: 'Using [skill] to [purpose]'";
+    "Announce: 'Using [skill] to [purpose]'" -> "Has checklist?";
+    "Has checklist?" -> "Create TodoWrite todo per item" [label="yes"];
+    "Has checklist?" -> "Follow skill exactly" [label="no"];
+    "Create TodoWrite todo per item" -> "Follow skill exactly";
+}
+```
+
+## Red Flags
+
+These thoughts mean STOP—you're rationalizing:
+
+| Thought | Reality |
+|---------|---------|
+| "This is just a simple question" | Questions are tasks. Check for skills. |
+| "I need more context first" | Skill check comes BEFORE clarifying questions. |
+| "Let me explore the codebase first" | Skills tell you HOW to explore. Check first. |
+| "I can check git/files quickly" | Files lack conversation context. Check for skills. |
+| "Let me gather information first" | Skills tell you HOW to gather information. |
+| "This doesn't need a formal skill" | If a skill exists, use it. |
+| "I remember this skill" | Skills evolve. Read current version. |
+| "This doesn't count as a task" | Action = task. Check for skills. |
+| "The skill is overkill" | Simple things become complex. Use it. |
+| "I'll just do this one thing first" | Check BEFORE doing anything. |
+| "This feels productive" | Undisciplined action wastes time. Skills prevent this. |
+| "I know what that means" | Knowing the concept ≠ using the skill. Invoke it. |
+
+## Skill Priority
+
+When multiple skills could apply, use this order:
+
+1. **Process skills first** (brainstorming, debugging) - these determine HOW to approach the task
+2. **Implementation skills second** (frontend-design, mcp-builder) - these guide execution
+
+"Let's build X" → brainstorming first, then implementation skills.
+"Fix this bug" → debugging first, then domain-specific skills.
+
+## Skill Types
+
+**Rigid** (TDD, debugging): Follow exactly. Don't adapt away discipline.
+
+**Flexible** (patterns): Adapt principles to context.
+
+The skill itself tells you which.
+
+## User Instructions
+
+Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
+
+codex
+Using `coding-skill` because this is a schema/design review and the output needs to be surgical, evidence-based, and limited to actionable issues.
+exec
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+---
+name: coding-skill
+description: Behavioral guidelines to reduce common LLM coding mistakes. Use when writing, reviewing, or refactoring code to avoid overcomplication, make surgical changes, surface assumptions, define verifiable success criteria, and stay transparent on multi-step work.
+license: MIT
+---
+
+# Karpathy Guidelines
+
+Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+## 5. Communicate Progress
+
+**Narrate what you're doing, not what you did.**
+
+Before executing any plan with more than one edit or command:
+- Announce each step before starting it, not after.
+- Confirm completion in one line.
+- Flag unexpected findings immediately - don't silently adapt and continue.
+
+Keep narration minimal - one line per step.
+
+Bad:  Twelve silent edits, then a final summary.
+Good: "Editing src/auth.ts…" → [edits] → "Done. Moving to src/user.ts."
+
+The test: Could a reader interrupt at the right moment without reading the diff?
+
+## 6. Trace Before Building
+
+**Enumerate system states explicitly before touching code.**
+
+When changes cross a module boundary, or when data flows through three or more components:
+- Draw the state diagram. Every input type, every transition.
+- Write down assumptions about inputs, outputs, edge cases. Name what you don't know.
+- Check the map against the code before implementing.
+
+Redundant tools, unnecessary indirections, and wrong abstractions become visible once states are explicit.
+
+A separate reasoning pass (e.g., a subagent in Claude Code) is a useful vehicle, but the technique is the tracing, not the vehicle.
+
+The test: Can you draw the state diagram from memory before you touch code?
+
+codex
+I’m going to compare the schema against the repo PRD, domain model files, and architecture doc, then return only the requested JSON findings.
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+<!-- scaffold:create-prd v1 2026-05-20 -->
+<!-- scaffold:review-prd v1 2026-05-20 -->
+<!-- scaffold:innovate-prd v1 2026-05-20 -->
+# Product Requirements Document
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**Vision source:** `docs/vision.md` (scaffold:vision v2 + innovate-vision v1)  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Problem Statement
+
+**User group:** Advanced biohackers who self-direct multi-compound protocols (peptides, and in the near term TRT/anabolics) using grey-market vendors operating via Telegram.
+
+**Pain:** Each of the four critical weekly tasks — researching a compound, placing an order, reconstituting a vial, and logging a dose — requires a different tool (browser/Obsidian, Telegram/PDF, a calculator, a spreadsheet). None of these tools know about each other. The user is the integration layer, and errors at any step translate to real harm: wrong reconstitution dose, lost crypto payment, or a missed injection.
+
+**Scope of the problem:** Reddit r/Peptides has 250k+ members; the grey-market peptide vendor ecosystem sustains dozens of active Telegram-based vendors. Ordering errors in this context are non-reversible — crypto payments cannot be recalled if sent to the wrong wallet address or for the wrong amount. Estimated median order value: $100–500 USD per transaction. Manual reconstitution errors (wrong BAC water volume → wrong concentration) translate directly to dosing errors in the next injection.
+
+**Hypothesis:** If we unify the four workflows (reference, ordering, reconstitution math, and dose tracking) into a single web app where each step is aware of the others, the Power User will abandon their existing four-tool workflow within 90 days and place at least 20 successful orders via the app within 12 months.
+
+**Validation method:** Power User daily active use, spreadsheet and Obsidian notes decommissioned (self-reported), order history in app ≥ 20 successful orders in Year 1.
+
+---
+
+## 2. Target Users
+
+### 2.1 Primary Persona — *Power User / Super Admin*
+
+| Dimension | Detail |
+|-----------|--------|
+| **Description** | Self-directed biohacker running 3–7 concurrent peptide protocols; manages sourcing independently. Also manages peptide access for 2–10 family members or close friends. |
+| **Primary need** | One tool that connects research → ordering → reconstitution → daily dosing → outcome logging without the user being the integration layer. |
+| **Current behavior** | Obsidian for research notes, browser tabs for PubMed, Telegram for vendor orders, Coinbase for crypto payments, spreadsheet for dose logging, a calculator tab for reconstitution math, calendar notes for cycle tracking. |
+| **Constraints** | Solo builder (is also the developer). Dose window is 3–5 minutes at 7am. Uncomfortable with "research use only" compliance theater. |
+| **Success looks like** | Opens one app at 7am. Sees today's stack. Logs doses in < 60 seconds. At order time: builds order in app, app sends Telegram message to vendor automatically, user confirms crypto payment, inventory updates. Spreadsheet decommissioned within 90 days. |
+| **Admin role** | Creates and configures managed user accounts. Configures protocols for Delegated Participants. Can view all managed users' adherence dashboards. |
+
+### 2.2 Secondary Persona — *Delegated Participant (managed user, v1)*
+
+| Dimension | Detail |
+|-----------|--------|
+| **Description** | Family member or close friend on 1–2 peptides, guided by the Power User. Does not self-research or order independently. |
+| **Primary need** | See their daily injection schedule, confirm doses, and understand what they're taking — without navigating a complex interface. |
+| **Current behavior** | Texting the Power User for every question. Sometimes guessing the dose. Sometimes skipping out of uncertainty. |
+| **Constraints** | Non-technical. Low tolerance for complexity. Cannot configure their own protocol. First reconstitution done with Power User present. |
+| **Success looks like** | Opens app, sees "today: 250mcg BPC-157, left abdomen." Taps confirm. Closes app. Zero texts to the Power User asking "how much do I take?" |
+| **v1 scope** | Account created and protocol configured *by Power User only*. No self-serve onboarding. No ordering capability. Simplified view: schedule + dose logging + peptide info only. |
+
+### 2.3 Adjacent Audience (v2 horizon, not v1)
+- **TRT / anabolic users** — same Telegram/crypto ordering ecosystem; v1 architecture supports, v2 adds compound profiles
+- **Compounding pharmacy patients** — bridge-sourcing architecture ready; UX deferred to v2
+
+### 2.4 Non-Users (explicitly out of scope for v1)
+- Clinicians and prescribers
+- Mass-market wellness consumers / GLP-1-curious newcomers
+- Anonymous SEO visitors
+- Anyone seeking AI-personalized dose recommendations
+
+---
+
+## 3. Feature Scope Summary
+
+### 3.1 In Scope (v1)
+
+| Pillar | Features |
+|--------|----------|
+| **Reference** | Peptide profile pages (mechanism, dosing, citations, side effects, stacking notes); browse/search catalog; ~20–30 compounds seeded from QSC vendor catalog |
+| **Tracker** | Protocol creation + management + clone/restart + pause/resume; daily dose logging with batch "Log All Scheduled"; injection site rotation; cycle management; subjective outcome logging; vial inventory with expiry warnings; stack overview dashboard; dose reminders; outcome-dose correlation timeline |
+| **Reconstitution** | BAC water + concentration calculator; syringe unit calculator; integration with dose history and vial inventory |
+| **Ordering** | Vendor catalog (QSC-first); inventory-aware order builder (suggests compounds running low); automated Telegram message dispatch via MTProto; payment capture checklist; order history; inventory update on delivery |
+| **Multi-user** | Super admin panel; managed user account creation; protocol assignment to managed users; adherence visibility; simplified managed-user view |
+| **Auth** | Email/password accounts; secure sessions; password reset; account deletion with data export; first-run setup wizard; PWA / home screen install |
+
+### 3.2 Out of Scope (will NOT be built in v1)
+- AI-generated dose recommendations or stack optimization
+- Community features (forums, shared stacks, outcome comparisons, leaderboards)
+- Public reference site / SEO landing pages
+- App Store distribution (iOS, Android native apps)
+- Automated Telegram response parsing (v2)
+- Automated crypto payment execution (manual payment only)
+- Wearable integration (Oura, Whoop)
+- Lab data / bloodwork import and protocol correlation
+- TRT/anabolic compound profiles (architecture supports; profiles deferred)
+- Compounding pharmacy order flow (architecture allows; UX deferred)
+- Self-serve managed-user onboarding (Delegated Participants created by Power User only)
+- Multi-vendor ordering (QSC only; additional vendors = v2)
+- Paid license / billing system (legal review required first; family/friends use for free)
+
+### 3.3 Deferred (v2+)
+
+| Feature | Why deferred |
+|---------|-------------|
+| AI Telegram response parser | Requires persistent Telegram read + AI parsing; v1 handles vendor reply manually. **v2 stub:** reads vendor's reply message from Telegram chat history, extracts confirmed total + wallet address + line items, pre-fills the payment confirmation screen. Requires: message-read MTProto scope, AI extraction layer (LLM or regex), idempotent order-update endpoint. |
+| Automated PubMed watch | Background AI job + notification system; not needed for personal-tool phase. **v2 stub:** user subscribes to compounds; background job queries PubMed API weekly for new papers mentioning subscribed compounds; sends email digest with titles, abstracts, and DOI links. Requires: PubMed API integration, background job runner, email digest template, notification preferences UI. |
+| Lab data import + protocol correlation | High technical complexity; validates after core tracking is proven |
+| TRT/anabolic compound profiles | Same toolchain; v2 adds compound-type profiles and protocol templates |
+| Multi-vendor ordering | Single vendor first to validate the ordering flow |
+| Community features | Anti-vision for v1; opt-in Year 2 only if personal-tool adoption succeeds |
+| Compounding pharmacy sourcing | Bridge-sourcing architecture ready; UX deferred |
+| Public reference + SEO | Year 2 if personal-tool phase validates value |
+| Paid license / billing | Before paid launch: legal review required (see §7.5) |
+
+---
+
+## 4. MoSCoW Prioritization
+
+### Must Have — v1 launch is blocked without these
+- Dose logging: confirmed date/time/amount/compound; Power User and Delegated Participant both log
+- **Batch "Log All Scheduled"**: one-tap action to confirm all of today's doses at protocol amounts
+- Protocol management: create/edit/deactivate/pause/resume a protocol with compound, dose, and schedule
+- **Protocol clone / restart**: duplicate a protocol or restart a completed cycle with a new start date
+- Reconstitution calculator: BAC water volume, syringe units, pre-filled from active protocol
+- **Vial expiry + low-inventory warning**: dashboard alerts when vials are expiring or running low
+- Compound reference pages: all QSC catalog peptides (~20–30) with dosing ranges, citations, and stacking notes
+- Automated Telegram ordering: order builder + MTProto bot-dispatched Telegram message to vendor + manual fallback
+- **Inventory-aware order builder**: suggests compounds running low when building an order
+- Order history + inventory capture: order logged, inventory updated post-delivery
+- Multi-user admin panel: Power User can create/configure managed user accounts
+- Auth: email/password accounts, sessions, password reset
+- **PWA / home screen install**: web app installable to phone home screen; service worker for offline dose-log queuing
+- **First-run setup wizard**: 3-step onboarding on first login (browse compound → create protocol → optional Telegram setup)
+
+### Should Have — missing degrades experience but doesn't block launch
+- Injection site rotation tracking with site suggestion
+- Cycle management (start/end dates, current week display, scheduled breaks)
+- **Protocol pause / resume**: pause individual protocols without deleting them
+- Subjective outcome logging (daily rating + free-text note)
+- Vial inventory tracking (per-vial reconstitution record, doses-remaining estimate)
+- Stack overview dashboard (all active protocols, today's status)
+- Coinbase payment checklist (payment amount + address capture, guided payment steps)
+- Peptide search/browse (by name and category)
+- **Dose reminders**: browser push or email notification at user-configured dose time
+- **Outcome-dose correlation timeline**: per-compound chart of dose events vs. outcome ratings
+- **CSV export**: dose logs and orders as CSV alongside JSON full export
+- **Stacking notes on compound profiles**: admin-curated "commonly stacked with" field
+
+### Could Have — include if time permits
+- Protocol history (full audit log of every dose)
+- Vendor price catalog import from PDF
+- Admin panel and Power User workflow mobile polish (dose-logging mobile UX = Must Have per §8.6; this entry covers remaining layout optimization)
+- Dark mode
+
+### Won't Have — this release
+All items in the Out of Scope list (§3.2).
+
+> **Phase vs. MoSCoW alignment:** MoSCoW defines what must be complete before "v1 done" is declared. Phases (§10) define build order — Must Have features are delivered across Phase 1 and Phase 2 in sequence, not all on day one. If a Must Have feature appears in Phase 2, it is scheduled for Phase 2 delivery but still blocks v1 completion. "Mobile-optimized layout" in Could Have refers to admin panel and Power User workflow refinement; mobile dose-logging UX is first-class per §8.6 and is a Must Have acceptance criterion, not optional polish.
+
+---
+
+## 5. Feature Specifications
+
+### 5.1 Pillar 1 — Reference
+
+**What it does:**
+Provides honest, citation-backed compound profiles for each peptide in the catalog — written for a user planning to inject this compound, not a researcher. No "research use only" boilerplate.
+
+**Compound profile fields:**
+- Common name + IUPAC name
+- Mechanism of action (evidence-based, plain language + optional technical depth toggle)
+- Researched benefits (each benefit links to primary PubMed citation where available)
+- Dosing ranges: low / typical / high dose; protocol context (healing vs. performance vs. cosmetic)
+- Administration route(s): subcutaneous, intramuscular, intranasal, oral
+- Reconstitution guidance: recommended BAC water dilution, shelf life reconstituted
+- Half-life and timing notes (e.g., "best taken fasted," "AM vs. PM relevance")
+- Known side effects and contraindications (labeled as anecdotal when evidence is weak)
+- Research citations (PubMed links; DOI where available)
+- Sourcing note: "Available from [vendor] as [form/size]" — honest, no compliance theater
+- Stacking notes: admin-curated 1-2 sentence "Commonly stacked with" field (e.g., "BPC-157 is often stacked with TB-500 for synergistic soft tissue repair"). Optional; shown when present. No AI generation — curated by Power User.
+
+**Out of scope for this feature:**
+- Community-contributed profile edits
+- AI-generated profiles without human review (AI may draft; Power User must review and approve)
+- Drug interaction checker (v2 after Peptify-style pharmacokinetic modeling is evaluated)
+- Dose recommendation ("take X mcg" framing — avoided per anti-vision; ranges only)
+
+**v1 catalog scope:**
+~20–30 compounds seeded from QSC vendor PDF. Every compound the user might order from QSC should have a profile before v1 ships.
+
+**Search & browse:**
+- Text search by common name (e.g., "BPC", "TB-500", "sema")
+- Browse by category: healing/recovery, GH secretagogues, GLP-1/metabolic, nootropics/cognitive, cosmetic/skin, other
+- Sort: alphabetical, most common (manually curated rank), recently viewed
+
+**Error scenarios:**
+- Compound is in QSC catalog but profile is not yet complete → show "Profile in progress" placeholder with compound name and basic sourcing info; not a 404
+- Search returns 0 results → "Not yet in catalog — check back or submit a request" (v2: request form)
+- Compound is deleted from the vendor catalog but is referenced by an existing protocol or dose log → compound record is soft-deleted (never hard-deleted); UI shows the compound name as "[Name] (archived)" with no active profile link; FK integrity preserved across all historical records
+
+---
+
+### 5.2 Pillar 2 — Protocol Tracker
+
+**What it does:**
+Manages multi-compound stacks for the Power User and their managed users. Replaces a spreadsheet-and-memory system with a structured schedule supporting daily logging, injection site tracking, cycle management, and subjective outcome recording.
+
+#### 5.2.1 Protocol Definition
+
+**Protocol fields:**
+- Compound (linked to reference catalog; required)
+- Dose amount (numeric; unit: mcg / mg / IU / mL)
+- Dose frequency: daily / every other day (EOD) / specific days of week / custom interval (days)
+- Administration route (defaults from compound profile; overridable)
+- Start date (required)
+- Optional end date
+- Cycle association (optional link to a cycle record)
+- Free-text notes field
+
+**Protocol status lifecycle:** active | paused | completed | deactivated
+- **Pause / Resume:** "Pause" sets status to paused; paused protocols are excluded from "today's doses" but visible in protocol list with status indicator. "Resume" restores active status. Dose history is unaffected by pause/resume.
+- **Clone:** "Clone this protocol" creates a copy with all fields copied (compound, dose, frequency, route, notes). User sets a new start date. The clone starts in draft state and is not active until the start date is confirmed.
+- **Restart cycle:** "Restart cycle" reopens a completed cycle with a new start date, re-linking all its associated protocols as new clones. The original completed cycle is preserved in history.
+
+**Out of scope:** AI-suggested protocols, community protocol templates
+
+**Error scenarios:**
+- Protocol saved with no compound → blocked: "Compound required"
+- Protocol dose of 0 → blocked: "Dose amount must be greater than zero"
+- Protocol start date in the past → allowed; no back-fill of historical dose logs
+- Clone of a paused or deactivated protocol → allowed; clone starts as active (with user-set start date)
+
+#### 5.2.2 Daily Dose Logging
+
+**Logging flow (individual):**
+1. Dashboard shows "Today's doses" — list of all active protocol doses due today for the logged-in user
+2. User taps a dose entry → sees dose details (compound, scheduled amount, suggested injection site)
+3. User confirms dose or edits the actual amount taken if it differed from scheduled
+4. Optional: add a note (free text, max 500 chars)
+5. Log entry saved with timestamp; dashboard updates to mark dose as logged
+
+**Batch logging flow ("Log All Scheduled" — Must Have):**
+1. "Log All Scheduled" button appears at top of today's doses when ≥ 1 dose is pending
+2. User taps → review screen shows all pending doses pre-filled at protocol amounts with suggested injection sites
+3. Any dose with a vial expiry warning is flagged in the review list (not blocked)
+4. User taps "Confirm all" → all doses logged simultaneously with current timestamp
+5. User can remove individual doses from the batch before confirming (e.g., skip one compound)
+6. Success: dashboard clears all logged doses; total time target ≤ 3 taps
+
+**Log record fields:**
+- Protocol reference (FK)
+- Actual dose taken (may differ from scheduled amount)
+- Timestamp (auto-captured; editable within same calendar day only)
+- Injection site used
+- Note (optional)
+- Logged by (user ID — relevant for admin visibility)
+
+**Error scenarios:**
+- User attempts to log a dose when vial inventory shows 0 remaining → warning ("No active vial recorded for this compound — log anyway?"); does not block, but flags prominently
+- Duplicate log for same protocol + same day → "You already logged this today. Log again?" — requires confirmation
+- Missed dose (calendar day passes with no log) → no automatic fill or penalty; appears as "Not logged" in history; retroactive logging not supported after the calendar day ends (audit integrity)
+- Dose skip (user intentionally skips) → user can tap "Skip" on a dose entry; recorded as a skip event; counts as 0 in adherence metrics; distinguishable from "Not logged" in history
+- Late dose (logged same calendar day but past typical window) → accepted; no time-window enforcement; timestamp is as logged
+- Timezone / DST shift → all timestamps stored in UTC; dashboard "today's doses" resolves based on user's browser local date
+
+#### 5.2.3 Injection Site Rotation
+
+**Rotation system:**
+- Selectable sites: left abdomen, right abdomen, left thigh, right thigh, left deltoid, right deltoid, ventrogluteal L, ventrogluteal R
+- Per-compound site history (peptides with route requirements respect the correct site group)
+
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# System Architecture
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**PRD source:** `docs/plan.md`  
+**ADR source:** `docs/adrs/`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Architectural Style: Modular Monolith
+
+We use a modular monolith architecture built on Next.js 15. The system is organized into bounded contexts that can be isolated (ADR-015) or eventually extracted into microservices if needed.
+
+### 1.1 Layered Structure (Per Module)
+- **UI Layer**: React components (RSC or Client) in `app/`.
+- **Application Layer**: Server Actions and Services in `lib/{module}/application/`.
+- **Domain Layer**: Entities and business logic in `lib/{module}/domain/`.
+- **Infrastructure Layer**: Persistence and external integrations in `lib/{module}/infrastructure/`.
+
+---
+
+## 2. Component Design
+
+### 2.1 Component Overview
+
+| Component | Responsibility | Tech Stack |
+|-----------|----------------|------------|
+| **App Shell** | PWA Layout, Navigation, Auth Guards | Next.js, shadcn/ui |
+| **Auth** | Registration, Login, Session Mgmt | Auth.js v5 |
+| **Tracker** | Dose Logging, Protocols, PWA Sync | React, TanStack Query |
+| **Reminders** | Web Push & Email Notification logic | Serwist, Resend |
+| **Reference** | Peptide Catalog, Profile Reference | RSC (Next.js) |
+| **Ordering** | Vendor Catalog, Telegram MTProto | GramJS, Server Actions |
+| **Reconstitution** | Concentration Math, Vial Inventory | lib (Typescript) |
+| **Audit** | Immutable Mutation Logs | Prisma (Postgres) |
+| **Observability** | Error tracking & Alerting | Sentry, Railway |
+
+---
+
+## 3. Data Flows
+
+### 3.1 Flow: Log a Dose (Offline-First)
+1. **User Action**: User taps "Confirm" or "Skip" on dashboard.
+2. **Client Layer**:
+   - Record event in IndexedDB (via Serwist).
+   - If Online: Trigger background sync to `/api/sync`.
+3. **Server Layer**:
+   - **Case: Logged**: Validate `idempotencyKey`, decrement `Vial.remainingMg` (if vial linked), write `DoseLog`, write `AuditLog`.
+   - **Case: Skipped**: Write `DoseLog` (status: Skipped), write `AuditLog`.
+   - **Case: Edited**: Only allowed same calendar day; update `DoseLog`, adjust `Vial`, write `AuditLog`.
+
+### 3.2 Flow: Place Telegram Order (Payment Safety Gate)
+1. **Draft -> Sent**: Power User clicks "Send Order"; GramJS dispatches message.
+2. **Sent -> Confirmed**: User receives Telegram reply, enters quoted total and wallet address in app.
+3. **Confirmed -> PaymentSent**: **Hard Gate**: App displays Wallet + Amount; user verifies on screen and clicks "Mark payment sent".
+4. **PaymentSent -> Received**: User confirms delivery; app prompts to add line items to Vial Inventory.
+5. **Audit**: Every status transition emits a signed `AuditEvent`.
+
+---
+
+## 4. Module Structure (Bounded Context Slices)
+
+```
+/
+├── app/                        # UI Layer (Next.js)
+│   ├── (auth)/                 # Registration, Login, Reset
+│   ├── (dashboard)/            # Main App Layout
+│   │   ├── tracker/            # Tracker UI
+│   │   ├── reference/          # Reference UI
+│   │   └── reconstitution/     # Calculator UI
+│   ├── ordering/               # Isolated Ordering UI (ADR-015)
+│   ├── actions/                # Server Action Entrypoints (grouped by context)
+│   │   ├── auth/
+│   │   ├── tracker/
+│   │   └── ordering/
+│   └── api/                    # Route Handlers
+│       ├── cron/               # Railway Cron Endpoints (Secured)
+│       └── sync/               # PWA Sync Handler
+├── lib/                        # Core Logic (Domain & Application)
+│   ├── {context}/              # auth, tracker, ordering, reference, jobs, audit
+│   │   ├── domain/             # Pure entities, invariants, events
+│   │   ├── application/        # Use cases, service logic
+│   │   └── infrastructure/     # Prisma repos, external API clients
+│   ├── jobs/                   # Background job implementations
+│   └── shared/                 # Common types, utils, cross-domain services
+├── prisma/                     # Global Schema
+└── worker/                     # Serwist Service Worker
+```
+
+---
+
+## 5. State Management Design
+
+- **Server State (TanStack Query)**: MTProto connection, Sync status, Adherence metrics.
+- **Client UI State (React Context)**: Onboarding wizard, Ordering cart.
+- **Client Persistence (IndexedDB)**: Offline dose log queue, optimistic inventory projection.
+
+---
+
+## 6. Scheduled Jobs (Railway Cron)
+
+| Job Name | Frequency | Responsibility |
+|----------|-----------|----------------|
+| **Dose Reminder** | Hourly | Check for users with reminders due; dispatch Push or Email. |
+| **Stale Order Checker** | Daily | Flag orders in "Sent" status > 14 days. |
+| **Audit Purge** | Daily | Delete `AuditEvent` records > 90 days old. |
+| **Vial Expiry Check** | Daily | Notify users of vials nearing 14-day expiry. |
+
+---
+
+## 7. Deployment Topology
+
+- **Runtime**: Node.js 20 on Railway Container (Always-on for MTProto).
+- **Database**: PostgreSQL 16 (Railway Managed).
+- **Email**: Resend (ADR-011).
+- **Storage**: Cloudflare R2 (ADR-014).
+- **Monitoring**: Sentry (ADR-013).
+
+---
+
+## 8. Failure Modes
+
+- **MTProto Logout**: Session invalidated; system falls back to display message + deep-link.
+- **Offline Sync Conflict**: Idempotency key `user:protocol:date` wins.
+- **Audit Write Failure**: Mutation rolled back via DB transaction.
+
+---
+
+## 9. Testing Architecture
+
+We follow a Pyramid strategy:
+- **Unit Tests (Vitest)**: Math calculations in `lib/reconstitution`, domain invariants in `lib/*/domain`.
+- **Integration Tests (Vitest)**: Server Actions, repository transactions, MTProto session encryption.
+- **E2E Tests (Playwright)**:
+  - **Hard Gate**: Payment safety verification screen.
+  - **Critical Path**: Offline dose log queuing and sync replay.
+  - **Auth**: Managed user invitation and permission isolation.
+
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/database-schema.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# Database Schema Design
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**Tech Stack source:** `docs/tech-stack.md`  
+**Domain Model source:** `docs/domain-models/`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Schema Definition (Prisma DSL)
+
+We use Prisma as our ORM. The following models define the PostgreSQL 16 schema.
+
+```prisma
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --- Auth Domain ---
+
+enum UserRole {
+  POWER_USER
+  MANAGED_USER
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  role          UserRole  @default(POWER_USER)
+  managedBy     String?   // FK to Power User
+  status        String    @default("ACTIVE")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  protocols     Protocol[]
+  cycles        Cycle[]
+  doseLogs      DoseLog[]
+  outcomeLogs   OutcomeLog[]
+  vials         Vial[]
+  orders        Order[]
+  invitesSent   Invite[]   @relation("InvitesSent")
+  telegramSession TelegramSession?
+}
+
+model Invite {
+  id            String    @id @default(uuid())
+  email         String
+  token         String    @unique
+  powerUserId   String
+  powerUser     User      @relation("InvitesSent", fields: [powerUserId], references: [id])
+  status        String    @default("PENDING")
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+}
+
+// --- Reference Domain ---
+
+model Compound {
+  id                  String    @id @default(uuid())
+  name                String    @unique
+  iupacName           String?
+  mechanismOfAction   String?
+  administrationRoutes String[] // PostgreSQL text array
+  status              String    @default("PUBLISHED")
+  
+  profile             CompoundProfile?
+  products            VendorProduct[]
+  protocols           Protocol[]
+  vials               Vial[]
+}
+
+model CompoundProfile {
+  id              String    @id @default(uuid())
+  compoundId      String    @unique
+  compound        Compound  @relation(fields: [compoundId], references: [id])
+  dosingLow       Json      // DoseAmount object
+  dosingTypical   Json      // DoseAmount object
+  dosingHigh      Json      // DoseAmount object
+  sideEffects     String?
+  stackingNotes   String?
+  citations       Citation[]
+}
+
+model Citation {
+  id                String    @id @default(uuid())
+  profileId         String
+  profile           CompoundProfile @relation(fields: [profileId], references: [id])
+  title             String
+  url               String
+  doi               String?
+  pmid              String?
+}
+
+// --- Tracker Domain ---
+
+model Protocol {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id])
+  compoundId          String
+  compound            Compound  @relation(fields: [compoundId], references: [id])
+  cycleId             String?
+  cycle               Cycle?    @relation(fields: [cycleId], references: [id])
+  dose                Json      // DoseAmount object
+  schedule            Json      // Schedule object
+  administrationRoute String
+  status              String    @default("ACTIVE")
+  startDate           DateTime
+  endDate             DateTime?
+  
+  doseLogs            DoseLog[]
+}
+
+model Cycle {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  name        String
+  startDate   DateTime
+  endDate     DateTime?
+  status      String    @default("ACTIVE")
+  
+  protocols   Protocol[]
+}
+
+model DoseLog {
+  id              String    @id @default(uuid())
+  protocolId      String
+  protocol        Protocol  @relation(fields: [protocolId], references: [id])
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  vialId          String?
+  vial            Vial?     @relation(fields: [vialId], references: [id])
+  idempotencyKey  String    @unique // user:protocol:date
+  loggedAt        DateTime  @default(now())
+  scheduledDate   DateTime
+  amount          Json      // DoseAmount object
+  status          String    @default("LOGGED")
+  injectionSite   Json?     // InjectionSite object
+}
+
+// --- Reconstitution Domain ---
+
+model Vial {
+  id                    String    @id @default(uuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id])
+  compoundId            String
+  compound              Compound  @relation(fields: [compoundId], references: [id])
+  totalMg               Float
+  bacWaterMl            Float?
+  remainingMg           Float
+  status                String    @default("DRY")
+  reconstitutedAt       DateTime?
+  expiresAt             DateTime?
+  
+  doseLogs              DoseLog[]
+}
+
+// --- Ordering Domain ---
+
+model Vendor {
+  id                String    @id @default(uuid())
+  name              String
+  telegramUsername  String
+  status            String    @default("ACTIVE")
+  
+  products          VendorProduct[]
+  orders            Order[]
+}
+
+model VendorProduct {
+  id          String    @id @default(uuid())
+  vendorId    String
+  vendor      Vendor    @relation(fields: [vendorId], references: [id])
+  compoundId  String
+  compound    Compound  @relation(fields: [compoundId], references: [id])
+  name        String
+  priceUsd    Float
+  inStock     Boolean   @default(true)
+  
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id])
+  vendorId            String
+  vendor              Vendor    @relation(fields: [vendorId], references: [id])
+  status              String    @default("DRAFT")
+  paymentConfirmation Json?     // PaymentConfirmation object
+  telegramMessageId   String?
+  idempotencyKey      String    @unique
+  createdAt           DateTime  @default(now())
+  
+  items               OrderItem[]
+}
+
+model OrderItem {
+  id          String    @id @default(uuid())
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id])
+  productId   String
+  product     VendorProduct @relation(fields: [productId], references: [id])
+  quantity    Int
+}
+
+model TelegramSession {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+  sessionString String    // Encrypted AES-256
+  isActive      Boolean   @default(true)
+  updatedAt     DateTime  @updatedAt
+}
+
+// --- Audit Domain ---
+
+model AuditEvent {
+  id            String    @id @default(uuid())
+  timestamp     DateTime  @default(now())
+  actorUserId   String
+  category      String
+  action        String
+  resourceId    String
+  resourceType  String
+  metadata      Json
+  
+  @@index([timestamp])
+  @@index([actorUserId])
+}
+```
+
+---
+
+## 2. Normalization Analysis
+
+- **3NF Compliance**: All tables are in 3NF.
+- **JSON Usage**: `DoseAmount`, `Schedule`, and `PaymentConfirmation` are stored as JSON to allow flexibility in v1 without high schema churn. Core relational integrity (FKs) is maintained for all entity linkages.
+- **PostgreSQL Arrays**: Used for `administrationRoutes` on `Compound` for simple multi-select storage without a junction table.
+
+---
+
+## 3. Indexing Strategy
+
+| Table | Index | Purpose |
+|-------|-------|---------|
+| `User` | `email` (Unique) | Auth lookup. |
+| `Invite` | `token` (Unique) | Link resolution. |
+
+exec
+/bin/zsh -lc 'rg --files docs/domain-models docs/adrs' in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+docs/adrs/ADR-008-testing-strategy.md
+docs/adrs/ADR-013-observability.md
+docs/adrs/ADR-004-authjs.md
+docs/adrs/ADR-001-nextjs-monolith.md
+docs/adrs/ADR-015-module-isolation.md
+docs/adrs/ADR-010-ai-strategy.md
+docs/adrs/ADR-005-gramjs.md
+docs/adrs/index.md
+docs/adrs/ADR-006-railway-hosting.md
+docs/adrs/ADR-012-scheduled-jobs.md
+docs/adrs/ADR-003-tailwind-shadcn.md
+docs/adrs/ADR-007-pwa-offline.md
+docs/adrs/ADR-002-postgresql-prisma.md
+docs/adrs/ADR-009-audit-logging.md
+docs/adrs/ADR-011-transactional-email.md
+docs/adrs/ADR-014-object-storage.md
+docs/domain-models/auth.md
+docs/domain-models/index.md
+docs/domain-models/audit.md
+docs/domain-models/reconstitution.md
+docs/domain-models/ordering.md
+docs/domain-models/reference.md
+docs/domain-models/tracker.md
+
+codex
+The first pass already shows the schema omits several PRD/domain objects, but I’m reading the remaining PRD feature detail and ADR constraints before ranking severity.
+exec
+/bin/zsh -lc "sed -n '180,320p' docs/database-schema.md" in /Users/kenallred/Documents/dev-projects/peptides
+exec
+/bin/zsh -lc "sed -n '261,620p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+}
+
+model VendorProduct {
+  id          String    @id @default(uuid())
+  vendorId    String
+  vendor      Vendor    @relation(fields: [vendorId], references: [id])
+  compoundId  String
+  compound    Compound  @relation(fields: [compoundId], references: [id])
+  name        String
+  priceUsd    Float
+  inStock     Boolean   @default(true)
+  
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id])
+  vendorId            String
+  vendor              Vendor    @relation(fields: [vendorId], references: [id])
+  status              String    @default("DRAFT")
+  paymentConfirmation Json?     // PaymentConfirmation object
+  telegramMessageId   String?
+  idempotencyKey      String    @unique
+  createdAt           DateTime  @default(now())
+  
+  items               OrderItem[]
+}
+
+model OrderItem {
+  id          String    @id @default(uuid())
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id])
+  productId   String
+  product     VendorProduct @relation(fields: [productId], references: [id])
+  quantity    Int
+}
+
+model TelegramSession {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+  sessionString String    // Encrypted AES-256
+  isActive      Boolean   @default(true)
+  updatedAt     DateTime  @updatedAt
+}
+
+// --- Audit Domain ---
+
+model AuditEvent {
+  id            String    @id @default(uuid())
+  timestamp     DateTime  @default(now())
+  actorUserId   String
+  category      String
+  action        String
+  resourceId    String
+  resourceType  String
+  metadata      Json
+  
+  @@index([timestamp])
+  @@index([actorUserId])
+}
+```
+
+---
+
+## 2. Normalization Analysis
+
+- **3NF Compliance**: All tables are in 3NF.
+- **JSON Usage**: `DoseAmount`, `Schedule`, and `PaymentConfirmation` are stored as JSON to allow flexibility in v1 without high schema churn. Core relational integrity (FKs) is maintained for all entity linkages.
+- **PostgreSQL Arrays**: Used for `administrationRoutes` on `Compound` for simple multi-select storage without a junction table.
+
+---
+
+## 3. Indexing Strategy
+
+| Table | Index | Purpose |
+|-------|-------|---------|
+| `User` | `email` (Unique) | Auth lookup. |
+| `Invite` | `token` (Unique) | Link resolution. |
+| `DoseLog` | `userId`, `scheduledDate` | Dashboard schedule rendering. |
+| `DoseLog` | `idempotencyKey` (Unique) | PWA sync conflict prevention. |
+| `Protocol` | `userId`, `status` | Active protocol list. |
+| `Order` | `userId`, `status` | Order history filters. |
+| `AuditEvent` | `timestamp`, `actorUserId` | Admin auditing and log purge. |
+
+---
+
+## 4. Migration Strategy
+
+We use **Prisma Migrate** for all schema changes.
+
+1. **Development**: `pnpm prisma migrate dev`
+   - Creates SQL migration file.
+   - Updates generated client.
+2. **Production**: `pnpm prisma migrate deploy`
+   - Runs automatically on Railway start command.
+   - Fails safe if migrations are missing.
+3. **Rollback**: Manual SQL rollback if needed; however, Prisma's forward-only approach is preferred. Breaking changes require a forward migration that handles data migration.
+
+---
+
+## 5. Seed Data Strategy
+
+`prisma/seed.ts` will provide:
+- Standard `Compound` definitions from the QSC catalog.
+- One default `Vendor` (QSC).
+- System-wide `VendorProduct` entries for the initial catalog.
+
+---
+
+## 6. Multi-Environment Considerations
+
+- **Railway Managed Postgres**: Handles backups, encryption at rest, and point-in-time recovery.
+- **Local Dev**: Docker-compose Postgres instance to match production version (PG 16).
+
+ succeeded in 0ms:
+- On each dose log entry, app suggests the next site in rotation based on history (round-robin)
+- User can override the suggestion before confirming
+- Visual history: last 7 injections per compound, shown as site name list
+
+**Out of scope:** Body-map visualization (could have, not must have); AI-optimized rotation; custom site definitions
+
+**Error scenarios:**
+- No prior injection history for this compound → no suggestion shown; first site is user's choice with all options available
+
+#### 5.2.4 Cycle Management
+
+**Cycle fields:**
+- Cycle name (e.g., "BPC-157 healing cycle Q1 2026")
+- Start date and optional end date (or "ongoing")
+- Associated protocols (multiple protocols can be linked to one cycle)
+- Scheduled breaks (optional: define off weeks by date range)
+- Status: active / paused / completed
+
+**Dashboard shows:**
+- Current cycle week for each active cycle (e.g., "Week 3 of BPC-157 healing cycle")
+- Break indicator when in a scheduled break period
+
+**Out of scope:** Automated reminders on break/restart, AI-suggested cycle lengths
+
+**Error scenarios:**
+- Cycle with overlapping date ranges on the same compound → warning shown, not blocked
+
+#### 5.2.5 Subjective Outcome Logging
+
+**Daily log entry:**
+- Overall wellbeing rating (1–5)
+- Optional per-protocol rating (1–5 per active compound)
+- Free-text note (max 1,000 chars)
+- Optional tag multi-select: energy, sleep, mood, pain, recovery, libido, cognition (extensible list)
+
+**Display:**
+- Timeline view: last 14 days of ratings + notes
+- No analytics charts required in Must Have; simple sparkline for Could Have
+
+**Out of scope:** Quantitative biomarker logging (deferred to lab import feature, v2), machine learning on outcome data, AI pattern recognition
+
+#### 5.2.6 Stack Overview Dashboard
+
+**Dashboard surfaces:**
+- All active protocols for current user: compound name, today's dose status (logged / pending), scheduled dose amount
+- Current cycle week for each linked cycle
+- Vial inventory indicator per compound (doses remaining — estimate based on logged doses vs. vial size)
+  - "Expiring in N days" badge when a vial is within 7 days of estimated expiry
+  - "Running low" badge when estimated doses remaining < 5
+  - "EXPIRED" badge with days-since-reconstitution when vial is past expiry date
+- Last 7-day subjective rating average
+- "Log All Scheduled" batch action at top of today's doses list
+- Quick-log action on each dose entry (one tap to confirm scheduled dose)
+
+#### 5.2.7 Dose Reminders (Should Have)
+
+**What it does:**
+Notifies the user (or managed user) at a configured time to open the app and log their doses. Addresses the retention risk that users forget to open the app, which makes adherence tracking worthless.
+
+**Reminder configuration:**
+- User sets a single daily reminder time per account (e.g., 7:00am)
+- Reminder is global (covers all active protocols); per-protocol reminder time = out of scope for v1
+- Managed users configure their own reminder time (or Power User can set it during protocol setup)
+
+**Delivery channels (in priority order):**
+1. **Browser push notification** — available if the user has installed the PWA and granted notification permission; delivered via Web Push API at the configured time
+2. **Email reminder** — fallback if push is not available or not granted; uses the existing transactional email provider (§7.1); email subject: "Your [N] doses are due today" with a deep-link back to the app
+
+**Out of scope:** SMS reminders, per-dose reminders at different times, reminder snooze, reminder history
+
+**Error scenarios:**
+- Push permission denied → app shows banner "Enable notifications for dose reminders" with link to browser settings; falls back to email
+- Email delivery failure → logged; no retry loop; silent (not a user-facing error)
+
+---
+
+#### 5.2.8 Outcome-Dose Correlation Timeline (Should Have)
+
+**What it does:**
+Shows dose events and subjective outcome ratings together on a single timeline per compound (or cycle). The data-motivated reason to use the tracker beyond logistics — lets the user see patterns between dosing and how they feel.
+
+**View spec:**
+- Accessible from: compound profile page ("My data" tab) and cycle detail view
+- Date range: 30 days (default) or 90 days (toggle)
+- Chart layout (dual-axis):
+  - x-axis: date
+  - y1 (bars or dots): dose logged on that day (yes/no, or actual dose vs. protocol dose)
+  - y2 (line): daily overall outcome rating (1–5; missing = no rating that day)
+- Summary stats below chart: "Average outcome rating on days dosed: X.X | On days not dosed: X.X" (descriptive stats only; no AI or ML)
+- No data state: "Log at least 7 doses and 7 outcome ratings to see your correlation timeline"
+
+**Out of scope:** Multi-compound overlay chart, regression analysis, AI-generated insights, predictive modeling
+
+---
+
+### 5.3 Pillar 3 — Reconstitution Calculator
+
+**What it does:**
+Calculates BAC water volume, resulting concentration, and syringe unit marks for a given dose. Connected to vial inventory and dose history. Safety-critical: zero dose-calculation defects allowed.
+
+**Calculator inputs:**
+- Compound (pre-filled from active protocol or manually selected from catalog)
+- Vial size in mg (numeric — e.g., 5 mg)
+- BAC water volume to add in mL (user adjusts; default suggested based on common dilutions for that compound)
+- Target dose in mcg or mg (pre-filled from protocol; user can override)
+
+**Calculator outputs (all shown simultaneously):**
+- Resulting concentration: mg/mL and mcg/mL
+- **Units on 100-unit insulin syringe for the target dose** (large, prominent display — this is the key output)
+- Cross-check: units for the "low," "typical," and "high" doses from the reference profile (so user can verify their dose makes sense)
+
+**Reconstitution event recording:**
+- After confirming calculation, user clicks "Record reconstitution" → creates a vial record
+- Vial record: compound, vial size, BAC water volume added, final concentration, date reconstituted, estimated shelf-life expiry (14 days refrigerated default; configurable)
+- Vial record links to subsequent dose logs to decrement doses-remaining estimate
+
+**Dose-history integration:**
+- Shows the last logged dose for this compound: "You logged X mcg yesterday at HH:MM" (safety context)
+- Shows current protocol dose for comparison
+
+**Safety guardrails (non-negotiable):**
+- Zero dose-calculation defects: all math must be covered by unit tests with known reference values
+- If calculated dose-per-unit exceeds the reference profile's "high" dose → yellow warning: "This calculation is above the typical high dose range. Double-check your values."
+- If resulting volume per dose exceeds 1.5mL → warning: "Large injection volume — verify this is correct"
+- If BAC water volume < 0.5mL → warning: "Low reconstitution volume may make accurate dosing difficult"
+
+**Out of scope:**
+- Pharmacokinetic modeling or half-life decay curves
+- Multi-vial pooling math
+- Dosing suggestions ("you should take X")
+
+**Error scenarios:**
+- BAC water volume = 0 → blocked: "BAC water volume required to calculate concentration"
+- Vial size = 0 → blocked
+- Target dose numerically exceeds total vial content → warning: "This dose would require more than one vial's worth of compound"
+- Negative values in any field → blocked with field-level error
+
+---
+
+### 5.4 Pillar 4 — Ordering (Telegram + Crypto)
+
+**What it does:**
+Enables the Power User to place a vendor order via Telegram with the app sending the order message automatically via MTProto (user's own Telegram account). The user then handles crypto payment manually through Coinbase.
+
+**⚠ v1 architecture decision — supersedes vision guidance:**
+The vision document recommended "guided manual v1" (app composes message; user pastes to Telegram). The user has confirmed v1 = full Telegram automation (MTProto sends the message without opening Telegram). This decision elevates Telegram session fragility from a v2 risk to a v1 Must Have risk. As a result, a graceful manual fallback mode (message is copyable; Telegram deep-link is always visible) is **required** in every ordering flow, not optional.
+
+**External actor — QSC vendor:** The vendor is a key external participant in the ordering flow. v1 assumes QSC's Telegram-first ordering pattern: user sends an item list message → vendor replies with confirmed price and wallet address. Vendor reply format is unstructured; v1 processes vendor replies manually. The v2 AI response parser adds automated reply extraction.
+
+**MTProto feasibility gate:** Before Phase 1 ships, validate in the target runtime: (a) MTProto auth code flow completes successfully, (b) session storage and retrieval is reliable across restarts, (c) message send to a real vendor chat succeeds. If a blocker is found, fall back to "compose only" scope reduction — app writes the message, user copies it to Telegram — without shipping Phase 1 incomplete.
+
+#### 5.4.1 Telegram Account Authentication (one-time setup)
+
+**Setup flow:**
+1. User enters their Telegram phone number
+2. Telegram sends a verification code via standard MTProto auth
+3. User enters code in app
+4. App stores encrypted MTProto session (server-side, AES-256 at rest, user-scoped)
+5. User selects or enters the vendor's Telegram username / chat ID
+6. App sends a test "ping" message (or skips — user discretion) to confirm connection
+
+**Vendor configuration per vendor:**
+- Vendor display name
+- Telegram username or chat ID
+- Order message template (plain text with item/quantity placeholders; default provided)
+- Preferred currency (USDT, BTC, ETH, etc.)
+
+**Fallback always visible:**
+- Composed order message is always shown as copyable text in the UI
+- "Open in Telegram" deep-link button (tg://resolve?domain=VENDOR&text=MESSAGE) always present
+- User can always choose to send manually even when automation is configured
+
+**Out of scope:** Official Telegram Bot API (bots can't initiate messages to arbitrary users); OAuth (no standard OAuth for Telegram user accounts)
+
+**Error scenarios:**
+- Auth code expired → re-request code flow with timer
+- Session invalidated by Telegram (device limit) → force re-auth with clear explanation: "Your Telegram session was invalidated. Re-authenticate to resume ordering."
+- Vendor username not found → inline error + show manual fallback immediately
+
+#### 5.4.2 Vendor Catalog
+
+**Catalog fields per compound entry:**
+- Compound name (linked to reference catalog)
+- Available forms (lyophilized powder, solution)
+- Vial size options (2mg, 5mg, 10mg, etc.)
+- Price per unit (USD or vendor currency; manual entry)
+- In-stock flag (manual toggle; no live sync in v1)
+- Minimum order quantity
+
+**v1 import:**
+Data entered manually by Power User from QSC PDF. Prices updated manually when vendor price list changes (PDF import parser is a Could Have).
+
+**Out of scope:** Live API price sync, multi-vendor price comparison, automated price-change alerts
+
+#### 5.4.2b Inventory-Aware Order Suggestions (Must Have)
+
+When the user opens the order builder, the app calculates days-to-depletion for each active protocol's compound and surfaces a "Suggested order" section at the top of the order builder.
+
+**Suggestion logic:**
+- For each active protocol: estimated daily dose rate × doses remaining in active vial = days until depletion
+- If days until depletion < 14: show compound in suggested list with: compound name, vial form + size currently used, days remaining, suggested reorder quantity (default: 2 vials)
+- Compounds with no active vial record but active protocol → also surfaced: "No active vial recorded"
+
+**Suggested order UI:**
+- Shown as a collapsible section "Based on your inventory" above the full vendor catalog
+- Each suggested item has: compound name, reason ("~8 doses remaining"), pre-filled quantity (editable), "Add to cart" button
+- Dismissible per session if user prefers to browse manually
+
+**Out of scope:** ML-based quantity optimization, multi-cycle lookahead beyond 14 days
+
+#### 5.4.3 Order Builder
+
+**Order flow:**
+1. Browse or search vendor catalog
+2. Add items to cart (compound, form, vial size, quantity)
+3. Review cart: itemized list with per-item price, subtotal
+4. App composes the Telegram order message using vendor's template (e.g., "Hi, I'd like to order: 10x BPC-157 5mg, 5x TB-500 5mg. Please confirm price and wallet address. Thank you.")
+5. User reviews composed message (editable before send)
+6. User clicks "Send Order" → app sends message via Telegram MTProto to vendor chat
+7. App records the order with status: "Sent — awaiting confirmation" and timestamps the event
+
+**Order record fields (created at send):**
+- Order ID, created timestamp
+- Vendor reference
+- Line items: compound, form, vial size, quantity, unit price
+- Telegram message text (as sent)
+- Order status (see state machine in §5.4.4)
+- `send_method`: `"automated"` (MTProto send succeeded) | `"manual_fallback"` (user used copy/deep-link)
+- Payment fields (populated in §5.4.4): confirmed total, currency, wallet address, tx ID (optional)
+
+**Duplicate item in cart:** If the same compound + form + vial size is added more than once, quantities are merged into one line item. Different vial sizes of the same compound are separate line items.
+
+**Fallback mode (always available, even when bot is working):**
+- Composed message visible as copyable text below the send button
+- "Open in Telegram" deep-link button visible at all times
+- If MTProto send fails for any reason → show error, automatically surface fallback mode, do NOT silently discard the order
+
+**Out of scope:** Discount codes or promo fields, multi-vendor split orders
+
+**Error scenarios:**
+- Telegram send fails (network, session expired, rate limit) → show error message + fallback mode immediately; order remains in "draft" state
+- Cart is empty → send button disabled; "Add items to your order first"
+- Item in cart has no price set → soft warning: "Price not set for [item]. Order will be sent without a price confirmation."
+
+#### 5.4.4 Order Tracking & Payment
+
+**Post-send flow:**
+1. App shows "Order sent — waiting for vendor confirmation" with Telegram deep-link to vendor chat
+2. User reads vendor's Telegram reply manually (v1; AI response parser is v2)
+3. User manually enters in app: confirmed order total, crypto currency, wallet address from vendor's message
+4. App shows payment confirmation step: total, currency, wallet address — all visible together on one screen
+5. **User must acknowledge the wallet address + amount display before proceeding** (safety gate)
+6. User sends crypto payment from Coinbase or other wallet manually (app does not execute payment)
+7. User optionally enters transaction ID in app (for audit record)
+8. User clicks "Mark payment sent" → order status: "Payment sent — awaiting shipment"
+9. User receives shipment; clicks "Mark received" → triggers inventory update prompt
+10. App prompts: "Add these items to your inventory?" with each ordered compound and quantity pre-filled
+
+**Payment safety guardrail:**
+The wallet address and payment amount must be visible on screen at the moment the user clicks "Mark payment sent." This step cannot be bypassed. If no wallet address has been entered, the "Mark payment sent" button is greyed with tooltip: "Enter vendor's wallet address first."
+
+**Inventory update on delivery:**
+- "Mark received" creates a vial record in Pillar 3 for each ordered compound
+- Record: compound, quantity, order reference, date received
+- User can add reconstitution details on first use (links to Pillar 3 calculator)
+
+**Order status state machine:**
+```
+Draft → Sent → Confirmed → Payment Sent → Received  (terminal)
+                         → Cancelled                 (terminal)
+       → Stale (auto-flagged after 14 days in "Sent" with no update)
+```
+- **Cancel order:** Power User can cancel any order in Draft, Sent, Confirmed, or Stale status from Order History. Cancelled orders remain in history with status and timestamp.
+- **Stale detection:** If an order remains in "Sent" status for 14 days without a manual status update, it is auto-flagged "Stale — check Telegram." A banner prompts the user to check their Telegram chat and either update the status or cancel the order.
+- Status transitions are forward-only except Cancel, which can be applied from any non-terminal status.
+
+**Out of scope:** Automated crypto sending, Coinbase API wallet integration (no custodial access), automated vendor reply parsing (v2)
+
+**Error scenarios:**
+- User clicks "Mark payment sent" with no wallet address recorded → blocked with clear error
+- User clicks "Mark received" before order status is "Payment sent" → warning shown ("Payment hasn't been marked as sent. Mark received anyway?") with confirmation
+- Order sent but user closes browser → order persists in "Sent" status; accessible from Order History on next login
+- Duplicate send attempt (double-click or network retry) → idempotency check: if an identical message was sent to the same vendor within the last 60 seconds, show "Possible duplicate — send again?" before proceeding
+- Vendor changes quoted price after order sent → user enters the new total at payment confirmation time; no lock on the amount at "order sent" time; previous vendor replies are visible in Telegram for reference
+- Stale wallet address → user is shown the wallet address from their most recent order to the same vendor for comparison, but must verify the current address from the vendor's Telegram reply before marking payment sent
+
+---
+
+### 5.5 Multi-User & Admin
+
+**What it does:**
+Allows the Power User (super admin) to create and manage family/friend accounts, configure their protocols, monitor their adherence, and control their access.
+
+**Super admin capabilities:**
+- Create managed user accounts: name + email; app sends an invite email with a one-time setup link (expires after 72 hours)
+- Configure protocols for any managed user (using the same protocol editor as their own)
+- View any managed user's dose log and 7/30-day adherence metrics
+- Edit or deactivate managed user protocols
+- Reset a managed user's password (sends a reset email to the managed user)
+- Deactivate a managed user account (their data is retained; access is revoked)
+- Delete a managed user account (with user's data export generated first)
+
+**Managed user capabilities:**
+- Log their own doses from their configured protocols
+- View their own schedule and dose history
+- Look up compound reference pages
+- View the reconstitution calculator (read-only if their protocol has a linked vial record)
+- Change their own password
+
+**Managed user cannot:**
+- Create or edit protocols (read-only view of their own)
+- Access the ordering module or vendor catalog
+- See any other user's data
+- Access the admin panel
+- Create additional user accounts
+
+**Invite link lifecycle:**
+- Invite link expires 72 hours after issuance
+- Admin panel shows invite status per user row: **Active** | **Invited (expires MM/DD)** | **Invite Expired** | **Deactivated**
+- Admin can resend invite from the user row; resend generates a new link and invalidates the old one
+- Accepting an expired invite: "This invite link has expired. Contact your administrator for a new link."
+- Resend to a user who already accepted: not available (account already active); admin uses password reset instead
+
+**Admin panel views:**
+- List of all managed users: name, email, last login, invite status, 7-day adherence % (doses logged ÷ doses scheduled)
+- Click-through to any managed user's dose history and active protocols
+- No logging-on-behalf-of (audit integrity: logs are always attributed to the user who confirmed)
+
+**Out of scope:**
+- Role hierarchy beyond (super admin + managed user)
+- Multiple admins / co-admin role
+- Managed users creating their own accounts (Power User invitation flow only in v1)
+- Managed users viewing each other's data
+
+**Error scenarios:**
+- Admin invites an email already registered → "This email already has an account"
+- Admin invites the same email twice (pending invite exists) → "An invite is already pending for this email. Resend or cancel it first."
+- Admin tries to delete their own super admin account while managed users are active → blocked: "You have N active managed users. Deactivate or transfer them before deleting your account."
+- Managed user navigates to `/ordering` → 403 with message: "Ordering is managed by your administrator"
+- Deactivating a managed user with active protocols: protocols are not auto-deleted; admin sees a warning "This user has N active protocols. Deactivating their account will prevent them from logging doses. Continue?"
+
+---
+
+### 5.6 Auth & Account Management
+
+**Authentication:**
+- Email + password (bcrypt, min cost 12)
+- Sessions: httpOnly JWT or server-side session cookie; 30-day rolling expiry
+- Password requirements: minimum 12 characters; no maximum; no complexity rules (length alone is the security factor)
+- Password reset: email link, expires in 1 hour, single-use
+
+**Account actions:**
+- Change email: requires current password confirmation; sends verification to new email before applying
+- Change password: requires current password confirmation
+- Delete account: generates and delivers a full data export (JSON), then permanently deletes the account and all associated records after 48-hour delay (or immediate with double-confirmation modal)
+
+**First-Run Setup Wizard (Must Have):**
+Triggered on first login after account creation (or invite acceptance for managed users). A 3-step guided flow to reach first-value quickly.
+
+| Step | Power User | Delegated Participant |
+
+exec
+/bin/zsh -lc "sed -n '1,240p' docs/domain-models/auth.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# Auth Domain
+
+The Auth Domain manages user accounts, sessions, and managed user invitations.
+
+## Ubiquitous Language
+- **User**: An authenticated person (Power User or Delegated Participant).
+- **Power User**: The system administrator who manages other users and the ordering module.
+- **Delegated Participant**: A user invited by a Power User (Managed User role).
+- **Invite**: A token-based invitation to join the app.
+
+## Entities
+
+### User (Aggregate Root)
+An account entity.
+- **Attributes**:
+  - `id`: UUID
+  - `email`: string (Unique)
+  - `passwordHash`: PasswordHash (Value Object)
+  - `role`: enum (PowerUser, ManagedUser)
+  - `managedBy`: UUID (FK, optional)
+  - `status`: enum (Active, Deactivated, Pending)
+  - `createdAt`: timestamp
+
+### PasswordResetToken (Entity)
+A single-use token for password recovery.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `tokenHash`: string
+  - `expiresAt`: timestamp
+  - `used`: boolean
+
+### AccountDeletionRequest (Entity)
+A request to wipe all user data.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `requestedAt`: timestamp
+  - `scheduledFor`: timestamp (48h delay)
+  - `status`: enum (Pending, Executed, Cancelled)
+
+### DataExportRequest (Entity)
+A request for data portability.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `format`: enum (JSON, CSV)
+  - `status`: enum (Pending, Processing, Completed, Failed)
+  - `downloadUrl`: string (optional)
+  - `expiresAt`: timestamp (optional)
+
+### OnboardingState (Value Object)
+Tracks the user's progress through the setup wizard.
+- **Attributes**:
+  - `step`: enum (Catalog, Protocol, Telegram, Done)
+  - `completedAt`: timestamp (optional)
+  - `dismissed`: boolean
+
+## Value Objects
+
+### PasswordHash
+Securely hashed password.
+- **Attributes**:
+  - `hash`: string
+  - `algorithm`: string (bcrypt)
+  - `cost`: number (default 12)
+
+## Aggregate: Account Identity
+- **Consistency Boundary**: A User and their auth-related state (tokens, sessions).
+- **Root**: User
+- **Invariants**:
+  - Password hash must use bcrypt with cost >= 12.
+  - Deleting a Power User requires all linked Managed Users to be deactivated first.
+
+## Domain Events
+- `UserRegistered`: A new Power User signs up.
+- `UserInvited`: A Power User sends an invite.
+- `InviteAccepted`: A Managed User completes registration.
+- `AccountDeletionScheduled`: A user requests data wipe.
+
+## Invariants
+- `invite.expiresAt == invite.createdAt + 72h`
+- `passwordResetToken.expiresAt == passwordResetToken.createdAt + 1h`
+
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/domain-models/tracker.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# Tracker Domain
+
+The Tracker Domain manages user protocols, daily dosing logs, cycles, and subjective outcomes.
+
+## Ubiquitous Language
+- **Protocol**: A scheduled plan for a specific compound (e.g., "BPC-157 250mcg daily").
+- **Dose Log**: A record of a completed or skipped dose event.
+- **Cycle**: A logical grouping of protocols over a defined period.
+- **Outcome Log**: A subjective rating of wellbeing and notes for a given day.
+- **Injection Site**: The physiological location of an administration (e.g., "Left Abdomen").
+
+## Entities
+
+### Protocol (Aggregate Root)
+A scheduled dosing plan.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `compoundId`: UUID (FK)
+  - `cycleId`: UUID (FK, optional)
+  - `dose`: DoseAmount (Value Object)
+  - `schedule`: Schedule (Value Object)
+  - `administrationRoute`: enum (SC, IM, Oral, Nasal)
+  - `startDate`: date
+  - `endDate`: date (optional)
+  - `status`: enum (Active, Paused, Completed, Deactivated)
+  - `notes`: text
+
+### Cycle (Aggregate Root)
+A logical container for one or more protocols.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `name`: string
+  - `startDate`: date
+  - `endDate`: date (optional)
+  - `status`: enum (Active, Completed, Archived)
+
+### Dose Log (Entity)
+A record of a dose event.
+- **Attributes**:
+  - `id`: UUID
+  - `protocolId`: UUID (FK)
+  - `idempotencyKey`: string (UUID, unique per user-scheduledDate-protocolId)
+  - `loggedAt`: timestamp
+  - `scheduledDate`: date
+  - `amount`: DoseAmount (Value Object)
+  - `status`: enum (Logged, Skipped)
+  - `injectionSite`: InjectionSite (Value Object)
+  - `isBatchLog`: boolean
+  - `loggedByUserId`: UUID (FK)
+
+## Value Objects
+
+### DoseAmount
+- **Attributes**:
+  - `value`: number
+  - `unit`: enum (mcg, mg, IU, mL)
+
+### Schedule
+- **Attributes**:
+  - `frequency`: enum (Daily, EOD, MWF, CustomInterval)
+  - `intervalDays`: number (optional)
+
+### InjectionSite
+- **Attributes**:
+  - `location`: string (e.g., "Left Abdomen")
+  - `group`: enum (Abdomen, Thigh, Deltoid, Glute)
+
+## Domain Services
+
+### SiteRotationPolicy
+Calculates the next suggested injection site based on a user's `DoseLog` history for a specific route.
+- **Rule**: Round-robin through available sites in the preferred group.
+
+## Aggregate: Dose Adherence
+- **Consistency Boundary**: Protocol and its Dose Logs.
+- **Root**: Protocol
+- **Invariants**:
+  - Cannot log a future dose.
+  - Cannot edit a dose log past the same calendar day.
+
+## Domain Events
+- `DoseLogged`: A user confirms a dose.
+- `DoseSkipped`: A user explicitly skips a dose.
+- `InjectionSiteSuggested`: The rotation policy produces a new suggestion.
+
+## Invariants
+- `dose.value > 0`
+- `cycle.startDate <= cycle.endDate` (if exists)
+
+exec
+/bin/zsh -lc "sed -n '1,240p' docs/adrs/ADR-002-postgresql-prisma.md && sed -n '1,220p' docs/adrs/ADR-007-pwa-offline.md && sed -n '1,220p' docs/adrs/ADR-009-audit-logging.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# ADR-002: Use PostgreSQL with Prisma ORM
+
+## Status
+Accepted
+
+## Context
+The application requires a relational data model for compounds, protocols, logs, and orders. We need strict type safety and migrations for a evolving schema.
+
+## Decision
+We will use PostgreSQL 16 (managed by Railway) as the primary database, with Prisma 5.x as the Object-Relational Mapper (ORM).
+
+## Alternatives Considered
+- **Drizzle ORM**: SQL-first and lightweight, but Prisma has superior AI compatibility and schema-first DX.
+- **MongoDB**: Flexible but lacks built-in relational integrity needed for safety-critical protocol/vial linkages.
+- **SQLite (local-first)**: Simplifies some things but complicates multi-user data synchronization and server-side Telegram session management.
+
+## Consequences
+- **Benefits**: Type-safe queries generated from `schema.prisma`; easy migrations; managed backups on Railway; JSONB support for flexible metadata.
+- **Costs**: Prisma Client overhead; potential connection pooling issues at scale (mitigated by low user count).
+# ADR-007: Implement PWA with Serwist for Offline Dose Logging
+
+## Status
+Accepted
+
+## Context
+The "7:00 AM routine" often takes place when users have poor or no internet connectivity (e.g., in a basement gym or traveling). Dose logging must work offline to ensure accuracy and user retention.
+
+## Decision
+We will implement the application as a Progressive Web App (PWA) using Serwist to manage the service worker and offline queuing.
+
+## Alternatives Considered
+- **next-pwa**: Unmaintained since 2022; Serwist is its active successor.
+- **Pure Web App (Online Only)**: Violates the core "7am routine" requirement and MoSCoW "Must Have" status for offline logging.
+- **Native Mobile App**: Higher development cost; rejected by App Store policies for grey-market ordering features.
+
+## Consequences
+- **Benefits**: Home screen installation; offline dose logging with Background Sync; fast app shell loading via service worker cache.
+- **Costs**: Service worker complexity; IndexedDB management for the offline queue; potential sync conflicts (mitigated by idempotency keys).
+# ADR-009: Implement Persistent Audit Logging for Sensitive Mutations
+
+## Status
+Accepted
+
+## Context
+The PRD requires a "Hard Gate" for audit log completeness (100% of protocol mutations, dose logs, and order events). This is necessary for security, system integrity, and potentially future regulatory compliance.
+
+## Decision
+We will implement a system-wide `audit_events` table in PostgreSQL to store immutable records of all sensitive state changes.
+
+## Alternatives Considered
+- **Application Logs (Stdout)**: Easier to implement but ephemeral and harder to query for user-facing audit trails.
+- **Prisma Middleware**: Can capture changes but harder to attribute to a specific user/request context in some scenarios.
+- **Temporal / Event Sourcing**: Provides a complete audit trail but adds significant architectural complexity.
+
+## Consequences
+- **Benefits**: Immutable record of system state; easy to query for admin adherence monitoring; satisfies security requirements; provides data recovery path.
+- **Costs**: Database storage growth (mitigated by 90-day rolling purge); additional latency on writes to record the audit event.
+
+## Retention Policy
+Audit events will be retained for 90 days. A daily background job will delete events older than 90 days to manage database size.
+
+exec
+/bin/zsh -lc "sed -n '621,1040p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+|------|------------|----------------------|
+| 1 | "Browse your first compound" → reference catalog with "Start protocol" shortcut | "Here's your schedule" → shows protocols configured by admin (read-only) |
+| 2 | "Create your first protocol" → protocol editor pre-filled with compound from step 1 | "How to log a dose" → interactive walkthrough of dose logging |
+| 3 | "Set up ordering (optional)" → links to Telegram auth setup | Done |
+
+- Wizard is dismissible at any step ("Skip setup, I'll explore on my own")
+- A "Getting Started" checklist on the dashboard (3 items for Power User: add compound, create protocol, log first dose) persists until all 3 are complete or the user dismisses it
+- Does not reshow after dismissed or completed
+
+**Out of scope (v1):**
+- Social login (Google, Apple)
+- MFA / TOTP (Could Have; not Must Have)
+- SSO or organizational login
+
+**Error scenarios:**
+- Login with wrong password → "Invalid email or password" (do not specify which field is wrong)
+- Password reset request for unknown email → show success message ("If that email exists, a reset link was sent") — do not leak email existence
+- Super admin account deletion while managed users are active → blocked (see §5.5 error scenarios)
+
+---
+
+### 5.7 Data Export & Privacy Controls
+
+**Export:**
+- User can request a full export of their data at any time from account settings
+- **Full export (JSON):** protocols, dose logs, vial inventory, order history, outcome logs — complete data portability
+- **CSV export (Should Have):** dose logs and orders available as CSV download (dose_logs.csv, orders.csv) alongside the JSON export. Columns match data model fields. Useful for analysis in Excel / Google Sheets.
+- For exports < 10MB: download immediately
+- For exports ≥ 10MB: generated asynchronously; download link emailed within 5 minutes
+
+**Deletion:**
+- Account deletion deletes all user data: protocols, dose logs, order history, vial records, outcome logs
+- Deletion is irreversible; user sees explicit warning; 48-hour delay before execution (or immediate with confirmed double-acknowledgment)
+- All associated managed user accounts must be deactivated before super admin account can be deleted
+
+**Data retention policy:**
+
+| Data type | Retention | Notes |
+|-----------|-----------|-------|
+| Dose logs | Until account deletion | No automatic archival or expiry |
+| Protocol history | Until account deletion | |
+| Order history | Until account deletion | |
+| Vial records | Until account deletion | |
+| Outcome logs | Until account deletion | |
+| Audit log | 90 days rolling | Scoped to user; accessible to super admin only |
+| DB backups | 30 days rolling | See §8.4 |
+| Telegram MTProto session | Revoked on account deletion or on user request | Not included in data export |
+
+All user-created data is retained until explicit account deletion. No automatic purge, expiry, or archival of any tracker, ordering, or protocol data.
+
+**Privacy commitments (from vision Principle 4):**
+- No protocol or dose data used for analytics, product decisions, or model training
+- No third-party data sharing
+- No engagement or behavioral tracking
+- Audit log of protocol changes: retained 90 days, scoped to the user, accessible to super admin only
+
+---
+
+## 6. Success Criteria
+
+### Hard Gates — all releases, no exceptions
+
+| Criterion | Target | Measurement |
+|-----------|--------|-------------|
+| Dose-calculation defects | Zero known defects | Unit tests for all reconstitution calculations with reference values; no regressions in CI |
+| Payment confirmation flow | 100% of crypto payments require explicit wallet address + amount display before "payment sent" can be marked | Manual QA + E2E test |
+| Silent failures | Zero — every order, dose, and vial event has a visible error state and recovery path | E2E test suite covering failure paths |
+| Audit log completeness | 100% of protocol mutations, dose logs, and order events are recorded | DB-level assertion in integration tests |
+
+### Phase 1 — Personal Tool (months 1–3)
+
+| Criterion | Target | Measurement |
+|-----------|--------|-------------|
+| Power User daily active use | Logs doses every day for 14 consecutive days | Auth log + dose log timestamps |
+| Spreadsheet decommissioned | Obsidian/spreadsheet abandoned for peptide tracking within 90 days | Self-reported |
+| First order via app | ≥ 1 successful Telegram order sent via MTProto with no manual Telegram intervention | Order history in app |
+| Protocol setup speed | New 3-compound protocol created in < 5 minutes | Manual timed test |
+| Reconstitution calc accuracy | Syringe-unit output matches manual calculation for all test cases | Unit test suite |
+
+### Phase 2 — Family Adoption (months 3–6)
+
+| Criterion | Target | Measurement |
+|-----------|--------|-------------|
+| Managed user count | 3–10 Delegated Participants with ≥ 1 active protocol each | Admin panel |
+| Delegated Participant retention | ≥ 70% of managed users log doses ≥ 5 days/week for 30 days | Dose log frequency |
+| Power User support burden | Delegated Participants text the Power User < 5 times about app usage in first 30 days | Self-reported |
+| Ordering reliability | First 20 successful Telegram orders via app (cumulative through month 6); < 3 with `send_method = "manual_fallback"` | `orders` table: `status = "Received"` count; `send_method` field |
+
+### Year 1 Cumulative
+
+| Criterion | Target | Measurement |
+|-----------|--------|-------------|
+| Ordering loop | ≥ 20 successful orders cumulative (same target as Phase 2 reliability milestone; Year 1 confirms continued use beyond the milestone) | Order history |
+| Reference coverage | 30–50 peptide profiles with primary citations and dosing ranges | Catalog count |
+| Personal adoption | Power User uses the app daily; spreadsheet decommissioned | Self-reported |
+
+### Year 3 Aspirational
+
+| Criterion | Target | Measurement |
+|-----------|--------|-------------|
+| Active users | 100–1,000 | Auth logs |
+| Community reputation | Referenced as "the honest peptide app" in r/Peptides or biohacker forums | Community monitoring |
+| Sustainability | Hosting + maintenance costs covered by license revenue (legal review gate passed) | Revenue vs. cost |
+
+---
+
+## 7. Constraints
+
+### 7.1 Technical
+- **Platform:** Web app only. No App Store distribution (iOS and Android App Stores would reject this product by policy).
+- **Telegram integration:** Requires an MTProto client library for user-level Telegram access. Not the official Telegram Bot API (bots cannot initiate messages to arbitrary users). Specific library selection is deferred to the tech-stack step. User session stored AES-256 encrypted server-side.
+- **Telegram rate limits:** MTProto flood-wait limits apply to auth code requests, session verification, and message sending. At expected v1 usage (5–15 order messages/month, 1 auth event per device setup), limits are not a v1 risk. For v2 AI response parser that polls message history: flood-wait signals must be respected; polling must implement exponential backoff.
+- **Database:** Relational (PostgreSQL preferred). No local-first / SQLite-only architecture. Privacy commitment is at the application layer, not the storage layer.
+- **Deployment:** Cloud or VPS; must support < $100/month at initial user counts (1–50 users).
+- **Crypto payments:** Manual. No custodial wallet. No automated transaction execution. User pays from their own Coinbase. App tracks payment metadata only.
+- **No App Store:** Web/PWA is the only distribution channel. PWA manifest + service worker required for home screen install and offline dose-log queuing (see §8.6).
+- **Transactional email:** Required for invite links, password reset, and async export delivery (§5.5, §5.6, §5.7). Provider selection is a tech-stack decision (budget line item in §7.3). Deliverability is a constraint — transactional email must reach consumer inboxes reliably (not bulk/marketing sender reputation).
+- **PubMed citations:** v1 reference profiles link to PubMed externally (static DOI/PMID URLs; no programmatic API access). PubMed API integration is deferred to v2 (Automated PubMed Watch feature).
+
+### 7.2 Timeline
+- No hard external deadline. Personal-tool-first sequencing.
+- **Milestone 1 (M1):** Dose logging + reconstitution calculator → Power User decommissions spreadsheet
+- **Milestone 2 (M2):** Telegram ordering → first order placed via app
+- **Milestone 3 (M3):** Multi-user → first Delegated Participant active
+- Milestones are personal gates, not public dates. Sequence matters; duration is flexible.
+
+### 7.3 Budget
+- **Development:** Solo developer. No contractor budget. Time cost only.
+- **Infrastructure target:** < $100/month at 1–50 users; < $500/month at 51–500 users.
+- **Third-party services:** PostgreSQL hosting, transactional email (Resend or Postmark), object storage for exports — commodity services only.
+- **Telegram MTProto:** Free (no API usage cost).
+- **No revenue in v1.** Family and friends use for free. Legal review required before any paid license consideration.
+
+### 7.4 Team
+- Solo developer (the Power User is also the builder).
+- Assumed full-stack web capability. Technology framework deferred to tech-stack step.
+- No design team: UI is functional-first; use a component library to compensate.
+- No QA team: automated test coverage is non-negotiable to compensate. Critical paths (reconstitution math, payment confirmation flow) require 100% unit test coverage.
+
+### 7.5 Regulatory & Legal
+- **Legal review trigger:** Required before charging any money for a license. Family/friend use is free until legal review is complete and cleared.
+- **Product framing:** Honestly described as a peptide tracker and reference web app. Ordering = opt-in advanced module. No misrepresentation to payment processors.
+- **Data privacy:** Not a HIPAA-covered entity (no PHI in the legal sense). GDPR not applicable for v1 (US personal tool). Re-evaluate at public launch, especially if European users are targeted.
+- **Phase 2 legal gate:** Before Phase 2 ships (managed users), conduct a precautionary review of data stewardship obligations for storing dose and health-adjacent data on behalf of third parties (family members). This is not a HIPAA obligation for personal use, but managing other people's health-adjacent data creates stewardship responsibility. Review before Phase 2 launch.
+- **Harm reduction:** All dosing content cites ranges; the product does not tell users what to take or prescribe protocols. Side effects and contraindications are documented.
+- **Sourcing as removable module:** Architecture keeps the ordering module isolatable. If regulatory landscape requires it, sourcing can be disabled without breaking the reference and tracker pillars.
+
+---
+
+## 8. Non-Functional Requirements
+
+### 8.1 Performance
+
+| Requirement | Target | Measurement method | Fail threshold |
+|-------------|--------|-------------------|----------------|
+| Page load (FCP) | < 2.5s on broadband | Lighthouse CI in PR | > 3.0s blocks deploy |
+| API read response | p95 < 200ms | k6 load test in CI | > 300ms triggers investigation |
+| API write response | p95 < 500ms | k6 load test in CI | > 800ms triggers investigation |
+| Dose log submit (end-to-end) | < 500ms | E2E test timing | > 1s degrades AM routine |
+| Reconstitution calc | < 100ms client-side | Jest benchmark | > 500ms for any path |
+| Telegram order send | < 5s from click to delivery | E2E with test Telegram account | > 10s: show progress indicator; > 30s: timeout + fallback |
+
+### 8.2 Security
+
+| Requirement | Target | Verification |
+|-------------|--------|-------------|
+| Password storage | bcrypt, cost factor ≥ 12 | Code review |
+| Session tokens | httpOnly cookie; SameSite=Strict; 30-day rolling expiry | Code review |
+| Telegram session storage | AES-256 encrypted at rest; never returned via API; user-scoped | Code review + integration test |
+| Transport | TLS 1.2+; HSTS header; no mixed content | SSL Labs ≥ A grade |
+| SQL injection | Parameterized queries only; ORM or query builder; no raw string concatenation | Code review + static analysis |
+| XSS | CSP headers; framework auto-escaping; no `dangerouslySetInnerHTML` | Automated scan (Snyk or equivalent) |
+| IDOR | All data-access queries include user_id scoping; no sequential ID enumeration in public-facing routes | Integration test suite |
+| Audit log | Auth events, protocol mutations, order events, admin actions — retained 90 days | DB assertion |
+
+### 8.3 Scalability
+
+| Requirement | Target |
+|-------------|--------|
+| v1 user target | 1–50 users (personal + family/friends) |
+| Architecture | Stateless API; single server sufficient at v1 scale; horizontal scale viable without rearchitecting |
+| DB growth | < 1 GB Year 1; archive dose logs > 2 years old to cold storage if needed |
+| Telegram sessions | 1 active session (Power User only; ordering is single-user in v1) |
+| Concurrent users | Support 10 simultaneous authenticated sessions without degradation at v1 scale |
+
+### 8.4 Availability
+
+| Requirement | Target |
+|-------------|--------|
+| Uptime | 99% monthly (7.3 hours downtime/month acceptable for a personal tool) |
+| Deploy strategy | Zero-downtime deploys via rolling update preferred |
+| Backup | Daily automated DB backup; 30-day retention |
+| RTO | 4 hours (personal tool; no SLA required) |
+| RPO | 24 hours (last day's data at risk in worst-case total failure) |
+| Failure behavior | If API is unreachable, dose log flow degrades to "offline pending" if technically feasible; otherwise shows clear "service unavailable" with no data loss |
+
+### 8.5 Accessibility
+
+- **Target:** WCAG 2.1 AA compliance for all pages accessible to Delegated Participants (dose logging, dashboard, reference pages)
+- **Rationale:** Managed users may include older family members; basic accessibility ensures usability
+- **Admin panel:** Best-effort; keyboard navigable; full WCAG compliance not required for v1
+- **Testing:** axe automated scan on every CI build; manual keyboard navigation check on critical flows (dose logging, reconstitution calculator)
+
+### 8.6 Browser & Device Support
+
+| Tier | Scope | Commitment |
+|------|-------|------------|
+| **Supported** | Chrome (last 2), Safari (last 2), Firefox (last 2), Edge (last 2), Chrome for Android, Safari iOS (last 2) | All features work; regressions are P0 |
+| **Unsupported** | IE 11, Safari < 14 | May not function; no engineering effort |
+
+**Mobile priority:** The dose-logging flow is used on a phone at 7am. Dashboard + dose logging must be first-class on mobile. Reference pages and admin panel can be desktop-first with responsive fallback.
+
+**PWA requirements (Must Have):**
+- PWA manifest: app name, icons (192px, 512px), theme color, `display: standalone`
+- Home screen install prompt: browser "Add to Home Screen" on mobile Chrome and Safari iOS
+- Installed PWA: opens full-screen without browser chrome; back/forward navigation handled in-app
+- Service worker: caches app shell for fast load; queues dose-log writes when offline and syncs on reconnection
+- Offline behavior: dose logging works offline (queued writes); all other features show "offline" state gracefully
+- Push notification support: Web Push API for dose reminders (§5.2.7); requires notification permission grant
+
+### 8.7 Monitoring & Observability
+
+For a solo developer who is also the operator, application monitoring is operationally necessary to detect silent failures.
+
+| Requirement | Target |
+|-------------|--------|
+| Application error tracking | Unhandled server errors logged and surfaced; P0 errors (reconstitution math failure, payment flow error, audit write failure) alerted within 15 minutes |
+| Telegram send failure | Failed MTProto sends surfaced in order history with error state; no silent discard |
+| Uptime monitoring | External uptime check (e.g., Uptime Robot or equivalent); alert if unreachable > 5 minutes |
+| Backup verification | Daily backup completion logged; alert on backup failure |
+| Audit log integrity | DB assertion in integration tests that audit events are written; alert if audit write fails silently |
+
+Specific tooling is a tech-stack decision. All monitoring tooling must fall within the §7.3 infrastructure budget.
+
+### 8.8 Internationalization
+
+**v1 scope:** English only. US locale only.
+- Date format: MM/DD/YYYY (user-facing); ISO 8601 in UTC stored in DB
+- Timezone: all timestamps stored in UTC; displayed in user's local browser timezone
+- Currency: USD for vendor price catalog display; crypto labels shown as-is (USDT, BTC, ETH)
+- Units: metric throughout (mcg, mg, mL, IU)
+- i18n/l10n framework not required for v1. Re-evaluate at public launch (Year 2) if European users are targeted.
+
+---
+
+## 9. Competitive Context
+
+*(Full competitive analysis in `docs/vision.md` §6. PRD summary only.)*
+
+**Why competitors cannot build what we're building:**
+- App-Store-bound trackers (PeptIQ, Smart Peptide Tracker, Titer, Peptify, SHOTLOG) structurally cannot integrate grey-market Telegram/crypto ordering. The ordering → inventory → dose data loop is our structural moat regardless of automation level.
+- PeptPro (web, closest feature surface) uses their own curated vendor marketplace — not grey-market Telegram. They serve a fundamentally different user.
+- No competitor closes the order → inventory → dose → outcome data loop.
+
+**Features to learn from:**
+- **PeptIQ:** injection site rotation UX (reportedly polished); reference their interaction pattern
+- **Titer:** row-level security + CSV export as a privacy baseline; match their data controls
+- **Peptify:** pharmacokinetic modeling as a v2+ signal; not v1 scope but worth designing a data model compatible with it
+- **PeptPro:** wearable integration (Oura/Whoop) as a v2 biomarker signal; same reasoning
+
+---
+
+## 10. Phased Delivery Plan
+
+> **Phase vs. MoSCoW alignment:** The MoSCoW table (§4) lists all features that must be complete before v1 is declared done. Phases below define build order — Must Have features are delivered across Phase 1 and Phase 2 in sequence, not all at once. V1 is "complete" when all Must Have and prioritized Should Have items have shipped.
+
+### Phase 1 — Personal Tool (M0–M3)
+
+**Goal:** Power User decommissions spreadsheet within 90 days. Places first order via app.
+
+**Deliverables:**
+1. Auth (email/password, accounts, sessions, password reset)
+2. Compound reference pages (~20–30 from QSC catalog)
+3. Protocol creation + daily dose logging (no injection site rotation yet)
+4. Reconstitution calculator + vial inventory
+5. Telegram MTProto auth + order builder + automated send + manual fallback
+6. Basic order history and payment tracking
+
+**Phase gate:** Power User logs doses every day for 14 consecutive days AND places 1 successful Telegram order via app.
+
+> **Note on data export:** Account deletion with full data export (§5.7) is implemented in Phase 1 as part of Auth, even though the export-on-demand settings UI is refined in Phase 3. Phase 1 ships: account deletion + full JSON export generated at deletion time. Phase 3 adds: "Export my data" button in account settings at any time.
+
+---
+
+### Phase 2 — Family Adoption (M3–M6)
+
+**Goal:** First Delegated Participants active and logging reliably.
+
+**Deliverables:**
+1. Multi-user system: admin panel, managed user invitation, simplified managed-user view
+2. Injection site rotation tracking
+3. Cycle management
+4. Subjective outcome logging
+5. Stack overview dashboard
+6. Coinbase payment checklist (guided payment details capture)
+7. Mobile-responsive polish on dose-logging and dashboard flows
+
+**Phase gate:** 3+ Delegated Participants with active protocols, logging ≥ 5 days/week for 30 days.
+
+> **Legal gate:** Before Phase 2 ships, complete the Phase 2 legal review (see §7.5) covering managed user data stewardship obligations.
+
+---
+
+### Phase 3 — Hardening + v2 Bets (M6–M12)
+
+**Goal:** Validate personal-tool adoption. Begin v2 technology differentiators. Prepare for potential paid license.
+
+**Deliverables:**
+1. Protocol history view and cycle analytics (simple charts)
+2. Data export (JSON) and full account deletion
+3. AI Telegram response parser (v2 feature: reads vendor confirmation, auto-captures wallet address + total)
+4. Automated PubMed watch (background job, email digest of new papers on stack compounds)
+5. Legal review (required before paid license consideration)
+6. Evaluate: lab data import / bloodwork correlation (v2 feasibility spike)
+
+**Phase gate:** 20 successful orders total; Delegated Participant 7-day adherence ≥ 70%; legal review completed.
+
+---
+
+### Year 2+ Aspirations
+
+| Feature | Dependency |
+|---------|-----------|
+| Paid lifetime license | Legal review passed |
+| Compounding pharmacy order flow | Bridge-sourcing UX (architecture ready) |
+| TRT/anabolic compound profiles | Compound profile schema already supports it |
+| Lab data import + protocol-biomarker correlation | v2 feasibility spike from Phase 3 |
+| Public reference site (SEO) | Personal-tool adoption validates content investment |
+| Community features (opt-in, low-noise) | Year 2 only if personal-tool succeeds |
+
+---
+
+## 11. Risk Assessment
+
+| Risk | Severity | Probability | Mitigation |
+|------|----------|-------------|------------|
+| Telegram MTProto session fragility (v1 critical path) | HIGH | MEDIUM | Graceful manual fallback in every ordering flow; explicit error states; session re-auth flow |
+| Power User abandons the build before family adoption | HIGH | MEDIUM | Personal-tool-first phasing; M1 deliverables benefit Power User immediately. If no daily use after 30 days, pause and reassess. |
+| Payment processor rejects paid license | HIGH | MEDIUM | Legal review before any paid launch. Base product = tracker/reference honestly described. Ordering = opt-in advanced module. |
+| Telegram MTProto terms of service | MEDIUM | LOW | MTProto is a standard protocol; third-party clients are widespread. Single-user, single-vendor use is a normal personal use case. No mass-messaging. |
+| Grey-market regulatory crackdown | MEDIUM | LOW | Sourcing module is architecturally isolatable. Bridge-sourcing design supports compounding pharmacy as an alternative from day one. |
+| Legal exposure (grey-market ordering facilitation) | MEDIUM | LOW | Legal review before paid launch. Harm-reduction framing throughout. The user places the order; the app composes and sends the message on their behalf. |
+| Managed user non-adoption | LOW | HIGH | Don't force adoption. Track usage. Only invest in managed-user UX that real managed users request. |
+| Reference content quality decay | LOW | MEDIUM | Every profile cites primary sources; anecdote is labeled. AI drafts are human-reviewed before publish. |
+
+---
+
+## 12. Open Questions Resolved
+
+| Source | Question | Decision |
+|--------|----------|----------|
+| Vision Q2 | Platform shape | Web app (multi-tenant, user accounts, no App Store) |
+| Vision Q4 | Telegram automation scope (v1 vs. v2) | **v1 = full MTProto automation** (supersedes vision's guided-manual guidance); graceful manual fallback required |
+| Vision Q5 | Multi-user architecture | Distinct accounts; Power User = super admin; managed users see own data only |
+| Vision Q8 | Vendor sourcing scope | QSC-first for v1; architecture supports N vendors; v2 adds more |
+| Vision Q9 | Legal review trigger | **Before paid license launch**; family/friend use is free until then |
+| PRD discovery | Reference catalog depth | QSC catalog only (~20–30 compounds) for v1 |
+| PRD discovery | Tracker v1 features | All four confirmed as Must Have: dose logging, injection site rotation, cycle management, subjective outcome logging |
+
+**Still open (tech-stack step):**
+- Q3 — Database + deployment technology choices
+- Q10 — AI assistance technical approach (vector search? OpenAI? Local model?)
+
+**Still open (later):**
+- Q1 — Product name
+- Q6 — Public reference site timing
+- Q7 — Community features scope
+
+---
+
+*This PRD is the requirements baseline. Architecture decisions (`tech-stack`), user stories, and implementation planning all reference this document. If a requirement changes, update this document first — not the downstream artifact.*
+
+exec
+/bin/zsh -lc "sed -n '1,240p' docs/domain-models/reference.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# Reference Domain
+
+The Reference Domain manages the static knowledge base of compounds, their physiological profiles, and the vendor product catalog.
+
+## Ubiquitous Language
+- **Compound**: A biological substance (peptide) with defined mechanism and safety data.
+- **Profile**: Detailed research-backed data associated with a compound.
+- **Catalog**: A searchable collection of compounds available to the user.
+
+## Entities
+
+### Compound (Aggregate Root)
+A peptide or biological substance.
+- **Attributes**:
+  - `id`: UUID
+  - `name`: string (e.g., "BPC-157")
+  - `iupacName`: string (optional)
+  - `synonyms`: string[]
+  - `mechanismOfAction`: text
+  - `administrationRoutes`: enum[] (SC, IM, Oral, Nasal)
+  - `status`: enum (Draft, Published, Archived)
+  - `archivedAt`: timestamp (optional)
+
+### Profile (Entity)
+Detailed research data for a Compound.
+- **Attributes**:
+  - `id`: UUID
+  - `compoundId`: UUID (FK)
+  - `dosingLow`: DoseAmount
+  - `dosingTypical`: DoseAmount
+  - `dosingHigh`: DoseAmount
+  - `sideEffects`: text
+  - `contraindications`: text
+  - `stackingNotes`: text (curated)
+  - `citations`: Citation[] (Value Objects)
+
+## Value Objects
+
+### Citation
+A research reference.
+- **Attributes**:
+  - `title`: string
+  - `url`: string (URL)
+  - `doi`: string (optional)
+  - `pmid`: string (optional)
+- **Invariants**:
+  - Must have either a URL, DOI, or PMID.
+
+## Aggregate: Compound Catalog
+- **Consistency Boundary**: A Compound and its Profile must be consistent.
+- **Root**: Compound
+- **Invariants**:
+  - A published Compound must have at least one administration route.
+  - A Compound name must be unique within the catalog.
+
+## Domain Events
+- `CompoundCreated`: Triggered when a new compound is added.
+- `CompoundProfileUpdated`: Triggered when mechanism or dosing data changes.
+- `CompoundArchived`: Triggered when a compound is soft-deleted.
+
+## Invariants
+- `compound.name.length > 0`
+- `count(compound.administrationRoutes) > 0` if `status == Published`
+
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/domain-models/ordering.md" in /Users/kenallred/Documents/dev-projects/peptides
+exec
+/bin/zsh -lc "sed -n '1,240p' docs/domain-models/reconstitution.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# Ordering Domain
+
+The Ordering Domain manages vendor product catalogs, Telegram communication, and the order lifecycle.
+
+## Ubiquitous Language
+- **Order**: A purchase transaction for one or more vendor products.
+- **Payment Confirmation**: The explicit step where a user verifies the destination wallet and amount.
+
+## Entities
+
+### Order (Aggregate Root)
+A purchase transaction.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `vendorId`: UUID (FK)
+  - `status`: enum (Draft, Sent, Confirmed, PaymentSent, Received, Cancelled, Stale)
+  - `paymentConfirmation`: PaymentConfirmation (Value Object, optional)
+  - `telegramMessageId`: string (optional)
+  - `idempotencyKey`: string (UUID)
+
+## Value Objects
+
+### PaymentConfirmation
+The safety gate for crypto payments.
+- **Attributes**:
+  - `confirmedTotal`: number
+  - `currency`: string (e.g., "USDT")
+  - `walletAddress`: string
+  - `acknowledgedAt`: timestamp
+  - `acknowledgedByUserId`: UUID
+
+## Aggregate: Order Transaction
+- **Consistency Boundary**: Order status and payment acknowledgement.
+- **Root**: Order
+- **Invariants**:
+  - `status` cannot transition to `PaymentSent` without a completed `paymentConfirmation`.
+  - `paymentConfirmation.walletAddress` must be non-empty.
+
+## Domain Events
+- `OrderSent`: Telegram message dispatched.
+- `PaymentAcknowledged`: User completes the safety gate verification.
+- `OrderReceived`: User confirms delivery and updates inventory.
+
+## Invariants
+- `order.idempotencyKey` is unique per order attempt.
+
+ succeeded in 0ms:
+# Reconstitution Domain
+
+The Reconstitution Domain manages vial inventory and the mathematical calculations for concentration and syringe units.
+
+## Ubiquitous Language
+- **Vial**: A container of a compound in powder or liquid form.
+- **Concentration**: The resulting amount of compound per mL of liquid.
+- **Syringe Units**: The measurement on a 100-unit insulin syringe (1 unit = 0.01mL).
+
+## Entities
+
+### Vial (Aggregate Root)
+A single unit of inventory.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `compoundId`: UUID (FK)
+  - `totalMg`: number
+  - `bacWaterMl`: number (optional)
+  - `remainingMg`: number
+  - `status`: enum (Dry, Reconstituted, Empty, Expired)
+  - `reconstitutedAt`: timestamp (optional)
+  - `expiresAt`: timestamp (optional)
+
+## Value Objects
+
+### ReconstitutionResult
+The output of a reconstitution calculation.
+- **Attributes**:
+  - `concentrationMcgPerMl`: number
+  - `syringeUnitsPerDose`: number
+  - `injectionVolMl`: number
+
+## Domain Services
+
+### ReconstitutionCalculator
+Performs safe reconstitution math with warning policy evaluation.
+- **Warning Policy**:
+  - `injectionVolMl > 1.5` -> Trigger "High Volume" warning.
+  - `bacWaterMl < 0.5` -> Trigger "Low BAC Volume" warning.
+  - `dose > Profile.maxDose` -> Trigger "Above Reference Range" warning.
+
+## Domain Events
+- `VialReconstituted`: BAC water is added to a vial.
+- `SafetyWarningTriggered`: A calculation results in a policy violation.
+
+## Invariants
+- `vial.remainingMg >= 0`
+- `vial.totalMg > 0`
+- `bacWaterMl > 0` (once reconstituted)
+
+exec
+/bin/zsh -lc "sed -n '1,220p' docs/domain-models/audit.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# Audit Domain
+
+The Audit Domain provides a system-wide record of all sensitive mutations and security events.
+
+## Ubiquitous Language
+- **Audit Event**: A persistent, immutable record of a specific action.
+
+## Entities
+
+### AuditEvent (Aggregate Root)
+An immutable log entry.
+- **Attributes**:
+  - `id`: UUID
+  - `timestamp`: timestamp
+  - `actorUserId`: UUID (FK)
+  - `subjectUserId`: UUID (FK, optional)
+  - `category`: enum (Security, Protocol, Order, Admin)
+  - `action`: string (e.g., "PROTOCOL_CREATED")
+  - `resourceId`: UUID (Identity of the affected entity)
+  - `resourceType`: string (e.g., "Protocol")
+  - `metadata`: JSON (Captured request context, IP, User Agent)
+  - `oldValues`: JSON (optional)
+  - `newValues`: JSON (optional)
+
+## Aggregate: System Audit Trail
+- **Consistency Boundary**: A single AuditEvent record.
+- **Root**: AuditEvent
+- **Invariants**:
+  - Audit events are immutable; they can be created but never updated or deleted.
+  - Every event must be linked to an `actorUserId`.
+  - **Retention**: Events are retained for 90 days, then purged by a scheduled background job.
+
+## Invariants
+- `auditEvent.timestamp >= createdAt`
+- `auditEvent.action.length > 0`
+
+exec
+/bin/zsh -lc "sed -n '1,220p' docs/adrs/ADR-012-scheduled-jobs.md" in /Users/kenallred/Documents/dev-projects/peptides
+exec
+/bin/zsh -lc "sed -n '1,240p' docs/adrs/ADR-004-authjs.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# ADR-012: Use Railway Cron for Scheduled Jobs
+
+## Status
+Accepted
+
+## Context
+Dose reminders, stale-order detection, and audit purges require a reliable task scheduler. Next.js does not have a built-in background job processor.
+
+## Decision
+We will use Railway's native Cron scheduler to trigger API routes in the monolith for recurring tasks.
+
+## Alternatives Considered
+- **Inngest**: Excellent for complex workflows, but potentially overkill for v1.
+- **BullMQ + Redis**: Adds significant operational complexity (requires Redis).
+- **Upstash Workflow**: Good serverless option, but Railway Cron is already integrated into the hosting platform.
+
+## Consequences
+- **Benefits**: Zero additional infrastructure cost; simple implementation via HTTP endpoints; centralized monitoring in Railway.
+- **Costs**: Endpoints must be secured with a shared secret (`CRON_SECRET`); limited to periodic tasks (no fine-grained event-driven delays).
+
+ succeeded in 0ms:
+# ADR-004: Use Auth.js v5 for Authentication
+
+## Status
+Accepted
+
+## Context
+The application needs secure authentication (Email/Password), session management (30-day rolling), and role-based access control (Power User vs Managed User).
+
+## Decision
+We will use Auth.js v5 (NextAuth) with the Credentials provider and Prisma adapter.
+
+## Alternatives Considered
+- **Better Auth**: Newer and well-designed, but less AI training data available than Auth.js.
+- **Lucia Auth**: Deprecated by author in 2024.
+- **Custom JWT session**: More work to implement secure rolling refresh, CSRF protection, and edge middleware integration.
+
+## Consequences
+- **Benefits**: Native integration with Next.js App Router; large ecosystem; easy database persistence via Prisma adapter; handles complex auth flows out-of-the-box.
+- **Costs**: Learning curve for v5 beta patterns; some friction with custom "password reset" flows which must be implemented manually.
+
+exec
+/bin/zsh -lc "sed -n '1,220p' docs/tech-stack.md" in /Users/kenallred/Documents/dev-projects/peptides
+exec
+/bin/zsh -lc "sed -n '1,220p' docs/adrs/ADR-015-module-isolation.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# ADR-015: Implement Bounded Context Isolation for Ordering
+
+## Status
+Accepted
+
+## Context
+The PRD (§7.5) requires the Ordering module to be architecturally isolatable so it can be disabled for regulatory reasons without breaking the Reference and Tracker pillars.
+
+## Decision
+We will implement the Ordering module with clear boundaries:
+1. **Routing**: All ordering flows live under `/ordering`.
+2. **Permissions**: Ordering features are guarded by a specific RBAC capability check.
+3. **Services**: Ordering logic is isolated in `lib/ordering/` and `app/actions/ordering/`.
+4. **Feature Flag**: A `DISABLE_ORDERING` environment variable will completely hide the module from the UI and block API routes.
+
+## Alternatives Considered
+- **Shared Codebase**: Easier to implement but harder to strip out if needed.
+- **Microservices**: Maximum isolation but excessive operational overhead for v1.
+
+## Consequences
+- **Benefits**: Legal/regulatory flexibility; cleaner module boundaries; easier v2 upgrades for ordering.
+- **Costs**: Slight overhead in service layer abstraction.
+
+ succeeded in 0ms:
+<!-- scaffold:tech-stack v1 2026-05-20 -->
+# Technology Stack
+
+**Date:** 2026-05-20
+**PRD source:** `docs/plan.md` (post-innovate-prd v1)
+**Methodology:** deep | Depth: 5/5
+**Status:** COMPLETE — all decisions finalized
+
+---
+
+## 1. Architecture Overview
+
+### 1.1 Pattern: Full-Stack Monolith (Next.js App Router)
+
+A single Next.js 15 application handles both the frontend and backend. This is the correct pattern for a solo-developer personal tool at 1–50 users:
+
+- **No microservices.** Zero operational benefit at this scale; massive coordination cost.
+- **No separate API server.** Next.js API routes and Server Actions replace Express/Fastify entirely.
+- **Stateless HTTP layer + stateful Telegram layer.** HTTP endpoints are stateless. The MTProto Telegram session is held server-side (encrypted in Postgres) and reconnected per-request. This works correctly on Railway (always-on), not on serverless platforms.
+
+### 1.2 Rendering Strategy
+
+| Surface | Strategy | Rationale |
+|---------|----------|-----------|
+| Reference pages (compound profiles) | SSG (static) with 24h ISR | Content changes rarely; maximum CDN performance; SEO-irrelevant but fast load |
+| Dashboard + dose logging | Server Components + Client Components | Personalized; auth-gated; streaming SSR for fast FCP |
+| Admin panel | SSR (server-side rendered) | Personalized, no public caching |
+| Order builder | Client Components | Interactive cart state; no SSG benefit |
+| Reconstitution calculator | Client Component | Real-time math; all client-side computation |
+| Auth pages (login, register) | SSR | Session check server-side; prevents flash of unauthenticated state |
+
+**Progressive hydration principle:** Server Components for read-only, non-interactive UI (reference pages, dose history). Client Components only where interactivity is required (dose log form, order cart, calculator input fields).
+
+### 1.3 Always-On Requirement
+
+The app **must** run on an always-on server (Railway), not serverless. Two reasons:
+1. **GramJS MTProto** requires a persistent Node.js process or at minimum reliable session storage. Cold starts on serverless create auth latency and session issues.
+2. **Scheduled dose reminders** require a cron-triggered server process, not on-demand invocation.
+
+### 1.4 PWA Architecture
+
+```
+Browser (PWA shell)
+  └── Service Worker (Serwist)
+        ├── Cache: App shell, static assets
+        ├── Offline queue: IndexedDB → background sync → POST /api/dose-logs
+        └── Push: Web Push API subscription → web-push server → Sentry alert if fails
+```
+
+Offline dose-log writes are queued in IndexedDB via Workbox background-sync. On reconnect, the service worker replays them against the API. The server applies standard idempotency checks (duplicate log for same protocol + same day → confirmation prompt).
+
+---
+
+## 2. Language & Runtime
+
+### 2.1 TypeScript 5.x (strict mode)
+
+**Decision:** TypeScript strict mode throughout. No `any` except explicitly typed as `unknown` first.
+
+**Why:** Safety-critical reconstitution math and payment flows require compile-time type guarantees. TypeScript strict mode catches dose-unit mismatches, null pointer errors in protocol lookups, and API response shape mismatches at build time rather than runtime.
+
+**Alternatives considered:**
+- JavaScript only — eliminates type safety on dose calculations; rejected
+- Zod-only runtime types — complements TypeScript, does not replace compile-time types
+
+**AI compatibility:** Maximum. TypeScript is the #1 language in Claude Code training data for web development. Type annotations let AI tools generate more accurate code on first attempt.
+
+**Configuration:** `tsconfig.json` with `"strict": true`, `"noUncheckedIndexedAccess": true` (prevents `array[i]` from returning `T | undefined` silently).
+
+### 2.2 Node.js 22 LTS
+
+**Decision:** Node.js 22 LTS on Railway.
+
+**Why:** Long-term support until April 2027. Native fetch, native `crypto.subtle`, `--watch` mode, improved ESM support. GramJS and all chosen dependencies are compatible.
+
+**Runtime target:** `@types/node@22`, `engines: { node: ">=22" }` in `package.json`.
+
+### 2.3 Package Manager: pnpm 9.x
+
+**Decision:** pnpm over npm or yarn.
+
+**Why:** 50–70% faster installs than npm via content-addressable store. Strict node_modules layout prevents phantom dependencies (a risk with Prisma client generation). Railway supports pnpm natively via `packageManager` field in `package.json`.
+
+**Alternatives considered:**
+- npm — slower, no phantom dependency protection
+- Bun — incompatible with GramJS native deps; avoid for production Node.js apps until ecosystem matures
+
+---
+
+## 3. Meta-Framework: Next.js 15 (App Router)
+
+**Decision:** Next.js 15 with App Router. React 19.
+
+**Why:**
+- **Full-stack in one framework.** API routes + Server Actions + React in a single codebase eliminates the context switch between frontend and backend.
+- **App Router** enables React Server Components (zero-JS reference pages), streaming SSR (fast dashboard FCP), and native layouts for the multi-page authenticated app structure.
+- **PWA-ready.** Works with Serwist for service worker generation.
+- **AI compatibility:** Strongest AI tooling coverage of any full-stack web framework. Every AI coding tool (Claude Code, Copilot, Cursor) has extensive Next.js App Router training data.
+
+**Alternatives considered:**
+- **SvelteKit** — smaller bundles, simpler mental model, but smaller ecosystem and less AI training data. No compelling advantage over Next.js for this app.
+- **Remix** — excellent progressive enhancement story but smaller community and less AI coverage. Not worth the tradeoff for a solo developer.
+- **Express + Vite + React** — more control, but replaces Next.js conventions with bespoke wiring. Every convention Next.js provides (routing, layouts, middleware, Server Actions) would require custom implementation. Solo dev cost: high.
+
+**Version pins:** `next@15.x`, `react@19.x`, `react-dom@19.x`
+
+**Key App Router conventions used:**
+- `app/` directory (not `pages/`)
+- Server Components by default; `"use client"` boundary for interactive components
+- Server Actions for all form mutations (dose logging, protocol creation, order submission)
+- Route handlers (`app/api/*/route.ts`) for machine-to-machine API calls (PWA sync, cron triggers)
+- Middleware (`middleware.ts`) for session validation on protected routes
+
+---
+
+## 4. Frontend Stack
+
+### 4.1 CSS: Tailwind CSS 3.x
+
+**Decision:** Tailwind CSS 3.x (utility-first).
+
+**Why:**
+- Required per user preference.
+- Pairs natively with shadcn/ui — all component variants are Tailwind class strings.
+- AI tools generate accurate Tailwind markup on first attempt (huge AI training corpus).
+- CSS-in-JS alternatives (styled-components, Emotion) add runtime overhead and complicate RSC boundaries.
+
+**Configuration:** `tailwind.config.ts` with custom design tokens for the app's color palette (to be defined at implementation). PostCSS pipeline via `postcss.config.mjs`.
+
+### 4.2 Components: shadcn/ui
+
+**Decision:** shadcn/ui component library.
+
+**Why:**
+- Required per user preference.
+- Copy-paste model: components are owned code, not a black-box dependency. This matters for a solo dev — customize freely without monkey-patching an external package.
+- Built on Radix UI primitives (accessible by default — satisfies WCAG 2.1 AA requirement for Delegated Participant flows).
+- Tailwind-native: component variants are class strings, not JS objects.
+- AI compatibility: Claude Code has strong shadcn/ui training data; generates accurate component usage and customization.
+
+**Install model:** `npx shadcn@latest add <component>`. Components live in `components/ui/`.
+
+**Components anticipated for this app:**
+- `button`, `card`, `badge`, `dialog`, `drawer` — dose logging, protocol views
+- `form`, `input`, `select`, `checkbox`, `textarea` — all form flows
+- `table`, `data-table` — order history, dose history, admin user list
+- `tabs` — compound profile (overview / my data)
+- `sheet` — mobile slide-up for quick log, batch confirm
+- `toast` — dose logged confirmation, order sent feedback
+- `progress`, `skeleton` — loading states
+- `chart` (Recharts-based) — outcome-dose correlation timeline
+
+### 4.3 Charts: shadcn/ui Charts (Recharts-based)
+
+**Decision:** shadcn/ui chart components, which wrap Recharts.
+
+**Why:**
+- PRD requires a dual-axis dose-vs-outcome chart (§5.2.8).
+- shadcn's chart components are styled with Tailwind, match the app's design system, and are owned code (copyable, modifiable).
+- Recharts is a React-native library (no imperative DOM manipulation), meaning it composes naturally with Server and Client Components.
+- AI compatibility: both shadcn chart patterns and Recharts are well-represented in AI training data.
+
+**Alternatives considered:**
+- **Tremor Raw** — React component library with built-in charts; less flexible than shadcn copy-paste model
+- **Chart.js** — vanilla JS with React wrapper; imperative API is less natural in React; larger bundle
+- **Victory** — React-native but smaller community; less AI coverage
+
+**Implementation note:** The correlation timeline needs a `ComposedChart` with `Bar` (dose events) and `Line` (outcome rating). This is a standard Recharts pattern.
+
+### 4.4 Forms: React Hook Form 7.x + Zod 3.x
+
+**Decision:** React Hook Form with Zod resolver.
+
+**Why:**
+- React Hook Form: uncontrolled inputs (no re-render per keystroke), well-maintained, standard shadcn/ui integration pattern.
+- Zod: schema-first validation; the same Zod schema validates Server Action inputs (server-side) and form inputs (client-side) — single source of truth for validation logic.
+- `@hookform/resolvers/zod` bridges the two.
+
+**Pattern:**
+```
+Zod schema (shared) → React Hook Form (client) + Server Action (server)
+                    → Prisma type (via zod-prisma-types or manual mapping)
+```
+
+**Alternatives considered:**
+- Formik — older, more verbose, less performant
+- Plain `<form>` + Server Actions — fine for simple forms; React Hook Form needed for complex multi-field validation (reconstitution calculator, order builder)
+
+### 4.5 Icons: Lucide React
+
+**Decision:** Lucide React (bundled with shadcn/ui).
+
+**Why:** shadcn/ui uses Lucide by convention. Tree-shakeable SVG icons. No additional install needed.
+
+### 4.6 Date Handling: date-fns 3.x
+
+**Decision:** date-fns 3.x for all date manipulation and formatting.
+
+**Why:**
+- PRD: UTC storage, browser-local-timezone display (§8.8).
+- date-fns is functional (pure functions), tree-shakeable, and has excellent TypeScript types.
+- `formatInTimeZone` (via `date-fns-tz`) handles UTC → user-local conversion correctly.
+- Lightweight alternative to moment.js (deprecated) and Day.js (minimal TypeScript support for some edge cases).
+
+**Pattern:**
+- All timestamps stored as UTC ISO 8601 in Postgres (`TIMESTAMPTZ`).
+- Display: `formatInTimeZone(utcDate, userBrowserTimezone, 'MMM d, yyyy h:mm a')`.
+- "Today's doses" resolved using user's `Intl.DateTimeFormat().resolvedOptions().timeZone` (captured in client, sent as header or stored in session).
+
+**Alternatives considered:**
+- Day.js — lighter but `date-fns-tz` has better TypeScript support for timezone conversion
+- Native `Intl.DateTimeFormat` — adequate for formatting but no utility functions for arithmetic
+
+### 4.7 Client State: TanStack Query 5.x + React Context
+
+**Decision:** TanStack Query for server state; React Context for UI state (wizard step, batch log selection).
+
+**Why:**
+- **TanStack Query:** Handles data fetching, caching, background refetch, and optimistic updates for client-side interactions (search, inventory live updates). Better than SWR for this app's needs (more control over cache invalidation when dose is logged).
+- **React Context:** Lightweight UI state (auth user object, current wizard step, batch log selection set). No global store library (Redux, Zustand) needed — app complexity doesn't justify it.
+
+codex
+[
+  {
+    "severity": "P0",
+    "category": "correctness",
+    "location": "User.outcomeLogs / missing OutcomeLog",
+    "description": "The schema references OutcomeLog[] on User but defines no OutcomeLog model, so the Prisma schema will not compile. It also fails the PRD/domain requirement for subjective outcome logging and outcome-dose correlation.",
+    "suggestion": "Add an OutcomeLog model with userId, loggedDate, overallRating, optional per-protocol ratings, note, tags, createdAt, and indexes for userId + loggedDate."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Auth domain",
+    "description": "PasswordResetToken, AccountDeletionRequest, and DataExportRequest are absent even though password reset, deletion with 48-hour delay, JSON export, and CSV export are PRD/auth-domain requirements.",
+    "suggestion": "Add dedicated tables for password reset tokens, account deletion requests, and data export requests with status enums, expiry/scheduling fields, token hashes, and user-scoped indexes."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "Auth.js persistence tables",
+    "description": "ADR-004 selects Auth.js v5 with Prisma adapter, but the schema lacks the standard adapter-compatible Account, Session, and VerificationToken shape, and User does not include common adapter fields such as emailVerified.",
+    "suggestion": "Either add Auth.js Prisma adapter models and align User fields, or explicitly document JWT-only Credentials behavior and remove the Prisma adapter dependency from the architecture."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "User.managedBy",
+    "description": "managedBy is a plain nullable String, not a self-referential FK. This allows orphaned managed users and cannot enforce the PRD invariant that Power Users must deactivate linked Managed Users before deletion.",
+    "suggestion": "Model managedBy as a self relation to User, add managedUsers backrelation, and index managedBy for admin dashboard queries."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "User / onboarding state",
+    "description": "The first-run setup wizard is a Must Have, but no onboarding state is stored. The schema cannot remember current step, completion, or dismissal.",
+    "suggestion": "Add onboardingState JSON with validation or normalized fields such as onboardingStep, onboardingCompletedAt, and onboardingDismissed."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Protocol.notes / Cycle breaks / Cycle.status",
+    "description": "Protocol notes, draft clone state, cycle pause state, and scheduled cycle breaks are required by the PRD but not represented.",
+    "suggestion": "Add Protocol.notes, include DRAFT if clone workflows need it, add CycleBreak records or a structured breaks table, and align Cycle.status with active/paused/completed/archived semantics."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "DoseLog",
+    "description": "DoseLog is missing note, isBatchLog, and loggedByUserId. Using userId alone conflates the subject user with the actor, which conflicts with audit integrity and managed-user visibility requirements.",
+    "suggestion": "Add subjectUserId or keep userId as subject, add loggedByUserId as actor FK, add note and isBatchLog, and enforce max note length in validation."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "DoseLog.idempotencyKey",
+    "description": "Only an opaque unique idempotencyKey enforces offline sync. If a client generates a different key for the same protocol/date replay, duplicate dose logs can be created despite the architecture's conflict rule.",
+    "suggestion": "Add a composite uniqueness strategy for the sync identity, such as userId + protocolId + scheduledDate + syncAttemptKey, or formalize duplicate-log confirmation with a separate intentionalDuplicate flag."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Vial",
+    "description": "Vial records do not link back to an Order or OrderItem, despite the context map and PRD requiring inventory updates on order receipt with order provenance.",
+    "suggestion": "Add nullable orderId/orderItemId or a VialReceipt table, plus receivedAt and quantity/source fields for inventory created from orders."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "Vial.totalMg / Vial.remainingMg / Vial.bacWaterMl / VendorProduct.priceUsd",
+    "description": "Safety-critical dosing quantities and money are stored as Float, which can introduce rounding errors in dose calculations, remaining inventory, and prices.",
+    "suggestion": "Use Decimal with explicit precision/scale for mg, mL, syringe-unit math outputs, and prices."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Vendor / VendorProduct",
+    "description": "Vendor and product catalog fields are incomplete for the PRD ordering flow. Missing fields include telegram chat ID, order message template, preferred currency, product form, vial size option, vendor currency, and minimum order quantity.",
+    "suggestion": "Add vendor configuration fields and enrich VendorProduct with form, vialSizeMg, currency, minOrderQty, and a uniqueness constraint on vendorId + compoundId + form + vialSize."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Order",
+    "description": "Order does not store send_method, composed/sent message text, transaction ID, sent/confirmed/payment/received/cancelled timestamps, or stale-state timing. These are needed for fallback, payment safety, stale-order cron, and success metrics.",
+    "suggestion": "Add sendMethod enum, messageText, txId, status timestamps, lastStatusChangedAt, and failure fields for Telegram send errors."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "Order.paymentConfirmation",
+    "description": "PaymentConfirmation is stored as unconstrained JSON, so the database cannot enforce the hard gate that PaymentSent requires confirmedTotal, currency, walletAddress, acknowledgedAt, and acknowledgedByUserId.",
+    "suggestion": "Normalize PaymentConfirmation into columns or a one-to-one table, then add check constraints or transition-guarding repository logic backed by integration tests."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "*.status / category / administrationRoute",
+    "description": "Most lifecycle fields are plain String values rather than enums. This permits invalid states like protocol status typos, unsupported routes, invalid order statuses, and audit categories outside the domain model.",
+    "suggestion": "Define Prisma enums for user, invite, compound, protocol, cycle, dose log, vial, vendor, order, audit category, route, unit, export, and deletion statuses."
+  },
+  {
+    "severity": "P1",
+    "category": "readiness",
+    "location": "Prisma DSL indexes",
+    "description": "The indexing strategy lists indexes for DoseLog, Protocol, and Order, but the Prisma models only define AuditEvent indexes. PostgreSQL does not automatically create the declared application indexes from the markdown table.",
+    "suggestion": "Add @@index declarations for DoseLog(userId, scheduledDate), Protocol(userId, status), Order(userId, status), and any other documented indexes directly in the Prisma DSL."
+  },
+  {
+    "severity": "P1",
+    "category": "readiness",
+    "location": "Vial indexes",
+    "description": "No indexes support dashboard inventory indicators, low-inventory suggestions, or the daily vial expiry job.",
+    "suggestion": "Add indexes such as Vial(userId, compoundId, status), Vial(userId, expiresAt), and possibly Vial(status, expiresAt)."
+  },
+  {
+    "severity": "P1",
+    "category": "readiness",
+    "location": "Order stale checker indexes",
+    "description": "The stale-order cron needs to find Sent orders older than 14 days, but there is no status + sentAt/createdAt index and sentAt is not stored.",
+    "suggestion": "Add sentAt and @@index([status, sentAt]) or @@index([status, createdAt]) if createdAt remains the stale basis."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "FK onDelete behavior",
+    "description": "Account deletion requires deleting all user data after export, but no cascade/delete policy is specified. Required FKs will likely block deletion or require fragile manual ordering.",
+    "suggestion": "Define explicit onDelete behavior per relation: cascade user-owned tracker/order/vial/export rows, restrict or deactivate where history must remain, and document the deletion transaction."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "Compound / CompoundProfile",
+    "description": "Reference profile fields are incomplete. Missing fields include Compound.synonyms, archivedAt, category/search metadata, Profile.contraindications, reconstitution guidance, shelf-life guidance, half-life/timing notes, benefits, and sourcing note.",
+    "suggestion": "Add the missing catalog/profile fields needed by PRD reference pages, especially synonyms/category for search and archivedAt for soft deletion."
+  },
+  {
+    "severity": "P2",
+    "category": "correctness",
+    "location": "Citation.url",
+    "description": "Citation.url is required, but the domain invariant says a citation may have URL, DOI, or PMID. DOI-only or PMID-only citations cannot be represented.",
+    "suggestion": "Make url nullable and add validation that at least one of url, doi, or pmid is present."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "Reminder / Push subscription",
+    "description": "Dose reminders and Web Push/email fallback are defined in the PRD and architecture, but there is no reminder preference or push subscription storage.",
+    "suggestion": "Add user reminder settings and WebPushSubscription records with endpoint, keys, channel preference, reminderTime, timezone, and status."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "TelegramSession",
+    "description": "TelegramSession stores only the encrypted session string and isActive. It lacks phone number/chat validation metadata, revocation timestamps, failure state, and key/version metadata useful for re-auth and operational recovery.",
+    "suggestion": "Add createdAt, revokedAt, lastValidatedAt, failureReason, encryptedAt/keyVersion, and optionally phoneNumberHash for support without exposing sensitive data."
+  },
+  {
+    "severity": "P2",
+    "category": "readiness",
+    "location": "Compound / VendorProduct search",
+    "description": "The PRD requires compound search by name/synonyms/category and vendor catalog browsing, but there are no search-oriented indexes beyond unique Compound.name.",
+    "suggestion": "Add indexes for Compound.status/category/name, consider pg_trgm or full-text search for name/synonyms, and add VendorProduct(vendorId, inStock) plus VendorProduct(compoundId)."
+  },
+  {
+    "severity": "P2",
+    "category": "correctness",
+    "location": "AuditEvent",
+    "description": "AuditEvent omits subjectUserId, oldValues, and newValues from the audit domain, and actorUserId is not modeled as a FK. This weakens admin audit views and managed-user scoped audit trails.",
+    "suggestion": "Add subjectUserId FK, oldValues, newValues, actor relation, and indexes for subjectUserId + timestamp and actorUserId + timestamp."
+  }
+]
+tokens used
+73,905
+[
+  {
+    "severity": "P0",
+    "category": "correctness",
+    "location": "User.outcomeLogs / missing OutcomeLog",
+    "description": "The schema references OutcomeLog[] on User but defines no OutcomeLog model, so the Prisma schema will not compile. It also fails the PRD/domain requirement for subjective outcome logging and outcome-dose correlation.",
+    "suggestion": "Add an OutcomeLog model with userId, loggedDate, overallRating, optional per-protocol ratings, note, tags, createdAt, and indexes for userId + loggedDate."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Auth domain",
+    "description": "PasswordResetToken, AccountDeletionRequest, and DataExportRequest are absent even though password reset, deletion with 48-hour delay, JSON export, and CSV export are PRD/auth-domain requirements.",
+    "suggestion": "Add dedicated tables for password reset tokens, account deletion requests, and data export requests with status enums, expiry/scheduling fields, token hashes, and user-scoped indexes."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "Auth.js persistence tables",
+    "description": "ADR-004 selects Auth.js v5 with Prisma adapter, but the schema lacks the standard adapter-compatible Account, Session, and VerificationToken shape, and User does not include common adapter fields such as emailVerified.",
+    "suggestion": "Either add Auth.js Prisma adapter models and align User fields, or explicitly document JWT-only Credentials behavior and remove the Prisma adapter dependency from the architecture."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "User.managedBy",
+    "description": "managedBy is a plain nullable String, not a self-referential FK. This allows orphaned managed users and cannot enforce the PRD invariant that Power Users must deactivate linked Managed Users before deletion.",
+    "suggestion": "Model managedBy as a self relation to User, add managedUsers backrelation, and index managedBy for admin dashboard queries."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "User / onboarding state",
+    "description": "The first-run setup wizard is a Must Have, but no onboarding state is stored. The schema cannot remember current step, completion, or dismissal.",
+    "suggestion": "Add onboardingState JSON with validation or normalized fields such as onboardingStep, onboardingCompletedAt, and onboardingDismissed."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Protocol.notes / Cycle breaks / Cycle.status",
+    "description": "Protocol notes, draft clone state, cycle pause state, and scheduled cycle breaks are required by the PRD but not represented.",
+    "suggestion": "Add Protocol.notes, include DRAFT if clone workflows need it, add CycleBreak records or a structured breaks table, and align Cycle.status with active/paused/completed/archived semantics."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "DoseLog",
+    "description": "DoseLog is missing note, isBatchLog, and loggedByUserId. Using userId alone conflates the subject user with the actor, which conflicts with audit integrity and managed-user visibility requirements.",
+    "suggestion": "Add subjectUserId or keep userId as subject, add loggedByUserId as actor FK, add note and isBatchLog, and enforce max note length in validation."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "DoseLog.idempotencyKey",
+    "description": "Only an opaque unique idempotencyKey enforces offline sync. If a client generates a different key for the same protocol/date replay, duplicate dose logs can be created despite the architecture's conflict rule.",
+    "suggestion": "Add a composite uniqueness strategy for the sync identity, such as userId + protocolId + scheduledDate + syncAttemptKey, or formalize duplicate-log confirmation with a separate intentionalDuplicate flag."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Vial",
+    "description": "Vial records do not link back to an Order or OrderItem, despite the context map and PRD requiring inventory updates on order receipt with order provenance.",
+    "suggestion": "Add nullable orderId/orderItemId or a VialReceipt table, plus receivedAt and quantity/source fields for inventory created from orders."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "Vial.totalMg / Vial.remainingMg / Vial.bacWaterMl / VendorProduct.priceUsd",
+    "description": "Safety-critical dosing quantities and money are stored as Float, which can introduce rounding errors in dose calculations, remaining inventory, and prices.",
+    "suggestion": "Use Decimal with explicit precision/scale for mg, mL, syringe-unit math outputs, and prices."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Vendor / VendorProduct",
+    "description": "Vendor and product catalog fields are incomplete for the PRD ordering flow. Missing fields include telegram chat ID, order message template, preferred currency, product form, vial size option, vendor currency, and minimum order quantity.",
+    "suggestion": "Add vendor configuration fields and enrich VendorProduct with form, vialSizeMg, currency, minOrderQty, and a uniqueness constraint on vendorId + compoundId + form + vialSize."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Order",
+    "description": "Order does not store send_method, composed/sent message text, transaction ID, sent/confirmed/payment/received/cancelled timestamps, or stale-state timing. These are needed for fallback, payment safety, stale-order cron, and success metrics.",
+    "suggestion": "Add sendMethod enum, messageText, txId, status timestamps, lastStatusChangedAt, and failure fields for Telegram send errors."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "Order.paymentConfirmation",
+    "description": "PaymentConfirmation is stored as unconstrained JSON, so the database cannot enforce the hard gate that PaymentSent requires confirmedTotal, currency, walletAddress, acknowledgedAt, and acknowledgedByUserId.",
+    "suggestion": "Normalize PaymentConfirmation into columns or a one-to-one table, then add check constraints or transition-guarding repository logic backed by integration tests."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "*.status / category / administrationRoute",
+    "description": "Most lifecycle fields are plain String values rather than enums. This permits invalid states like protocol status typos, unsupported routes, invalid order statuses, and audit categories outside the domain model.",
+    "suggestion": "Define Prisma enums for user, invite, compound, protocol, cycle, dose log, vial, vendor, order, audit category, route, unit, export, and deletion statuses."
+  },
+  {
+    "severity": "P1",
+    "category": "readiness",
+    "location": "Prisma DSL indexes",
+    "description": "The indexing strategy lists indexes for DoseLog, Protocol, and Order, but the Prisma models only define AuditEvent indexes. PostgreSQL does not automatically create the declared application indexes from the markdown table.",
+    "suggestion": "Add @@index declarations for DoseLog(userId, scheduledDate), Protocol(userId, status), Order(userId, status), and any other documented indexes directly in the Prisma DSL."
+  },
+  {
+    "severity": "P1",
+    "category": "readiness",
+    "location": "Vial indexes",
+    "description": "No indexes support dashboard inventory indicators, low-inventory suggestions, or the daily vial expiry job.",
+    "suggestion": "Add indexes such as Vial(userId, compoundId, status), Vial(userId, expiresAt), and possibly Vial(status, expiresAt)."
+  },
+  {
+    "severity": "P1",
+    "category": "readiness",
+    "location": "Order stale checker indexes",
+    "description": "The stale-order cron needs to find Sent orders older than 14 days, but there is no status + sentAt/createdAt index and sentAt is not stored.",
+    "suggestion": "Add sentAt and @@index([status, sentAt]) or @@index([status, createdAt]) if createdAt remains the stale basis."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "FK onDelete behavior",
+    "description": "Account deletion requires deleting all user data after export, but no cascade/delete policy is specified. Required FKs will likely block deletion or require fragile manual ordering.",
+    "suggestion": "Define explicit onDelete behavior per relation: cascade user-owned tracker/order/vial/export rows, restrict or deactivate where history must remain, and document the deletion transaction."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "Compound / CompoundProfile",
+    "description": "Reference profile fields are incomplete. Missing fields include Compound.synonyms, archivedAt, category/search metadata, Profile.contraindications, reconstitution guidance, shelf-life guidance, half-life/timing notes, benefits, and sourcing note.",
+    "suggestion": "Add the missing catalog/profile fields needed by PRD reference pages, especially synonyms/category for search and archivedAt for soft deletion."
+  },
+  {
+    "severity": "P2",
+    "category": "correctness",
+    "location": "Citation.url",
+    "description": "Citation.url is required, but the domain invariant says a citation may have URL, DOI, or PMID. DOI-only or PMID-only citations cannot be represented.",
+    "suggestion": "Make url nullable and add validation that at least one of url, doi, or pmid is present."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "Reminder / Push subscription",
+    "description": "Dose reminders and Web Push/email fallback are defined in the PRD and architecture, but there is no reminder preference or push subscription storage.",
+    "suggestion": "Add user reminder settings and WebPushSubscription records with endpoint, keys, channel preference, reminderTime, timezone, and status."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "TelegramSession",
+    "description": "TelegramSession stores only the encrypted session string and isActive. It lacks phone number/chat validation metadata, revocation timestamps, failure state, and key/version metadata useful for re-auth and operational recovery.",
+    "suggestion": "Add createdAt, revokedAt, lastValidatedAt, failureReason, encryptedAt/keyVersion, and optionally phoneNumberHash for support without exposing sensitive data."
+  },
+  {
+    "severity": "P2",
+    "category": "readiness",
+    "location": "Compound / VendorProduct search",
+    "description": "The PRD requires compound search by name/synonyms/category and vendor catalog browsing, but there are no search-oriented indexes beyond unique Compound.name.",
+    "suggestion": "Add indexes for Compound.status/category/name, consider pg_trgm or full-text search for name/synonyms, and add VendorProduct(vendorId, inStock) plus VendorProduct(compoundId)."
+  },
+  {
+    "severity": "P2",
+    "category": "correctness",
+    "location": "AuditEvent",
+    "description": "AuditEvent omits subjectUserId, oldValues, and newValues from the audit domain, and actorUserId is not modeled as a FK. This weakens admin audit views and managed-user scoped audit trails.",
+    "suggestion": "Add subjectUserId FK, oldValues, newValues, actor relation, and indexes for subjectUserId + timestamp and actorUserId + timestamp."
+  }
+]

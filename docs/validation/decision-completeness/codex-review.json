@@ -1,0 +1,1235 @@
+Reading additional input from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: /Users/kenallred/Documents/dev-projects/peptides
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 019e475d-d665-7e42-9551-1021b7ca56de
+--------
+user
+Perform a deep decision completeness audit. Focus on: 1. Coverage — Does every tech stack choice have an ADR? 2. Quality — Are rationale and alternatives documented? 3. Consistency — Are there contradictions between decisions? Respond with a JSON array of findings: [{"severity": "P0|P1|P2|P3", "category": "coverage|quality|consistency", "location": "ADR ID or tech reference", "description": "description of the gap", "suggestion": "recommended fix"}]
+
+<stdin>
+# System Architecture
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**PRD source:** `docs/plan.md`  
+**ADR source:** `docs/adrs/`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Architectural Style: Modular Monolith
+
+We use a modular monolith architecture built on Next.js 15. While the code lives in a single repository and deploys as a single container, logical boundaries between bounded contexts are enforced to ensure maintainability and optional module isolation (as per ADR-015).
+
+### 1.1 Layered Structure
+- **Presentation Layer**: Next.js App Router (Pages, Layouts, Client Components).
+- **Application Layer**: Server Actions and Route Handlers.
+- **Domain Layer**: Pure business logic, entities, and services (in `lib/`).
+- **Infrastructure Layer**: Prisma (DB), GramJS (Telegram), Resend (Email), Sentry (Observability).
+
+---
+
+## 2. Component Design
+
+### 2.1 Component Overview
+
+| Component | Responsibility | Tech Stack |
+|-----------|----------------|------------|
+| **App Shell** | PWA Layout, Navigation, Auth Guards | Next.js, shadcn/ui |
+| **Auth** | Registration, Login, Session Mgmt | Auth.js v5 |
+| **Tracker** | Dose Logging, Protocols, PWA Sync | React, TanStack Query |
+| **Reference** | Peptide Catalog, Profile Reference | RSC (Next.js) |
+| **Ordering** | Vendor Catalog, Telegram MTProto | GramJS, Server Actions |
+| **Reconstitution** | Concentration Math, Vial Inventory | lib (Typescript) |
+| **Audit** | Immutable Mutation Logs | Prisma (Postgres) |
+
+### 2.2 MTProto Integration Layer
+The Ordering component uses a persistent MTProto client instance managed via a singleton pattern in the Node.js runtime (enabled on Railway's always-on container).
+- **Session Manager**: Handles AES-256 encryption of GramJS session strings.
+- **Message Dispatcher**: Composes and sends vendor messages with idempotency checks.
+- **Fallback UI**: Displays composed message if automation fails.
+
+---
+
+## 3. Data Flows
+
+### 3.1 Flow: Log a Dose (Offline-First)
+1. **User Action**: User taps "Confirm" on dashboard.
+2. **Client Layer**:
+   - If Online: Invoke `logDose` Server Action.
+   - If Offline: Record `DoseLogged` event in IndexedDB (via Serwist/Service Worker).
+3. **PWA Sync**: Service Worker detects connectivity, replays queued events to `/api/sync`.
+4. **Server Layer**:
+   - Validate `idempotencyKey`.
+   - Update `DoseLog` table.
+   - Decrement `Vial.remainingMg`.
+   - Emit `AuditLog` entry.
+
+### 3.2 Flow: Place Telegram Order
+1. **User Action**: User clicks "Send Order" in Order Builder.
+2. **Server Action**:
+   - Retrieve encrypted Telegram session.
+   - Decrypt using `TELEGRAM_SESSION_KEY`.
+   - Connect to Telegram via MTProto (GramJS).
+   - Resolve vendor username to chat ID.
+   - Send message; capture `telegramMessageId`.
+3. **Success**: Update Order status to `Sent`.
+4. **Failure**: Return error and message text for manual fallback.
+
+---
+
+## 4. Module Structure
+
+```
+/
+├── app/                        # Next.js App Router
+│   ├── (auth)/                 # Registration, Login, Reset
+│   ├── (dashboard)/            # Shared dashboard layout
+│   │   ├── tracker/            # Protocol & Dose Log UI
+│   │   ├── reference/          # Compound Catalog UI
+│   │   ├── reconstitution/     # Calculator UI
+│   │   └── ordering/           # Order Builder & History (Isolated)
+│   ├── api/                    # Webhooks, Sync, Cron endpoints
+│   └── actions/                # Server Actions (Mutations)
+├── lib/                        # Core Logic (Domain & Infrastructure)
+│   ├── auth/                   # Custom auth services (Email, Reset)
+│   ├── tracker/                # Dose math & sync logic
+│   ├── ordering/               # MTProto client, vendor logic
+│   ├── reconstitution/         # Safety calculator math
+│   ├── audit/                  # Immutable logger
+│   └── shared/                 # Common types & utils
+├── prisma/                     # DB Schema
+└── worker/                     # PWA Service Worker (Serwist)
+```
+
+---
+
+## 5. State Management Design
+
+### 5.1 Server State (TanStack Query)
+Used for data that changes frequently or needs background polling (e.g., MTProto connection status, sync queue status).
+
+### 5.2 UI State (React Context)
+Used for ephemeral interaction state:
+- `SetupWizardProvider`: Tracks progress through the 3-step onboarding.
+- `OrderingProvider`: Manages the "Cart" during order building.
+
+### 5.3 Persistent Client State (IndexedDB)
+Used for the offline dose log queue. Managed by Serwist.
+
+---
+
+## 6. Extension Points
+
+| Extension Point | Interface | Description |
+|-----------------|-----------|-------------|
+| **Vendor Provider** | `VendorAdapter` | Logic for formatting messages per-vendor. |
+| **Dose Reminder** | `ReminderTransport` | Support for new channels (e.g., SMS, Discord). |
+| **LLM Model** | `AIModelProvider` | Switch between Gemini, OpenAI, or Local. |
+
+---
+
+## 7. Deployment Topology
+
+- **Runtime**: Node.js 20+ on Railway container.
+- **Database**: Managed PostgreSQL on Railway (Private Network).
+- **Storage**: Cloudflare R2 for async exports.
+- **Observability**: Sentry for error tracking; Railway metrics for performance.
+
+---
+
+## 8. Failure Modes & Scalability
+
+### 8.1 MTProto Fragility
+- **Symptom**: Session invalidated by Telegram.
+- **Mitigation**: User prompted to re-link account via phone/code; manual fallback always visible.
+
+### 8.2 Audit Log Write Failure
+- **Symptom**: Mutation succeeds but audit record fails.
+- **Handling**: Transactional integrity (mutations and audit writes happen in the same Prisma `$transaction`).
+
+### 8.3 Offline Sync Conflicts
+- **Symptom**: Multiple devices logging same dose.
+- **Handling**: Idempotency keys (`user-protocol-date`) ensure only one log persists.
+# Audit Domain
+
+The Audit Domain provides a system-wide record of all sensitive mutations and security events.
+
+## Ubiquitous Language
+- **Audit Event**: A persistent, immutable record of a specific action.
+
+## Entities
+
+### AuditEvent (Aggregate Root)
+An immutable log entry.
+- **Attributes**:
+  - `id`: UUID
+  - `timestamp`: timestamp
+  - `actorUserId`: UUID (FK)
+  - `subjectUserId`: UUID (FK, optional)
+  - `category`: enum (Security, Protocol, Order, Admin)
+  - `action`: string (e.g., "PROTOCOL_CREATED")
+  - `resourceId`: UUID (Identity of the affected entity)
+  - `resourceType`: string (e.g., "Protocol")
+  - `metadata`: JSON (Captured request context, IP, User Agent)
+  - `oldValues`: JSON (optional)
+  - `newValues`: JSON (optional)
+
+## Aggregate: System Audit Trail
+- **Consistency Boundary**: A single AuditEvent record.
+- **Root**: AuditEvent
+- **Invariants**:
+  - Audit events are immutable; they can be created but never updated or deleted.
+  - Every event must be linked to an `actorUserId`.
+  - **Retention**: Events are retained for 90 days, then purged by a scheduled background job.
+
+## Invariants
+- `auditEvent.timestamp >= createdAt`
+- `auditEvent.action.length > 0`
+# Auth Domain
+
+The Auth Domain manages user accounts, sessions, and managed user invitations.
+
+## Ubiquitous Language
+- **User**: An authenticated person (Power User or Delegated Participant).
+- **Power User**: The system administrator who manages other users and the ordering module.
+- **Delegated Participant**: A user invited by a Power User (Managed User role).
+- **Invite**: A token-based invitation to join the app.
+
+## Entities
+
+### User (Aggregate Root)
+An account entity.
+- **Attributes**:
+  - `id`: UUID
+  - `email`: string (Unique)
+  - `passwordHash`: PasswordHash (Value Object)
+  - `role`: enum (PowerUser, ManagedUser)
+  - `managedBy`: UUID (FK, optional)
+  - `status`: enum (Active, Deactivated, Pending)
+  - `createdAt`: timestamp
+
+### PasswordResetToken (Entity)
+A single-use token for password recovery.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `tokenHash`: string
+  - `expiresAt`: timestamp
+  - `used`: boolean
+
+### AccountDeletionRequest (Entity)
+A request to wipe all user data.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `requestedAt`: timestamp
+  - `scheduledFor`: timestamp (48h delay)
+  - `status`: enum (Pending, Executed, Cancelled)
+
+### DataExportRequest (Entity)
+A request for data portability.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `format`: enum (JSON, CSV)
+  - `status`: enum (Pending, Processing, Completed, Failed)
+  - `downloadUrl`: string (optional)
+  - `expiresAt`: timestamp (optional)
+
+### OnboardingState (Value Object)
+Tracks the user's progress through the setup wizard.
+- **Attributes**:
+  - `step`: enum (Catalog, Protocol, Telegram, Done)
+  - `completedAt`: timestamp (optional)
+  - `dismissed`: boolean
+
+## Value Objects
+
+### PasswordHash
+Securely hashed password.
+- **Attributes**:
+  - `hash`: string
+  - `algorithm`: string (bcrypt)
+  - `cost`: number (default 12)
+
+## Aggregate: Account Identity
+- **Consistency Boundary**: A User and their auth-related state (tokens, sessions).
+- **Root**: User
+- **Invariants**:
+  - Password hash must use bcrypt with cost >= 12.
+  - Deleting a Power User requires all linked Managed Users to be deactivated first.
+
+## Domain Events
+- `UserRegistered`: A new Power User signs up.
+- `UserInvited`: A Power User sends an invite.
+- `InviteAccepted`: A Managed User completes registration.
+- `AccountDeletionScheduled`: A user requests data wipe.
+
+## Invariants
+- `invite.expiresAt == invite.createdAt + 72h`
+- `passwordResetToken.expiresAt == passwordResetToken.createdAt + 1h`
+# Domain Models Overview
+
+This directory contains the domain models for the Peptides application, organized by pillar and bounded context.
+
+## Bounded Contexts
+
+| Context | Description | Key Aggregates |
+|---------|-------------|----------------|
+| **Reference** | Static compound knowledge and research data. | `Compound` |
+| **Tracker** | Dosing schedules, logs, and subjective outcomes. | `Cycle`, `Protocol` |
+| **Reconstitution** | Vial inventory and math calculations. | `Vial` |
+| **Ordering** | Vendor products and Telegram order transactions. | `Order`, `Vendor` |
+| **Auth** | User accounts, sessions, and multi-user logic. | `User` |
+| **Audit** | Immutable system-wide record of sensitive mutations. | `AuditEvent` |
+
+## Context Map (High Level)
+
+- **Auth** provides the identity foundation for all other contexts (via `userId`).
+- **Audit** listens to events from all other domains to persist the audit trail.
+- **Tracker** references **Reference** (via `compoundId`) for dosing ranges and safety data.
+- **Tracker** references **Reconstitution** (via `vialId`) for inventory decrementing.
+- **Reconstitution** references **Reference** (via `compoundId`) for concentration calculations.
+- **Reconstitution** references **Ordering** (via `orderId`) for inventory updates on receipt.
+- **Ordering** references **Reference** (via `compoundId`) for catalog product linking.
+
+## Domain Model Files
+- [Reference Domain](reference.md)
+- [Tracker Domain](tracker.md)
+- [Reconstitution Domain](reconstitution.md)
+- [Ordering Domain](ordering.md)
+- [Auth Domain](auth.md)
+# Ordering Domain
+
+The Ordering Domain manages vendor product catalogs, Telegram communication, and the order lifecycle.
+
+## Ubiquitous Language
+- **Order**: A purchase transaction for one or more vendor products.
+- **Payment Confirmation**: The explicit step where a user verifies the destination wallet and amount.
+
+## Entities
+
+### Order (Aggregate Root)
+A purchase transaction.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `vendorId`: UUID (FK)
+  - `status`: enum (Draft, Sent, Confirmed, PaymentSent, Received, Cancelled, Stale)
+  - `paymentConfirmation`: PaymentConfirmation (Value Object, optional)
+  - `telegramMessageId`: string (optional)
+  - `idempotencyKey`: string (UUID)
+
+## Value Objects
+
+### PaymentConfirmation
+The safety gate for crypto payments.
+- **Attributes**:
+  - `confirmedTotal`: number
+  - `currency`: string (e.g., "USDT")
+  - `walletAddress`: string
+  - `acknowledgedAt`: timestamp
+  - `acknowledgedByUserId`: UUID
+
+## Aggregate: Order Transaction
+- **Consistency Boundary**: Order status and payment acknowledgement.
+- **Root**: Order
+- **Invariants**:
+  - `status` cannot transition to `PaymentSent` without a completed `paymentConfirmation`.
+  - `paymentConfirmation.walletAddress` must be non-empty.
+
+## Domain Events
+- `OrderSent`: Telegram message dispatched.
+- `PaymentAcknowledged`: User completes the safety gate verification.
+- `OrderReceived`: User confirms delivery and updates inventory.
+
+## Invariants
+- `order.idempotencyKey` is unique per order attempt.
+# Reconstitution Domain
+
+The Reconstitution Domain manages vial inventory and the mathematical calculations for concentration and syringe units.
+
+## Ubiquitous Language
+- **Vial**: A container of a compound in powder or liquid form.
+- **Concentration**: The resulting amount of compound per mL of liquid.
+- **Syringe Units**: The measurement on a 100-unit insulin syringe (1 unit = 0.01mL).
+
+## Entities
+
+### Vial (Aggregate Root)
+A single unit of inventory.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `compoundId`: UUID (FK)
+  - `totalMg`: number
+  - `bacWaterMl`: number (optional)
+  - `remainingMg`: number
+  - `status`: enum (Dry, Reconstituted, Empty, Expired)
+  - `reconstitutedAt`: timestamp (optional)
+  - `expiresAt`: timestamp (optional)
+
+## Value Objects
+
+### ReconstitutionResult
+The output of a reconstitution calculation.
+- **Attributes**:
+  - `concentrationMcgPerMl`: number
+  - `syringeUnitsPerDose`: number
+  - `injectionVolMl`: number
+
+## Domain Services
+
+### ReconstitutionCalculator
+Performs safe reconstitution math with warning policy evaluation.
+- **Warning Policy**:
+  - `injectionVolMl > 1.5` -> Trigger "High Volume" warning.
+  - `bacWaterMl < 0.5` -> Trigger "Low BAC Volume" warning.
+  - `dose > Profile.maxDose` -> Trigger "Above Reference Range" warning.
+
+## Domain Events
+- `VialReconstituted`: BAC water is added to a vial.
+- `SafetyWarningTriggered`: A calculation results in a policy violation.
+
+## Invariants
+- `vial.remainingMg >= 0`
+- `vial.totalMg > 0`
+- `bacWaterMl > 0` (once reconstituted)
+# Reference Domain
+
+The Reference Domain manages the static knowledge base of compounds, their physiological profiles, and the vendor product catalog.
+
+## Ubiquitous Language
+- **Compound**: A biological substance (peptide) with defined mechanism and safety data.
+- **Profile**: Detailed research-backed data associated with a compound.
+- **Catalog**: A searchable collection of compounds available to the user.
+
+## Entities
+
+### Compound (Aggregate Root)
+A peptide or biological substance.
+- **Attributes**:
+  - `id`: UUID
+  - `name`: string (e.g., "BPC-157")
+  - `iupacName`: string (optional)
+  - `synonyms`: string[]
+  - `mechanismOfAction`: text
+  - `administrationRoutes`: enum[] (SC, IM, Oral, Nasal)
+  - `status`: enum (Draft, Published, Archived)
+  - `archivedAt`: timestamp (optional)
+
+### Profile (Entity)
+Detailed research data for a Compound.
+- **Attributes**:
+  - `id`: UUID
+  - `compoundId`: UUID (FK)
+  - `dosingLow`: DoseAmount
+  - `dosingTypical`: DoseAmount
+  - `dosingHigh`: DoseAmount
+  - `sideEffects`: text
+  - `contraindications`: text
+  - `stackingNotes`: text (curated)
+  - `citations`: Citation[] (Value Objects)
+
+## Value Objects
+
+### Citation
+A research reference.
+- **Attributes**:
+  - `title`: string
+  - `url`: string (URL)
+  - `doi`: string (optional)
+  - `pmid`: string (optional)
+- **Invariants**:
+  - Must have either a URL, DOI, or PMID.
+
+## Aggregate: Compound Catalog
+- **Consistency Boundary**: A Compound and its Profile must be consistent.
+- **Root**: Compound
+- **Invariants**:
+  - A published Compound must have at least one administration route.
+  - A Compound name must be unique within the catalog.
+
+## Domain Events
+- `CompoundCreated`: Triggered when a new compound is added.
+- `CompoundProfileUpdated`: Triggered when mechanism or dosing data changes.
+- `CompoundArchived`: Triggered when a compound is soft-deleted.
+
+## Invariants
+- `compound.name.length > 0`
+- `count(compound.administrationRoutes) > 0` if `status == Published`
+# Tracker Domain
+
+The Tracker Domain manages user protocols, daily dosing logs, cycles, and subjective outcomes.
+
+## Ubiquitous Language
+- **Protocol**: A scheduled plan for a specific compound (e.g., "BPC-157 250mcg daily").
+- **Dose Log**: A record of a completed or skipped dose event.
+- **Cycle**: A logical grouping of protocols over a defined period.
+- **Outcome Log**: A subjective rating of wellbeing and notes for a given day.
+- **Injection Site**: The physiological location of an administration (e.g., "Left Abdomen").
+
+## Entities
+
+### Protocol (Aggregate Root)
+A scheduled dosing plan.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `compoundId`: UUID (FK)
+  - `cycleId`: UUID (FK, optional)
+  - `dose`: DoseAmount (Value Object)
+  - `schedule`: Schedule (Value Object)
+  - `administrationRoute`: enum (SC, IM, Oral, Nasal)
+  - `startDate`: date
+  - `endDate`: date (optional)
+  - `status`: enum (Active, Paused, Completed, Deactivated)
+  - `notes`: text
+
+### Cycle (Aggregate Root)
+A logical container for one or more protocols.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `name`: string
+  - `startDate`: date
+  - `endDate`: date (optional)
+  - `status`: enum (Active, Completed, Archived)
+
+### Dose Log (Entity)
+A record of a dose event.
+- **Attributes**:
+  - `id`: UUID
+  - `protocolId`: UUID (FK)
+  - `idempotencyKey`: string (UUID, unique per user-scheduledDate-protocolId)
+  - `loggedAt`: timestamp
+  - `scheduledDate`: date
+  - `amount`: DoseAmount (Value Object)
+  - `status`: enum (Logged, Skipped)
+  - `injectionSite`: InjectionSite (Value Object)
+  - `isBatchLog`: boolean
+  - `loggedByUserId`: UUID (FK)
+
+## Value Objects
+
+### DoseAmount
+- **Attributes**:
+  - `value`: number
+  - `unit`: enum (mcg, mg, IU, mL)
+
+### Schedule
+- **Attributes**:
+  - `frequency`: enum (Daily, EOD, MWF, CustomInterval)
+  - `intervalDays`: number (optional)
+
+### InjectionSite
+- **Attributes**:
+  - `location`: string (e.g., "Left Abdomen")
+  - `group`: enum (Abdomen, Thigh, Deltoid, Glute)
+
+## Domain Services
+
+### SiteRotationPolicy
+Calculates the next suggested injection site based on a user's `DoseLog` history for a specific route.
+- **Rule**: Round-robin through available sites in the preferred group.
+
+## Aggregate: Dose Adherence
+- **Consistency Boundary**: Protocol and its Dose Logs.
+- **Root**: Protocol
+- **Invariants**:
+  - Cannot log a future dose.
+  - Cannot edit a dose log past the same calendar day.
+
+## Domain Events
+- `DoseLogged`: A user confirms a dose.
+- `DoseSkipped`: A user explicitly skips a dose.
+- `InjectionSiteSuggested`: The rotation policy produces a new suggestion.
+
+## Invariants
+- `dose.value > 0`
+- `cycle.startDate <= cycle.endDate` (if exists)
+# ADR-001: Use Next.js 15 App Router for Full-Stack Monolith
+
+## Status
+Accepted
+
+## Context
+The application needs to handle both frontend UI (Tracker, Catalog, Dashboard) and backend logic (Dose Logging, Telegram integration, Auth). A solo developer needs a productive environment that minimizes context switching and operational overhead.
+
+## Decision
+We will use Next.js 15 with the App Router architecture as a full-stack monolith.
+
+## Alternatives Considered
+- **SvelteKit**: Smaller bundles, but less AI training data and smaller ecosystem for some integrations.
+- **Express + Vite + React**: More control, but requires manual wiring for routing, layouts, and API boundaries. Higher maintenance cost.
+- **Remix**: Excellent progressive enhancement, but smaller community than Next.js.
+
+## Consequences
+- **Benefits**: Single codebase for UI and API; unified type system; React Server Components (RSC) for zero-JS reference pages; built-in Server Actions for mutations.
+- **Costs**: Learning curve for RSC boundaries; SSR complexity (hydration mismatches); dependence on Vercel or Node.js server for optimized hosting.
+# ADR-002: Use PostgreSQL with Prisma ORM
+
+## Status
+Accepted
+
+## Context
+The application requires a relational data model for compounds, protocols, logs, and orders. We need strict type safety and migrations for a evolving schema.
+
+## Decision
+We will use PostgreSQL 16 (managed by Railway) as the primary database, with Prisma 5.x as the Object-Relational Mapper (ORM).
+
+## Alternatives Considered
+- **Drizzle ORM**: SQL-first and lightweight, but Prisma has superior AI compatibility and schema-first DX.
+- **MongoDB**: Flexible but lacks built-in relational integrity needed for safety-critical protocol/vial linkages.
+- **SQLite (local-first)**: Simplifies some things but complicates multi-user data synchronization and server-side Telegram session management.
+
+## Consequences
+- **Benefits**: Type-safe queries generated from `schema.prisma`; easy migrations; managed backups on Railway; JSONB support for flexible metadata.
+- **Costs**: Prisma Client overhead; potential connection pooling issues at scale (mitigated by low user count).
+# ADR-003: Use Tailwind CSS and shadcn/ui for Frontend
+
+## Status
+Accepted
+
+## Context
+The UI needs to be functional-first, accessible (WCAG 2.1 AA), and mobile-responsive. A solo developer needs to iterate quickly on UI without a dedicated designer.
+
+## Decision
+We will use Tailwind CSS 3.x for styling and shadcn/ui for component primitives.
+
+## Alternatives Considered
+- **Vanilla CSS / CSS Modules**: Maximum flexibility but slower iteration speed for common UI patterns.
+- **Material UI / Mantine**: Robust but harder to customize deeply; black-box dependencies.
+- **Tailwind v4**: Too new (unstable) at the time of project initialization.
+
+## Consequences
+- **Benefits**: Rapid prototyping with utility classes; copy-paste component model allows full control; high AI training coverage; accessible by default via Radix UI.
+- **Costs**: "Tailwind noise" in markup; learning curve for shadcn/ui customization patterns.
+# ADR-004: Use Auth.js v5 for Authentication
+
+## Status
+Accepted
+
+## Context
+The application needs secure authentication (Email/Password), session management (30-day rolling), and role-based access control (Power User vs Managed User).
+
+## Decision
+We will use Auth.js v5 (NextAuth) with the Credentials provider and Prisma adapter.
+
+## Alternatives Considered
+- **Better Auth**: Newer and well-designed, but less AI training data available than Auth.js.
+- **Lucia Auth**: Deprecated by author in 2024.
+- **Custom JWT session**: More work to implement secure rolling refresh, CSRF protection, and edge middleware integration.
+
+## Consequences
+- **Benefits**: Native integration with Next.js App Router; large ecosystem; easy database persistence via Prisma adapter; handles complex auth flows out-of-the-box.
+- **Costs**: Learning curve for v5 beta patterns; some friction with custom "password reset" flows which must be implemented manually.
+# ADR-005: Use GramJS for Telegram MTProto Integration
+
+## Status
+Accepted
+
+## Context
+The Ordering module requires user-level Telegram access to send messages to vendors. Official Bot API is insufficient as bots cannot initiate conversations with arbitrary vendors.
+
+## Decision
+We will use GramJS (`telegram` npm package) to implement the MTProto client for ordering.
+
+### Session Security
+MTProto session strings will be:
+1. **Encrypted**: AES-256-GCM encrypted server-side using a `TELEGRAM_SESSION_KEY` env var.
+2. **Scoped**: Tied to the Power User's `userId` in the database.
+3. **Excluded**: Never returned in API responses or included in data exports.
+4. **Revocable**: Immediately deleted from the DB on account deletion or manual request.
+
+### Manual Fallback
+To mitigate MTProto session fragility:
+1. Every order flow will generate a human-readable message text.
+2. If the automated send fails, the UI will display the message and provide a `tg://resolve?domain={vendor}` deep-link for manual completion.
+3. Order state can be manually advanced to "Sent" by the user.
+
+## Consequences
+- **Benefits**: Battle-tested; extensive documentation; standard patterns for session string serialization and restoration.
+- **Costs**: Medium lock-in (switching libraries requires session migration); potential rate limits (mitigated by low transaction volume).
+# ADR-006: Use Railway for Hosting and Deployment
+
+## Status
+Accepted
+
+## Context
+The application requires an always-on server for MTProto persistent sessions and cron-triggered dose reminders. Serverless platforms (Vercel, AWS Lambda) are unsuitable due to cold starts and lack of persistence.
+
+## Decision
+We will use Railway as the primary hosting provider for the application and database.
+
+## Alternatives Considered
+- **Vercel**: Excellent for Next.js but purely serverless; problematic for GramJS sessions and scheduled jobs.
+- **DigitalOcean / Hetzner**: More manual configuration (VPS); higher operational burden for a solo developer.
+- **Fly.io**: Good for persistent apps but more complex deployment and networking model than Railway.
+
+## Consequences
+- **Benefits**: Simple "PaaS" experience; integrated managed Postgres; support for always-on containers; easy env var management; native pnpm support.
+- **Costs**: Higher cost than basic serverless if app sits idle; Railway-specific deployment conventions.
+# ADR-007: Implement PWA with Serwist for Offline Dose Logging
+
+## Status
+Accepted
+
+## Context
+The "7:00 AM routine" often takes place when users have poor or no internet connectivity (e.g., in a basement gym or traveling). Dose logging must work offline to ensure accuracy and user retention.
+
+## Decision
+We will implement the application as a Progressive Web App (PWA) using Serwist to manage the service worker and offline queuing.
+
+## Alternatives Considered
+- **next-pwa**: Unmaintained since 2022; Serwist is its active successor.
+- **Pure Web App (Online Only)**: Violates the core "7am routine" requirement and MoSCoW "Must Have" status for offline logging.
+- **Native Mobile App**: Higher development cost; rejected by App Store policies for grey-market ordering features.
+
+## Consequences
+- **Benefits**: Home screen installation; offline dose logging with Background Sync; fast app shell loading via service worker cache.
+- **Costs**: Service worker complexity; IndexedDB management for the offline queue; potential sync conflicts (mitigated by idempotency keys).
+# ADR-008: Use Vitest and Playwright for Automated Testing
+
+## Status
+Accepted
+
+## Context
+Safety-critical math (reconstitution) and payment flows require 100% test coverage to prevent user harm and financial loss. A solo developer needs fast, reliable tests that run in CI.
+
+## Decision
+We will use Vitest for unit and integration testing and Playwright for end-to-end (E2E) testing.
+
+## Alternatives Considered
+- **Jest**: Slower and worse ESM support than Vitest for modern Next.js projects.
+- **Cypress**: Excellent but slower and has less WebKit support than Playwright for iOS PWA testing.
+- **No E2E testing**: Too risky for the payment safety gate and offline sync requirements.
+
+## Consequences
+- **Benefits**: Extremely fast unit tests; reliable cross-browser E2E testing (Chromium, Firefox, WebKit); visual debugging in Playwright; 100% coverage target for critical math.
+- **Costs**: Time investment to maintain the E2E suite; potential flakiness in complex PWA sync tests.
+# ADR-009: Implement Persistent Audit Logging for Sensitive Mutations
+
+## Status
+Accepted
+
+## Context
+The PRD requires a "Hard Gate" for audit log completeness (100% of protocol mutations, dose logs, and order events). This is necessary for security, system integrity, and potentially future regulatory compliance.
+
+## Decision
+We will implement a system-wide `audit_events` table in PostgreSQL to store immutable records of all sensitive state changes.
+
+## Alternatives Considered
+- **Application Logs (Stdout)**: Easier to implement but ephemeral and harder to query for user-facing audit trails.
+- **Prisma Middleware**: Can capture changes but harder to attribute to a specific user/request context in some scenarios.
+- **Temporal / Event Sourcing**: Provides a complete audit trail but adds significant architectural complexity.
+
+## Consequences
+- **Benefits**: Immutable record of system state; easy to query for admin adherence monitoring; satisfies security requirements; provides data recovery path.
+- **Costs**: Database storage growth (mitigated by 90-day rolling purge); additional latency on writes to record the audit event.
+
+## Retention Policy
+Audit events will be retained for 90 days. A daily background job will delete events older than 90 days to manage database size.
+# ADR-010: Use Vercel AI SDK with Gemini 1.5 Pro for AI Assistance
+
+## Status
+Accepted
+
+## Context
+Phase 3 requires AI capabilities for Telegram order confirmation parsing and automated PubMed digests. We need a flexible abstraction that supports multiple LLM providers and is well-supported in the Next.js ecosystem.
+
+## Decision
+We will use the Vercel AI SDK as the primary abstraction layer, with Gemini 1.5 Pro (via Google AI provider) as the initial model for parsing and summarization.
+
+## Alternatives Considered
+- **LangChain.js**: Highly capable but overly complex for simple parsing and summarization tasks.
+- **OpenAI SDK**: Excellent, but Gemini 1.5 Pro offers superior context window and multimodal capabilities at a lower price point for v1.
+- **Direct REST API calls**: Harder to maintain and lacks the built-in streaming and tool-calling utilities of the Vercel SDK.
+
+## Consequences
+- **Benefits**: Provider-agnostic code; unified stream handling; high-quality parsing with Gemini's long context; lower v1 operational cost.
+- **Costs**: Dependency on Vercel AI SDK's specific patterns; potential rate limits on Gemini (mitigated by batching background tasks).
+# ADR-011: Use Resend for Transactional Email
+
+## Status
+Accepted
+
+## Context
+The application requires reliable email delivery for invitation links, password resets, and async data exports. Deliverability and ease of use for a solo developer are primary concerns.
+
+## Decision
+We will use Resend as the primary transactional email provider.
+
+## Alternatives Considered
+- **AWS SES**: Cheap but difficult to set up and manage (sandbox, identity verification).
+- **Postmark**: Excellent deliverability but more expensive for low-volume v1 usage.
+- **SendGrid**: Known for deliverability issues in recent years.
+
+## Consequences
+- **Benefits**: Clean API; excellent DX; generous free tier; simple React-based template support (via React Email).
+- **Costs**: Lock-in to Resend's API; dependency on a third-party service for critical auth flows.
+# ADR-012: Use Railway Cron for Scheduled Jobs
+
+## Status
+Accepted
+
+## Context
+Dose reminders, stale-order detection, and audit purges require a reliable task scheduler. Next.js does not have a built-in background job processor.
+
+## Decision
+We will use Railway's native Cron scheduler to trigger API routes in the monolith for recurring tasks.
+
+## Alternatives Considered
+- **Inngest**: Excellent for complex workflows, but potentially overkill for v1.
+- **BullMQ + Redis**: Adds significant operational complexity (requires Redis).
+- **Upstash Workflow**: Good serverless option, but Railway Cron is already integrated into the hosting platform.
+
+## Consequences
+- **Benefits**: Zero additional infrastructure cost; simple implementation via HTTP endpoints; centralized monitoring in Railway.
+- **Costs**: Endpoints must be secured with a shared secret (`CRON_SECRET`); limited to periodic tasks (no fine-grained event-driven delays).
+# ADR-013: Use Sentry for Error Tracking and Observability
+
+## Status
+Accepted
+
+## Context
+A solo developer needs to be alerted to silent failures in safety-critical math or ordering flows within 15 minutes (PRD §8.7).
+
+## Decision
+We will use Sentry for error tracking and performance monitoring.
+
+## Alternatives Considered
+- **LogRocket**: Great for UI replay, but more expensive and less focused on backend error tracking.
+- **Axiom / Datadog**: Robust logging platforms but higher configuration overhead.
+- **Standard Console Logs**: Unsuitable for proactive alerting.
+
+## Consequences
+- **Benefits**: Automatic exception capture; detailed stack traces; integration with Next.js; P0 alerting via email/Slack.
+- **Costs**: Slight performance overhead; dependency on Sentry's SDK and ingestion limits.
+# ADR-014: Use Cloudflare R2 for Object Storage
+
+## Status
+Accepted
+
+## Context
+Async data exports (PRD §5.7) for files >=10MB require a persistent, secure storage location where download links can be generated.
+
+## Decision
+We will use Cloudflare R2 as the object storage provider for data exports.
+
+## Alternatives Considered
+- **AWS S3**: Industry standard but has egress fees and more complex IAM configuration.
+- **Local Disk Storage**: Unsuitable for multi-container deployments on Railway.
+- **Supabase Storage**: Tied to the Supabase ecosystem.
+
+## Consequences
+- **Benefits**: S3-compatible API; zero egress fees; simple bucket management; high reliability.
+- **Costs**: Dependency on Cloudflare; requires managing AWS SDK or S3-compatible client in the monolith.
+# ADR-015: Implement Bounded Context Isolation for Ordering
+
+## Status
+Accepted
+
+## Context
+The PRD (§7.5) requires the Ordering module to be architecturally isolatable so it can be disabled for regulatory reasons without breaking the Reference and Tracker pillars.
+
+## Decision
+We will implement the Ordering module with clear boundaries:
+1. **Routing**: All ordering flows live under `/ordering`.
+2. **Permissions**: Ordering features are guarded by a specific RBAC capability check.
+3. **Services**: Ordering logic is isolated in `lib/ordering/` and `app/actions/ordering/`.
+4. **Feature Flag**: A `DISABLE_ORDERING` environment variable will completely hide the module from the UI and block API routes.
+
+## Alternatives Considered
+- **Shared Codebase**: Easier to implement but harder to strip out if needed.
+- **Microservices**: Maximum isolation but excessive operational overhead for v1.
+
+## Consequences
+- **Benefits**: Legal/regulatory flexibility; cleaner module boundaries; easier v2 upgrades for ordering.
+- **Costs**: Slight overhead in service layer abstraction.
+# Architecture Decision Records (ADR) Log
+
+This log tracks the significant architectural decisions made for the Peptides application.
+
+| ID | Title | Status | Date |
+|----|-------|--------|------|
+| ADR-001 | Use Next.js 15 App Router for Full-Stack Monolith | Accepted | 2026-05-20 |
+| ADR-002 | Use PostgreSQL with Prisma ORM | Accepted | 2026-05-20 |
+| ADR-003 | Use Tailwind CSS and shadcn/ui for Frontend | Accepted | 2026-05-20 |
+| ADR-004 | Use Auth.js v5 for Authentication | Accepted | 2026-05-20 |
+| ADR-005 | Use GramJS for Telegram MTProto Integration | Accepted | 2026-05-20 |
+| ADR-006 | Use Railway for Hosting and Deployment | Accepted | 2026-05-20 |
+| ADR-007 | Implement PWA with Serwist for Offline Dose Logging | Accepted | 2026-05-20 |
+| ADR-008 | Use Vitest and Playwright for Automated Testing | Accepted | 2026-05-20 |
+| ADR-009 | Implement Persistent Audit Logging for Sensitive Mutations | Accepted | 2026-05-20 |
+| ADR-010 | Use Vercel AI SDK with Gemini 1.5 Pro for AI Assistance | Accepted | 2026-05-20 |
+| ADR-011 | Use Resend for Transactional Email | Accepted | 2026-05-20 |
+| ADR-012 | Use Railway Cron for Scheduled Jobs | Accepted | 2026-05-20 |
+| ADR-013 | Use Sentry for Error Tracking and Observability | Accepted | 2026-05-20 |
+| ADR-014 | Use Cloudflare R2 for Object Storage | Accepted | 2026-05-20 |
+| ADR-015 | Implement Bounded Context Isolation for Ordering | Accepted | 2026-05-20 |
+</stdin>
+exec
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+---
+name: using-superpowers
+description: Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions
+---
+
+<SUBAGENT-STOP>
+If you were dispatched as a subagent to execute a specific task, skip this skill.
+</SUBAGENT-STOP>
+
+<EXTREMELY-IMPORTANT>
+If you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.
+
+IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.
+
+This is not negotiable. This is not optional. You cannot rationalize your way out of this.
+</EXTREMELY-IMPORTANT>
+
+## Instruction Priority
+
+Superpowers skills override default system prompt behavior, but **user instructions always take precedence**:
+
+1. **User's explicit instructions** (CLAUDE.md, GEMINI.md, AGENTS.md, direct requests) — highest priority
+2. **Superpowers skills** — override default system behavior where they conflict
+3. **Default system prompt** — lowest priority
+
+If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "always use TDD," follow the user's instructions. The user is in control.
+
+## How to Access Skills
+
+**In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you—follow it directly. Never use the Read tool on skill files.
+
+**In Copilot CLI:** Use the `skill` tool. Skills are auto-discovered from installed plugins. The `skill` tool works the same as Claude Code's `Skill` tool.
+
+**In Gemini CLI:** Skills activate via the `activate_skill` tool. Gemini loads skill metadata at session start and activates the full content on demand.
+
+**In other environments:** Check your platform's documentation for how skills are loaded.
+
+## Platform Adaptation
+
+Skills use Claude Code tool names. Non-CC platforms: see `references/copilot-tools.md` (Copilot CLI), `references/codex-tools.md` (Codex) for tool equivalents. Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
+
+# Using Skills
+
+## The Rule
+
+**Invoke relevant or requested skills BEFORE any response or action.** Even a 1% chance a skill might apply means that you should invoke the skill to check. If an invoked skill turns out to be wrong for the situation, you don't need to use it.
+
+```dot
+digraph skill_flow {
+    "User message received" [shape=doublecircle];
+    "About to EnterPlanMode?" [shape=doublecircle];
+    "Already brainstormed?" [shape=diamond];
+    "Invoke brainstorming skill" [shape=box];
+    "Might any skill apply?" [shape=diamond];
+    "Invoke Skill tool" [shape=box];
+    "Announce: 'Using [skill] to [purpose]'" [shape=box];
+    "Has checklist?" [shape=diamond];
+    "Create TodoWrite todo per item" [shape=box];
+    "Follow skill exactly" [shape=box];
+    "Respond (including clarifications)" [shape=doublecircle];
+
+    "About to EnterPlanMode?" -> "Already brainstormed?";
+    "Already brainstormed?" -> "Invoke brainstorming skill" [label="no"];
+    "Already brainstormed?" -> "Might any skill apply?" [label="yes"];
+    "Invoke brainstorming skill" -> "Might any skill apply?";
+
+    "User message received" -> "Might any skill apply?";
+    "Might any skill apply?" -> "Invoke Skill tool" [label="yes, even 1%"];
+    "Might any skill apply?" -> "Respond (including clarifications)" [label="definitely not"];
+    "Invoke Skill tool" -> "Announce: 'Using [skill] to [purpose]'";
+    "Announce: 'Using [skill] to [purpose]'" -> "Has checklist?";
+    "Has checklist?" -> "Create TodoWrite todo per item" [label="yes"];
+    "Has checklist?" -> "Follow skill exactly" [label="no"];
+    "Create TodoWrite todo per item" -> "Follow skill exactly";
+}
+```
+
+## Red Flags
+
+These thoughts mean STOP—you're rationalizing:
+
+| Thought | Reality |
+|---------|---------|
+| "This is just a simple question" | Questions are tasks. Check for skills. |
+| "I need more context first" | Skill check comes BEFORE clarifying questions. |
+| "Let me explore the codebase first" | Skills tell you HOW to explore. Check first. |
+| "I can check git/files quickly" | Files lack conversation context. Check for skills. |
+| "Let me gather information first" | Skills tell you HOW to gather information. |
+| "This doesn't need a formal skill" | If a skill exists, use it. |
+| "I remember this skill" | Skills evolve. Read current version. |
+| "This doesn't count as a task" | Action = task. Check for skills. |
+| "The skill is overkill" | Simple things become complex. Use it. |
+| "I'll just do this one thing first" | Check BEFORE doing anything. |
+| "This feels productive" | Undisciplined action wastes time. Skills prevent this. |
+| "I know what that means" | Knowing the concept ≠ using the skill. Invoke it. |
+
+## Skill Priority
+
+When multiple skills could apply, use this order:
+
+1. **Process skills first** (brainstorming, debugging) - these determine HOW to approach the task
+2. **Implementation skills second** (frontend-design, mcp-builder) - these guide execution
+
+"Let's build X" → brainstorming first, then implementation skills.
+"Fix this bug" → debugging first, then domain-specific skills.
+
+## Skill Types
+
+**Rigid** (TDD, debugging): Follow exactly. Don't adapt away discipline.
+
+**Flexible** (patterns): Adapt principles to context.
+
+The skill itself tells you which.
+
+## User Instructions
+
+Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
+
+exec
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+---
+name: coding-skill
+description: Behavioral guidelines to reduce common LLM coding mistakes. Use when writing, reviewing, or refactoring code to avoid overcomplication, make surgical changes, surface assumptions, define verifiable success criteria, and stay transparent on multi-step work.
+license: MIT
+---
+
+# Karpathy Guidelines
+
+Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+## 5. Communicate Progress
+
+**Narrate what you're doing, not what you did.**
+
+Before executing any plan with more than one edit or command:
+- Announce each step before starting it, not after.
+- Confirm completion in one line.
+- Flag unexpected findings immediately - don't silently adapt and continue.
+
+Keep narration minimal - one line per step.
+
+Bad:  Twelve silent edits, then a final summary.
+Good: "Editing src/auth.ts…" → [edits] → "Done. Moving to src/user.ts."
+
+The test: Could a reader interrupt at the right moment without reading the diff?
+
+## 6. Trace Before Building
+
+**Enumerate system states explicitly before touching code.**
+
+When changes cross a module boundary, or when data flows through three or more components:
+- Draw the state diagram. Every input type, every transition.
+- Write down assumptions about inputs, outputs, edge cases. Name what you don't know.
+- Check the map against the code before implementing.
+
+Redundant tools, unnecessary indirections, and wrong abstractions become visible once states are explicit.
+
+A separate reasoning pass (e.g., a subagent in Claude Code) is a useful vehicle, but the technique is the tracing, not the vehicle.
+
+The test: Can you draw the state diagram from memory before you touch code?
+
+codex
+[
+  {
+    "severity": "P0",
+    "category": "coverage",
+    "location": "DoseAmount / ReconstitutionResult / Vial numeric types",
+    "description": "Dose and concentration math is specified with generic `number` fields, which implies floating-point arithmetic, but there is no ADR selecting a precision-safe numeric strategy.",
+    "suggestion": "Add an ADR requiring decimal-safe dose math, such as Prisma Decimal, decimal.js, integer minor units, or branded quantity value objects with explicit unit conversion rules."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "Audit Domain / ADR-009",
+    "description": "Audit events are described as immutable and never updated or deleted, but the same materials require purging events after 90 days.",
+    "suggestion": "Clarify immutability as append-only within the retention window, or replace hard deletion with archival/tombstone semantics if permanent audit continuity is required."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "Audit Domain Context Map / System Architecture §8.2",
+    "description": "The context map says Audit listens to events from all domains, while the failure-mode design requires mutation and audit writes in the same Prisma transaction.",
+    "suggestion": "Choose and document one audit integration pattern: synchronous transactional audit writes for hard-gated mutations, or a transactional outbox with explicit failure guarantees."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "State Management Design",
+    "description": "TanStack Query, React Context, and IndexedDB are explicit stack choices, but only the PWA/Serwist portion has ADR coverage.",
+    "suggestion": "Add a state-management ADR covering TanStack Query vs SWR/React cache, Context vs Zustand/Jotai, and the IndexedDB queue implementation approach."
+  },
+  {
+    "severity": "P2",
+    "category": "quality",
+    "location": "ADR-005",
+    "description": "The GramJS decision has context and consequences but no documented alternatives considered.",
+    "suggestion": "Add alternatives such as Telegram Bot API, TDLib, Telethon via service boundary, and manual-only ordering, with rationale for rejecting each."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "Node.js 20+ / MTProto singleton runtime",
+    "description": "The architecture depends on Node.js 20+, Railway always-on containers, and a singleton MTProto client, but there is no ADR for runtime/process model constraints.",
+    "suggestion": "Add an ADR documenting the Node runtime version, singleton lifecycle, container restart behavior, and horizontal scaling limitations."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "Auth Domain PasswordHash",
+    "description": "The domain mandates bcrypt with cost >= 12, but there is no ADR documenting the password hashing choice.",
+    "suggestion": "Add a security ADR comparing bcrypt, Argon2id, PBKDF2, and managed-auth alternatives, including cost tuning and migration strategy."
+  },
+  {
+    "severity": "P2",
+    "category": "consistency",
+    "location": "Offline Sync Flow / Tracker Domain idempotencyKey",
+    "description": "The offline sync flow defines idempotency keys as `user-protocol-date`, while the Tracker domain describes the field as a UUID unique per user-scheduledDate-protocolId.",
+    "suggestion": "Define a canonical idempotency-key format per mutation type and update the architecture and domain model to match."
+  },
+  {
+    "severity": "P3",
+    "category": "quality",
+    "location": "ADR-010 / Extension Point: LLM Model",
+    "description": "The extension point promises switching between Gemini, OpenAI, or Local, but ADR-010 only evaluates hosted SDK/provider choices and does not address local-model feasibility.",
+    "suggestion": "Clarify whether Local is a future extension only, or expand ADR-010 with local model constraints, privacy tradeoffs, and adapter requirements."
+  }
+]
+tokens used
+16,281
+[
+  {
+    "severity": "P0",
+    "category": "coverage",
+    "location": "DoseAmount / ReconstitutionResult / Vial numeric types",
+    "description": "Dose and concentration math is specified with generic `number` fields, which implies floating-point arithmetic, but there is no ADR selecting a precision-safe numeric strategy.",
+    "suggestion": "Add an ADR requiring decimal-safe dose math, such as Prisma Decimal, decimal.js, integer minor units, or branded quantity value objects with explicit unit conversion rules."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "Audit Domain / ADR-009",
+    "description": "Audit events are described as immutable and never updated or deleted, but the same materials require purging events after 90 days.",
+    "suggestion": "Clarify immutability as append-only within the retention window, or replace hard deletion with archival/tombstone semantics if permanent audit continuity is required."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "Audit Domain Context Map / System Architecture §8.2",
+    "description": "The context map says Audit listens to events from all domains, while the failure-mode design requires mutation and audit writes in the same Prisma transaction.",
+    "suggestion": "Choose and document one audit integration pattern: synchronous transactional audit writes for hard-gated mutations, or a transactional outbox with explicit failure guarantees."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "State Management Design",
+    "description": "TanStack Query, React Context, and IndexedDB are explicit stack choices, but only the PWA/Serwist portion has ADR coverage.",
+    "suggestion": "Add a state-management ADR covering TanStack Query vs SWR/React cache, Context vs Zustand/Jotai, and the IndexedDB queue implementation approach."
+  },
+  {
+    "severity": "P2",
+    "category": "quality",
+    "location": "ADR-005",
+    "description": "The GramJS decision has context and consequences but no documented alternatives considered.",
+    "suggestion": "Add alternatives such as Telegram Bot API, TDLib, Telethon via service boundary, and manual-only ordering, with rationale for rejecting each."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "Node.js 20+ / MTProto singleton runtime",
+    "description": "The architecture depends on Node.js 20+, Railway always-on containers, and a singleton MTProto client, but there is no ADR for runtime/process model constraints.",
+    "suggestion": "Add an ADR documenting the Node runtime version, singleton lifecycle, container restart behavior, and horizontal scaling limitations."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "Auth Domain PasswordHash",
+    "description": "The domain mandates bcrypt with cost >= 12, but there is no ADR documenting the password hashing choice.",
+    "suggestion": "Add a security ADR comparing bcrypt, Argon2id, PBKDF2, and managed-auth alternatives, including cost tuning and migration strategy."
+  },
+  {
+    "severity": "P2",
+    "category": "consistency",
+    "location": "Offline Sync Flow / Tracker Domain idempotencyKey",
+    "description": "The offline sync flow defines idempotency keys as `user-protocol-date`, while the Tracker domain describes the field as a UUID unique per user-scheduledDate-protocolId.",
+    "suggestion": "Define a canonical idempotency-key format per mutation type and update the architecture and domain model to match."
+  },
+  {
+    "severity": "P3",
+    "category": "quality",
+    "location": "ADR-010 / Extension Point: LLM Model",
+    "description": "The extension point promises switching between Gemini, OpenAI, or Local, but ADR-010 only evaluates hosted SDK/provider choices and does not address local-model feasibility.",
+    "suggestion": "Clarify whether Local is a future extension only, or expand ADR-010 with local model constraints, privacy tradeoffs, and adapter requirements."
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "model": "gemini",
+  "status": "cli_timeout",
+  "note": "Gemini CLI (0.42.0) timed out processing the full PRD review prompt. Partial output recovered (4 lines, truncated). Gemini findings are excluded from multi-model synthesis; Claude + Codex findings cover all 8 review passes with high overlap on P1 items.",
+  "findings": [],
+  "gate_recommendation": "N/A — CLI timeout",
+  "handoff_notes": "N/A"
+}

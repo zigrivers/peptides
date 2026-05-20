@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {
+        "MEMORY_FILE_PATH": ".claude/memory-graph.json"
+      }
+    }
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CC_BASH_COMMAND\" | grep -q 'gh pr create'; then echo '\\n⚠️  MANDATORY: Run MMR review channels before proceeding:\\n\\n  Run: scaffold run review-pr\\n'; fi",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$(date '+%Y-%m-%d %H:%M:%S') — Context compacting\" >> .claude/compaction-log.txt",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}

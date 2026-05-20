@@ -1,0 +1,3298 @@
+Reading additional input from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: /Users/kenallred/Documents/dev-projects/peptides
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 019e470e-8f1a-7de2-9c62-24ac88b106d8
+--------
+user
+Perform a deep review of the UX specification (docs/ux-spec.md) against the PRD, User Stories, and API Contracts. Focus on: 1. Coverage — Does every user story have a corresponding flow or component? 2. Consistency — Do interaction states match the system architecture? 3. Correctness — Are accessibility and responsive behaviors well-defined? 4. Readiness — Is the specification sufficient for high-fidelity implementation? Respond with a JSON array of findings: [{"severity": "P0|P1|P2|P3", "category": "coverage|consistency|correctness|readiness", "location": "section or flow reference", "description": "description of the issue", "suggestion": "recommended fix"}]
+
+<stdin>
+# UX Specification
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**PRD source:** `docs/plan.md`  
+**User Stories source:** `docs/user-stories.md`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Interaction State Machines
+
+### 1.1 Form Interaction (Dose Logging / Profile Edit)
+```
+IDLE -> DIRTY (on input)
+DIRTY -> VALIDATING (on blur/submit)
+VALIDATING -> INVALID (show inline errors) -> DIRTY
+VALIDATING -> SUBMITTING (show spinner, disable button)
+SUBMITTING -> SUCCESS (show checkmark, toast, reset form)
+SUBMITTING -> ERROR (show global error, keep data) -> DIRTY
+```
+
+### 1.2 PWA Sync Interaction
+```
+ONLINE -> OFFLINE (show "Offline Mode" banner)
+OFFLINE -> QUEUED (dose logged locally)
+QUEUED -> SYNCING (network restored, show "Syncing..." spinner)
+SYNCING -> SYNCED (hide banner, update inventory counts)
+SYNCING -> CONFLICT (show conflict resolution dialog)
+```
+
+---
+
+## 2. Key User Flows
+
+### 2.1 Flow: The 7:00 AM Routine (Dose Logging)
+- **Entry**: Dashboard (PWA Home Screen).
+- **Happy Path**:
+  1. User sees "Today's Doses" list.
+  2. User taps "Confirm All" (Batch Log).
+  3. UI shows review sheet with pre-filled amounts and suggested sites.
+  4. User taps "Verify & Log".
+  5. Dashboard updates instantly; doses move to "Logged" section.
+- **Offline Path**:
+  1. User logs dose while offline.
+  2. Action saved to IndexedDB; toast shows "Logged offline - will sync later".
+  3. "Today's Doses" list updates locally.
+
+### 2.2 Flow: The Ordering Safety Gate
+- **Entry**: Order Detail page (Status: Confirmed).
+- **Happy Path**:
+  1. User sees "Ready for Payment" alert.
+  2. User taps "Pay Vendor".
+  3. **Safety Gate Screen**:
+     - Large display of Crypto Amount (e.g., "0.42 ETH").
+     - Large display of Wallet Address.
+     - Copy buttons for each.
+     - Warning: "Double check address in Telegram".
+  4. User taps "I have sent the payment".
+  5. Transition to "Payment Sent" status.
+
+---
+
+## 3. Component Hierarchy
+
+### 3.1 App Shell
+- `Navigation`: Mobile-first bottom bar (Dashboard, Catalog, Ordering, Profile).
+- `StatusBanner`: Notifications for Offline, Stale Orders, Low Inventory.
+
+### 3.2 Dashboard Context
+- `DoseList`: Grouped by Pending/Logged.
+- `OutcomeEntry`: Daily 1-5 rating + tags.
+- `CycleProgress`: Progress bar for current week of active cycle.
+
+---
+
+## 4. Accessibility Requirements (WCAG 2.1 AA)
+
+- **Targeting**: Minimum tap target size 44x44px for all logging buttons.
+- **Contrast**: 4.5:1 ratio for all text elements.
+- **Keyboard**: Full navigation of Dose List and Reconstitution Calculator via Tab + Space/Enter.
+- **Screen Readers**: `aria-live` regions for sync status and math calculation results.
+- **Forms**: Clear association of labels and inputs; error messages described in `aria-describedby`.
+
+---
+
+## 5. Responsive Behavior
+
+| Breakpoint | Layout Strategy |
+|------------|-----------------|
+| **Mobile (<640px)** | Single column; bottom navigation bar; full-width dose cards. |
+| **Tablet (640-1024px)** | Grid layout; side navigation rail; multi-column dashboard widgets. |
+| **Desktop (>1024px)** | Max-width 1200px; side navigation drawer; detailed charts and expanded tables. |
+
+---
+
+## 6. Animation & Transition Specs
+
+- **Page Transitions**: Simple fade-in (150ms).
+- **Logging Feedback**: Subtle green pulse on successful log entry.
+- **Sync Status**: Pulse animation for the "Offline" banner when connection is lost.
+- **Calculation**: Instant update for results; no loading states for pure-math fields.
+# User Stories
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**PRD source:** `docs/plan.md`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## Persona Journey Maps
+
+### Journey: The Morning Routine (Power User)
+1. **Wake up**: Opens app on phone (PWA).
+2. **Dashboard**: Sees "Today's Doses" list.
+3. **Log**: Taps "Log All Scheduled" (US-TRK-05).
+4. **Confirm**: Reviews amounts and suggested sites, taps "Confirm All".
+5. **Close**: App shell closes; user proceeds with day.
+
+### Journey: The Sourcing Loop (Power User)
+1. **Inventory Alert**: Receives alert that BPC-157 is running low (US-ORD-02).
+2. **Order Builder**: Opens order builder; BPC-157 is pre-suggested (US-ORD-03).
+3. **Cart**: Adds other compounds, reviews total.
+4. **Send**: Taps "Send Order" (US-ORD-04). App sends Telegram message via MTProto.
+5. **Payment**: Vendor replies on Telegram. User captures wallet address/amount in app (US-ORD-05).
+6. **Confirmation**: User pays via Coinbase, marks "Payment Sent" in app.
+
+---
+
+## Epic 1: Reference Pillar (REF)
+
+### US-REF-01: View Compound Profile
+**As a** Power User or Managed User,  
+**I want to** view a detailed profile for a peptide,  
+**so that** I understand its mechanism, dosing, and safety profile without checking multiple sites.
+
+**Acceptance Criteria:**
+- **AC 1 (Given/When/Then):** Given I am on the dashboard, when I search for "BPC-157" and select it, then I see its IUPAC name, mechanism of action, and administration routes.
+- **AC 2 (Citations):** Every researched benefit must include a clickable PubMed/DOI link.
+- **AC 3 (Dosing):** Dosing ranges are displayed for low, typical, and high categories with protocol context.
+- **AC 4 (Stacking):** If "Stacking Notes" exist, they are displayed prominently (e.g., "Commonly stacked with TB-500").
+
+**Domain Events:** `CompoundProfileViewed`
+
+---
+
+### US-REF-02: Search & Browse Catalog
+**As a** user,  
+**I want to** search and filter the compound catalog,  
+**so that** I can find peptides by name or physiological goal.
+
+**Acceptance Criteria:**
+- **AC 1 (Search):** Given I am in the catalog, when I type "sema", then "Semaglutide" appears in the filtered results.
+- **AC 2 (Categories):** When I select the "Healing" category, only peptides tagged with healing/recovery (e.g., BPC-157, TB-500) are shown.
+
+**Domain Events:** `CatalogSearched`, `CatalogFiltered`
+
+---
+
+## Epic 2: Tracker Pillar (TRK)
+
+### US-TRK-01: Create and Edit Protocol
+**As a** Power User,  
+**I want to** create and edit a dosing protocol for a compound,  
+**so that** I have a structured schedule for myself or a managed user.
+
+**Acceptance Criteria:**
+- **AC 1 (Setup):** Given I am creating a protocol, when I select "BPC-157" and set 250mcg daily, then the schedule is generated starting from the selected start date.
+- **AC 2 (Assignment):** I can assign the protocol to myself or any of my managed users.
+- **AC 3 (Validation):** Saving is blocked if compound or dose amount is missing.
+- **AC 4 (Audit):** Every creation or modification of a protocol is recorded in the audit log.
+
+**Domain Events:** `ProtocolCreated`, `ProtocolUpdated`
+
+---
+
+### US-TRK-02: Protocol Lifecycle (Pause, Resume, Clone, Restart)
+**As a** Power User,  
+**I want to** manage the lifecycle of my protocols,  
+**so that** I can handle breaks, illness, or cycle restarts without data loss.
+
+**Acceptance Criteria:**
+- **AC 1 (Pause):** When I set a protocol status to "Paused", it no longer appears in "Today's Doses".
+- **AC 2 (Resume):** When I resume a paused protocol, it immediately reappears in the daily dosing schedule.
+- **AC 3 (Clone):** I can duplicate an existing protocol to a new start date, preserving the original's dose and frequency.
+- **AC 4 (Restart):** I can "Restart Cycle" for a completed cycle, which clones all its protocols to a new start date.
+
+**Domain Events:** `ProtocolPaused`, `ProtocolResumed`, `ProtocolCloned`, `CycleRestarted`
+
+---
+
+### US-TRK-03: Individual Dose Logging
+**As a** user,  
+**I want to** log a single dose or record a skip,  
+**so that** I have an accurate record of my adherence and current injection site.
+
+**Acceptance Criteria:**
+- **AC 1 (Logging):** Given a pending dose on my dashboard, when I tap "Confirm", then the dose is recorded with the current timestamp and suggested site.
+- **AC 2 (Skip):** I can explicitly tap "Skip" on a dose, which records it as a "skip" event (distinct from "not logged").
+- **AC 3 (Offline):** Given I am offline, when I log a dose, then the log is queued in the app and synced to the server once I am back online.
+- **AC 4 (Inventory):** If I try to log a dose for a compound with 0 vials remaining, a prominent warning is shown.
+
+**Domain Events:** `DoseLogged`, `DoseSkipped`, `DoseSyncCompleted`
+
+---
+
+### US-TRK-04: Injection Site Rotation
+**As a** user,  
+**I want to** see a suggested injection site for my next dose,  
+**so that** I avoid tissue trauma from repeated injections in the same spot.
+
+**Acceptance Criteria:**
+- **AC 1 (Suggestion):** The app suggests the next site in a round-robin rotation (e.g., Left Abdomen -> Right Abdomen) based on the history for that specific compound.
+- **AC 2 (Visual):** I can see the last 7 sites used for the compound during the logging flow.
+
+**Domain Events:** `InjectionSiteSuggested`
+
+---
+
+### US-TRK-05: Batch "Log All Scheduled" (Must Have)
+**As a** Power User or Managed User,  
+**I want to** log all my daily doses in one action,  
+**so that** I can complete my morning routine in seconds.
+
+**Acceptance Criteria:**
+- **AC 1 (Batch Action):** Given I have 3 doses due today, when I tap "Log All Scheduled", then all 3 are marked as logged at their protocol amounts.
+- **AC 2 (Review):** Before final confirmation, I see a list of what will be logged and can deselect or skip individual doses.
+- **AC 3 (Offline):** Batch logs are queued while offline and synced upon reconnection.
+
+**Domain Events:** `DoseBatchLogged`
+
+---
+
+### US-TRK-06: Subjective Outcome Logging
+**As a** user,  
+**I want to** rate my wellbeing and log notes daily,  
+**so that** I can correlate my protocols with how I feel.
+
+**Acceptance Criteria:**
+- **AC 1 (Rating):** I can log an overall wellbeing rating (1-5) and select tags like "Energy" or "Pain".
+- **AC 2 (Notes):** I can add a free-text note (max 1000 chars) to the daily log.
+
+**Domain Events:** `OutcomeLogged`
+
+---
+
+### US-TRK-07: Outcome-Dose Correlation Timeline
+**As a** user,  
+**I want to** see my dose history and outcome ratings on a single chart,  
+**so that** I can identify if a protocol is actually working.
+
+**Acceptance Criteria:**
+- **AC 1 (Visualization):** A dual-axis chart shows dose events (bars) and outcome ratings (line) over a 30-day or 90-day window.
+- **AC 2 (Stats):** The UI displays the average outcome rating on "Dosed Days" vs "Non-Dosed Days".
+
+**Domain Events:** `CorrelationTimelineViewed`
+
+---
+
+### US-TRK-08: Manage Cycles
+**As a** Power User,  
+**I want to** group my protocols into cycles with specific dates,  
+**so that** I can track progress over time (e.g., "Week 3 of 12").
+
+**Acceptance Criteria:**
+- **AC 1 (Creation):** I can create a cycle with a name, start date, and optional end date.
+- **AC 2 (Association):** I can link multiple protocols to a single cycle.
+- **AC 3 (Display):** The dashboard shows the current week number for any active cycle.
+
+**Domain Events:** `CycleCreated`, `CycleUpdated`
+
+---
+
+### US-TRK-09: Dose Reminders
+**As a** user,  
+**I want to** receive a notification when my doses are due,  
+**so that** I don't forget to maintain my adherence.
+
+**Acceptance Criteria:**
+- **AC 1 (Config):** I can set a daily reminder time (e.g., 7:00 AM).
+- **AC 2 (Push):** If I have the PWA installed, I receive a browser push notification at the set time.
+- **AC 3 (Email):** If push is unavailable, the app sends an email reminder.
+
+**Domain Events:** `ReminderSent`
+
+---
+
+## Epic 3: Reconstitution Pillar (REC)
+
+### US-REC-01: Calculate Reconstitution
+**As a** user,  
+**I want to** calculate how much BAC water to add to a vial with safety guardrails,  
+**so that** I achieve a precise concentration and avoid dosing errors.
+
+**Acceptance Criteria:**
+- **AC 1 (Math):** Given a 5mg vial, when I enter 2mL BAC water, then the app shows a concentration of 2.5mg/mL (2500mcg/mL).
+- **AC 2 (Syringe Units):** Given a target dose of 250mcg, the app shows "10 units" on a 100-unit insulin syringe.
+- **AC 3 (Guardrails):** A yellow warning is shown if: (a) dose exceeds the reference profile high range, (b) injection volume > 1.5mL, or (c) BAC water volume < 0.5mL.
+- **AC 4 (Context):** The calculator displays my last logged dose for this compound to provide safety context.
+
+**Domain Events:** `ReconstitutionCalculated`
+
+---
+
+### US-REC-02: Record Reconstitution (Vial Inventory)
+**As a** user,  
+**I want to** save my reconstitution calculation as a new vial record,  
+**so that** my dose logging can decrement from the vial's total content.
+
+**Acceptance Criteria:**
+- **AC 1 (Persistence):** Saving a calculation creates a `Vial` record with an estimated expiry date (14 days default).
+- **AC 2 (Inventory):** The dashboard shows a "Low Inventory" or "Expiring" badge when the vial is nearly empty or past its date.
+
+**Domain Events:** `VialReconstituted`
+
+---
+
+## Epic 4: Ordering Pillar (ORD)
+
+### US-ORD-01: Configure Telegram MTProto
+**As a** Power User,  
+**I want to** link my Telegram account to the app with clear fallback options,  
+**so that** the app can send order messages directly to vendors while ensuring I can always order manually.
+
+**Acceptance Criteria:**
+- **AC 1 (Auth):** I can enter my phone number and the verification code from Telegram.
+- **AC 2 (Encryption):** The session is stored AES-256 encrypted and is never returned to the UI.
+- **AC 3 (Fallback):** Composed order messages and Telegram deep-links are always visible even if automation is enabled.
+
+**Domain Events:** `TelegramAccountLinked`
+
+---
+
+### US-ORD-02: Inventory-Aware Order Builder
+**As a** Power User,  
+**I want to** see suggested items to order based on my current vial levels,  
+**so that** I never run out of a compound I am currently using.
+
+**Acceptance Criteria:**
+- **AC 1 (Suggestions):** When I open the order builder, compounds with < 14 days of supply remaining are listed in a "Suggested" section.
+- **AC 2 (Quick Add):** I can add suggested items to my cart with one tap.
+
+**Domain Events:** `OrderSuggestionsGenerated`
+
+---
+
+### US-ORD-03: Build and Send Telegram Order
+**As a** Power User,  
+**I want to** build an order and have the app send it to the vendor's Telegram,  
+**so that** I don't have to manually format and copy-paste messages.
+
+**Acceptance Criteria:**
+- **AC 1 (Cart):** I can add items from the vendor catalog to a cart.
+- **AC 2 (MTProto Send):** Tapping "Send Order" sends the message via the linked Telegram account.
+- **AC 3 (Audit):** The full text of the sent message is archived in the order history.
+
+**Domain Events:** `OrderSent`
+
+---
+
+### US-ORD-04: Payment Confirmation Safety Gate
+**As a** Power User,  
+**I want to** explicitly verify the vendor's wallet address and amount before marking payment as sent,  
+**so that** I avoid non-reversible crypto payment errors.
+
+**Acceptance Criteria:**
+- **AC 1 (Gate):** I must enter the wallet address and amount from the vendor's reply.
+- **AC 2 (Verification):** The "Mark Payment Sent" button is only enabled after I view a summary screen showing the address and amount together.
+
+**Domain Events:** `OrderPaymentConfirmed`
+
+---
+
+### US-ORD-05: Receive Order and Update Inventory
+**As a** Power User,  
+**I want to** mark an order as received and review items before they enter inventory,  
+**so that** my vial records accurately reflect what arrived.
+
+**Acceptance Criteria:**
+- **AC 1 (Receive):** Marking as received opens a prompt to confirm which line items to add to inventory.
+- **AC 2 (History):** The order status updates to "Received" with a timestamp.
+
+**Domain Events:** `OrderReceived`
+
+---
+
+### US-ORD-06: Manage Vendor Catalog
+**As a** Power User,  
+**I want to** maintain a catalog of vendor products and prices,  
+**so that** the order builder has accurate data.
+
+**Acceptance Criteria:**
+- **AC 1 (Catalog):** I can create and edit products for a vendor (vial size, form, price, in-stock status).
+- **AC 2 (Linking):** Every catalog product must be linked to a compound in the reference catalog.
+
+**Domain Events:** `CatalogProductUpdated`
+
+---
+
+### US-ORD-07: Track Order Status (State Machine)
+**As a** Power User,  
+**I want to** track my order through its entire lifecycle,  
+**so that** I can identify stale orders or missing shipments.
+
+**Acceptance Criteria:**
+- **AC 1 (States):** Orders transition through: Draft -> Sent -> Confirmed -> Payment Sent -> Received.
+- **AC 2 (Stale):** If an order remains in "Sent" for 14 days, it is automatically flagged as "Stale".
+
+**Domain Events:** `OrderStatusChanged`
+
+---
+
+## Epic 5: Multi-User & Admin (ADM)
+
+### US-ADM-01: Create Managed User
+**As a** Power User,  
+**I want to** create accounts for family members,  
+**so that** I can manage their protocols without giving them admin access.
+
+**Acceptance Criteria:**
+- **AC 1 (Invite):** I can enter a name and email to send an invite link (valid for 72 hours).
+- **AC 2 (Access):** Managed users see a simplified dashboard with only their own schedule and reference info.
+
+**Domain Events:** `ManagedUserInvited`
+
+---
+
+### US-ADM-02: Monitor Adherence
+**As a** Power User,  
+**I want to** see adherence metrics for my managed users,  
+**so that** I know if they are following the protocols I configured.
+
+**Acceptance Criteria:**
+- **AC 1 (Dashboard):** The admin panel shows a 7-day adherence % (Doses Logged / Doses Scheduled) for each managed user.
+
+**Domain Events:** `AdherenceReportViewed`
+
+---
+
+### US-ADM-03: Manage Managed Users
+**As a** Power User,  
+**I want to** edit, deactivate, or reset passwords for managed users,  
+**so that** I can maintain control over the multi-user environment.
+
+**Acceptance Criteria:**
+- **AC 1 (Management):** I can deactivate a managed user account, which revokes their access but preserves their data.
+- **AC 2 (Password Reset):** I can trigger a password reset email for any managed user.
+
+**Domain Events:** `ManagedUserDeactivated`, `PasswordResetTriggered`
+
+---
+
+## Epic 6: Auth & Account Management (AUT)
+
+### US-AUT-01: Onboarding Path (Power User vs Managed User)
+**As a** new user,  
+**I want to** be guided through my role-specific setup,  
+**so that** I understand how to use the app immediately.
+
+**Acceptance Criteria:**
+- **AC 1 (Power User Wizard):** 3-step guide: Browse Catalog -> Create Protocol -> Optional Telegram Setup.
+- **AC 2 (Managed User Wizard):** 2-step guide: View My Schedule -> Log First Dose walkthrough.
+
+**Domain Events:** `OnboardingStarted`, `OnboardingCompleted`
+
+---
+
+### US-AUT-02: Account Deletion and Data Export
+**As a** user,  
+**I want to** delete my account and receive a full export of my data,  
+**so that** I maintain full control over my sensitive health-adjacent information.
+
+**Acceptance Criteria:**
+- **AC 1 (Export):** I can request a full JSON export at any time. CSV export is provided for dose logs and orders.
+- **AC 2 (Deletion):** After confirmation, all data is permanently wiped from the system after a 48-hour delay.
+
+**Domain Events:** `AccountDeletionRequested`, `DataExportGenerated`
+
+---
+
+### US-AUT-03: User Registration and Login
+**As a** user,  
+**I want to** securely register and log in to the app,  
+**so that** my private protocol data is protected.
+
+**Acceptance Criteria:**
+- **AC 1 (Auth):** I can register with email and a 12-character minimum password.
+- **AC 2 (Sessions):** Sessions use secure httpOnly cookies with 30-day rolling expiry.
+
+**Domain Events:** `UserRegistered`, `UserLoggedIn`
+
+---
+
+### US-AUT-04: Password Reset
+**As a** user,  
+**I want to** reset my password if I forget it,  
+**so that** I don't lose access to my dose history.
+
+**Acceptance Criteria:**
+- **AC 1 (Request):** I can request a reset link via email. The link is single-use and expires in 1 hour.
+- **AC 2 (Privacy):** The app does not reveal if an email is registered during the reset request flow.
+
+**Domain Events:** `PasswordResetRequested`, `PasswordChanged`
+
+---
+
+### US-AUT-05: PWA & Offline Support
+**As a** user,  
+**I want to** install the app on my home screen and use it without signal,  
+**so that** I can log my 7:00 AM doses regardless of connectivity.
+
+**Acceptance Criteria:**
+- **AC 1 (Install):** The app provides a manifest and service worker for home screen installation on iOS and Android.
+- **AC 2 (Offline Shell):** The app shell loads instantly even without an internet connection.
+
+**Domain Events:** `AppInstalled`
+
+---
+
+## US Splitting Rationale
+- **Pillar Splitting:** Stories are split by the four pillars (Reference, Tracker, Reconstitution, Ordering) to allow incremental delivery of value.
+- **Admin vs User:** Managed user functionality is split from super admin functionality.
+- **Security/Offline:** Critical non-functional requirements like Auth and PWA are elevated to Epic 6 to ensure they are prioritized as foundational.
+
+## Dependency Graph (High Level)
+- `US-AUT-03` (Registration) -> Foundation for all other stories.
+- `US-TRK-01` (Create Protocol) -> depends on `US-REF-01` (View Compound)
+- `US-REC-02` (Record Reconstitution) -> depends on `US-REC-01` (Calculate)
+- `US-ORD-03` (Send Order) -> depends on `US-ORD-01` (Telegram MTProto)
+- `US-ADM-01` (Managed User) -> depends on `US-AUT-03` (Auth)
+# API Contracts
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**System Architecture source:** `docs/system-architecture.md`  
+**Domain Model source:** `docs/domain-models/`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Global Standards
+
+### 1.1 Style & Idempotency
+- **Style**: RESTful Route Handlers (`app/api/*`) and Type-safe Server Actions (`app/actions/*`).
+- **Idempotency**: All mutating actions MUST accept an `Idempotency-Key` (Header for API, Field for Actions).
+  - **Format**: UUID v4.
+  - **Behavior**: Replaying an existing key returns the *original success response*.
+- **Pagination**: `page` (1-indexed) and `limit` (default: 20, max: 100). Response include `total`, `pages`, `hasNext`.
+
+### 1.2 Common Response Shapes
+**Success Response:**
+```json
+{
+  "data": { ... },
+  "warnings": Array<{ "code": string, "message": string }>
+}
+```
+
+**Error Response:**
+```json
+{
+  "error": {
+    "code": "string",
+    "message": "string",
+    "details": { "fields": Record<string, string[]> }
+  }
+}
+```
+
+---
+
+## 2. Auth & Admin Module (AUT)
+
+### 2.1 Session Lifecycle
+- **[POST] /actions/auth/login**: `{ email, password }` -> `{ user }`
+- **[POST] /actions/auth/logout**: `void`
+- **[GET] /api/auth/session**: -> `{ session: { user } }`
+
+### 2.2 Account Lifecycle
+- **[POST] /actions/auth/reset-password-request**: `{ email }`
+- **[POST] /actions/auth/reset-password-confirm**: `{ token, newPassword }`
+- **[POST] /actions/auth/request-export**: `{ format: 'JSON' | 'CSV' }` -> `{ requestId }`
+- **[POST] /actions/auth/schedule-deletion**: `{ passwordConfirmation }` -> `{ scheduledFor }`
+
+### 2.3 Managed Users (Admin)
+- **[GET] /api/admin/managed-users**: -> `{ items: ManagedUserDto[] }`
+- **[POST] /actions/auth/invite**: `{ email }` -> `{ inviteId, expiresAt }`
+
+---
+
+## 3. Tracker Module (TRK)
+
+### 3.1 Protocols
+- **[GET] /api/tracker/protocols**: `?status=ACTIVE` -> `{ items: ProtocolDto[] }`
+- **[POST] /actions/tracker/create-protocol**: `{ compoundId, dose, schedule, startDate, cycleId? }`
+- **[PATCH] /actions/tracker/update-protocol**: `{ id, status, dose, schedule }`
+
+### 3.2 Dose Logging
+- **[POST] /actions/tracker/log-dose**: 
+  - **Request**: `{ protocolId, scheduledDate, amount, status: 'LOGGED'|'SKIPPED', injectionSite?, note?, vialId? }`
+  - **Response**: `200 OK` with `warnings: ['insufficient_inventory']` if applicable.
+- **[POST] /actions/tracker/batch-log**: `{ logs: Array<DoseLogInput> }`
+
+### 3.3 PWA Sync
+- **[POST] /api/sync**:
+  - **Request**: `{ events: Array<SyncEvent> }`
+  - **Event Envelope**: `{ eventId, type: 'LOG_DOSE'|'EDIT_LOG'|'SKIP_DOSE', payload, occurredAt, timezone }`
+
+---
+
+## 4. Reconstitution Module (REC)
+
+### 4.1 Calculator
+- **[POST] /api/reconstitution/calculate**: `{ totalMg, bacWaterMl, targetDoseMcg }`
+- **Response**: `{ concentrationMcgPerMl, unitsPerDose, injectionVolMl, warnings: SafetyWarning[] }`
+
+### 4.2 Vial Inventory
+- **[GET] /api/reconstitution/vials**: `?status=ACTIVE` -> `{ items: VialDto[] }`
+- **[POST] /actions/reconstitution/save-vial**: `{ compoundId, totalMg, bacWaterMl?, expiresAt? }`
+
+---
+
+## 5. Ordering Module (ORD)
+
+### 5.1 Vendor Catalog
+- **[GET] /api/ordering/vendors**: -> `{ items: VendorDto[] }`
+- **[GET] /api/ordering/products**: `?vendorId=uuid` -> `{ items: ProductDto[] }`
+
+### 5.2 Order Lifecycle
+- **[POST] /actions/ordering/create-draft**: `{ vendorId, items: Array<{ productId, quantity }> }`
+- **[POST] /actions/ordering/send-order**: `{ orderId }` -> `{ telegramMessageId, fallbackText? }`
+- **[POST] /actions/ordering/confirm-quote**: `{ orderId, confirmedTotal, currency, walletAddress }` -> **Sent -> Confirmed**
+- **[POST] /actions/ordering/mark-paid**: `{ orderId, txId?, acknowledged: boolean }` -> **Confirmed -> PaymentSent**
+- **[POST] /actions/ordering/mark-received**: `{ orderId, itemsToInventory: Array<{ productId, vialDetails }> }`
+
+---
+
+## 6. Expanded Domain Error Catalog
+
+| Code | Status | Meaning |
+|------|--------|---------|
+| `validation_failed` | 400 | Payload fails Zod schema validation. |
+| `insufficient_permissions` | 403 | Managed user attempting Power User action. |
+| `protocol_not_found` | 404 | referenced protocol ID does not exist or is deleted. |
+| `invalid_order_transition` | 409 | e.g. Trying to mark a DRAFT order as PAID. |
+| `mtproto_connection_error` | 503 | Telegram service unreachable or session expired. |
+| `audit_write_failed` | 500 | Database transaction rolled back due to audit failure. |
+| `idempotency_key_conflict` | 409 | Key already used for a different payload. |
+
+---
+
+## 7. Sync Event Definition (TypeScript)
+
+```typescript
+type SyncEvent = {
+  eventId: string; // UUID v4 used as Idempotency-Key
+  type: 'LOG_DOSE' | 'SKIP_DOSE' | 'EDIT_DOSE';
+  payload: {
+    protocolId: string;
+    scheduledDate: string; // ISO Date
+    amount?: { value: number; unit: string };
+    injectionSite?: { location: string; group: string };
+    note?: string;
+  };
+  occurredAt: string; // ISO Timestamp
+  timezone: string;   // IANA Name
+};
+```
+</stdin>
+codex
+I’ll use the `superpowers:using-superpowers` guidance first, then review the UX spec against the provided stories/contracts and the local PRD where available.
+exec
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && pwd && rg --files docs | sort" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+---
+name: using-superpowers
+description: Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions
+---
+
+<SUBAGENT-STOP>
+If you were dispatched as a subagent to execute a specific task, skip this skill.
+</SUBAGENT-STOP>
+
+<EXTREMELY-IMPORTANT>
+If you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.
+
+IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.
+
+This is not negotiable. This is not optional. You cannot rationalize your way out of this.
+</EXTREMELY-IMPORTANT>
+
+## Instruction Priority
+
+Superpowers skills override default system prompt behavior, but **user instructions always take precedence**:
+
+1. **User's explicit instructions** (CLAUDE.md, GEMINI.md, AGENTS.md, direct requests) — highest priority
+2. **Superpowers skills** — override default system behavior where they conflict
+3. **Default system prompt** — lowest priority
+
+If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "always use TDD," follow the user's instructions. The user is in control.
+
+## How to Access Skills
+
+**In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you—follow it directly. Never use the Read tool on skill files.
+
+**In Copilot CLI:** Use the `skill` tool. Skills are auto-discovered from installed plugins. The `skill` tool works the same as Claude Code's `Skill` tool.
+
+**In Gemini CLI:** Skills activate via the `activate_skill` tool. Gemini loads skill metadata at session start and activates the full content on demand.
+
+**In other environments:** Check your platform's documentation for how skills are loaded.
+
+## Platform Adaptation
+
+Skills use Claude Code tool names. Non-CC platforms: see `references/copilot-tools.md` (Copilot CLI), `references/codex-tools.md` (Codex) for tool equivalents. Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
+
+# Using Skills
+
+## The Rule
+
+**Invoke relevant or requested skills BEFORE any response or action.** Even a 1% chance a skill might apply means that you should invoke the skill to check. If an invoked skill turns out to be wrong for the situation, you don't need to use it.
+
+```dot
+digraph skill_flow {
+    "User message received" [shape=doublecircle];
+    "About to EnterPlanMode?" [shape=doublecircle];
+    "Already brainstormed?" [shape=diamond];
+    "Invoke brainstorming skill" [shape=box];
+    "Might any skill apply?" [shape=diamond];
+    "Invoke Skill tool" [shape=box];
+    "Announce: 'Using [skill] to [purpose]'" [shape=box];
+    "Has checklist?" [shape=diamond];
+    "Create TodoWrite todo per item" [shape=box];
+    "Follow skill exactly" [shape=box];
+    "Respond (including clarifications)" [shape=doublecircle];
+
+    "About to EnterPlanMode?" -> "Already brainstormed?";
+    "Already brainstormed?" -> "Invoke brainstorming skill" [label="no"];
+    "Already brainstormed?" -> "Might any skill apply?" [label="yes"];
+    "Invoke brainstorming skill" -> "Might any skill apply?";
+
+    "User message received" -> "Might any skill apply?";
+    "Might any skill apply?" -> "Invoke Skill tool" [label="yes, even 1%"];
+    "Might any skill apply?" -> "Respond (including clarifications)" [label="definitely not"];
+    "Invoke Skill tool" -> "Announce: 'Using [skill] to [purpose]'";
+    "Announce: 'Using [skill] to [purpose]'" -> "Has checklist?";
+    "Has checklist?" -> "Create TodoWrite todo per item" [label="yes"];
+    "Has checklist?" -> "Follow skill exactly" [label="no"];
+    "Create TodoWrite todo per item" -> "Follow skill exactly";
+}
+```
+
+## Red Flags
+
+These thoughts mean STOP—you're rationalizing:
+
+| Thought | Reality |
+|---------|---------|
+| "This is just a simple question" | Questions are tasks. Check for skills. |
+| "I need more context first" | Skill check comes BEFORE clarifying questions. |
+| "Let me explore the codebase first" | Skills tell you HOW to explore. Check first. |
+| "I can check git/files quickly" | Files lack conversation context. Check for skills. |
+| "Let me gather information first" | Skills tell you HOW to gather information. |
+| "This doesn't need a formal skill" | If a skill exists, use it. |
+| "I remember this skill" | Skills evolve. Read current version. |
+| "This doesn't count as a task" | Action = task. Check for skills. |
+| "The skill is overkill" | Simple things become complex. Use it. |
+| "I'll just do this one thing first" | Check BEFORE doing anything. |
+| "This feels productive" | Undisciplined action wastes time. Skills prevent this. |
+| "I know what that means" | Knowing the concept ≠ using the skill. Invoke it. |
+
+## Skill Priority
+
+When multiple skills could apply, use this order:
+
+1. **Process skills first** (brainstorming, debugging) - these determine HOW to approach the task
+2. **Implementation skills second** (frontend-design, mcp-builder) - these guide execution
+
+"Let's build X" → brainstorming first, then implementation skills.
+"Fix this bug" → debugging first, then domain-specific skills.
+
+## Skill Types
+
+**Rigid** (TDD, debugging): Follow exactly. Don't adapt away discipline.
+
+**Flexible** (patterns): Adapt principles to context.
+
+The skill itself tells you which.
+
+## User Instructions
+
+Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
+/Users/kenallred/Documents/dev-projects/peptides
+docs/adrs/ADR-001-nextjs-monolith.md
+docs/adrs/ADR-002-postgresql-prisma.md
+docs/adrs/ADR-003-tailwind-shadcn.md
+docs/adrs/ADR-004-authjs.md
+docs/adrs/ADR-005-gramjs.md
+docs/adrs/ADR-006-railway-hosting.md
+docs/adrs/ADR-007-pwa-offline.md
+docs/adrs/ADR-008-testing-strategy.md
+docs/adrs/ADR-009-audit-logging.md
+docs/adrs/ADR-010-ai-strategy.md
+docs/adrs/ADR-011-transactional-email.md
+docs/adrs/ADR-012-scheduled-jobs.md
+docs/adrs/ADR-013-observability.md
+docs/adrs/ADR-014-object-storage.md
+docs/adrs/ADR-015-module-isolation.md
+docs/adrs/index.md
+docs/api-contracts.md
+docs/audits/audit-2026-05-20-184818446-fast-all-6db656.md
+docs/audits/audit-2026-05-20-184818446-fast-all-6f6281.json
+docs/audits/audit-2026-05-20-192234855-fast-all-b39ffd.json
+docs/audits/audit-2026-05-20-192234855-fast-all-d131fa.md
+docs/audits/audit-2026-05-20-192702246-fast-all-0a2f07.md
+docs/audits/audit-2026-05-20-192702246-fast-all-b8ec47.json
+docs/coding-standards.md
+docs/database-schema.md
+docs/domain-models/audit.md
+docs/domain-models/auth.md
+docs/domain-models/index.md
+docs/domain-models/ordering.md
+docs/domain-models/reconstitution.md
+docs/domain-models/reference.md
+docs/domain-models/tracker.md
+docs/peptide-reference_1.html
+docs/plan.md
+docs/prd-innovation.md
+docs/project-structure.md
+docs/QSC  list - Price list 07-05-2026.pdf
+docs/reviews/adrs/codex-review.json
+docs/reviews/adrs/gemini-review.json
+docs/reviews/adrs/review-summary.md
+docs/reviews/api/codex-review.json
+docs/reviews/api/gemini-review.json
+docs/reviews/api/review-summary.md
+docs/reviews/architecture/codex-review.json
+docs/reviews/architecture/gemini-review.json
+docs/reviews/architecture/review-summary.md
+docs/reviews/database/codex-review.json
+docs/reviews/database/gemini-review.json
+docs/reviews/database/review-summary.md
+docs/reviews/domain-modeling/codex-review.json
+docs/reviews/domain-modeling/gemini-review.json
+docs/reviews/domain-modeling/review-summary.md
+docs/reviews/prd-innovation/codex-review.json
+docs/reviews/prd-innovation/review-summary.md
+docs/reviews/prd/codex-review.json
+docs/reviews/prd/gemini-raw.txt
+docs/reviews/prd/gemini-review.json
+docs/reviews/prd/review-summary.md
+docs/reviews/pre-review-prd.md
+docs/reviews/pre-review-user-stories.md
+docs/reviews/review-adrs.md
+docs/reviews/review-api.md
+docs/reviews/review-architecture.md
+docs/reviews/review-database.md
+docs/reviews/review-domain-modeling.md
+docs/reviews/review-testing.md
+docs/reviews/tech-stack/codex-review.json
+docs/reviews/tech-stack/gemini-review.json
+docs/reviews/tech-stack/review-summary.md
+docs/reviews/testing/codex-review.json
+docs/reviews/testing/gemini-review.json
+docs/reviews/testing/review-summary.md
+docs/reviews/user-stories/codex-review.json
+docs/reviews/user-stories/coverage.json
+docs/reviews/user-stories/gemini-review.json
+docs/reviews/user-stories/requirements-index.md
+docs/reviews/user-stories/review-summary.md
+docs/reviews/ux/codex-review.json
+docs/reviews/ux/gemini-review.json
+docs/reviews/vision-review-vision.md
+docs/story-tests-map.md
+docs/system-architecture.md
+docs/tdd-standards.md
+docs/tech-stack.md
+docs/user-stories.md
+docs/ux-spec.md
+docs/vision.md
+
+codex
+I have the relevant docs in the workspace. I’m reading the UX spec, PRD, stories, API contracts, and architecture notes so the findings are grounded in the actual local sources, not just the pasted excerpt.
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/ux-spec.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# UX Specification
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**PRD source:** `docs/plan.md`  
+**User Stories source:** `docs/user-stories.md`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Interaction State Machines
+
+### 1.1 Form Interaction (Dose Logging / Profile Edit)
+```
+IDLE -> DIRTY (on input)
+DIRTY -> VALIDATING (on blur/submit)
+VALIDATING -> INVALID (show inline errors) -> DIRTY
+VALIDATING -> SUBMITTING (show spinner, disable button)
+SUBMITTING -> SUCCESS (show checkmark, toast, reset form)
+SUBMITTING -> ERROR (show global error, keep data) -> DIRTY
+```
+
+### 1.2 PWA Sync Interaction
+```
+ONLINE -> OFFLINE (show "Offline Mode" banner)
+OFFLINE -> QUEUED (dose logged locally)
+QUEUED -> SYNCING (network restored, show "Syncing..." spinner)
+SYNCING -> SYNCED (hide banner, update inventory counts)
+SYNCING -> CONFLICT (show conflict resolution dialog)
+```
+
+---
+
+## 2. Key User Flows
+
+### 2.1 Flow: The 7:00 AM Routine (Dose Logging)
+- **Entry**: Dashboard (PWA Home Screen).
+- **Happy Path**:
+  1. User sees "Today's Doses" list.
+  2. User taps "Confirm All" (Batch Log).
+  3. UI shows review sheet with pre-filled amounts and suggested sites.
+  4. User taps "Verify & Log".
+  5. Dashboard updates instantly; doses move to "Logged" section.
+- **Offline Path**:
+  1. User logs dose while offline.
+  2. Action saved to IndexedDB; toast shows "Logged offline - will sync later".
+  3. "Today's Doses" list updates locally.
+
+### 2.2 Flow: The Ordering Safety Gate
+- **Entry**: Order Detail page (Status: Confirmed).
+- **Happy Path**:
+  1. User sees "Ready for Payment" alert.
+  2. User taps "Pay Vendor".
+  3. **Safety Gate Screen**:
+     - Large display of Crypto Amount (e.g., "0.42 ETH").
+     - Large display of Wallet Address.
+     - Copy buttons for each.
+     - Warning: "Double check address in Telegram".
+  4. User taps "I have sent the payment".
+  5. Transition to "Payment Sent" status.
+
+---
+
+## 3. Component Hierarchy
+
+### 3.1 App Shell
+- `Navigation`: Mobile-first bottom bar (Dashboard, Catalog, Ordering, Profile).
+- `StatusBanner`: Notifications for Offline, Stale Orders, Low Inventory.
+
+### 3.2 Dashboard Context
+- `DoseList`: Grouped by Pending/Logged.
+- `OutcomeEntry`: Daily 1-5 rating + tags.
+- `CycleProgress`: Progress bar for current week of active cycle.
+
+---
+
+## 4. Accessibility Requirements (WCAG 2.1 AA)
+
+- **Targeting**: Minimum tap target size 44x44px for all logging buttons.
+- **Contrast**: 4.5:1 ratio for all text elements.
+- **Keyboard**: Full navigation of Dose List and Reconstitution Calculator via Tab + Space/Enter.
+- **Screen Readers**: `aria-live` regions for sync status and math calculation results.
+- **Forms**: Clear association of labels and inputs; error messages described in `aria-describedby`.
+
+---
+
+## 5. Responsive Behavior
+
+| Breakpoint | Layout Strategy |
+|------------|-----------------|
+| **Mobile (<640px)** | Single column; bottom navigation bar; full-width dose cards. |
+| **Tablet (640-1024px)** | Grid layout; side navigation rail; multi-column dashboard widgets. |
+| **Desktop (>1024px)** | Max-width 1200px; side navigation drawer; detailed charts and expanded tables. |
+
+---
+
+## 6. Animation & Transition Specs
+
+- **Page Transitions**: Simple fade-in (150ms).
+- **Logging Feedback**: Subtle green pulse on successful log entry.
+- **Sync Status**: Pulse animation for the "Offline" banner when connection is lost.
+- **Calculation**: Instant update for results; no loading states for pure-math fields.
+
+exec
+/bin/zsh -lc "sed -n '1,320p' docs/user-stories.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# User Stories
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**PRD source:** `docs/plan.md`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## Persona Journey Maps
+
+### Journey: The Morning Routine (Power User)
+1. **Wake up**: Opens app on phone (PWA).
+2. **Dashboard**: Sees "Today's Doses" list.
+3. **Log**: Taps "Log All Scheduled" (US-TRK-05).
+4. **Confirm**: Reviews amounts and suggested sites, taps "Confirm All".
+5. **Close**: App shell closes; user proceeds with day.
+
+### Journey: The Sourcing Loop (Power User)
+1. **Inventory Alert**: Receives alert that BPC-157 is running low (US-ORD-02).
+2. **Order Builder**: Opens order builder; BPC-157 is pre-suggested (US-ORD-03).
+3. **Cart**: Adds other compounds, reviews total.
+4. **Send**: Taps "Send Order" (US-ORD-04). App sends Telegram message via MTProto.
+5. **Payment**: Vendor replies on Telegram. User captures wallet address/amount in app (US-ORD-05).
+6. **Confirmation**: User pays via Coinbase, marks "Payment Sent" in app.
+
+---
+
+## Epic 1: Reference Pillar (REF)
+
+### US-REF-01: View Compound Profile
+**As a** Power User or Managed User,  
+**I want to** view a detailed profile for a peptide,  
+**so that** I understand its mechanism, dosing, and safety profile without checking multiple sites.
+
+**Acceptance Criteria:**
+- **AC 1 (Given/When/Then):** Given I am on the dashboard, when I search for "BPC-157" and select it, then I see its IUPAC name, mechanism of action, and administration routes.
+- **AC 2 (Citations):** Every researched benefit must include a clickable PubMed/DOI link.
+- **AC 3 (Dosing):** Dosing ranges are displayed for low, typical, and high categories with protocol context.
+- **AC 4 (Stacking):** If "Stacking Notes" exist, they are displayed prominently (e.g., "Commonly stacked with TB-500").
+
+**Domain Events:** `CompoundProfileViewed`
+
+---
+
+### US-REF-02: Search & Browse Catalog
+**As a** user,  
+**I want to** search and filter the compound catalog,  
+**so that** I can find peptides by name or physiological goal.
+
+**Acceptance Criteria:**
+- **AC 1 (Search):** Given I am in the catalog, when I type "sema", then "Semaglutide" appears in the filtered results.
+- **AC 2 (Categories):** When I select the "Healing" category, only peptides tagged with healing/recovery (e.g., BPC-157, TB-500) are shown.
+
+**Domain Events:** `CatalogSearched`, `CatalogFiltered`
+
+---
+
+## Epic 2: Tracker Pillar (TRK)
+
+### US-TRK-01: Create and Edit Protocol
+**As a** Power User,  
+**I want to** create and edit a dosing protocol for a compound,  
+**so that** I have a structured schedule for myself or a managed user.
+
+**Acceptance Criteria:**
+- **AC 1 (Setup):** Given I am creating a protocol, when I select "BPC-157" and set 250mcg daily, then the schedule is generated starting from the selected start date.
+- **AC 2 (Assignment):** I can assign the protocol to myself or any of my managed users.
+- **AC 3 (Validation):** Saving is blocked if compound or dose amount is missing.
+- **AC 4 (Audit):** Every creation or modification of a protocol is recorded in the audit log.
+
+**Domain Events:** `ProtocolCreated`, `ProtocolUpdated`
+
+---
+
+### US-TRK-02: Protocol Lifecycle (Pause, Resume, Clone, Restart)
+**As a** Power User,  
+**I want to** manage the lifecycle of my protocols,  
+**so that** I can handle breaks, illness, or cycle restarts without data loss.
+
+**Acceptance Criteria:**
+- **AC 1 (Pause):** When I set a protocol status to "Paused", it no longer appears in "Today's Doses".
+- **AC 2 (Resume):** When I resume a paused protocol, it immediately reappears in the daily dosing schedule.
+- **AC 3 (Clone):** I can duplicate an existing protocol to a new start date, preserving the original's dose and frequency.
+- **AC 4 (Restart):** I can "Restart Cycle" for a completed cycle, which clones all its protocols to a new start date.
+
+**Domain Events:** `ProtocolPaused`, `ProtocolResumed`, `ProtocolCloned`, `CycleRestarted`
+
+---
+
+### US-TRK-03: Individual Dose Logging
+**As a** user,  
+**I want to** log a single dose or record a skip,  
+**so that** I have an accurate record of my adherence and current injection site.
+
+**Acceptance Criteria:**
+- **AC 1 (Logging):** Given a pending dose on my dashboard, when I tap "Confirm", then the dose is recorded with the current timestamp and suggested site.
+- **AC 2 (Skip):** I can explicitly tap "Skip" on a dose, which records it as a "skip" event (distinct from "not logged").
+- **AC 3 (Offline):** Given I am offline, when I log a dose, then the log is queued in the app and synced to the server once I am back online.
+- **AC 4 (Inventory):** If I try to log a dose for a compound with 0 vials remaining, a prominent warning is shown.
+
+**Domain Events:** `DoseLogged`, `DoseSkipped`, `DoseSyncCompleted`
+
+---
+
+### US-TRK-04: Injection Site Rotation
+**As a** user,  
+**I want to** see a suggested injection site for my next dose,  
+**so that** I avoid tissue trauma from repeated injections in the same spot.
+
+**Acceptance Criteria:**
+- **AC 1 (Suggestion):** The app suggests the next site in a round-robin rotation (e.g., Left Abdomen -> Right Abdomen) based on the history for that specific compound.
+- **AC 2 (Visual):** I can see the last 7 sites used for the compound during the logging flow.
+
+**Domain Events:** `InjectionSiteSuggested`
+
+---
+
+### US-TRK-05: Batch "Log All Scheduled" (Must Have)
+**As a** Power User or Managed User,  
+**I want to** log all my daily doses in one action,  
+**so that** I can complete my morning routine in seconds.
+
+**Acceptance Criteria:**
+- **AC 1 (Batch Action):** Given I have 3 doses due today, when I tap "Log All Scheduled", then all 3 are marked as logged at their protocol amounts.
+- **AC 2 (Review):** Before final confirmation, I see a list of what will be logged and can deselect or skip individual doses.
+- **AC 3 (Offline):** Batch logs are queued while offline and synced upon reconnection.
+
+**Domain Events:** `DoseBatchLogged`
+
+---
+
+### US-TRK-06: Subjective Outcome Logging
+**As a** user,  
+**I want to** rate my wellbeing and log notes daily,  
+**so that** I can correlate my protocols with how I feel.
+
+**Acceptance Criteria:**
+- **AC 1 (Rating):** I can log an overall wellbeing rating (1-5) and select tags like "Energy" or "Pain".
+- **AC 2 (Notes):** I can add a free-text note (max 1000 chars) to the daily log.
+
+**Domain Events:** `OutcomeLogged`
+
+---
+
+### US-TRK-07: Outcome-Dose Correlation Timeline
+**As a** user,  
+**I want to** see my dose history and outcome ratings on a single chart,  
+**so that** I can identify if a protocol is actually working.
+
+**Acceptance Criteria:**
+- **AC 1 (Visualization):** A dual-axis chart shows dose events (bars) and outcome ratings (line) over a 30-day or 90-day window.
+- **AC 2 (Stats):** The UI displays the average outcome rating on "Dosed Days" vs "Non-Dosed Days".
+
+**Domain Events:** `CorrelationTimelineViewed`
+
+---
+
+### US-TRK-08: Manage Cycles
+**As a** Power User,  
+**I want to** group my protocols into cycles with specific dates,  
+**so that** I can track progress over time (e.g., "Week 3 of 12").
+
+**Acceptance Criteria:**
+- **AC 1 (Creation):** I can create a cycle with a name, start date, and optional end date.
+- **AC 2 (Association):** I can link multiple protocols to a single cycle.
+- **AC 3 (Display):** The dashboard shows the current week number for any active cycle.
+
+**Domain Events:** `CycleCreated`, `CycleUpdated`
+
+---
+
+### US-TRK-09: Dose Reminders
+**As a** user,  
+**I want to** receive a notification when my doses are due,  
+**so that** I don't forget to maintain my adherence.
+
+**Acceptance Criteria:**
+- **AC 1 (Config):** I can set a daily reminder time (e.g., 7:00 AM).
+- **AC 2 (Push):** If I have the PWA installed, I receive a browser push notification at the set time.
+- **AC 3 (Email):** If push is unavailable, the app sends an email reminder.
+
+**Domain Events:** `ReminderSent`
+
+---
+
+## Epic 3: Reconstitution Pillar (REC)
+
+### US-REC-01: Calculate Reconstitution
+**As a** user,  
+**I want to** calculate how much BAC water to add to a vial with safety guardrails,  
+**so that** I achieve a precise concentration and avoid dosing errors.
+
+**Acceptance Criteria:**
+- **AC 1 (Math):** Given a 5mg vial, when I enter 2mL BAC water, then the app shows a concentration of 2.5mg/mL (2500mcg/mL).
+- **AC 2 (Syringe Units):** Given a target dose of 250mcg, the app shows "10 units" on a 100-unit insulin syringe.
+- **AC 3 (Guardrails):** A yellow warning is shown if: (a) dose exceeds the reference profile high range, (b) injection volume > 1.5mL, or (c) BAC water volume < 0.5mL.
+- **AC 4 (Context):** The calculator displays my last logged dose for this compound to provide safety context.
+
+**Domain Events:** `ReconstitutionCalculated`
+
+---
+
+### US-REC-02: Record Reconstitution (Vial Inventory)
+**As a** user,  
+**I want to** save my reconstitution calculation as a new vial record,  
+**so that** my dose logging can decrement from the vial's total content.
+
+**Acceptance Criteria:**
+- **AC 1 (Persistence):** Saving a calculation creates a `Vial` record with an estimated expiry date (14 days default).
+- **AC 2 (Inventory):** The dashboard shows a "Low Inventory" or "Expiring" badge when the vial is nearly empty or past its date.
+
+**Domain Events:** `VialReconstituted`
+
+---
+
+## Epic 4: Ordering Pillar (ORD)
+
+### US-ORD-01: Configure Telegram MTProto
+**As a** Power User,  
+**I want to** link my Telegram account to the app with clear fallback options,  
+**so that** the app can send order messages directly to vendors while ensuring I can always order manually.
+
+**Acceptance Criteria:**
+- **AC 1 (Auth):** I can enter my phone number and the verification code from Telegram.
+- **AC 2 (Encryption):** The session is stored AES-256 encrypted and is never returned to the UI.
+- **AC 3 (Fallback):** Composed order messages and Telegram deep-links are always visible even if automation is enabled.
+
+**Domain Events:** `TelegramAccountLinked`
+
+---
+
+### US-ORD-02: Inventory-Aware Order Builder
+**As a** Power User,  
+**I want to** see suggested items to order based on my current vial levels,  
+**so that** I never run out of a compound I am currently using.
+
+**Acceptance Criteria:**
+- **AC 1 (Suggestions):** When I open the order builder, compounds with < 14 days of supply remaining are listed in a "Suggested" section.
+- **AC 2 (Quick Add):** I can add suggested items to my cart with one tap.
+
+**Domain Events:** `OrderSuggestionsGenerated`
+
+---
+
+### US-ORD-03: Build and Send Telegram Order
+**As a** Power User,  
+**I want to** build an order and have the app send it to the vendor's Telegram,  
+**so that** I don't have to manually format and copy-paste messages.
+
+**Acceptance Criteria:**
+- **AC 1 (Cart):** I can add items from the vendor catalog to a cart.
+- **AC 2 (MTProto Send):** Tapping "Send Order" sends the message via the linked Telegram account.
+- **AC 3 (Audit):** The full text of the sent message is archived in the order history.
+
+**Domain Events:** `OrderSent`
+
+---
+
+### US-ORD-04: Payment Confirmation Safety Gate
+**As a** Power User,  
+**I want to** explicitly verify the vendor's wallet address and amount before marking payment as sent,  
+**so that** I avoid non-reversible crypto payment errors.
+
+**Acceptance Criteria:**
+- **AC 1 (Gate):** I must enter the wallet address and amount from the vendor's reply.
+- **AC 2 (Verification):** The "Mark Payment Sent" button is only enabled after I view a summary screen showing the address and amount together.
+
+**Domain Events:** `OrderPaymentConfirmed`
+
+---
+
+### US-ORD-05: Receive Order and Update Inventory
+**As a** Power User,  
+**I want to** mark an order as received and review items before they enter inventory,  
+**so that** my vial records accurately reflect what arrived.
+
+**Acceptance Criteria:**
+- **AC 1 (Receive):** Marking as received opens a prompt to confirm which line items to add to inventory.
+- **AC 2 (History):** The order status updates to "Received" with a timestamp.
+
+**Domain Events:** `OrderReceived`
+
+---
+
+### US-ORD-06: Manage Vendor Catalog
+**As a** Power User,  
+**I want to** maintain a catalog of vendor products and prices,  
+**so that** the order builder has accurate data.
+
+**Acceptance Criteria:**
+- **AC 1 (Catalog):** I can create and edit products for a vendor (vial size, form, price, in-stock status).
+- **AC 2 (Linking):** Every catalog product must be linked to a compound in the reference catalog.
+
+**Domain Events:** `CatalogProductUpdated`
+
+---
+
+### US-ORD-07: Track Order Status (State Machine)
+**As a** Power User,  
+**I want to** track my order through its entire lifecycle,  
+**so that** I can identify stale orders or missing shipments.
+
+**Acceptance Criteria:**
+- **AC 1 (States):** Orders transition through: Draft -> Sent -> Confirmed -> Payment Sent -> Received.
+- **AC 2 (Stale):** If an order remains in "Sent" for 14 days, it is automatically flagged as "Stale".
+
+**Domain Events:** `OrderStatusChanged`
+
+---
+
+## Epic 5: Multi-User & Admin (ADM)
+
+### US-ADM-01: Create Managed User
+**As a** Power User,  
+**I want to** create accounts for family members,  
+**so that** I can manage their protocols without giving them admin access.
+
+**Acceptance Criteria:**
+- **AC 1 (Invite):** I can enter a name and email to send an invite link (valid for 72 hours).
+
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+<!-- scaffold:create-prd v1 2026-05-20 -->
+<!-- scaffold:review-prd v1 2026-05-20 -->
+<!-- scaffold:innovate-prd v1 2026-05-20 -->
+# Product Requirements Document
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**Vision source:** `docs/vision.md` (scaffold:vision v2 + innovate-vision v1)  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Problem Statement
+
+**User group:** Advanced biohackers who self-direct multi-compound protocols (peptides, and in the near term TRT/anabolics) using grey-market vendors operating via Telegram.
+
+**Pain:** Each of the four critical weekly tasks — researching a compound, placing an order, reconstituting a vial, and logging a dose — requires a different tool (browser/Obsidian, Telegram/PDF, a calculator, a spreadsheet). None of these tools know about each other. The user is the integration layer, and errors at any step translate to real harm: wrong reconstitution dose, lost crypto payment, or a missed injection.
+
+**Scope of the problem:** Reddit r/Peptides has 250k+ members; the grey-market peptide vendor ecosystem sustains dozens of active Telegram-based vendors. Ordering errors in this context are non-reversible — crypto payments cannot be recalled if sent to the wrong wallet address or for the wrong amount. Estimated median order value: $100–500 USD per transaction. Manual reconstitution errors (wrong BAC water volume → wrong concentration) translate directly to dosing errors in the next injection.
+
+**Hypothesis:** If we unify the four workflows (reference, ordering, reconstitution math, and dose tracking) into a single web app where each step is aware of the others, the Power User will abandon their existing four-tool workflow within 90 days and place at least 20 successful orders via the app within 12 months.
+
+**Validation method:** Power User daily active use, spreadsheet and Obsidian notes decommissioned (self-reported), order history in app ≥ 20 successful orders in Year 1.
+
+---
+
+## 2. Target Users
+
+### 2.1 Primary Persona — *Power User / Super Admin*
+
+| Dimension | Detail |
+|-----------|--------|
+| **Description** | Self-directed biohacker running 3–7 concurrent peptide protocols; manages sourcing independently. Also manages peptide access for 2–10 family members or close friends. |
+| **Primary need** | One tool that connects research → ordering → reconstitution → daily dosing → outcome logging without the user being the integration layer. |
+| **Current behavior** | Obsidian for research notes, browser tabs for PubMed, Telegram for vendor orders, Coinbase for crypto payments, spreadsheet for dose logging, a calculator tab for reconstitution math, calendar notes for cycle tracking. |
+| **Constraints** | Solo builder (is also the developer). Dose window is 3–5 minutes at 7am. Uncomfortable with "research use only" compliance theater. |
+| **Success looks like** | Opens one app at 7am. Sees today's stack. Logs doses in < 60 seconds. At order time: builds order in app, app sends Telegram message to vendor automatically, user confirms crypto payment, inventory updates. Spreadsheet decommissioned within 90 days. |
+| **Admin role** | Creates and configures managed user accounts. Configures protocols for Delegated Participants. Can view all managed users' adherence dashboards. |
+
+### 2.2 Secondary Persona — *Delegated Participant (managed user, v1)*
+
+| Dimension | Detail |
+|-----------|--------|
+| **Description** | Family member or close friend on 1–2 peptides, guided by the Power User. Does not self-research or order independently. |
+| **Primary need** | See their daily injection schedule, confirm doses, and understand what they're taking — without navigating a complex interface. |
+| **Current behavior** | Texting the Power User for every question. Sometimes guessing the dose. Sometimes skipping out of uncertainty. |
+| **Constraints** | Non-technical. Low tolerance for complexity. Cannot configure their own protocol. First reconstitution done with Power User present. |
+| **Success looks like** | Opens app, sees "today: 250mcg BPC-157, left abdomen." Taps confirm. Closes app. Zero texts to the Power User asking "how much do I take?" |
+| **v1 scope** | Account created and protocol configured *by Power User only*. No self-serve onboarding. No ordering capability. Simplified view: schedule + dose logging + peptide info only. |
+
+### 2.3 Adjacent Audience (v2 horizon, not v1)
+- **TRT / anabolic users** — same Telegram/crypto ordering ecosystem; v1 architecture supports, v2 adds compound profiles
+- **Compounding pharmacy patients** — bridge-sourcing architecture ready; UX deferred to v2
+
+### 2.4 Non-Users (explicitly out of scope for v1)
+- Clinicians and prescribers
+- Mass-market wellness consumers / GLP-1-curious newcomers
+- Anonymous SEO visitors
+- Anyone seeking AI-personalized dose recommendations
+
+---
+
+## 3. Feature Scope Summary
+
+### 3.1 In Scope (v1)
+
+| Pillar | Features |
+|--------|----------|
+| **Reference** | Peptide profile pages (mechanism, dosing, citations, side effects, stacking notes); browse/search catalog; ~20–30 compounds seeded from QSC vendor catalog |
+| **Tracker** | Protocol creation + management + clone/restart + pause/resume; daily dose logging with batch "Log All Scheduled"; injection site rotation; cycle management; subjective outcome logging; vial inventory with expiry warnings; stack overview dashboard; dose reminders; outcome-dose correlation timeline |
+| **Reconstitution** | BAC water + concentration calculator; syringe unit calculator; integration with dose history and vial inventory |
+| **Ordering** | Vendor catalog (QSC-first); inventory-aware order builder (suggests compounds running low); automated Telegram message dispatch via MTProto; payment capture checklist; order history; inventory update on delivery |
+| **Multi-user** | Super admin panel; managed user account creation; protocol assignment to managed users; adherence visibility; simplified managed-user view |
+| **Auth** | Email/password accounts; secure sessions; password reset; account deletion with data export; first-run setup wizard; PWA / home screen install |
+
+### 3.2 Out of Scope (will NOT be built in v1)
+- AI-generated dose recommendations or stack optimization
+- Community features (forums, shared stacks, outcome comparisons, leaderboards)
+- Public reference site / SEO landing pages
+- App Store distribution (iOS, Android native apps)
+- Automated Telegram response parsing (v2)
+- Automated crypto payment execution (manual payment only)
+- Wearable integration (Oura, Whoop)
+- Lab data / bloodwork import and protocol correlation
+- TRT/anabolic compound profiles (architecture supports; profiles deferred)
+- Compounding pharmacy order flow (architecture allows; UX deferred)
+- Self-serve managed-user onboarding (Delegated Participants created by Power User only)
+- Multi-vendor ordering (QSC only; additional vendors = v2)
+- Paid license / billing system (legal review required first; family/friends use for free)
+
+### 3.3 Deferred (v2+)
+
+| Feature | Why deferred |
+|---------|-------------|
+| AI Telegram response parser | Requires persistent Telegram read + AI parsing; v1 handles vendor reply manually. **v2 stub:** reads vendor's reply message from Telegram chat history, extracts confirmed total + wallet address + line items, pre-fills the payment confirmation screen. Requires: message-read MTProto scope, AI extraction layer (LLM or regex), idempotent order-update endpoint. |
+| Automated PubMed watch | Background AI job + notification system; not needed for personal-tool phase. **v2 stub:** user subscribes to compounds; background job queries PubMed API weekly for new papers mentioning subscribed compounds; sends email digest with titles, abstracts, and DOI links. Requires: PubMed API integration, background job runner, email digest template, notification preferences UI. |
+| Lab data import + protocol correlation | High technical complexity; validates after core tracking is proven |
+| TRT/anabolic compound profiles | Same toolchain; v2 adds compound-type profiles and protocol templates |
+| Multi-vendor ordering | Single vendor first to validate the ordering flow |
+| Community features | Anti-vision for v1; opt-in Year 2 only if personal-tool adoption succeeds |
+| Compounding pharmacy sourcing | Bridge-sourcing architecture ready; UX deferred |
+| Public reference + SEO | Year 2 if personal-tool phase validates value |
+| Paid license / billing | Before paid launch: legal review required (see §7.5) |
+
+---
+
+## 4. MoSCoW Prioritization
+
+### Must Have — v1 launch is blocked without these
+- Dose logging: confirmed date/time/amount/compound; Power User and Delegated Participant both log
+- **Batch "Log All Scheduled"**: one-tap action to confirm all of today's doses at protocol amounts
+- Protocol management: create/edit/deactivate/pause/resume a protocol with compound, dose, and schedule
+- **Protocol clone / restart**: duplicate a protocol or restart a completed cycle with a new start date
+- Reconstitution calculator: BAC water volume, syringe units, pre-filled from active protocol
+- **Vial expiry + low-inventory warning**: dashboard alerts when vials are expiring or running low
+- Compound reference pages: all QSC catalog peptides (~20–30) with dosing ranges, citations, and stacking notes
+- Automated Telegram ordering: order builder + MTProto bot-dispatched Telegram message to vendor + manual fallback
+- **Inventory-aware order builder**: suggests compounds running low when building an order
+- Order history + inventory capture: order logged, inventory updated post-delivery
+- Multi-user admin panel: Power User can create/configure managed user accounts
+- Auth: email/password accounts, sessions, password reset
+- **PWA / home screen install**: web app installable to phone home screen; service worker for offline dose-log queuing
+- **First-run setup wizard**: 3-step onboarding on first login (browse compound → create protocol → optional Telegram setup)
+
+### Should Have — missing degrades experience but doesn't block launch
+- Injection site rotation tracking with site suggestion
+- Cycle management (start/end dates, current week display, scheduled breaks)
+- **Protocol pause / resume**: pause individual protocols without deleting them
+- Subjective outcome logging (daily rating + free-text note)
+- Vial inventory tracking (per-vial reconstitution record, doses-remaining estimate)
+- Stack overview dashboard (all active protocols, today's status)
+- Coinbase payment checklist (payment amount + address capture, guided payment steps)
+- Peptide search/browse (by name and category)
+- **Dose reminders**: browser push or email notification at user-configured dose time
+- **Outcome-dose correlation timeline**: per-compound chart of dose events vs. outcome ratings
+- **CSV export**: dose logs and orders as CSV alongside JSON full export
+- **Stacking notes on compound profiles**: admin-curated "commonly stacked with" field
+
+### Could Have — include if time permits
+- Protocol history (full audit log of every dose)
+- Vendor price catalog import from PDF
+- Admin panel and Power User workflow mobile polish (dose-logging mobile UX = Must Have per §8.6; this entry covers remaining layout optimization)
+- Dark mode
+
+### Won't Have — this release
+All items in the Out of Scope list (§3.2).
+
+> **Phase vs. MoSCoW alignment:** MoSCoW defines what must be complete before "v1 done" is declared. Phases (§10) define build order — Must Have features are delivered across Phase 1 and Phase 2 in sequence, not all on day one. If a Must Have feature appears in Phase 2, it is scheduled for Phase 2 delivery but still blocks v1 completion. "Mobile-optimized layout" in Could Have refers to admin panel and Power User workflow refinement; mobile dose-logging UX is first-class per §8.6 and is a Must Have acceptance criterion, not optional polish.
+
+---
+
+## 5. Feature Specifications
+
+### 5.1 Pillar 1 — Reference
+
+**What it does:**
+Provides honest, citation-backed compound profiles for each peptide in the catalog — written for a user planning to inject this compound, not a researcher. No "research use only" boilerplate.
+
+**Compound profile fields:**
+- Common name + IUPAC name
+- Mechanism of action (evidence-based, plain language + optional technical depth toggle)
+- Researched benefits (each benefit links to primary PubMed citation where available)
+- Dosing ranges: low / typical / high dose; protocol context (healing vs. performance vs. cosmetic)
+- Administration route(s): subcutaneous, intramuscular, intranasal, oral
+- Reconstitution guidance: recommended BAC water dilution, shelf life reconstituted
+- Half-life and timing notes (e.g., "best taken fasted," "AM vs. PM relevance")
+- Known side effects and contraindications (labeled as anecdotal when evidence is weak)
+- Research citations (PubMed links; DOI where available)
+- Sourcing note: "Available from [vendor] as [form/size]" — honest, no compliance theater
+- Stacking notes: admin-curated 1-2 sentence "Commonly stacked with" field (e.g., "BPC-157 is often stacked with TB-500 for synergistic soft tissue repair"). Optional; shown when present. No AI generation — curated by Power User.
+
+**Out of scope for this feature:**
+- Community-contributed profile edits
+- AI-generated profiles without human review (AI may draft; Power User must review and approve)
+- Drug interaction checker (v2 after Peptify-style pharmacokinetic modeling is evaluated)
+- Dose recommendation ("take X mcg" framing — avoided per anti-vision; ranges only)
+
+**v1 catalog scope:**
+~20–30 compounds seeded from QSC vendor PDF. Every compound the user might order from QSC should have a profile before v1 ships.
+
+**Search & browse:**
+- Text search by common name (e.g., "BPC", "TB-500", "sema")
+- Browse by category: healing/recovery, GH secretagogues, GLP-1/metabolic, nootropics/cognitive, cosmetic/skin, other
+- Sort: alphabetical, most common (manually curated rank), recently viewed
+
+**Error scenarios:**
+- Compound is in QSC catalog but profile is not yet complete → show "Profile in progress" placeholder with compound name and basic sourcing info; not a 404
+- Search returns 0 results → "Not yet in catalog — check back or submit a request" (v2: request form)
+- Compound is deleted from the vendor catalog but is referenced by an existing protocol or dose log → compound record is soft-deleted (never hard-deleted); UI shows the compound name as "[Name] (archived)" with no active profile link; FK integrity preserved across all historical records
+
+---
+
+### 5.2 Pillar 2 — Protocol Tracker
+
+**What it does:**
+Manages multi-compound stacks for the Power User and their managed users. Replaces a spreadsheet-and-memory system with a structured schedule supporting daily logging, injection site tracking, cycle management, and subjective outcome recording.
+
+#### 5.2.1 Protocol Definition
+
+**Protocol fields:**
+- Compound (linked to reference catalog; required)
+- Dose amount (numeric; unit: mcg / mg / IU / mL)
+- Dose frequency: daily / every other day (EOD) / specific days of week / custom interval (days)
+- Administration route (defaults from compound profile; overridable)
+- Start date (required)
+- Optional end date
+- Cycle association (optional link to a cycle record)
+- Free-text notes field
+
+**Protocol status lifecycle:** active | paused | completed | deactivated
+- **Pause / Resume:** "Pause" sets status to paused; paused protocols are excluded from "today's doses" but visible in protocol list with status indicator. "Resume" restores active status. Dose history is unaffected by pause/resume.
+- **Clone:** "Clone this protocol" creates a copy with all fields copied (compound, dose, frequency, route, notes). User sets a new start date. The clone starts in draft state and is not active until the start date is confirmed.
+- **Restart cycle:** "Restart cycle" reopens a completed cycle with a new start date, re-linking all its associated protocols as new clones. The original completed cycle is preserved in history.
+
+**Out of scope:** AI-suggested protocols, community protocol templates
+
+**Error scenarios:**
+- Protocol saved with no compound → blocked: "Compound required"
+- Protocol dose of 0 → blocked: "Dose amount must be greater than zero"
+- Protocol start date in the past → allowed; no back-fill of historical dose logs
+- Clone of a paused or deactivated protocol → allowed; clone starts as active (with user-set start date)
+
+#### 5.2.2 Daily Dose Logging
+
+**Logging flow (individual):**
+1. Dashboard shows "Today's doses" — list of all active protocol doses due today for the logged-in user
+2. User taps a dose entry → sees dose details (compound, scheduled amount, suggested injection site)
+3. User confirms dose or edits the actual amount taken if it differed from scheduled
+4. Optional: add a note (free text, max 500 chars)
+5. Log entry saved with timestamp; dashboard updates to mark dose as logged
+
+**Batch logging flow ("Log All Scheduled" — Must Have):**
+1. "Log All Scheduled" button appears at top of today's doses when ≥ 1 dose is pending
+2. User taps → review screen shows all pending doses pre-filled at protocol amounts with suggested injection sites
+3. Any dose with a vial expiry warning is flagged in the review list (not blocked)
+4. User taps "Confirm all" → all doses logged simultaneously with current timestamp
+5. User can remove individual doses from the batch before confirming (e.g., skip one compound)
+6. Success: dashboard clears all logged doses; total time target ≤ 3 taps
+
+**Log record fields:**
+- Protocol reference (FK)
+- Actual dose taken (may differ from scheduled amount)
+- Timestamp (auto-captured; editable within same calendar day only)
+- Injection site used
+- Note (optional)
+- Logged by (user ID — relevant for admin visibility)
+
+**Error scenarios:**
+- User attempts to log a dose when vial inventory shows 0 remaining → warning ("No active vial recorded for this compound — log anyway?"); does not block, but flags prominently
+- Duplicate log for same protocol + same day → "You already logged this today. Log again?" — requires confirmation
+- Missed dose (calendar day passes with no log) → no automatic fill or penalty; appears as "Not logged" in history; retroactive logging not supported after the calendar day ends (audit integrity)
+- Dose skip (user intentionally skips) → user can tap "Skip" on a dose entry; recorded as a skip event; counts as 0 in adherence metrics; distinguishable from "Not logged" in history
+- Late dose (logged same calendar day but past typical window) → accepted; no time-window enforcement; timestamp is as logged
+- Timezone / DST shift → all timestamps stored in UTC; dashboard "today's doses" resolves based on user's browser local date
+
+#### 5.2.3 Injection Site Rotation
+
+**Rotation system:**
+- Selectable sites: left abdomen, right abdomen, left thigh, right thigh, left deltoid, right deltoid, ventrogluteal L, ventrogluteal R
+- Per-compound site history (peptides with route requirements respect the correct site group)
+
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/api-contracts.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# API Contracts
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**System Architecture source:** `docs/system-architecture.md`  
+**Domain Model source:** `docs/domain-models/`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Global Standards
+
+### 1.1 Style & Idempotency
+- **Style**: RESTful Route Handlers (`app/api/*`) and Type-safe Server Actions (`app/actions/*`).
+- **Idempotency**: All mutating actions MUST accept an `Idempotency-Key` (Header for API, Field for Actions).
+  - **Format**: UUID v4.
+  - **Behavior**: Replaying an existing key returns the *original success response*.
+- **Pagination**: `page` (1-indexed) and `limit` (default: 20, max: 100). Response include `total`, `pages`, `hasNext`.
+
+### 1.2 Common Response Shapes
+**Success Response:**
+```json
+{
+  "data": { ... },
+  "warnings": Array<{ "code": string, "message": string }>
+}
+```
+
+**Error Response:**
+```json
+{
+  "error": {
+    "code": "string",
+    "message": "string",
+    "details": { "fields": Record<string, string[]> }
+  }
+}
+```
+
+---
+
+## 2. Auth & Admin Module (AUT)
+
+### 2.1 Session Lifecycle
+- **[POST] /actions/auth/login**: `{ email, password }` -> `{ user }`
+- **[POST] /actions/auth/logout**: `void`
+- **[GET] /api/auth/session**: -> `{ session: { user } }`
+
+### 2.2 Account Lifecycle
+- **[POST] /actions/auth/reset-password-request**: `{ email }`
+- **[POST] /actions/auth/reset-password-confirm**: `{ token, newPassword }`
+- **[POST] /actions/auth/request-export**: `{ format: 'JSON' | 'CSV' }` -> `{ requestId }`
+- **[POST] /actions/auth/schedule-deletion**: `{ passwordConfirmation }` -> `{ scheduledFor }`
+
+### 2.3 Managed Users (Admin)
+- **[GET] /api/admin/managed-users**: -> `{ items: ManagedUserDto[] }`
+- **[POST] /actions/auth/invite**: `{ email }` -> `{ inviteId, expiresAt }`
+
+---
+
+## 3. Tracker Module (TRK)
+
+### 3.1 Protocols
+- **[GET] /api/tracker/protocols**: `?status=ACTIVE` -> `{ items: ProtocolDto[] }`
+- **[POST] /actions/tracker/create-protocol**: `{ compoundId, dose, schedule, startDate, cycleId? }`
+- **[PATCH] /actions/tracker/update-protocol**: `{ id, status, dose, schedule }`
+
+### 3.2 Dose Logging
+- **[POST] /actions/tracker/log-dose**: 
+  - **Request**: `{ protocolId, scheduledDate, amount, status: 'LOGGED'|'SKIPPED', injectionSite?, note?, vialId? }`
+  - **Response**: `200 OK` with `warnings: ['insufficient_inventory']` if applicable.
+- **[POST] /actions/tracker/batch-log**: `{ logs: Array<DoseLogInput> }`
+
+### 3.3 PWA Sync
+- **[POST] /api/sync**:
+  - **Request**: `{ events: Array<SyncEvent> }`
+  - **Event Envelope**: `{ eventId, type: 'LOG_DOSE'|'EDIT_LOG'|'SKIP_DOSE', payload, occurredAt, timezone }`
+
+---
+
+## 4. Reconstitution Module (REC)
+
+### 4.1 Calculator
+- **[POST] /api/reconstitution/calculate**: `{ totalMg, bacWaterMl, targetDoseMcg }`
+- **Response**: `{ concentrationMcgPerMl, unitsPerDose, injectionVolMl, warnings: SafetyWarning[] }`
+
+### 4.2 Vial Inventory
+- **[GET] /api/reconstitution/vials**: `?status=ACTIVE` -> `{ items: VialDto[] }`
+- **[POST] /actions/reconstitution/save-vial**: `{ compoundId, totalMg, bacWaterMl?, expiresAt? }`
+
+---
+
+## 5. Ordering Module (ORD)
+
+### 5.1 Vendor Catalog
+- **[GET] /api/ordering/vendors**: -> `{ items: VendorDto[] }`
+- **[GET] /api/ordering/products**: `?vendorId=uuid` -> `{ items: ProductDto[] }`
+
+### 5.2 Order Lifecycle
+- **[POST] /actions/ordering/create-draft**: `{ vendorId, items: Array<{ productId, quantity }> }`
+- **[POST] /actions/ordering/send-order**: `{ orderId }` -> `{ telegramMessageId, fallbackText? }`
+- **[POST] /actions/ordering/confirm-quote**: `{ orderId, confirmedTotal, currency, walletAddress }` -> **Sent -> Confirmed**
+- **[POST] /actions/ordering/mark-paid**: `{ orderId, txId?, acknowledged: boolean }` -> **Confirmed -> PaymentSent**
+- **[POST] /actions/ordering/mark-received**: `{ orderId, itemsToInventory: Array<{ productId, vialDetails }> }`
+
+---
+
+## 6. Expanded Domain Error Catalog
+
+| Code | Status | Meaning |
+|------|--------|---------|
+| `validation_failed` | 400 | Payload fails Zod schema validation. |
+| `insufficient_permissions` | 403 | Managed user attempting Power User action. |
+| `protocol_not_found` | 404 | referenced protocol ID does not exist or is deleted. |
+| `invalid_order_transition` | 409 | e.g. Trying to mark a DRAFT order as PAID. |
+| `mtproto_connection_error` | 503 | Telegram service unreachable or session expired. |
+| `audit_write_failed` | 500 | Database transaction rolled back due to audit failure. |
+| `idempotency_key_conflict` | 409 | Key already used for a different payload. |
+
+---
+
+## 7. Sync Event Definition (TypeScript)
+
+```typescript
+type SyncEvent = {
+  eventId: string; // UUID v4 used as Idempotency-Key
+  type: 'LOG_DOSE' | 'SKIP_DOSE' | 'EDIT_DOSE';
+  payload: {
+    protocolId: string;
+    scheduledDate: string; // ISO Date
+    amount?: { value: number; unit: string };
+    injectionSite?: { location: string; group: string };
+    note?: string;
+  };
+  occurredAt: string; // ISO Timestamp
+  timezone: string;   // IANA Name
+};
+```
+
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# System Architecture
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**PRD source:** `docs/plan.md`  
+**ADR source:** `docs/adrs/`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Architectural Style: Modular Monolith
+
+We use a modular monolith architecture built on Next.js 15. The system is organized into bounded contexts that can be isolated (ADR-015) or eventually extracted into microservices if needed.
+
+### 1.1 Layered Structure (Per Module)
+- **UI Layer**: React components (RSC or Client) in `app/`.
+- **Application Layer**: Server Actions and Services in `lib/{module}/application/`.
+- **Domain Layer**: Entities and business logic in `lib/{module}/domain/`.
+- **Infrastructure Layer**: Persistence and external integrations in `lib/{module}/infrastructure/`.
+
+---
+
+## 2. Component Design
+
+### 2.1 Component Overview
+
+| Component | Responsibility | Tech Stack |
+|-----------|----------------|------------|
+| **App Shell** | PWA Layout, Navigation, Auth Guards | Next.js, shadcn/ui |
+| **Auth** | Registration, Login, Session Mgmt | Auth.js v5 |
+| **Tracker** | Dose Logging, Protocols, PWA Sync | React, TanStack Query |
+| **Reminders** | Web Push & Email Notification logic | Serwist, Resend |
+| **Reference** | Peptide Catalog, Profile Reference | RSC (Next.js) |
+| **Ordering** | Vendor Catalog, Telegram MTProto | GramJS, Server Actions |
+| **Reconstitution** | Concentration Math, Vial Inventory | lib (Typescript) |
+| **Audit** | Immutable Mutation Logs | Prisma (Postgres) |
+| **Observability** | Error tracking & Alerting | Sentry, Railway |
+
+---
+
+## 3. Data Flows
+
+### 3.1 Flow: Log a Dose (Offline-First)
+1. **User Action**: User taps "Confirm" or "Skip" on dashboard.
+2. **Client Layer**:
+   - Record event in IndexedDB (via Serwist).
+   - If Online: Trigger background sync to `/api/sync`.
+3. **Server Layer**:
+   - **Case: Logged**: Validate `idempotencyKey`, decrement `Vial.remainingMg` (if vial linked), write `DoseLog`, write `AuditLog`.
+   - **Case: Skipped**: Write `DoseLog` (status: Skipped), write `AuditLog`.
+   - **Case: Edited**: Only allowed same calendar day; update `DoseLog`, adjust `Vial`, write `AuditLog`.
+
+### 3.2 Flow: Place Telegram Order (Payment Safety Gate)
+1. **Draft -> Sent**: Power User clicks "Send Order"; GramJS dispatches message.
+2. **Sent -> Confirmed**: User receives Telegram reply, enters quoted total and wallet address in app.
+3. **Confirmed -> PaymentSent**: **Hard Gate**: App displays Wallet + Amount; user verifies on screen and clicks "Mark payment sent".
+4. **PaymentSent -> Received**: User confirms delivery; app prompts to add line items to Vial Inventory.
+5. **Audit**: Every status transition emits a signed `AuditEvent`.
+
+---
+
+## 4. Module Structure (Bounded Context Slices)
+
+```
+/
+├── app/                        # UI Layer (Next.js)
+│   ├── (auth)/                 # Registration, Login, Reset
+│   ├── (dashboard)/            # Main App Layout
+│   │   ├── tracker/            # Tracker UI
+│   │   ├── reference/          # Reference UI
+│   │   └── reconstitution/     # Calculator UI
+│   ├── ordering/               # Isolated Ordering UI (ADR-015)
+│   ├── actions/                # Server Action Entrypoints (grouped by context)
+│   │   ├── auth/
+│   │   ├── tracker/
+│   │   └── ordering/
+│   └── api/                    # Route Handlers
+│       ├── cron/               # Railway Cron Endpoints (Secured)
+│       └── sync/               # PWA Sync Handler
+├── lib/                        # Core Logic (Domain & Application)
+│   ├── {context}/              # auth, tracker, ordering, reference, jobs, audit
+│   │   ├── domain/             # Pure entities, invariants, events
+│   │   ├── application/        # Use cases, service logic
+│   │   └── infrastructure/     # Prisma repos, external API clients
+│   ├── jobs/                   # Background job implementations
+│   └── shared/                 # Common types, utils, cross-domain services
+├── prisma/                     # Global Schema
+└── worker/                     # Serwist Service Worker
+```
+
+---
+
+## 5. State Management Design
+
+- **Server State (TanStack Query)**: MTProto connection, Sync status, Adherence metrics.
+- **Client UI State (React Context)**: Onboarding wizard, Ordering cart.
+- **Client Persistence (IndexedDB)**: Offline dose log queue, optimistic inventory projection.
+
+---
+
+## 6. Scheduled Jobs (Railway Cron)
+
+| Job Name | Frequency | Responsibility |
+|----------|-----------|----------------|
+| **Dose Reminder** | Hourly | Check for users with reminders due; dispatch Push or Email. |
+| **Stale Order Checker** | Daily | Flag orders in "Sent" status > 14 days. |
+| **Audit Purge** | Daily | Delete `AuditEvent` records > 90 days old. |
+| **Vial Expiry Check** | Daily | Notify users of vials nearing 14-day expiry. |
+
+---
+
+## 7. Deployment Topology
+
+- **Runtime**: Node.js 20 on Railway Container (Always-on for MTProto).
+- **Database**: PostgreSQL 16 (Railway Managed).
+- **Email**: Resend (ADR-011).
+- **Storage**: Cloudflare R2 (ADR-014).
+- **Monitoring**: Sentry (ADR-013).
+
+---
+
+## 8. Failure Modes
+
+- **MTProto Logout**: Session invalidated; system falls back to display message + deep-link.
+- **Offline Sync Conflict**: Idempotency key `user:protocol:date` wins.
+- **Audit Write Failure**: Mutation rolled back via DB transaction.
+
+---
+
+## 9. Testing Architecture
+
+We follow a Pyramid strategy:
+- **Unit Tests (Vitest)**: Math calculations in `lib/reconstitution`, domain invariants in `lib/*/domain`.
+- **Integration Tests (Vitest)**: Server Actions, repository transactions, MTProto session encryption.
+- **E2E Tests (Playwright)**:
+  - **Hard Gate**: Payment safety verification screen.
+  - **Critical Path**: Offline dose log queuing and sync replay.
+  - **Auth**: Managed user invitation and permission isolation.
+
+codex
+The UX spec is much shorter than the PRD/stories: it covers the morning dose routine and payment gate, but most pillars currently have no flow or component detail. I’m checking the remaining PRD sections so the severity calls are proportional to what v1 says is required.
+exec
+/bin/zsh -lc "sed -n '260,620p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+- Per-compound site history (peptides with route requirements respect the correct site group)
+- On each dose log entry, app suggests the next site in rotation based on history (round-robin)
+- User can override the suggestion before confirming
+- Visual history: last 7 injections per compound, shown as site name list
+
+**Out of scope:** Body-map visualization (could have, not must have); AI-optimized rotation; custom site definitions
+
+**Error scenarios:**
+- No prior injection history for this compound → no suggestion shown; first site is user's choice with all options available
+
+#### 5.2.4 Cycle Management
+
+**Cycle fields:**
+- Cycle name (e.g., "BPC-157 healing cycle Q1 2026")
+- Start date and optional end date (or "ongoing")
+- Associated protocols (multiple protocols can be linked to one cycle)
+- Scheduled breaks (optional: define off weeks by date range)
+- Status: active / paused / completed
+
+**Dashboard shows:**
+- Current cycle week for each active cycle (e.g., "Week 3 of BPC-157 healing cycle")
+- Break indicator when in a scheduled break period
+
+**Out of scope:** Automated reminders on break/restart, AI-suggested cycle lengths
+
+**Error scenarios:**
+- Cycle with overlapping date ranges on the same compound → warning shown, not blocked
+
+#### 5.2.5 Subjective Outcome Logging
+
+**Daily log entry:**
+- Overall wellbeing rating (1–5)
+- Optional per-protocol rating (1–5 per active compound)
+- Free-text note (max 1,000 chars)
+- Optional tag multi-select: energy, sleep, mood, pain, recovery, libido, cognition (extensible list)
+
+**Display:**
+- Timeline view: last 14 days of ratings + notes
+- No analytics charts required in Must Have; simple sparkline for Could Have
+
+**Out of scope:** Quantitative biomarker logging (deferred to lab import feature, v2), machine learning on outcome data, AI pattern recognition
+
+#### 5.2.6 Stack Overview Dashboard
+
+**Dashboard surfaces:**
+- All active protocols for current user: compound name, today's dose status (logged / pending), scheduled dose amount
+- Current cycle week for each linked cycle
+- Vial inventory indicator per compound (doses remaining — estimate based on logged doses vs. vial size)
+  - "Expiring in N days" badge when a vial is within 7 days of estimated expiry
+  - "Running low" badge when estimated doses remaining < 5
+  - "EXPIRED" badge with days-since-reconstitution when vial is past expiry date
+- Last 7-day subjective rating average
+- "Log All Scheduled" batch action at top of today's doses list
+- Quick-log action on each dose entry (one tap to confirm scheduled dose)
+
+#### 5.2.7 Dose Reminders (Should Have)
+
+**What it does:**
+Notifies the user (or managed user) at a configured time to open the app and log their doses. Addresses the retention risk that users forget to open the app, which makes adherence tracking worthless.
+
+**Reminder configuration:**
+- User sets a single daily reminder time per account (e.g., 7:00am)
+- Reminder is global (covers all active protocols); per-protocol reminder time = out of scope for v1
+- Managed users configure their own reminder time (or Power User can set it during protocol setup)
+
+**Delivery channels (in priority order):**
+1. **Browser push notification** — available if the user has installed the PWA and granted notification permission; delivered via Web Push API at the configured time
+2. **Email reminder** — fallback if push is not available or not granted; uses the existing transactional email provider (§7.1); email subject: "Your [N] doses are due today" with a deep-link back to the app
+
+**Out of scope:** SMS reminders, per-dose reminders at different times, reminder snooze, reminder history
+
+**Error scenarios:**
+- Push permission denied → app shows banner "Enable notifications for dose reminders" with link to browser settings; falls back to email
+- Email delivery failure → logged; no retry loop; silent (not a user-facing error)
+
+---
+
+#### 5.2.8 Outcome-Dose Correlation Timeline (Should Have)
+
+**What it does:**
+Shows dose events and subjective outcome ratings together on a single timeline per compound (or cycle). The data-motivated reason to use the tracker beyond logistics — lets the user see patterns between dosing and how they feel.
+
+**View spec:**
+- Accessible from: compound profile page ("My data" tab) and cycle detail view
+- Date range: 30 days (default) or 90 days (toggle)
+- Chart layout (dual-axis):
+  - x-axis: date
+  - y1 (bars or dots): dose logged on that day (yes/no, or actual dose vs. protocol dose)
+  - y2 (line): daily overall outcome rating (1–5; missing = no rating that day)
+- Summary stats below chart: "Average outcome rating on days dosed: X.X | On days not dosed: X.X" (descriptive stats only; no AI or ML)
+- No data state: "Log at least 7 doses and 7 outcome ratings to see your correlation timeline"
+
+**Out of scope:** Multi-compound overlay chart, regression analysis, AI-generated insights, predictive modeling
+
+---
+
+### 5.3 Pillar 3 — Reconstitution Calculator
+
+**What it does:**
+Calculates BAC water volume, resulting concentration, and syringe unit marks for a given dose. Connected to vial inventory and dose history. Safety-critical: zero dose-calculation defects allowed.
+
+**Calculator inputs:**
+- Compound (pre-filled from active protocol or manually selected from catalog)
+- Vial size in mg (numeric — e.g., 5 mg)
+- BAC water volume to add in mL (user adjusts; default suggested based on common dilutions for that compound)
+- Target dose in mcg or mg (pre-filled from protocol; user can override)
+
+**Calculator outputs (all shown simultaneously):**
+- Resulting concentration: mg/mL and mcg/mL
+- **Units on 100-unit insulin syringe for the target dose** (large, prominent display — this is the key output)
+- Cross-check: units for the "low," "typical," and "high" doses from the reference profile (so user can verify their dose makes sense)
+
+**Reconstitution event recording:**
+- After confirming calculation, user clicks "Record reconstitution" → creates a vial record
+- Vial record: compound, vial size, BAC water volume added, final concentration, date reconstituted, estimated shelf-life expiry (14 days refrigerated default; configurable)
+- Vial record links to subsequent dose logs to decrement doses-remaining estimate
+
+**Dose-history integration:**
+- Shows the last logged dose for this compound: "You logged X mcg yesterday at HH:MM" (safety context)
+- Shows current protocol dose for comparison
+
+**Safety guardrails (non-negotiable):**
+- Zero dose-calculation defects: all math must be covered by unit tests with known reference values
+- If calculated dose-per-unit exceeds the reference profile's "high" dose → yellow warning: "This calculation is above the typical high dose range. Double-check your values."
+- If resulting volume per dose exceeds 1.5mL → warning: "Large injection volume — verify this is correct"
+- If BAC water volume < 0.5mL → warning: "Low reconstitution volume may make accurate dosing difficult"
+
+**Out of scope:**
+- Pharmacokinetic modeling or half-life decay curves
+- Multi-vial pooling math
+- Dosing suggestions ("you should take X")
+
+**Error scenarios:**
+- BAC water volume = 0 → blocked: "BAC water volume required to calculate concentration"
+- Vial size = 0 → blocked
+- Target dose numerically exceeds total vial content → warning: "This dose would require more than one vial's worth of compound"
+- Negative values in any field → blocked with field-level error
+
+---
+
+### 5.4 Pillar 4 — Ordering (Telegram + Crypto)
+
+**What it does:**
+Enables the Power User to place a vendor order via Telegram with the app sending the order message automatically via MTProto (user's own Telegram account). The user then handles crypto payment manually through Coinbase.
+
+**⚠ v1 architecture decision — supersedes vision guidance:**
+The vision document recommended "guided manual v1" (app composes message; user pastes to Telegram). The user has confirmed v1 = full Telegram automation (MTProto sends the message without opening Telegram). This decision elevates Telegram session fragility from a v2 risk to a v1 Must Have risk. As a result, a graceful manual fallback mode (message is copyable; Telegram deep-link is always visible) is **required** in every ordering flow, not optional.
+
+**External actor — QSC vendor:** The vendor is a key external participant in the ordering flow. v1 assumes QSC's Telegram-first ordering pattern: user sends an item list message → vendor replies with confirmed price and wallet address. Vendor reply format is unstructured; v1 processes vendor replies manually. The v2 AI response parser adds automated reply extraction.
+
+**MTProto feasibility gate:** Before Phase 1 ships, validate in the target runtime: (a) MTProto auth code flow completes successfully, (b) session storage and retrieval is reliable across restarts, (c) message send to a real vendor chat succeeds. If a blocker is found, fall back to "compose only" scope reduction — app writes the message, user copies it to Telegram — without shipping Phase 1 incomplete.
+
+#### 5.4.1 Telegram Account Authentication (one-time setup)
+
+**Setup flow:**
+1. User enters their Telegram phone number
+2. Telegram sends a verification code via standard MTProto auth
+3. User enters code in app
+4. App stores encrypted MTProto session (server-side, AES-256 at rest, user-scoped)
+5. User selects or enters the vendor's Telegram username / chat ID
+6. App sends a test "ping" message (or skips — user discretion) to confirm connection
+
+**Vendor configuration per vendor:**
+- Vendor display name
+- Telegram username or chat ID
+- Order message template (plain text with item/quantity placeholders; default provided)
+- Preferred currency (USDT, BTC, ETH, etc.)
+
+**Fallback always visible:**
+- Composed order message is always shown as copyable text in the UI
+- "Open in Telegram" deep-link button (tg://resolve?domain=VENDOR&text=MESSAGE) always present
+- User can always choose to send manually even when automation is configured
+
+**Out of scope:** Official Telegram Bot API (bots can't initiate messages to arbitrary users); OAuth (no standard OAuth for Telegram user accounts)
+
+**Error scenarios:**
+- Auth code expired → re-request code flow with timer
+- Session invalidated by Telegram (device limit) → force re-auth with clear explanation: "Your Telegram session was invalidated. Re-authenticate to resume ordering."
+- Vendor username not found → inline error + show manual fallback immediately
+
+#### 5.4.2 Vendor Catalog
+
+**Catalog fields per compound entry:**
+- Compound name (linked to reference catalog)
+- Available forms (lyophilized powder, solution)
+- Vial size options (2mg, 5mg, 10mg, etc.)
+- Price per unit (USD or vendor currency; manual entry)
+- In-stock flag (manual toggle; no live sync in v1)
+- Minimum order quantity
+
+**v1 import:**
+Data entered manually by Power User from QSC PDF. Prices updated manually when vendor price list changes (PDF import parser is a Could Have).
+
+**Out of scope:** Live API price sync, multi-vendor price comparison, automated price-change alerts
+
+#### 5.4.2b Inventory-Aware Order Suggestions (Must Have)
+
+When the user opens the order builder, the app calculates days-to-depletion for each active protocol's compound and surfaces a "Suggested order" section at the top of the order builder.
+
+**Suggestion logic:**
+- For each active protocol: estimated daily dose rate × doses remaining in active vial = days until depletion
+- If days until depletion < 14: show compound in suggested list with: compound name, vial form + size currently used, days remaining, suggested reorder quantity (default: 2 vials)
+- Compounds with no active vial record but active protocol → also surfaced: "No active vial recorded"
+
+**Suggested order UI:**
+- Shown as a collapsible section "Based on your inventory" above the full vendor catalog
+- Each suggested item has: compound name, reason ("~8 doses remaining"), pre-filled quantity (editable), "Add to cart" button
+- Dismissible per session if user prefers to browse manually
+
+**Out of scope:** ML-based quantity optimization, multi-cycle lookahead beyond 14 days
+
+#### 5.4.3 Order Builder
+
+**Order flow:**
+1. Browse or search vendor catalog
+2. Add items to cart (compound, form, vial size, quantity)
+3. Review cart: itemized list with per-item price, subtotal
+4. App composes the Telegram order message using vendor's template (e.g., "Hi, I'd like to order: 10x BPC-157 5mg, 5x TB-500 5mg. Please confirm price and wallet address. Thank you.")
+5. User reviews composed message (editable before send)
+6. User clicks "Send Order" → app sends message via Telegram MTProto to vendor chat
+7. App records the order with status: "Sent — awaiting confirmation" and timestamps the event
+
+**Order record fields (created at send):**
+- Order ID, created timestamp
+- Vendor reference
+- Line items: compound, form, vial size, quantity, unit price
+- Telegram message text (as sent)
+- Order status (see state machine in §5.4.4)
+- `send_method`: `"automated"` (MTProto send succeeded) | `"manual_fallback"` (user used copy/deep-link)
+- Payment fields (populated in §5.4.4): confirmed total, currency, wallet address, tx ID (optional)
+
+**Duplicate item in cart:** If the same compound + form + vial size is added more than once, quantities are merged into one line item. Different vial sizes of the same compound are separate line items.
+
+**Fallback mode (always available, even when bot is working):**
+- Composed message visible as copyable text below the send button
+- "Open in Telegram" deep-link button visible at all times
+- If MTProto send fails for any reason → show error, automatically surface fallback mode, do NOT silently discard the order
+
+**Out of scope:** Discount codes or promo fields, multi-vendor split orders
+
+**Error scenarios:**
+- Telegram send fails (network, session expired, rate limit) → show error message + fallback mode immediately; order remains in "draft" state
+- Cart is empty → send button disabled; "Add items to your order first"
+- Item in cart has no price set → soft warning: "Price not set for [item]. Order will be sent without a price confirmation."
+
+#### 5.4.4 Order Tracking & Payment
+
+**Post-send flow:**
+1. App shows "Order sent — waiting for vendor confirmation" with Telegram deep-link to vendor chat
+2. User reads vendor's Telegram reply manually (v1; AI response parser is v2)
+3. User manually enters in app: confirmed order total, crypto currency, wallet address from vendor's message
+4. App shows payment confirmation step: total, currency, wallet address — all visible together on one screen
+5. **User must acknowledge the wallet address + amount display before proceeding** (safety gate)
+6. User sends crypto payment from Coinbase or other wallet manually (app does not execute payment)
+7. User optionally enters transaction ID in app (for audit record)
+8. User clicks "Mark payment sent" → order status: "Payment sent — awaiting shipment"
+9. User receives shipment; clicks "Mark received" → triggers inventory update prompt
+10. App prompts: "Add these items to your inventory?" with each ordered compound and quantity pre-filled
+
+**Payment safety guardrail:**
+The wallet address and payment amount must be visible on screen at the moment the user clicks "Mark payment sent." This step cannot be bypassed. If no wallet address has been entered, the "Mark payment sent" button is greyed with tooltip: "Enter vendor's wallet address first."
+
+**Inventory update on delivery:**
+- "Mark received" creates a vial record in Pillar 3 for each ordered compound
+- Record: compound, quantity, order reference, date received
+- User can add reconstitution details on first use (links to Pillar 3 calculator)
+
+**Order status state machine:**
+```
+Draft → Sent → Confirmed → Payment Sent → Received  (terminal)
+                         → Cancelled                 (terminal)
+       → Stale (auto-flagged after 14 days in "Sent" with no update)
+```
+- **Cancel order:** Power User can cancel any order in Draft, Sent, Confirmed, or Stale status from Order History. Cancelled orders remain in history with status and timestamp.
+- **Stale detection:** If an order remains in "Sent" status for 14 days without a manual status update, it is auto-flagged "Stale — check Telegram." A banner prompts the user to check their Telegram chat and either update the status or cancel the order.
+- Status transitions are forward-only except Cancel, which can be applied from any non-terminal status.
+
+**Out of scope:** Automated crypto sending, Coinbase API wallet integration (no custodial access), automated vendor reply parsing (v2)
+
+**Error scenarios:**
+- User clicks "Mark payment sent" with no wallet address recorded → blocked with clear error
+- User clicks "Mark received" before order status is "Payment sent" → warning shown ("Payment hasn't been marked as sent. Mark received anyway?") with confirmation
+- Order sent but user closes browser → order persists in "Sent" status; accessible from Order History on next login
+- Duplicate send attempt (double-click or network retry) → idempotency check: if an identical message was sent to the same vendor within the last 60 seconds, show "Possible duplicate — send again?" before proceeding
+- Vendor changes quoted price after order sent → user enters the new total at payment confirmation time; no lock on the amount at "order sent" time; previous vendor replies are visible in Telegram for reference
+- Stale wallet address → user is shown the wallet address from their most recent order to the same vendor for comparison, but must verify the current address from the vendor's Telegram reply before marking payment sent
+
+---
+
+### 5.5 Multi-User & Admin
+
+**What it does:**
+Allows the Power User (super admin) to create and manage family/friend accounts, configure their protocols, monitor their adherence, and control their access.
+
+**Super admin capabilities:**
+- Create managed user accounts: name + email; app sends an invite email with a one-time setup link (expires after 72 hours)
+- Configure protocols for any managed user (using the same protocol editor as their own)
+- View any managed user's dose log and 7/30-day adherence metrics
+- Edit or deactivate managed user protocols
+- Reset a managed user's password (sends a reset email to the managed user)
+- Deactivate a managed user account (their data is retained; access is revoked)
+- Delete a managed user account (with user's data export generated first)
+
+**Managed user capabilities:**
+- Log their own doses from their configured protocols
+- View their own schedule and dose history
+- Look up compound reference pages
+- View the reconstitution calculator (read-only if their protocol has a linked vial record)
+- Change their own password
+
+**Managed user cannot:**
+- Create or edit protocols (read-only view of their own)
+- Access the ordering module or vendor catalog
+- See any other user's data
+- Access the admin panel
+- Create additional user accounts
+
+**Invite link lifecycle:**
+- Invite link expires 72 hours after issuance
+- Admin panel shows invite status per user row: **Active** | **Invited (expires MM/DD)** | **Invite Expired** | **Deactivated**
+- Admin can resend invite from the user row; resend generates a new link and invalidates the old one
+- Accepting an expired invite: "This invite link has expired. Contact your administrator for a new link."
+- Resend to a user who already accepted: not available (account already active); admin uses password reset instead
+
+**Admin panel views:**
+- List of all managed users: name, email, last login, invite status, 7-day adherence % (doses logged ÷ doses scheduled)
+- Click-through to any managed user's dose history and active protocols
+- No logging-on-behalf-of (audit integrity: logs are always attributed to the user who confirmed)
+
+**Out of scope:**
+- Role hierarchy beyond (super admin + managed user)
+- Multiple admins / co-admin role
+- Managed users creating their own accounts (Power User invitation flow only in v1)
+- Managed users viewing each other's data
+
+**Error scenarios:**
+- Admin invites an email already registered → "This email already has an account"
+- Admin invites the same email twice (pending invite exists) → "An invite is already pending for this email. Resend or cancel it first."
+- Admin tries to delete their own super admin account while managed users are active → blocked: "You have N active managed users. Deactivate or transfer them before deleting your account."
+- Managed user navigates to `/ordering` → 403 with message: "Ordering is managed by your administrator"
+- Deactivating a managed user with active protocols: protocols are not auto-deleted; admin sees a warning "This user has N active protocols. Deactivating their account will prevent them from logging doses. Continue?"
+
+---
+
+### 5.6 Auth & Account Management
+
+**Authentication:**
+- Email + password (bcrypt, min cost 12)
+- Sessions: httpOnly JWT or server-side session cookie; 30-day rolling expiry
+- Password requirements: minimum 12 characters; no maximum; no complexity rules (length alone is the security factor)
+- Password reset: email link, expires in 1 hour, single-use
+
+**Account actions:**
+- Change email: requires current password confirmation; sends verification to new email before applying
+- Change password: requires current password confirmation
+- Delete account: generates and delivers a full data export (JSON), then permanently deletes the account and all associated records after 48-hour delay (or immediate with double-confirmation modal)
+
+**First-Run Setup Wizard (Must Have):**
+Triggered on first login after account creation (or invite acceptance for managed users). A 3-step guided flow to reach first-value quickly.
+
+| Step | Power User | Delegated Participant |
+
+exec
+/bin/zsh -lc "sed -n '320,700p' docs/user-stories.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+- **AC 1 (Invite):** I can enter a name and email to send an invite link (valid for 72 hours).
+- **AC 2 (Access):** Managed users see a simplified dashboard with only their own schedule and reference info.
+
+**Domain Events:** `ManagedUserInvited`
+
+---
+
+### US-ADM-02: Monitor Adherence
+**As a** Power User,  
+**I want to** see adherence metrics for my managed users,  
+**so that** I know if they are following the protocols I configured.
+
+**Acceptance Criteria:**
+- **AC 1 (Dashboard):** The admin panel shows a 7-day adherence % (Doses Logged / Doses Scheduled) for each managed user.
+
+**Domain Events:** `AdherenceReportViewed`
+
+---
+
+### US-ADM-03: Manage Managed Users
+**As a** Power User,  
+**I want to** edit, deactivate, or reset passwords for managed users,  
+**so that** I can maintain control over the multi-user environment.
+
+**Acceptance Criteria:**
+- **AC 1 (Management):** I can deactivate a managed user account, which revokes their access but preserves their data.
+- **AC 2 (Password Reset):** I can trigger a password reset email for any managed user.
+
+**Domain Events:** `ManagedUserDeactivated`, `PasswordResetTriggered`
+
+---
+
+## Epic 6: Auth & Account Management (AUT)
+
+### US-AUT-01: Onboarding Path (Power User vs Managed User)
+**As a** new user,  
+**I want to** be guided through my role-specific setup,  
+**so that** I understand how to use the app immediately.
+
+**Acceptance Criteria:**
+- **AC 1 (Power User Wizard):** 3-step guide: Browse Catalog -> Create Protocol -> Optional Telegram Setup.
+- **AC 2 (Managed User Wizard):** 2-step guide: View My Schedule -> Log First Dose walkthrough.
+
+**Domain Events:** `OnboardingStarted`, `OnboardingCompleted`
+
+---
+
+### US-AUT-02: Account Deletion and Data Export
+**As a** user,  
+**I want to** delete my account and receive a full export of my data,  
+**so that** I maintain full control over my sensitive health-adjacent information.
+
+**Acceptance Criteria:**
+- **AC 1 (Export):** I can request a full JSON export at any time. CSV export is provided for dose logs and orders.
+- **AC 2 (Deletion):** After confirmation, all data is permanently wiped from the system after a 48-hour delay.
+
+**Domain Events:** `AccountDeletionRequested`, `DataExportGenerated`
+
+---
+
+### US-AUT-03: User Registration and Login
+**As a** user,  
+**I want to** securely register and log in to the app,  
+**so that** my private protocol data is protected.
+
+**Acceptance Criteria:**
+- **AC 1 (Auth):** I can register with email and a 12-character minimum password.
+- **AC 2 (Sessions):** Sessions use secure httpOnly cookies with 30-day rolling expiry.
+
+**Domain Events:** `UserRegistered`, `UserLoggedIn`
+
+---
+
+### US-AUT-04: Password Reset
+**As a** user,  
+**I want to** reset my password if I forget it,  
+**so that** I don't lose access to my dose history.
+
+**Acceptance Criteria:**
+- **AC 1 (Request):** I can request a reset link via email. The link is single-use and expires in 1 hour.
+- **AC 2 (Privacy):** The app does not reveal if an email is registered during the reset request flow.
+
+**Domain Events:** `PasswordResetRequested`, `PasswordChanged`
+
+---
+
+### US-AUT-05: PWA & Offline Support
+**As a** user,  
+**I want to** install the app on my home screen and use it without signal,  
+**so that** I can log my 7:00 AM doses regardless of connectivity.
+
+**Acceptance Criteria:**
+- **AC 1 (Install):** The app provides a manifest and service worker for home screen installation on iOS and Android.
+- **AC 2 (Offline Shell):** The app shell loads instantly even without an internet connection.
+
+**Domain Events:** `AppInstalled`
+
+---
+
+## US Splitting Rationale
+- **Pillar Splitting:** Stories are split by the four pillars (Reference, Tracker, Reconstitution, Ordering) to allow incremental delivery of value.
+- **Admin vs User:** Managed user functionality is split from super admin functionality.
+- **Security/Offline:** Critical non-functional requirements like Auth and PWA are elevated to Epic 6 to ensure they are prioritized as foundational.
+
+## Dependency Graph (High Level)
+- `US-AUT-03` (Registration) -> Foundation for all other stories.
+- `US-TRK-01` (Create Protocol) -> depends on `US-REF-01` (View Compound)
+- `US-REC-02` (Record Reconstitution) -> depends on `US-REC-01` (Calculate)
+- `US-ORD-03` (Send Order) -> depends on `US-ORD-01` (Telegram MTProto)
+- `US-ADM-01` (Managed User) -> depends on `US-AUT-03` (Auth)
+
+exec
+/bin/zsh -lc "nl -ba docs/ux-spec.md | sed -n '1,220p'" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+     1	# UX Specification
+     2	
+     3	**Status:** Draft  
+     4	**Date:** 2026-05-20  
+     5	**PRD source:** `docs/plan.md`  
+     6	**User Stories source:** `docs/user-stories.md`  
+     7	**Methodology:** deep | Depth: 5/5
+     8	
+     9	---
+    10	
+    11	## 1. Interaction State Machines
+    12	
+    13	### 1.1 Form Interaction (Dose Logging / Profile Edit)
+    14	```
+    15	IDLE -> DIRTY (on input)
+    16	DIRTY -> VALIDATING (on blur/submit)
+    17	VALIDATING -> INVALID (show inline errors) -> DIRTY
+    18	VALIDATING -> SUBMITTING (show spinner, disable button)
+    19	SUBMITTING -> SUCCESS (show checkmark, toast, reset form)
+    20	SUBMITTING -> ERROR (show global error, keep data) -> DIRTY
+    21	```
+    22	
+    23	### 1.2 PWA Sync Interaction
+    24	```
+    25	ONLINE -> OFFLINE (show "Offline Mode" banner)
+    26	OFFLINE -> QUEUED (dose logged locally)
+    27	QUEUED -> SYNCING (network restored, show "Syncing..." spinner)
+    28	SYNCING -> SYNCED (hide banner, update inventory counts)
+    29	SYNCING -> CONFLICT (show conflict resolution dialog)
+    30	```
+    31	
+    32	---
+    33	
+    34	## 2. Key User Flows
+    35	
+    36	### 2.1 Flow: The 7:00 AM Routine (Dose Logging)
+    37	- **Entry**: Dashboard (PWA Home Screen).
+    38	- **Happy Path**:
+    39	  1. User sees "Today's Doses" list.
+    40	  2. User taps "Confirm All" (Batch Log).
+    41	  3. UI shows review sheet with pre-filled amounts and suggested sites.
+    42	  4. User taps "Verify & Log".
+    43	  5. Dashboard updates instantly; doses move to "Logged" section.
+    44	- **Offline Path**:
+    45	  1. User logs dose while offline.
+    46	  2. Action saved to IndexedDB; toast shows "Logged offline - will sync later".
+    47	  3. "Today's Doses" list updates locally.
+    48	
+    49	### 2.2 Flow: The Ordering Safety Gate
+    50	- **Entry**: Order Detail page (Status: Confirmed).
+    51	- **Happy Path**:
+    52	  1. User sees "Ready for Payment" alert.
+    53	  2. User taps "Pay Vendor".
+    54	  3. **Safety Gate Screen**:
+    55	     - Large display of Crypto Amount (e.g., "0.42 ETH").
+    56	     - Large display of Wallet Address.
+    57	     - Copy buttons for each.
+    58	     - Warning: "Double check address in Telegram".
+    59	  4. User taps "I have sent the payment".
+    60	  5. Transition to "Payment Sent" status.
+    61	
+    62	---
+    63	
+    64	## 3. Component Hierarchy
+    65	
+    66	### 3.1 App Shell
+    67	- `Navigation`: Mobile-first bottom bar (Dashboard, Catalog, Ordering, Profile).
+    68	- `StatusBanner`: Notifications for Offline, Stale Orders, Low Inventory.
+    69	
+    70	### 3.2 Dashboard Context
+    71	- `DoseList`: Grouped by Pending/Logged.
+    72	- `OutcomeEntry`: Daily 1-5 rating + tags.
+    73	- `CycleProgress`: Progress bar for current week of active cycle.
+    74	
+    75	---
+    76	
+    77	## 4. Accessibility Requirements (WCAG 2.1 AA)
+    78	
+    79	- **Targeting**: Minimum tap target size 44x44px for all logging buttons.
+    80	- **Contrast**: 4.5:1 ratio for all text elements.
+    81	- **Keyboard**: Full navigation of Dose List and Reconstitution Calculator via Tab + Space/Enter.
+    82	- **Screen Readers**: `aria-live` regions for sync status and math calculation results.
+    83	- **Forms**: Clear association of labels and inputs; error messages described in `aria-describedby`.
+    84	
+    85	---
+    86	
+    87	## 5. Responsive Behavior
+    88	
+    89	| Breakpoint | Layout Strategy |
+    90	|------------|-----------------|
+    91	| **Mobile (<640px)** | Single column; bottom navigation bar; full-width dose cards. |
+    92	| **Tablet (640-1024px)** | Grid layout; side navigation rail; multi-column dashboard widgets. |
+    93	| **Desktop (>1024px)** | Max-width 1200px; side navigation drawer; detailed charts and expanded tables. |
+    94	
+    95	---
+    96	
+    97	## 6. Animation & Transition Specs
+    98	
+    99	- **Page Transitions**: Simple fade-in (150ms).
+   100	- **Logging Feedback**: Subtle green pulse on successful log entry.
+   101	- **Sync Status**: Pulse animation for the "Offline" banner when connection is lost.
+   102	- **Calculation**: Instant update for results; no loading states for pure-math fields.
+
+exec
+/bin/zsh -lc "nl -ba docs/user-stories.md | sed -n '1,430p'" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+     1	# User Stories
+     2	
+     3	**Status:** Draft  
+     4	**Date:** 2026-05-20  
+     5	**PRD source:** `docs/plan.md`  
+     6	**Methodology:** deep | Depth: 5/5
+     7	
+     8	---
+     9	
+    10	## Persona Journey Maps
+    11	
+    12	### Journey: The Morning Routine (Power User)
+    13	1. **Wake up**: Opens app on phone (PWA).
+    14	2. **Dashboard**: Sees "Today's Doses" list.
+    15	3. **Log**: Taps "Log All Scheduled" (US-TRK-05).
+    16	4. **Confirm**: Reviews amounts and suggested sites, taps "Confirm All".
+    17	5. **Close**: App shell closes; user proceeds with day.
+    18	
+    19	### Journey: The Sourcing Loop (Power User)
+    20	1. **Inventory Alert**: Receives alert that BPC-157 is running low (US-ORD-02).
+    21	2. **Order Builder**: Opens order builder; BPC-157 is pre-suggested (US-ORD-03).
+    22	3. **Cart**: Adds other compounds, reviews total.
+    23	4. **Send**: Taps "Send Order" (US-ORD-04). App sends Telegram message via MTProto.
+    24	5. **Payment**: Vendor replies on Telegram. User captures wallet address/amount in app (US-ORD-05).
+    25	6. **Confirmation**: User pays via Coinbase, marks "Payment Sent" in app.
+    26	
+    27	---
+    28	
+    29	## Epic 1: Reference Pillar (REF)
+    30	
+    31	### US-REF-01: View Compound Profile
+    32	**As a** Power User or Managed User,  
+    33	**I want to** view a detailed profile for a peptide,  
+    34	**so that** I understand its mechanism, dosing, and safety profile without checking multiple sites.
+    35	
+    36	**Acceptance Criteria:**
+    37	- **AC 1 (Given/When/Then):** Given I am on the dashboard, when I search for "BPC-157" and select it, then I see its IUPAC name, mechanism of action, and administration routes.
+    38	- **AC 2 (Citations):** Every researched benefit must include a clickable PubMed/DOI link.
+    39	- **AC 3 (Dosing):** Dosing ranges are displayed for low, typical, and high categories with protocol context.
+    40	- **AC 4 (Stacking):** If "Stacking Notes" exist, they are displayed prominently (e.g., "Commonly stacked with TB-500").
+    41	
+    42	**Domain Events:** `CompoundProfileViewed`
+    43	
+    44	---
+    45	
+    46	### US-REF-02: Search & Browse Catalog
+    47	**As a** user,  
+    48	**I want to** search and filter the compound catalog,  
+    49	**so that** I can find peptides by name or physiological goal.
+    50	
+    51	**Acceptance Criteria:**
+    52	- **AC 1 (Search):** Given I am in the catalog, when I type "sema", then "Semaglutide" appears in the filtered results.
+    53	- **AC 2 (Categories):** When I select the "Healing" category, only peptides tagged with healing/recovery (e.g., BPC-157, TB-500) are shown.
+    54	
+    55	**Domain Events:** `CatalogSearched`, `CatalogFiltered`
+    56	
+    57	---
+    58	
+    59	## Epic 2: Tracker Pillar (TRK)
+    60	
+    61	### US-TRK-01: Create and Edit Protocol
+    62	**As a** Power User,  
+    63	**I want to** create and edit a dosing protocol for a compound,  
+    64	**so that** I have a structured schedule for myself or a managed user.
+    65	
+    66	**Acceptance Criteria:**
+    67	- **AC 1 (Setup):** Given I am creating a protocol, when I select "BPC-157" and set 250mcg daily, then the schedule is generated starting from the selected start date.
+    68	- **AC 2 (Assignment):** I can assign the protocol to myself or any of my managed users.
+    69	- **AC 3 (Validation):** Saving is blocked if compound or dose amount is missing.
+    70	- **AC 4 (Audit):** Every creation or modification of a protocol is recorded in the audit log.
+    71	
+    72	**Domain Events:** `ProtocolCreated`, `ProtocolUpdated`
+    73	
+    74	---
+    75	
+    76	### US-TRK-02: Protocol Lifecycle (Pause, Resume, Clone, Restart)
+    77	**As a** Power User,  
+    78	**I want to** manage the lifecycle of my protocols,  
+    79	**so that** I can handle breaks, illness, or cycle restarts without data loss.
+    80	
+    81	**Acceptance Criteria:**
+    82	- **AC 1 (Pause):** When I set a protocol status to "Paused", it no longer appears in "Today's Doses".
+    83	- **AC 2 (Resume):** When I resume a paused protocol, it immediately reappears in the daily dosing schedule.
+    84	- **AC 3 (Clone):** I can duplicate an existing protocol to a new start date, preserving the original's dose and frequency.
+    85	- **AC 4 (Restart):** I can "Restart Cycle" for a completed cycle, which clones all its protocols to a new start date.
+    86	
+    87	**Domain Events:** `ProtocolPaused`, `ProtocolResumed`, `ProtocolCloned`, `CycleRestarted`
+    88	
+    89	---
+    90	
+    91	### US-TRK-03: Individual Dose Logging
+    92	**As a** user,  
+    93	**I want to** log a single dose or record a skip,  
+    94	**so that** I have an accurate record of my adherence and current injection site.
+    95	
+    96	**Acceptance Criteria:**
+    97	- **AC 1 (Logging):** Given a pending dose on my dashboard, when I tap "Confirm", then the dose is recorded with the current timestamp and suggested site.
+    98	- **AC 2 (Skip):** I can explicitly tap "Skip" on a dose, which records it as a "skip" event (distinct from "not logged").
+    99	- **AC 3 (Offline):** Given I am offline, when I log a dose, then the log is queued in the app and synced to the server once I am back online.
+   100	- **AC 4 (Inventory):** If I try to log a dose for a compound with 0 vials remaining, a prominent warning is shown.
+   101	
+   102	**Domain Events:** `DoseLogged`, `DoseSkipped`, `DoseSyncCompleted`
+   103	
+   104	---
+   105	
+   106	### US-TRK-04: Injection Site Rotation
+   107	**As a** user,  
+   108	**I want to** see a suggested injection site for my next dose,  
+   109	**so that** I avoid tissue trauma from repeated injections in the same spot.
+   110	
+   111	**Acceptance Criteria:**
+   112	- **AC 1 (Suggestion):** The app suggests the next site in a round-robin rotation (e.g., Left Abdomen -> Right Abdomen) based on the history for that specific compound.
+   113	- **AC 2 (Visual):** I can see the last 7 sites used for the compound during the logging flow.
+   114	
+   115	**Domain Events:** `InjectionSiteSuggested`
+   116	
+   117	---
+   118	
+   119	### US-TRK-05: Batch "Log All Scheduled" (Must Have)
+   120	**As a** Power User or Managed User,  
+   121	**I want to** log all my daily doses in one action,  
+   122	**so that** I can complete my morning routine in seconds.
+   123	
+   124	**Acceptance Criteria:**
+   125	- **AC 1 (Batch Action):** Given I have 3 doses due today, when I tap "Log All Scheduled", then all 3 are marked as logged at their protocol amounts.
+   126	- **AC 2 (Review):** Before final confirmation, I see a list of what will be logged and can deselect or skip individual doses.
+   127	- **AC 3 (Offline):** Batch logs are queued while offline and synced upon reconnection.
+   128	
+   129	**Domain Events:** `DoseBatchLogged`
+   130	
+   131	---
+   132	
+   133	### US-TRK-06: Subjective Outcome Logging
+   134	**As a** user,  
+   135	**I want to** rate my wellbeing and log notes daily,  
+   136	**so that** I can correlate my protocols with how I feel.
+   137	
+   138	**Acceptance Criteria:**
+   139	- **AC 1 (Rating):** I can log an overall wellbeing rating (1-5) and select tags like "Energy" or "Pain".
+   140	- **AC 2 (Notes):** I can add a free-text note (max 1000 chars) to the daily log.
+   141	
+   142	**Domain Events:** `OutcomeLogged`
+   143	
+   144	---
+   145	
+   146	### US-TRK-07: Outcome-Dose Correlation Timeline
+   147	**As a** user,  
+   148	**I want to** see my dose history and outcome ratings on a single chart,  
+   149	**so that** I can identify if a protocol is actually working.
+   150	
+   151	**Acceptance Criteria:**
+   152	- **AC 1 (Visualization):** A dual-axis chart shows dose events (bars) and outcome ratings (line) over a 30-day or 90-day window.
+   153	- **AC 2 (Stats):** The UI displays the average outcome rating on "Dosed Days" vs "Non-Dosed Days".
+   154	
+   155	**Domain Events:** `CorrelationTimelineViewed`
+   156	
+   157	---
+   158	
+   159	### US-TRK-08: Manage Cycles
+   160	**As a** Power User,  
+   161	**I want to** group my protocols into cycles with specific dates,  
+   162	**so that** I can track progress over time (e.g., "Week 3 of 12").
+   163	
+   164	**Acceptance Criteria:**
+   165	- **AC 1 (Creation):** I can create a cycle with a name, start date, and optional end date.
+   166	- **AC 2 (Association):** I can link multiple protocols to a single cycle.
+   167	- **AC 3 (Display):** The dashboard shows the current week number for any active cycle.
+   168	
+   169	**Domain Events:** `CycleCreated`, `CycleUpdated`
+   170	
+   171	---
+   172	
+   173	### US-TRK-09: Dose Reminders
+   174	**As a** user,  
+   175	**I want to** receive a notification when my doses are due,  
+   176	**so that** I don't forget to maintain my adherence.
+   177	
+   178	**Acceptance Criteria:**
+   179	- **AC 1 (Config):** I can set a daily reminder time (e.g., 7:00 AM).
+   180	- **AC 2 (Push):** If I have the PWA installed, I receive a browser push notification at the set time.
+   181	- **AC 3 (Email):** If push is unavailable, the app sends an email reminder.
+   182	
+   183	**Domain Events:** `ReminderSent`
+   184	
+   185	---
+   186	
+   187	## Epic 3: Reconstitution Pillar (REC)
+   188	
+   189	### US-REC-01: Calculate Reconstitution
+   190	**As a** user,  
+   191	**I want to** calculate how much BAC water to add to a vial with safety guardrails,  
+   192	**so that** I achieve a precise concentration and avoid dosing errors.
+   193	
+   194	**Acceptance Criteria:**
+   195	- **AC 1 (Math):** Given a 5mg vial, when I enter 2mL BAC water, then the app shows a concentration of 2.5mg/mL (2500mcg/mL).
+   196	- **AC 2 (Syringe Units):** Given a target dose of 250mcg, the app shows "10 units" on a 100-unit insulin syringe.
+   197	- **AC 3 (Guardrails):** A yellow warning is shown if: (a) dose exceeds the reference profile high range, (b) injection volume > 1.5mL, or (c) BAC water volume < 0.5mL.
+   198	- **AC 4 (Context):** The calculator displays my last logged dose for this compound to provide safety context.
+   199	
+   200	**Domain Events:** `ReconstitutionCalculated`
+   201	
+   202	---
+   203	
+   204	### US-REC-02: Record Reconstitution (Vial Inventory)
+   205	**As a** user,  
+   206	**I want to** save my reconstitution calculation as a new vial record,  
+   207	**so that** my dose logging can decrement from the vial's total content.
+   208	
+   209	**Acceptance Criteria:**
+   210	- **AC 1 (Persistence):** Saving a calculation creates a `Vial` record with an estimated expiry date (14 days default).
+   211	- **AC 2 (Inventory):** The dashboard shows a "Low Inventory" or "Expiring" badge when the vial is nearly empty or past its date.
+   212	
+   213	**Domain Events:** `VialReconstituted`
+   214	
+   215	---
+   216	
+   217	## Epic 4: Ordering Pillar (ORD)
+   218	
+   219	### US-ORD-01: Configure Telegram MTProto
+   220	**As a** Power User,  
+   221	**I want to** link my Telegram account to the app with clear fallback options,  
+   222	**so that** the app can send order messages directly to vendors while ensuring I can always order manually.
+   223	
+   224	**Acceptance Criteria:**
+   225	- **AC 1 (Auth):** I can enter my phone number and the verification code from Telegram.
+   226	- **AC 2 (Encryption):** The session is stored AES-256 encrypted and is never returned to the UI.
+   227	- **AC 3 (Fallback):** Composed order messages and Telegram deep-links are always visible even if automation is enabled.
+   228	
+   229	**Domain Events:** `TelegramAccountLinked`
+   230	
+   231	---
+   232	
+   233	### US-ORD-02: Inventory-Aware Order Builder
+   234	**As a** Power User,  
+   235	**I want to** see suggested items to order based on my current vial levels,  
+   236	**so that** I never run out of a compound I am currently using.
+   237	
+   238	**Acceptance Criteria:**
+   239	- **AC 1 (Suggestions):** When I open the order builder, compounds with < 14 days of supply remaining are listed in a "Suggested" section.
+   240	- **AC 2 (Quick Add):** I can add suggested items to my cart with one tap.
+   241	
+   242	**Domain Events:** `OrderSuggestionsGenerated`
+   243	
+   244	---
+   245	
+   246	### US-ORD-03: Build and Send Telegram Order
+   247	**As a** Power User,  
+   248	**I want to** build an order and have the app send it to the vendor's Telegram,  
+   249	**so that** I don't have to manually format and copy-paste messages.
+   250	
+   251	**Acceptance Criteria:**
+   252	- **AC 1 (Cart):** I can add items from the vendor catalog to a cart.
+   253	- **AC 2 (MTProto Send):** Tapping "Send Order" sends the message via the linked Telegram account.
+   254	- **AC 3 (Audit):** The full text of the sent message is archived in the order history.
+   255	
+   256	**Domain Events:** `OrderSent`
+   257	
+   258	---
+   259	
+   260	### US-ORD-04: Payment Confirmation Safety Gate
+   261	**As a** Power User,  
+   262	**I want to** explicitly verify the vendor's wallet address and amount before marking payment as sent,  
+   263	**so that** I avoid non-reversible crypto payment errors.
+   264	
+   265	**Acceptance Criteria:**
+   266	- **AC 1 (Gate):** I must enter the wallet address and amount from the vendor's reply.
+   267	- **AC 2 (Verification):** The "Mark Payment Sent" button is only enabled after I view a summary screen showing the address and amount together.
+   268	
+   269	**Domain Events:** `OrderPaymentConfirmed`
+   270	
+   271	---
+   272	
+   273	### US-ORD-05: Receive Order and Update Inventory
+   274	**As a** Power User,  
+   275	**I want to** mark an order as received and review items before they enter inventory,  
+   276	**so that** my vial records accurately reflect what arrived.
+   277	
+   278	**Acceptance Criteria:**
+   279	- **AC 1 (Receive):** Marking as received opens a prompt to confirm which line items to add to inventory.
+   280	- **AC 2 (History):** The order status updates to "Received" with a timestamp.
+   281	
+   282	**Domain Events:** `OrderReceived`
+   283	
+   284	---
+   285	
+   286	### US-ORD-06: Manage Vendor Catalog
+   287	**As a** Power User,  
+   288	**I want to** maintain a catalog of vendor products and prices,  
+   289	**so that** the order builder has accurate data.
+   290	
+   291	**Acceptance Criteria:**
+   292	- **AC 1 (Catalog):** I can create and edit products for a vendor (vial size, form, price, in-stock status).
+   293	- **AC 2 (Linking):** Every catalog product must be linked to a compound in the reference catalog.
+   294	
+   295	**Domain Events:** `CatalogProductUpdated`
+   296	
+   297	---
+   298	
+   299	### US-ORD-07: Track Order Status (State Machine)
+   300	**As a** Power User,  
+   301	**I want to** track my order through its entire lifecycle,  
+   302	**so that** I can identify stale orders or missing shipments.
+   303	
+   304	**Acceptance Criteria:**
+   305	- **AC 1 (States):** Orders transition through: Draft -> Sent -> Confirmed -> Payment Sent -> Received.
+   306	- **AC 2 (Stale):** If an order remains in "Sent" for 14 days, it is automatically flagged as "Stale".
+   307	
+   308	**Domain Events:** `OrderStatusChanged`
+   309	
+   310	---
+   311	
+   312	## Epic 5: Multi-User & Admin (ADM)
+   313	
+   314	### US-ADM-01: Create Managed User
+   315	**As a** Power User,  
+   316	**I want to** create accounts for family members,  
+   317	**so that** I can manage their protocols without giving them admin access.
+   318	
+   319	**Acceptance Criteria:**
+   320	- **AC 1 (Invite):** I can enter a name and email to send an invite link (valid for 72 hours).
+   321	- **AC 2 (Access):** Managed users see a simplified dashboard with only their own schedule and reference info.
+   322	
+   323	**Domain Events:** `ManagedUserInvited`
+   324	
+   325	---
+   326	
+   327	### US-ADM-02: Monitor Adherence
+   328	**As a** Power User,  
+   329	**I want to** see adherence metrics for my managed users,  
+   330	**so that** I know if they are following the protocols I configured.
+   331	
+   332	**Acceptance Criteria:**
+   333	- **AC 1 (Dashboard):** The admin panel shows a 7-day adherence % (Doses Logged / Doses Scheduled) for each managed user.
+   334	
+   335	**Domain Events:** `AdherenceReportViewed`
+   336	
+   337	---
+   338	
+   339	### US-ADM-03: Manage Managed Users
+   340	**As a** Power User,  
+   341	**I want to** edit, deactivate, or reset passwords for managed users,  
+   342	**so that** I can maintain control over the multi-user environment.
+   343	
+   344	**Acceptance Criteria:**
+   345	- **AC 1 (Management):** I can deactivate a managed user account, which revokes their access but preserves their data.
+   346	- **AC 2 (Password Reset):** I can trigger a password reset email for any managed user.
+   347	
+   348	**Domain Events:** `ManagedUserDeactivated`, `PasswordResetTriggered`
+   349	
+   350	---
+   351	
+   352	## Epic 6: Auth & Account Management (AUT)
+   353	
+   354	### US-AUT-01: Onboarding Path (Power User vs Managed User)
+   355	**As a** new user,  
+   356	**I want to** be guided through my role-specific setup,  
+   357	**so that** I understand how to use the app immediately.
+   358	
+   359	**Acceptance Criteria:**
+   360	- **AC 1 (Power User Wizard):** 3-step guide: Browse Catalog -> Create Protocol -> Optional Telegram Setup.
+   361	- **AC 2 (Managed User Wizard):** 2-step guide: View My Schedule -> Log First Dose walkthrough.
+   362	
+   363	**Domain Events:** `OnboardingStarted`, `OnboardingCompleted`
+   364	
+   365	---
+   366	
+   367	### US-AUT-02: Account Deletion and Data Export
+   368	**As a** user,  
+   369	**I want to** delete my account and receive a full export of my data,  
+   370	**so that** I maintain full control over my sensitive health-adjacent information.
+   371	
+   372	**Acceptance Criteria:**
+   373	- **AC 1 (Export):** I can request a full JSON export at any time. CSV export is provided for dose logs and orders.
+   374	- **AC 2 (Deletion):** After confirmation, all data is permanently wiped from the system after a 48-hour delay.
+   375	
+   376	**Domain Events:** `AccountDeletionRequested`, `DataExportGenerated`
+   377	
+   378	---
+   379	
+   380	### US-AUT-03: User Registration and Login
+   381	**As a** user,  
+   382	**I want to** securely register and log in to the app,  
+   383	**so that** my private protocol data is protected.
+   384	
+   385	**Acceptance Criteria:**
+   386	- **AC 1 (Auth):** I can register with email and a 12-character minimum password.
+   387	- **AC 2 (Sessions):** Sessions use secure httpOnly cookies with 30-day rolling expiry.
+   388	
+   389	**Domain Events:** `UserRegistered`, `UserLoggedIn`
+   390	
+   391	---
+   392	
+   393	### US-AUT-04: Password Reset
+   394	**As a** user,  
+   395	**I want to** reset my password if I forget it,  
+   396	**so that** I don't lose access to my dose history.
+   397	
+   398	**Acceptance Criteria:**
+   399	- **AC 1 (Request):** I can request a reset link via email. The link is single-use and expires in 1 hour.
+   400	- **AC 2 (Privacy):** The app does not reveal if an email is registered during the reset request flow.
+   401	
+   402	**Domain Events:** `PasswordResetRequested`, `PasswordChanged`
+   403	
+   404	---
+   405	
+   406	### US-AUT-05: PWA & Offline Support
+   407	**As a** user,  
+   408	**I want to** install the app on my home screen and use it without signal,  
+   409	**so that** I can log my 7:00 AM doses regardless of connectivity.
+   410	
+   411	**Acceptance Criteria:**
+   412	- **AC 1 (Install):** The app provides a manifest and service worker for home screen installation on iOS and Android.
+   413	- **AC 2 (Offline Shell):** The app shell loads instantly even without an internet connection.
+   414	
+   415	**Domain Events:** `AppInstalled`
+   416	
+   417	---
+   418	
+   419	## US Splitting Rationale
+   420	- **Pillar Splitting:** Stories are split by the four pillars (Reference, Tracker, Reconstitution, Ordering) to allow incremental delivery of value.
+   421	- **Admin vs User:** Managed user functionality is split from super admin functionality.
+   422	- **Security/Offline:** Critical non-functional requirements like Auth and PWA are elevated to Epic 6 to ensure they are prioritized as foundational.
+   423	
+   424	## Dependency Graph (High Level)
+   425	- `US-AUT-03` (Registration) -> Foundation for all other stories.
+   426	- `US-TRK-01` (Create Protocol) -> depends on `US-REF-01` (View Compound)
+   427	- `US-REC-02` (Record Reconstitution) -> depends on `US-REC-01` (Calculate)
+   428	- `US-ORD-03` (Send Order) -> depends on `US-ORD-01` (Telegram MTProto)
+   429	- `US-ADM-01` (Managed User) -> depends on `US-AUT-03` (Auth)
+
+exec
+/bin/zsh -lc "nl -ba docs/api-contracts.md | sed -n '1,220p'" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+     1	# API Contracts
+     2	
+     3	**Status:** Draft  
+     4	**Date:** 2026-05-20  
+     5	**System Architecture source:** `docs/system-architecture.md`  
+     6	**Domain Model source:** `docs/domain-models/`  
+     7	**Methodology:** deep | Depth: 5/5
+     8	
+     9	---
+    10	
+    11	## 1. Global Standards
+    12	
+    13	### 1.1 Style & Idempotency
+    14	- **Style**: RESTful Route Handlers (`app/api/*`) and Type-safe Server Actions (`app/actions/*`).
+    15	- **Idempotency**: All mutating actions MUST accept an `Idempotency-Key` (Header for API, Field for Actions).
+    16	  - **Format**: UUID v4.
+    17	  - **Behavior**: Replaying an existing key returns the *original success response*.
+    18	- **Pagination**: `page` (1-indexed) and `limit` (default: 20, max: 100). Response include `total`, `pages`, `hasNext`.
+    19	
+    20	### 1.2 Common Response Shapes
+    21	**Success Response:**
+    22	```json
+    23	{
+    24	  "data": { ... },
+    25	  "warnings": Array<{ "code": string, "message": string }>
+    26	}
+    27	```
+    28	
+    29	**Error Response:**
+    30	```json
+    31	{
+    32	  "error": {
+    33	    "code": "string",
+    34	    "message": "string",
+    35	    "details": { "fields": Record<string, string[]> }
+    36	  }
+    37	}
+    38	```
+    39	
+    40	---
+    41	
+    42	## 2. Auth & Admin Module (AUT)
+    43	
+    44	### 2.1 Session Lifecycle
+    45	- **[POST] /actions/auth/login**: `{ email, password }` -> `{ user }`
+    46	- **[POST] /actions/auth/logout**: `void`
+    47	- **[GET] /api/auth/session**: -> `{ session: { user } }`
+    48	
+    49	### 2.2 Account Lifecycle
+    50	- **[POST] /actions/auth/reset-password-request**: `{ email }`
+    51	- **[POST] /actions/auth/reset-password-confirm**: `{ token, newPassword }`
+    52	- **[POST] /actions/auth/request-export**: `{ format: 'JSON' | 'CSV' }` -> `{ requestId }`
+    53	- **[POST] /actions/auth/schedule-deletion**: `{ passwordConfirmation }` -> `{ scheduledFor }`
+    54	
+    55	### 2.3 Managed Users (Admin)
+    56	- **[GET] /api/admin/managed-users**: -> `{ items: ManagedUserDto[] }`
+    57	- **[POST] /actions/auth/invite**: `{ email }` -> `{ inviteId, expiresAt }`
+    58	
+    59	---
+    60	
+    61	## 3. Tracker Module (TRK)
+    62	
+    63	### 3.1 Protocols
+    64	- **[GET] /api/tracker/protocols**: `?status=ACTIVE` -> `{ items: ProtocolDto[] }`
+    65	- **[POST] /actions/tracker/create-protocol**: `{ compoundId, dose, schedule, startDate, cycleId? }`
+    66	- **[PATCH] /actions/tracker/update-protocol**: `{ id, status, dose, schedule }`
+    67	
+    68	### 3.2 Dose Logging
+    69	- **[POST] /actions/tracker/log-dose**: 
+    70	  - **Request**: `{ protocolId, scheduledDate, amount, status: 'LOGGED'|'SKIPPED', injectionSite?, note?, vialId? }`
+    71	  - **Response**: `200 OK` with `warnings: ['insufficient_inventory']` if applicable.
+    72	- **[POST] /actions/tracker/batch-log**: `{ logs: Array<DoseLogInput> }`
+    73	
+    74	### 3.3 PWA Sync
+    75	- **[POST] /api/sync**:
+    76	  - **Request**: `{ events: Array<SyncEvent> }`
+    77	  - **Event Envelope**: `{ eventId, type: 'LOG_DOSE'|'EDIT_LOG'|'SKIP_DOSE', payload, occurredAt, timezone }`
+    78	
+    79	---
+    80	
+    81	## 4. Reconstitution Module (REC)
+    82	
+    83	### 4.1 Calculator
+    84	- **[POST] /api/reconstitution/calculate**: `{ totalMg, bacWaterMl, targetDoseMcg }`
+    85	- **Response**: `{ concentrationMcgPerMl, unitsPerDose, injectionVolMl, warnings: SafetyWarning[] }`
+    86	
+    87	### 4.2 Vial Inventory
+    88	- **[GET] /api/reconstitution/vials**: `?status=ACTIVE` -> `{ items: VialDto[] }`
+    89	- **[POST] /actions/reconstitution/save-vial**: `{ compoundId, totalMg, bacWaterMl?, expiresAt? }`
+    90	
+    91	---
+    92	
+    93	## 5. Ordering Module (ORD)
+    94	
+    95	### 5.1 Vendor Catalog
+    96	- **[GET] /api/ordering/vendors**: -> `{ items: VendorDto[] }`
+    97	- **[GET] /api/ordering/products**: `?vendorId=uuid` -> `{ items: ProductDto[] }`
+    98	
+    99	### 5.2 Order Lifecycle
+   100	- **[POST] /actions/ordering/create-draft**: `{ vendorId, items: Array<{ productId, quantity }> }`
+   101	- **[POST] /actions/ordering/send-order**: `{ orderId }` -> `{ telegramMessageId, fallbackText? }`
+   102	- **[POST] /actions/ordering/confirm-quote**: `{ orderId, confirmedTotal, currency, walletAddress }` -> **Sent -> Confirmed**
+   103	- **[POST] /actions/ordering/mark-paid**: `{ orderId, txId?, acknowledged: boolean }` -> **Confirmed -> PaymentSent**
+   104	- **[POST] /actions/ordering/mark-received**: `{ orderId, itemsToInventory: Array<{ productId, vialDetails }> }`
+   105	
+   106	---
+   107	
+   108	## 6. Expanded Domain Error Catalog
+   109	
+   110	| Code | Status | Meaning |
+   111	|------|--------|---------|
+   112	| `validation_failed` | 400 | Payload fails Zod schema validation. |
+   113	| `insufficient_permissions` | 403 | Managed user attempting Power User action. |
+   114	| `protocol_not_found` | 404 | referenced protocol ID does not exist or is deleted. |
+   115	| `invalid_order_transition` | 409 | e.g. Trying to mark a DRAFT order as PAID. |
+   116	| `mtproto_connection_error` | 503 | Telegram service unreachable or session expired. |
+   117	| `audit_write_failed` | 500 | Database transaction rolled back due to audit failure. |
+   118	| `idempotency_key_conflict` | 409 | Key already used for a different payload. |
+   119	
+   120	---
+   121	
+   122	## 7. Sync Event Definition (TypeScript)
+   123	
+   124	```typescript
+   125	type SyncEvent = {
+   126	  eventId: string; // UUID v4 used as Idempotency-Key
+   127	  type: 'LOG_DOSE' | 'SKIP_DOSE' | 'EDIT_DOSE';
+   128	  payload: {
+   129	    protocolId: string;
+   130	    scheduledDate: string; // ISO Date
+   131	    amount?: { value: number; unit: string };
+   132	    injectionSite?: { location: string; group: string };
+   133	    note?: string;
+   134	  };
+   135	  occurredAt: string; // ISO Timestamp
+   136	  timezone: string;   // IANA Name
+   137	};
+   138	```
+
+codex
+[
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §2 Key User Flows",
+    "description": "The spec defines only the 7:00 AM dose routine and ordering safety gate, leaving most PRD/user-story workflows without corresponding flows.",
+    "suggestion": "Add explicit flows for Reference, Protocols, Reconstitution, Ordering builder/status/receiving, Admin, Auth, Onboarding, Export/Delete, and PWA install/offline shell."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §3 Component Hierarchy",
+    "description": "Reference stories US-REF-01 and US-REF-02 have no components for catalog search, category filters, profile detail, citations, dosing ranges, routes, or stacking notes.",
+    "suggestion": "Specify CatalogSearch, CategoryFilter, CompoundCard, CompoundProfile, CitationList, DosingRangeTable, and StackingNotes components with empty/loading/error states."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §2.1 Flow: The 7:00 AM Routine",
+    "description": "Tracker coverage is limited to batch logging; US-TRK-01, US-TRK-02, US-TRK-03 single-dose skip/confirm, US-TRK-04 injection history, US-TRK-08 cycle creation, and US-TRK-09 reminders are not specified.",
+    "suggestion": "Add protocol editor, protocol lifecycle actions, individual dose detail flow, skip flow, injection-site override/history, cycle manager, and reminder settings flows."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §3.2 Dashboard Context",
+    "description": "OutcomeEntry is listed, but US-TRK-06 and US-TRK-07 lack UX for 1000-character notes, tag selection, 30/90-day correlation timeline, dual-axis chart, and dosed vs non-dosed stats.",
+    "suggestion": "Define outcome entry states, validation, saved/edit states, chart controls, no-data states, accessible chart summary, and statistics display."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §4 Accessibility only references Reconstitution Calculator",
+    "description": "Reconstitution stories US-REC-01 and US-REC-02 have no actual flow or component spec for inputs, calculated outputs, warnings, last-dose context, save-vial action, expiry, or inventory decrement behavior.",
+    "suggestion": "Add a Reconstitution Calculator flow and component spec covering input validation, warning display, result prominence, save-vial review, and dashboard inventory badges."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §2.2 Flow: The Ordering Safety Gate",
+    "description": "Ordering coverage skips US-ORD-01, US-ORD-02, US-ORD-03, US-ORD-05, US-ORD-06, and most of US-ORD-07: Telegram setup, inventory suggestions, cart, MTProto send/fallback, vendor catalog, receive-to-inventory, stale/cancel states.",
+    "suggestion": "Specify the full order lifecycle from vendor/catalog setup through draft, send, fallback, confirmation, payment, stale/cancel handling, receiving, and inventory creation."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §3 Component Hierarchy",
+    "description": "Multi-user/admin stories US-ADM-01 through US-ADM-03 have no admin panel, invite flow, managed-user simplified dashboard, adherence metric display, deactivation, or password-reset UX.",
+    "suggestion": "Add role-specific navigation, AdminUserList, InviteManagedUser, ManagedUserDetail, AdherenceSummary, DeactivateUser, and ResetPassword flows."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §2 and §3",
+    "description": "Auth/account stories US-AUT-01 through US-AUT-05 are not covered: registration, login, password reset, onboarding variants, data export, deletion delay, PWA install prompt, and offline shell behavior are absent.",
+    "suggestion": "Add auth screens, onboarding wizards for Power User and Managed User, account settings, export/delete confirmation flows, and PWA install/offline shell states."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "UX §1.2 PWA Sync Interaction",
+    "description": "The sync state machine specifies a generic CONFLICT dialog, but the architecture/API define idempotent sync events and a deterministic conflict strategy rather than user-driven conflict resolution.",
+    "suggestion": "Align sync UX with /api/sync: queued event list, idempotency-key replay behavior, failed-event retry, server warning display, and deterministic duplicate handling."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "UX §2.2 Flow: The Ordering Safety Gate",
+    "description": "The payment gate shows amount/address but does not include the required prior entry of confirmedTotal, currency, and walletAddress or the API-required acknowledged flag for mark-paid.",
+    "suggestion": "Add a Confirm Quote step mapped to /actions/ordering/confirm-quote, then a non-bypassable Mark Paid step mapped to /actions/ordering/mark-paid with acknowledged=true."
+  },
+  {
+    "severity": "P2",
+    "category": "consistency",
+    "location": "UX §1.1 Form Interaction",
+    "description": "The generic form state machine says SUCCESS resets the form, which is wrong for edit flows and some safety-critical forms where persisted values must remain visible after save.",
+    "suggestion": "Split form state machines by flow type: create, edit, destructive action, calculator, dose logging, and payment confirmation, with post-success behavior defined per flow."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "UX §2.1 Offline Path",
+    "description": "Offline logging does not specify skip events, batch-log event envelopes, timezone, idempotency keys, or inventory warning behavior required by the API contracts.",
+    "suggestion": "Define offline event payloads for LOG_DOSE, SKIP_DOSE, EDIT_DOSE, and batch logs, including eventId, scheduledDate, occurredAt, timezone, warnings, and retry outcomes."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "UX §4 Accessibility Requirements",
+    "description": "Accessibility requirements are too narrow for WCAG 2.1 AA: keyboard support is only named for Dose List and Reconstitution Calculator, omitting navigation, dialogs, sheets, order flows, charts, admin tables, and auth forms.",
+    "suggestion": "Define focus order, focus trapping/restoration, keyboard actions, semantic roles, labels, error announcement, toast announcement, and escape/close behavior for every interactive pattern."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "UX §5 Responsive Behavior",
+    "description": "Responsive behavior is only breakpoint-level and does not define how critical complex UI adapts, including long wallet addresses, order tables, admin tables, dual-axis charts, calculator outputs, and batch review sheets.",
+    "suggestion": "Add component-level responsive specs for truncation/wrapping, sticky actions, horizontal data density, chart alternatives, modal-to-sheet behavior, and minimum viable mobile layouts."
+  },
+  {
+    "severity": "P2",
+    "category": "correctness",
+    "location": "UX §6 Animation & Transition Specs",
+    "description": "Pulse animations for success and offline status rely on motion/color and no reduced-motion alternative is defined.",
+    "suggestion": "Add prefers-reduced-motion behavior, non-color success/error indicators, aria-live announcements, and limits for flashing/pulsing frequency."
+  },
+  {
+    "severity": "P1",
+    "category": "readiness",
+    "location": "UX §3 Component Hierarchy",
+    "description": "The component hierarchy is too shallow for high-fidelity implementation: it lists only five components and lacks props, variants, data dependencies, permissions, empty/loading/error states, and API mappings.",
+    "suggestion": "Expand each feature into implementation-ready component specs with route ownership, data source, actions, role access, state variants, validation, and acceptance-test hooks."
+  },
+  {
+    "severity": "P1",
+    "category": "readiness",
+    "location": "UX §1-§6 overall",
+    "description": "The spec does not define handling for API error catalog states such as validation_failed, insufficient_permissions, invalid_order_transition, mtproto_connection_error, audit_write_failed, or idempotency_key_conflict.",
+    "suggestion": "Create a global error-handling UX matrix mapping each API error code to inline errors, banners, dialogs, retry affordances, fallback paths, and audit-safe user messaging."
+  },
+  {
+    "severity": "P2",
+    "category": "readiness",
+    "location": "UX §2 Key User Flows",
+    "description": "Critical edge cases from the PRD are absent, including duplicate dose logs, zero inventory log warning, stale orders, Telegram session invalidation, empty cart, expired invite, denied push permission, and deletion confirmation.",
+    "suggestion": "Add unhappy-path and edge-case branches to each flow before implementation begins."
+  }
+]
+tokens used
+67,762
+[
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §2 Key User Flows",
+    "description": "The spec defines only the 7:00 AM dose routine and ordering safety gate, leaving most PRD/user-story workflows without corresponding flows.",
+    "suggestion": "Add explicit flows for Reference, Protocols, Reconstitution, Ordering builder/status/receiving, Admin, Auth, Onboarding, Export/Delete, and PWA install/offline shell."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §3 Component Hierarchy",
+    "description": "Reference stories US-REF-01 and US-REF-02 have no components for catalog search, category filters, profile detail, citations, dosing ranges, routes, or stacking notes.",
+    "suggestion": "Specify CatalogSearch, CategoryFilter, CompoundCard, CompoundProfile, CitationList, DosingRangeTable, and StackingNotes components with empty/loading/error states."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §2.1 Flow: The 7:00 AM Routine",
+    "description": "Tracker coverage is limited to batch logging; US-TRK-01, US-TRK-02, US-TRK-03 single-dose skip/confirm, US-TRK-04 injection history, US-TRK-08 cycle creation, and US-TRK-09 reminders are not specified.",
+    "suggestion": "Add protocol editor, protocol lifecycle actions, individual dose detail flow, skip flow, injection-site override/history, cycle manager, and reminder settings flows."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §3.2 Dashboard Context",
+    "description": "OutcomeEntry is listed, but US-TRK-06 and US-TRK-07 lack UX for 1000-character notes, tag selection, 30/90-day correlation timeline, dual-axis chart, and dosed vs non-dosed stats.",
+    "suggestion": "Define outcome entry states, validation, saved/edit states, chart controls, no-data states, accessible chart summary, and statistics display."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §4 Accessibility only references Reconstitution Calculator",
+    "description": "Reconstitution stories US-REC-01 and US-REC-02 have no actual flow or component spec for inputs, calculated outputs, warnings, last-dose context, save-vial action, expiry, or inventory decrement behavior.",
+    "suggestion": "Add a Reconstitution Calculator flow and component spec covering input validation, warning display, result prominence, save-vial review, and dashboard inventory badges."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §2.2 Flow: The Ordering Safety Gate",
+    "description": "Ordering coverage skips US-ORD-01, US-ORD-02, US-ORD-03, US-ORD-05, US-ORD-06, and most of US-ORD-07: Telegram setup, inventory suggestions, cart, MTProto send/fallback, vendor catalog, receive-to-inventory, stale/cancel states.",
+    "suggestion": "Specify the full order lifecycle from vendor/catalog setup through draft, send, fallback, confirmation, payment, stale/cancel handling, receiving, and inventory creation."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §3 Component Hierarchy",
+    "description": "Multi-user/admin stories US-ADM-01 through US-ADM-03 have no admin panel, invite flow, managed-user simplified dashboard, adherence metric display, deactivation, or password-reset UX.",
+    "suggestion": "Add role-specific navigation, AdminUserList, InviteManagedUser, ManagedUserDetail, AdherenceSummary, DeactivateUser, and ResetPassword flows."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "UX §2 and §3",
+    "description": "Auth/account stories US-AUT-01 through US-AUT-05 are not covered: registration, login, password reset, onboarding variants, data export, deletion delay, PWA install prompt, and offline shell behavior are absent.",
+    "suggestion": "Add auth screens, onboarding wizards for Power User and Managed User, account settings, export/delete confirmation flows, and PWA install/offline shell states."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "UX §1.2 PWA Sync Interaction",
+    "description": "The sync state machine specifies a generic CONFLICT dialog, but the architecture/API define idempotent sync events and a deterministic conflict strategy rather than user-driven conflict resolution.",
+    "suggestion": "Align sync UX with /api/sync: queued event list, idempotency-key replay behavior, failed-event retry, server warning display, and deterministic duplicate handling."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "UX §2.2 Flow: The Ordering Safety Gate",
+    "description": "The payment gate shows amount/address but does not include the required prior entry of confirmedTotal, currency, and walletAddress or the API-required acknowledged flag for mark-paid.",
+    "suggestion": "Add a Confirm Quote step mapped to /actions/ordering/confirm-quote, then a non-bypassable Mark Paid step mapped to /actions/ordering/mark-paid with acknowledged=true."
+  },
+  {
+    "severity": "P2",
+    "category": "consistency",
+    "location": "UX §1.1 Form Interaction",
+    "description": "The generic form state machine says SUCCESS resets the form, which is wrong for edit flows and some safety-critical forms where persisted values must remain visible after save.",
+    "suggestion": "Split form state machines by flow type: create, edit, destructive action, calculator, dose logging, and payment confirmation, with post-success behavior defined per flow."
+  },
+  {
+    "severity": "P1",
+    "category": "consistency",
+    "location": "UX §2.1 Offline Path",
+    "description": "Offline logging does not specify skip events, batch-log event envelopes, timezone, idempotency keys, or inventory warning behavior required by the API contracts.",
+    "suggestion": "Define offline event payloads for LOG_DOSE, SKIP_DOSE, EDIT_DOSE, and batch logs, including eventId, scheduledDate, occurredAt, timezone, warnings, and retry outcomes."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "UX §4 Accessibility Requirements",
+    "description": "Accessibility requirements are too narrow for WCAG 2.1 AA: keyboard support is only named for Dose List and Reconstitution Calculator, omitting navigation, dialogs, sheets, order flows, charts, admin tables, and auth forms.",
+    "suggestion": "Define focus order, focus trapping/restoration, keyboard actions, semantic roles, labels, error announcement, toast announcement, and escape/close behavior for every interactive pattern."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "UX §5 Responsive Behavior",
+    "description": "Responsive behavior is only breakpoint-level and does not define how critical complex UI adapts, including long wallet addresses, order tables, admin tables, dual-axis charts, calculator outputs, and batch review sheets.",
+    "suggestion": "Add component-level responsive specs for truncation/wrapping, sticky actions, horizontal data density, chart alternatives, modal-to-sheet behavior, and minimum viable mobile layouts."
+  },
+  {
+    "severity": "P2",
+    "category": "correctness",
+    "location": "UX §6 Animation & Transition Specs",
+    "description": "Pulse animations for success and offline status rely on motion/color and no reduced-motion alternative is defined.",
+    "suggestion": "Add prefers-reduced-motion behavior, non-color success/error indicators, aria-live announcements, and limits for flashing/pulsing frequency."
+  },
+  {
+    "severity": "P1",
+    "category": "readiness",
+    "location": "UX §3 Component Hierarchy",
+    "description": "The component hierarchy is too shallow for high-fidelity implementation: it lists only five components and lacks props, variants, data dependencies, permissions, empty/loading/error states, and API mappings.",
+    "suggestion": "Expand each feature into implementation-ready component specs with route ownership, data source, actions, role access, state variants, validation, and acceptance-test hooks."
+  },
+  {
+    "severity": "P1",
+    "category": "readiness",
+    "location": "UX §1-§6 overall",
+    "description": "The spec does not define handling for API error catalog states such as validation_failed, insufficient_permissions, invalid_order_transition, mtproto_connection_error, audit_write_failed, or idempotency_key_conflict.",
+    "suggestion": "Create a global error-handling UX matrix mapping each API error code to inline errors, banners, dialogs, retry affordances, fallback paths, and audit-safe user messaging."
+  },
+  {
+    "severity": "P2",
+    "category": "readiness",
+    "location": "UX §2 Key User Flows",
+    "description": "Critical edge cases from the PRD are absent, including duplicate dose logs, zero inventory log warning, stale orders, Telegram session invalidation, empty cart, expired invite, denied push permission, and deletion confirmation.",
+    "suggestion": "Add unhappy-path and edge-case branches to each flow before implementation begins."
+  }
+]

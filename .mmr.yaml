@@ -1,0 +1,21 @@
+version: 1
+
+defaults:
+  # fix_threshold: minimum severity that blocks the review verdict.
+  # Findings below this severity are kept in the result as advisory
+  # but don't cause `blocked`. Choose based on project risk profile:
+  #   P0 — block only on critical (security, data loss, broken functionality)
+  #   P1 — block on critical + significant bugs                 [low friction]
+  #   P2 — block on critical + significant + suggestions        [DEFAULT]
+  #   P3 — block on everything down to nits                     [strict]
+  fix_threshold: P2
+  timeout: 300
+  format: json
+
+channels:
+  claude:
+    enabled: true
+  gemini:
+    enabled: true
+  codex:
+    enabled: true

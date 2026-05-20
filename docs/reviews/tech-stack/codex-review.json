@@ -1,0 +1,7 @@
+{
+  "model": "codex",
+  "status": "failed",
+  "exit_code": 1,
+  "error": "codex exec requires a git repository; project directory is not a git repo",
+  "recommendations": []
+}

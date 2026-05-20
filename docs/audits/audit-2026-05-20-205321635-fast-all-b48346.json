@@ -1,0 +1,127 @@
+{
+  "report_id": "audit-2026-05-20-205321635-fast-all-b48346",
+  "engine_output": {
+    "schema_version": "1.0",
+    "invocation": {
+      "command": "audit",
+      "args": {
+        "triggered_by": "phase-boundary",
+        "step": "design-system",
+        "phase_label": "after design system"
+      },
+      "started_at": "2026-05-20T20:53:21.635Z",
+      "completed_at": "2026-05-20T20:53:22.189Z",
+      "scaffold_version": "3.26.0"
+    },
+    "availability": {
+      "git": {
+        "status": "unavailable",
+        "reason": "not a git repository"
+      },
+      "gh": {
+        "status": "available"
+      },
+      "pipeline_docs": {
+        "status": "degraded",
+        "reason": "4/5 canonical artifacts present",
+        "evidence_paths": [
+          "docs/plan.md",
+          "docs/user-stories.md",
+          "docs/tech-stack.md",
+          "docs/coding-standards.md",
+          "docs/tdd-standards.md",
+          "docs/design-system.md",
+          "docs/story-tests-map.md"
+        ]
+      },
+      "tests": {
+        "status": "unavailable",
+        "reason": "no cached test run; run tests to populate"
+      },
+      "state": {
+        "status": "available",
+        "evidence_paths": [
+          ".scaffold/state.json"
+        ]
+      },
+      "beads": {
+        "status": "unavailable",
+        "reason": ".beads directory not found (project chose markdown-only tracking)"
+      },
+      "mmr": {
+        "status": "unavailable",
+        "reason": "no MMR jobs found in .mmr/jobs/"
+      },
+      "audit_history": {
+        "status": "available",
+        "evidence_paths": [
+          "docs/audits"
+        ]
+      },
+      "ledger": {
+        "events_read": 0,
+        "malformed_lines": 0,
+        "sources": []
+      }
+    },
+    "snapshot": null,
+    "replay": null,
+    "findings": [],
+    "needs_attention": [],
+    "graph_stats": {
+      "nodes_by_kind": {
+        "feature": 0,
+        "story": 0,
+        "ac": 0,
+        "plan_task": 0,
+        "playbook_task": 0,
+        "test": 15,
+        "file": 173,
+        "decision": 0
+      },
+      "edges_by_kind": {
+        "test_to_file": 15,
+        "file_to_component_use": 18
+      },
+      "orphans_by_kind": {},
+      "unsanctioned_uses": 0,
+      "ad_hoc_token_uses": 0
+    },
+    "fix_threshold": "P2",
+    "verdict": "pass",
+    "summary": {
+      "total": 0,
+      "by_severity": {
+        "P0": 0,
+        "P1": 0,
+        "P2": 0,
+        "P3": 0
+      },
+      "by_severity_status": {
+        "P0": {
+          "open": 0,
+          "acknowledged": 0,
+          "skipped": 0
+        },
+        "P1": {
+          "open": 0,
+          "acknowledged": 0,
+          "skipped": 0
+        },
+        "P2": {
+          "open": 0,
+          "acknowledged": 0,
+          "skipped": 0
+        },
+        "P3": {
+          "open": 0,
+          "acknowledged": 0,
+          "skipped": 0
+        }
+      },
+      "blocking": 0,
+      "acknowledged": 0,
+      "skipped_lenses": 0
+    }
+  }
+}

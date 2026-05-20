@@ -1,0 +1,12 @@
+version: 2
+methodology: deep
+platforms:
+  - claude-code
+project:
+  platforms: []
+  projectType: web-app
+  webAppConfig:
+    renderingStrategy: spa
+    deployTarget: serverless
+    realtime: none
+    authFlow: none

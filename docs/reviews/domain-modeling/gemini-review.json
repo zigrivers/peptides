@@ -1,0 +1,143 @@
+[
+  {
+    "severity": "P1",
+    "category": "completeness",
+    "location": "tracker.md - Protocol Entity",
+    "description": "The Protocol entity is missing the 'administrationRoute' field{
+  "session_id": "14334885-7e6d-4f26-982e-becf54084444",
+  "response": "I have performed a deep review of the domain models against the PRD (`docs/plan.md`) and identified several gaps in coverage, consistency, and correctness. The findings have been recorded in `docs/reviews/domain-modeling/gemini-review.json`.\n\n### Key Findings Summary:\n- **P1 Gaps (Critical for v1):** \n    - **Injection Site Rotation:** The `tracker` domain lacks the necessary state (rotation history/groups) to support the round-robin logic required by the PRD.\n    - **Protocol Attributes:** Missing `administrationRoute`, which is vital for both safety cross-checks and site rotation logic.\n    - **Granular Outcomes:** Missing per-protocol subjective ratings in the `Outcome Log` entity.\n- **P2 Structural Issues:**\n    - **Inventory Management:** The interaction between `DoseLog` (Tracker) and `Vial` (Reconstitution) inventory decrementing is not explicitly modeled as a service or domain event.\n    - **Audit Integrity:** PRD-mandated audit logs for protocol mutations are not represented as domain entities.\n    - **Aggregate Boundaries:** The `User Management` aggregate in the `Auth` domain is potentially too large, containing both Power Users and Managed Users, which may cause scalability issues.\n- **P3 Refinements:**\n    - Missing minor attributes like `halfLifeTimingNotes`, `sourcingNote`, and `sendMethod` (for Telegram orders).\n\nThe full list of 10 findings with suggested fixes is available in the JSON report.",
+  "stats": {
+    "models": {
+      "gemini-3.1-flash-lite": {
+        "api": {
+          "totalRequests": 1,
+          "totalErrors": 0,
+          "totalLatencyMs": 1718
+        },
+        "tokens": {
+          "input": 6905,
+          "prompt": 6905,
+          "candidates": 71,
+          "total": 7082,
+          "cached": 0,
+          "thoughts": 106,
+          "tool": 0
+        },
+        "roles": {
+          "utility_router": {
+            "totalRequests": 1,
+            "totalErrors": 0,
+            "totalLatencyMs": 1718,
+            "tokens": {
+              "input": 6905,
+              "prompt": 6905,
+              "candidates": 71,
+              "total": 7082,
+              "cached": 0,
+              "thoughts": 106,
+              "tool": 0
+            }
+          }
+        }
+      },
+      "gemini-3-flash-preview": {
+        "api": {
+          "totalRequests": 3,
+          "totalErrors": 0,
+          "totalLatencyMs": 39493
+        },
+        "tokens": {
+          "input": 56148,
+          "prompt": 83906,
+          "candidates": 1772,
+          "total": 90161,
+          "cached": 27758,
+          "thoughts": 4483,
+          "tool": 0
+        },
+        "roles": {
+          "main": {
+            "totalRequests": 3,
+            "totalErrors": 0,
+            "totalLatencyMs": 39493,
+            "tokens": {
+              "input": 56148,
+              "prompt": 83906,
+              "candidates": 1772,
+              "total": 90161,
+              "cached": 27758,
+              "thoughts": 4483,
+              "tool": 0
+            }
+          }
+        }
+      }
+    },
+    "tools": {
+      "totalCalls": 6,
+      "totalSuccess": 6,
+      "totalFail": 0,
+      "totalDurationMs": 40,
+      "totalDecisions": {
+        "accept": 6,
+        "reject": 0,
+        "modify": 0,
+        "auto_accept": 0
+      },
+      "byName": {
+        "update_topic": {
+          "count": 2,
+          "success": 2,
+          "fail": 0,
+          "durationMs": 10,
+          "decisions": {
+            "accept": 2,
+            "reject": 0,
+            "modify": 0,
+            "auto_accept": 0
+          }
+        },
+        "read_file": {
+          "count": 2,
+          "success": 2,
+          "fail": 0,
+          "durationMs": 18,
+          "decisions": {
+            "accept": 2,
+            "reject": 0,
+            "modify": 0,
+            "auto_accept": 0
+          }
+        },
+        "list_directory": {
+          "count": 1,
+          "success": 1,
+          "fail": 0,
+          "durationMs": 8,
+          "decisions": {
+            "accept": 1,
+            "reject": 0,
+            "modify": 0,
+            "auto_accept": 0
+          }
+        },
+        "write_file": {
+          "count": 1,
+          "success": 1,
+          "fail": 0,
+          "durationMs": 4,
+          "decisions": {
+            "accept": 1,
+            "reject": 0,
+            "modify": 0,
+            "auto_accept": 0
+          }
+        }
+      }
+    },
+    "files": {
+      "totalLinesAdded": 72,
+      "totalLinesRemoved": 3
+    }
+  }
+}

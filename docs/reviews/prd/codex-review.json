@@ -1,0 +1,241 @@
+{
+  "model": "codex",
+  "findings": [
+    {
+      "id": "1.1",
+      "pass": 1,
+      "pass_name": "Problem Statement Rigor",
+      "severity": "P1",
+      "finding": "The problem statement is specific about the user group, but lacks quantitative baseline evidence for task frequency, time cost, error rate, missed doses, lost orders, or payment issues.",
+      "location": "Section 1. Problem Statement",
+      "recommendation": "Add baseline metrics such as weekly orders, minutes per dose-log workflow, number of tools used, missed-dose frequency, reconstitution error incidents, and payment/order failure rate."
+    },
+    {
+      "id": "1.2",
+      "pass": 1,
+      "pass_name": "Problem Statement Rigor",
+      "severity": "P2",
+      "finding": "The hypothesis prescribes the solution as a unified web app rather than first stating a testable user outcome independent of implementation.",
+      "location": "Section 1. Hypothesis",
+      "recommendation": "Restate the hypothesis around measurable workflow consolidation, reduced error risk, and reduced task time; keep the web app as the proposed solution."
+    },
+    {
+      "id": "2.1",
+      "pass": 2,
+      "pass_name": "Persona & Stakeholder Coverage",
+      "severity": "P1",
+      "finding": "The Power User persona combines end user, admin, developer, buyer, protocol manager, and operator, creating an Everything User risk.",
+      "location": "Section 2.1 Primary Persona",
+      "recommendation": "Split the persona into at least Power User, Super Admin/Protocol Manager, and Solo Builder/Operator concerns, even if one real person currently fills all roles."
+    },
+    {
+      "id": "2.2",
+      "pass": 2,
+      "pass_name": "Persona & Stakeholder Coverage",
+      "severity": "P1",
+      "finding": "Compliance/legal and operational stakeholders are not represented despite ordering, health-adjacent data, managed users, and Telegram/crypto workflows.",
+      "location": "Sections 2, 7, 11",
+      "recommendation": "Add stakeholder constraints for legal/compliance review, data steward/security owner, and vendor/order dependency owner."
+    },
+    {
+      "id": "3.1",
+      "pass": 3,
+      "pass_name": "Feature Scoping Completeness",
+      "severity": "P0",
+      "finding": "The v1 scope, MoSCoW list, and phased delivery conflict. Multi-user is listed as v1/Must Have but delivered in Phase 2; data export is in Auth/Privacy but delivered in Phase 3.",
+      "location": "Sections 3.1, 4, 5.7, 10",
+      "recommendation": "Create one authoritative release-scope table showing MVP, v1, Phase 2, and deferred features, with each feature appearing in exactly one delivery phase."
+    },
+    {
+      "id": "3.2",
+      "pass": 3,
+      "pass_name": "Feature Scoping Completeness",
+      "severity": "P1",
+      "finding": "Automated MTProto ordering is a large technical and policy dependency but is treated as core v1 scope without proving feasibility first.",
+      "location": "Sections 3.1, 4, 5.4, 7, 11",
+      "recommendation": "Define an explicit feasibility spike or release gate for MTProto auth, send reliability, session storage, account lockout risk, and manual fallback acceptance."
+    },
+    {
+      "id": "3.3",
+      "pass": 3,
+      "pass_name": "Feature Scoping Completeness",
+      "severity": "P1",
+      "finding": "Mobile-optimized layout is listed as Could Have while mobile dose logging is later described as first-class.",
+      "location": "Sections 4 and 8 Browser Support",
+      "recommendation": "Move mobile dose-logging UX into Must Have/NFR acceptance criteria and reserve optional polish, such as dark mode, for Could Have."
+    },
+    {
+      "id": "3.4",
+      "pass": 3,
+      "pass_name": "Feature Scoping Completeness",
+      "severity": "P1",
+      "finding": "Order cancellation, expiry, timeout, and stale vendor quote handling are explicitly missing.",
+      "location": "Section 5.4 Ordering",
+      "recommendation": "Add order lifecycle states for canceled, expired, failed, abandoned, and manually completed; define who can change each state and what happens to inventory."
+    },
+    {
+      "id": "4.1",
+      "pass": 4,
+      "pass_name": "Success Criteria Measurability",
+      "severity": "P1",
+      "finding": "Hard gates such as zero dose-calculation defects, zero silent failures, and 100% audit log completeness are stated as absolutes but measurement scope is incomplete.",
+      "location": "Section 6 Hard Gates",
+      "recommendation": "Define measurable verification methods, such as unit fixture coverage, production incident threshold, E2E failure detection criteria, and audit-event matrix coverage."
+    },
+    {
+      "id": "4.2",
+      "pass": 4,
+      "pass_name": "Success Criteria Measurability",
+      "severity": "P1",
+      "finding": "The ordering success target conflicts across phases: Phase 2 requires at least 20 successful orders by months 3-6, while Year 1 also requires at least 20 successful orders.",
+      "location": "Section 6 Phase 2 and Year 1",
+      "recommendation": "Clarify cumulative versus phase-specific targets and set realistic order-volume milestones by phase."
+    },
+    {
+      "id": "4.3",
+      "pass": 4,
+      "pass_name": "Success Criteria Measurability",
+      "severity": "P2",
+      "finding": "Several criteria rely on self-reporting without defining collection method or cadence.",
+      "location": "Section 6 Phase 1 and Phase 2",
+      "recommendation": "Specify whether each metric is measured through product telemetry, in-app survey, manual journal, or admin review."
+    },
+    {
+      "id": "5.1",
+      "pass": 5,
+      "pass_name": "NFR Quantification",
+      "severity": "P1",
+      "finding": "Monitoring and alerting requirements are missing despite hard gates around silent failures, audit completeness, backups, and Telegram send failures.",
+      "location": "Section 8 Non-Functional Requirements",
+      "recommendation": "Add monitoring requirements for API errors, failed dose logs, failed Telegram sends, payment-state anomalies, audit-log write failures, backup success, and uptime alerts."
+    },
+    {
+      "id": "5.2",
+      "pass": 5,
+      "pass_name": "NFR Quantification",
+      "severity": "P1",
+      "finding": "Data retention is only partially specified. Audit logs and backups have retention, but dose logs, order history, exports, Telegram sessions, deleted accounts, and managed-user records do not.",
+      "location": "Sections 5.7 and 8",
+      "recommendation": "Add a retention matrix by data type, including deletion behavior, export availability, audit retention, backup purge timing, and Telegram session revocation."
+    },
+    {
+      "id": "5.3",
+      "pass": 5,
+      "pass_name": "NFR Quantification",
+      "severity": "P2",
+      "finding": "Internationalization/localization requirements are absent.",
+      "location": "Section 8 Non-Functional Requirements",
+      "recommendation": "Explicitly state English-only and US-only for v1, or define supported locales, units, currencies, date formats, and timezone behavior."
+    },
+    {
+      "id": "5.4",
+      "pass": 5,
+      "pass_name": "NFR Quantification",
+      "severity": "P2",
+      "finding": "Accessibility coverage applies only to managed-user flows, excluding admin and Power User workflows.",
+      "location": "Section 8 Accessibility",
+      "recommendation": "Apply WCAG 2.1 AA to all core flows or explicitly justify any exclusions."
+    },
+    {
+      "id": "6.1",
+      "pass": 6,
+      "pass_name": "Constraint & Dependency Documentation",
+      "severity": "P0",
+      "finding": "Regulatory assumptions are not validated early enough for a product that stores health-adjacent dosing data, supports managed users, and facilitates grey-market ordering.",
+      "location": "Section 7 Regulatory and Section 11 Risk Assessment",
+      "recommendation": "Move legal/regulatory review before implementation of ordering and multi-user features; document allowed claims, disclaimers, data obligations, and sourcing-module boundaries."
+    },
+    {
+      "id": "6.2",
+      "pass": 6,
+      "pass_name": "Constraint & Dependency Documentation",
+      "severity": "P1",
+      "finding": "External dependency limits and costs are not documented for Telegram MTProto, transactional email, QSC catalog/PDF updates, crypto network details, hosting, and object storage.",
+      "location": "Section 7 Constraints",
+      "recommendation": "Add dependency table with owner, API/rate limits, failure modes, cost model, credentials required, ToS risk, and fallback behavior."
+    },
+    {
+      "id": "6.3",
+      "pass": 6,
+      "pass_name": "Constraint & Dependency Documentation",
+      "severity": "P2",
+      "finding": "The solo-builder constraint is documented, but the PRD scope is broad enough to create delivery risk without explicit sequencing tradeoffs.",
+      "location": "Sections 7 and 10",
+      "recommendation": "Add capacity assumptions and a cutline for what gets removed if MTProto, multi-user, or reference content takes longer than expected."
+    },
+    {
+      "id": "7.1",
+      "pass": 7,
+      "pass_name": "Error & Edge Case Coverage",
+      "severity": "P1",
+      "finding": "Session expiry, reauthentication, and partial-save behavior are not covered for sensitive flows such as dose logging, Telegram setup, payment checklist, and account deletion.",
+      "location": "Sections 5.2, 5.4, 5.6, 5.7",
+      "recommendation": "Define behavior when a session expires mid-flow, including draft preservation, reauth prompts, and blocked destructive actions."
+    },
+    {
+      "id": "7.2",
+      "pass": 7,
+      "pass_name": "Error & Edge Case Coverage",
+      "severity": "P1",
+      "finding": "Concurrent access edge cases are missing for admin edits, managed-user dose logging, inventory updates, protocol changes, and order receipt.",
+      "location": "Sections 5.2, 5.4, 5.5",
+      "recommendation": "Define locking, conflict resolution, idempotency, and audit behavior for simultaneous updates."
+    },
+    {
+      "id": "7.3",
+      "pass": 7,
+      "pass_name": "Error & Edge Case Coverage",
+      "severity": "P1",
+      "finding": "Dose schedule edge cases are underdefined, including missed doses, late doses, timezone changes, DST, custom frequency validation, skipped doses, and retroactive edits.",
+      "location": "Section 5.2 Protocol Tracker",
+      "recommendation": "Add explicit state handling and acceptance rules for skipped, missed, late, edited, and timezone-shifted dose events."
+    },
+    {
+      "id": "7.4",
+      "pass": 7,
+      "pass_name": "Error & Edge Case Coverage",
+      "severity": "P1",
+      "finding": "Payment and order edge cases are incomplete: wrong chain/currency, duplicate tx ID, stale wallet address, vendor changes quote, partial payment, overpayment, and duplicate order sends are not defined.",
+      "location": "Section 5.4 Order Tracking & Payment",
+      "recommendation": "Add payment validation rules, duplicate detection, quote confirmation, and order idempotency requirements."
+    },
+    {
+      "id": "7.5",
+      "pass": 7,
+      "pass_name": "Error & Edge Case Coverage",
+      "severity": "P2",
+      "finding": "Invite flow edge cases are called out as missing, including expiry and resend behavior.",
+      "location": "Section 5.5 Multi-User & Admin",
+      "recommendation": "Define invite expiry, resend, revoke, accepted invite, duplicate invite, and invited-but-not-active states."
+    },
+    {
+      "id": "8.1",
+      "pass": 8,
+      "pass_name": "Downstream Readiness for User Stories",
+      "severity": "P0",
+      "finding": "User stories cannot be cleanly sequenced until release scope conflicts are resolved across v1, MoSCoW, and phased delivery.",
+      "location": "Sections 3, 4, 10",
+      "recommendation": "Resolve the release plan before story writing; then generate epics by phase and role."
+    },
+    {
+      "id": "8.2",
+      "pass": 8,
+      "pass_name": "Downstream Readiness for User Stories",
+      "severity": "P1",
+      "finding": "Several features are too broad for story decomposition without additional acceptance rules, including adherence dashboard, reference profile quality, protocol assignment, stack overview, and audit completeness.",
+      "location": "Sections 5.1, 5.2, 5.5, 6",
+      "recommendation": "For each feature, add role, trigger, required fields, system behavior, empty state, error state, permissions, and acceptance criteria."
+    },
+    {
+      "id": "8.3",
+      "pass": 8,
+      "pass_name": "Downstream Readiness for User Stories",
+      "severity": "P1",
+      "finding": "Permissions are partially defined but not complete enough for story-level acceptance tests across Power User, managed user, and account deletion/export flows.",
+      "location": "Sections 5.5, 5.6, 5.7",
+      "recommendation": "Add a permission matrix covering create/read/update/delete rights for protocols, dose logs, reconstitution records, orders, exports, managed accounts, and audit logs."
+    }
+  ],
+  "gate_recommendation": "Fail",
+  "handoff_notes": "Do not proceed directly to User Stories. First resolve the P0 scope conflicts, legal/regulatory gating, and release sequencing. Then create an epic map by persona and phase, plus matrices for permissions, data retention, external dependencies, order lifecycle states, and dose/event edge cases. Once those are stable, stories can be written with much less guesswork."
+}

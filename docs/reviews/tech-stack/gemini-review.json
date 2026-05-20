@@ -1,0 +1,120 @@
+{
+  "model": "gemini",
+  "status": "completed",
+  "recommendations": [
+    {
+      "category": "Authentication",
+      "choice": "Better Auth (v0.x)",
+      "rationale": "Spiritual successor to Lucia Auth. Built for Next.js 15/React 19, it offers a plugin-based architecture (MFA, Passkeys) with strict TypeScript safety and better DX than NextAuth v5.",
+      "alternatives_considered": ["Auth.js (NextAuth v5)", "Lucia Auth (Deprecated)", "Kinde"],
+      "ai_compatibility": "Elite. Features dedicated AI-native documentation and MCP servers for tools like Claude/Gemini.",
+      "lock_in_risk": "low",
+      "notes": "Use the Prisma adapter. Includes built-in support for email/password and secure session management."
+    },
+    {
+      "category": "MTProto Client",
+      "choice": "mtcute",
+      "rationale": "The most modern and high-performance MTProto library for TypeScript in 2025. Unlike GramJS, it is actively maintained for modern Node.js and has first-class types.",
+      "alternatives_considered": ["GramJS", "MTKruto"],
+      "ai_compatibility": "High. Very clean, functional API that AI handles better than the class-heavy Telethon port (GramJS).",
+      "lock_in_risk": "medium",
+      "notes": "Store sessions in PostgreSQL encrypted with AES-256. Handles Telegram 'Layers' updates automatically."
+    },
+    {
+      "category": "PWA / Service Worker",
+      "choice": "Serwist",
+      "rationale": "The successor to next-pwa. Designed specifically for the Next.js App Router and handles RSC (React Server Component) caching correctly.",
+      "alternatives_considered": ["next-pwa", "Custom Service Worker"],
+      "ai_compatibility": "High. Standard Workbox-based patterns are well-understood by LLMs.",
+      "lock_in_risk": "low",
+      "notes": "Essential for offline dose-log queuing via IndexedDB integration."
+    },
+    {
+      "category": "Push Notifications",
+      "choice": "web-push (NPM) + VAPID",
+      "rationale": "Standard protocol for Web Push. No third-party SaaS dependency required, fitting the 'solo developer' and 'low budget' constraints perfectly.",
+      "alternatives_considered": ["OneSignal", "Pushpad"],
+      "ai_compatibility": "High. Simple request/response pattern for sending payloads.",
+      "lock_in_risk": "none",
+      "notes": "Note: iOS users must 'Add to Home Screen' to receive notifications (Web Push requirement)."
+    },
+    {
+      "category": "Email",
+      "choice": "Resend + React Email",
+      "rationale": "Best-in-class DX for Next.js. The 3,000 emails/month free tier is perfect for < 50 users. React Email allows building templates with Tailwind.",
+      "alternatives_considered": ["Postmark", "SendGrid"],
+      "ai_compatibility": "High. JSX-based templates are significantly easier for AI to generate than HTML tables.",
+      "lock_in_risk": "low",
+      "notes": "Use for invites, password resets, and dose reminders (if push fails)."
+    },
+    {
+      "category": "Charts",
+      "choice": "shadcn/ui charts (Recharts-based)",
+      "rationale": "Uses Recharts under the hood but provides copy-paste Tailwind-native components. Offers maximum control and matches the project's UI perfectly.",
+      "alternatives_considered": ["Tremor Raw", "Chart.js"],
+      "ai_compatibility": "Elite. AI agents (Claude/Gemini) are extremely proficient at modifying shadcn component code.",
+      "lock_in_risk": "none",
+      "notes": "Perfect for correlation timelines (Dose vs. Outcome)."
+    },
+    {
+      "category": "Scheduled Jobs",
+      "choice": "Railway Cron + Secure API Route",
+      "rationale": "Simplest architecture. Use Railway's 'Empty Service' to curl a protected Next.js route handler. Cost is near-zero.",
+      "alternatives_considered": ["Upstash QStash", "Inngest", "Trigger.dev"],
+      "ai_compatibility": "High. Standard HTTP-based trigger pattern.",
+      "lock_in_risk": "none",
+      "notes": "Secure the route with a CRON_SECRET header. Use Upstash QStash if you need 100% guaranteed retries."
+    },
+    {
+      "category": "Error Monitoring",
+      "choice": "Sentry (Free Tier)",
+      "rationale": "The 'Developer' plan is generous (5k errors/mo). Essential for a safety-critical app to catch reconstitution math errors in the wild.",
+      "alternatives_considered": ["Highlight.io", "GlitchTip"],
+      "ai_compatibility": "High. Deeply integrated with Next.js build steps.",
+      "lock_in_risk": "low",
+      "notes": "Consider Highlight.io if you also want 'Session Replays' (visual bug debugging) for free."
+    },
+    {
+      "category": "Testing",
+      "choice": "Vitest (Unit) + Playwright (E2E)",
+      "rationale": "Vitest is faster than Jest for Vite/Next.js. Playwright is the 2025 standard for E2E, specifically for testing Safari/WebKit (iOS PWA users).",
+      "alternatives_considered": ["Jest", "Cypress"],
+      "ai_compatibility": "High. AI is excellent at writing Playwright locators and Vitest assertions.",
+      "lock_in_risk": "none",
+      "notes": "MANDATORY: 100% branch coverage for reconstitution math module."
+    },
+    {
+      "category": "Validation",
+      "choice": "Zod",
+      "rationale": "Industry standard for TypeScript. Bridges the gap between DB (Prisma), API (Server Actions), and Form (React Hook Form).",
+      "alternatives_considered": ["Valibot", "TypeBox"],
+      "ai_compatibility": "Elite. AI can generate complex Zod schemas from plain English requirements.",
+      "lock_in_risk": "low",
+      "notes": "Use for all input validation to prevent IDOR and injection."
+    },
+    {
+      "category": "Uptime Monitoring",
+      "choice": "Better Stack (Uptime)",
+      "rationale": "Modern UI, great free tier, and integrates with the same ecosystem as Highlight/Sentry.",
+      "alternatives_considered": ["UptimeRobot"],
+      "ai_compatibility": "N/A",
+      "lock_in_risk": "none",
+      "notes": "Pings the Railway public URL every 1-5 minutes."
+    },
+    {
+      "category": "State Management",
+      "choice": "RSC + Server Actions + TanStack Query",
+      "rationale": "Next.js 15 favors Server Actions. Use TanStack Query on the client only for 'interactive' state like live inventory filtering or search.",
+      "alternatives_considered": ["Zustand", "SWR"],
+      "ai_compatibility": "High. AI knows these patterns better than custom global state hooks.",
+      "lock_in_risk": "low",
+      "notes": "Use useActionState (React 19) for form handling."
+    }
+  ],
+  "architecture_notes": "The architecture leverages the 'Always-on' nature of Railway. Unlike serverless (Vercel), you can maintain the MTProto socket connection or long-polling within the process if needed, though a database-backed session approach is more resilient. Use 'unstable_after' in Next.js 15 for non-blocking side effects like logging audits or sending Telegram notifications after a dose is logged.",
+  "risks": [
+    "Telegram Session Revocation: Telegram is aggressive about banning MTProto 'userbots'. Ensure you use a real phone number and AES encryption for session strings.",
+    "iOS Web Push: Only works if added to Home Screen; requires a user education UI.",
+    "Math Safety: Dose calculations must be performed on the server and verified with Vitest to prevent client-side manipulation or floating-point errors."
+  ]
+}

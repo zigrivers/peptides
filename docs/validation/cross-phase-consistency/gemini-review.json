@@ -1,0 +1,281 @@
+YOLO mode is enabled. All tool calls will be automatically approved.
+YOLO mode is enabled. All tool calls will be automatically approved.
+Ripgrep is not available. Falling back to GrepTool.
+API returned invalid content after all retries. Full report available at: /var/folders/45/jyvd421n6zb5gpkq8hr1gr9w0000gn/T/gemini-client-error-generateJson-invalid-content-2026-05-20T21-23-17-779Z.json Error: Retry attempts exhausted
+    at retryWithBackoff (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:270798:9)
+    at async BaseLlmClient._generateWithRetry (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:270941:14)
+    at async BaseLlmClient.generateJson (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:270848:21)
+    at async NumericalClassifierStrategy.route (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:318678:28)
+    at async CompositeStrategy.route (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:318743:26)
+    at async ModelRouterService.route (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:318904:18)
+    at async GeminiClient.processTurn (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:306691:24)
+    at async GeminiClient.sendMessageStream (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:306797:14)
+    at async file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/gemini-QSTQ2DBG.js:10859:26
+    at async main (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/gemini-QSTQ2DBG.js:16137:5)
+[Routing] NumericalClassifierStrategy failed: Error: Failed to generate content: Retry attempts exhausted
+    at BaseLlmClient._generateWithRetry (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:270971:13)
+    at async BaseLlmClient.generateJson (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:270848:21)
+    at async NumericalClassifierStrategy.route (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:318678:28)
+    at async CompositeStrategy.route (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:318743:26)
+    at async ModelRouterService.route (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:318904:18)
+    at async GeminiClient.processTurn (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:306691:24)
+    at async GeminiClient.sendMessageStream (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:306797:14)
+    at async file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/gemini-QSTQ2DBG.js:10859:26
+    at async main (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/gemini-QSTQ2DBG.js:16137:5)
+Attempt 1 failed with status 429. Retrying with backoff... _GaxiosError: [{
+  "error": {
+    "code": 429,
+    "message": "No capacity available for model gemini-3.1-pro-preview on the server",
+    "errors": [
+      {
+        "message": "No capacity available for model gemini-3.1-pro-preview on the server",
+        "domain": "global",
+        "reason": "rateLimitExceeded"
+      }
+    ],
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "MODEL_CAPACITY_EXHAUSTED",
+        "domain": "cloudcode-pa.googleapis.com",
+        "metadata": {
+          "model": "gemini-3.1-pro-preview"
+        }
+      }
+    ]
+  }
+}
+]
+    at Gaxios._request (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:8811:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async _OAuth2Client.requestAsync (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:10774:16)
+    at async CodeAssistServer.requestStreamingPost (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:272945:17)
+    at async CodeAssistServer.generateContentStream (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:272743:23)
+    at async file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:273597:19
+    at async file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:250407:23
+    at async retryWithBackoff (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:270684:23)
+    at async GeminiChat.makeApiCallAndProcessStream (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:293631:28)
+    at async GeminiChat.streamWithRetries (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:293450:29) {
+  config: {
+    url: 'https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse',
+    method: 'POST',
+    params: { alt: 'sse' },
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'GeminiCLI-tui/0.42.0/gemini-3.1-pro-preview (darwin; arm64; terminal) google-api-nodejs-client/9.15.1',
+      Authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'x-goog-api-client': 'gl-node/26.0.0'
+    },
+    responseType: 'stream',
+    body: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+    signal: AbortSignal { aborted: false },
+    retry: false,
+    paramsSerializer: [Function: paramsSerializer],
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor]
+  },
+  response: {
+    config: {
+      url: 'https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse',
+      method: 'POST',
+      params: [Object],
+      headers: [Object],
+      responseType: 'stream',
+      body: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      signal: [AbortSignal],
+      retry: false,
+      paramsSerializer: [Function: paramsSerializer],
+      validateStatus: [Function: validateStatus],
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    data: '[{\n' +
+      '  "error": {\n' +
+      '    "code": 429,\n' +
+      '    "message": "No capacity available for model gemini-3.1-pro-preview on the server",\n' +
+      '    "errors": [\n' +
+      '      {\n' +
+      '        "message": "No capacity available for model gemini-3.1-pro-preview on the server",\n' +
+      '        "domain": "global",\n' +
+      '        "reason": "rateLimitExceeded"\n' +
+      '      }\n' +
+      '    ],\n' +
+      '    "status": "RESOURCE_EXHAUSTED",\n' +
+      '    "details": [\n' +
+      '      {\n' +
+      '        "@type": "type.googleapis.com/google.rpc.ErrorInfo",\n' +
+      '        "reason": "MODEL_CAPACITY_EXHAUSTED",\n' +
+      '        "domain": "cloudcode-pa.googleapis.com",\n' +
+      '        "metadata": {\n' +
+      '          "model": "gemini-3.1-pro-preview"\n' +
+      '        }\n' +
+      '      }\n' +
+      '    ]\n' +
+      '  }\n' +
+      '}\n' +
+      ']',
+    headers: {
+      'alt-svc': 'h3=":443"; ma=2592000,h3-29=":443"; ma=2592000',
+      'content-length': '630',
+      'content-type': 'application/json; charset=UTF-8',
+      date: 'Wed, 20 May 2026 21:23:25 GMT',
+      server: 'ESF',
+      'server-timing': 'gfet4t7; dur=250',
+      vary: 'Origin, X-Origin, Referer',
+      'x-cloudaicompanion-trace-id': '1595f0333714fbf6',
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'SAMEORIGIN',
+      'x-xss-protection': '0'
+    },
+    status: 429,
+    statusText: 'Too Many Requests',
+    request: {
+      responseURL: 'https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse'
+    }
+  },
+  error: undefined,
+  status: 429,
+  Symbol(gaxios-gaxios-error): '6.7.1'
+}
+Attempt 2 failed with status 429. Retrying with backoff... _GaxiosError: [{
+  "error": {
+    "code": 429,
+    "message": "No capacity available for model gemini-3.1-pro-preview on the server",
+    "errors": [
+      {
+        "message": "No capacity available for model gemini-3.1-pro-preview on the server",
+        "domain": "global",
+        "reason": "rateLimitExceeded"
+      }
+    ],
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "MODEL_CAPACITY_EXHAUSTED",
+        "domain": "cloudcode-pa.googleapis.com",
+        "metadata": {
+          "model": "gemini-3.1-pro-preview"
+        }
+      }
+    ]
+  }
+}
+]
+    at Gaxios._request (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:8811:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async _OAuth2Client.requestAsync (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:10774:16)
+    at async CodeAssistServer.requestStreamingPost (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:272945:17)
+    at async CodeAssistServer.generateContentStream (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:272743:23)
+    at async file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:273597:19
+    at async file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:250407:23
+    at async retryWithBackoff (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:270684:23)
+    at async GeminiChat.makeApiCallAndProcessStream (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:293631:28)
+    at async GeminiChat.streamWithRetries (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:293450:29) {
+  config: {
+    url: 'https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse',
+    method: 'POST',
+    params: { alt: 'sse' },
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'GeminiCLI-tui/0.42.0/gemini-3.1-pro-preview (darwin; arm64; terminal) google-api-nodejs-client/9.15.1',
+      Authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'x-goog-api-client': 'gl-node/26.0.0'
+    },
+    responseType: 'stream',
+    body: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+    signal: AbortSignal { aborted: false },
+    retry: false,
+    paramsSerializer: [Function: paramsSerializer],
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor]
+  },
+  response: {
+    config: {
+      url: 'https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse',
+      method: 'POST',
+      params: [Object],
+      headers: [Object],
+      responseType: 'stream',
+      body: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      signal: [AbortSignal],
+      retry: false,
+      paramsSerializer: [Function: paramsSerializer],
+      validateStatus: [Function: validateStatus],
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    data: '[{\n' +
+      '  "error": {\n' +
+      '    "code": 429,\n' +
+      '    "message": "No capacity available for model gemini-3.1-pro-preview on the server",\n' +
+      '    "errors": [\n' +
+      '      {\n' +
+      '        "message": "No capacity available for model gemini-3.1-pro-preview on the server",\n' +
+      '        "domain": "global",\n' +
+      '        "reason": "rateLimitExceeded"\n' +
+      '      }\n' +
+      '    ],\n' +
+      '    "status": "RESOURCE_EXHAUSTED",\n' +
+      '    "details": [\n' +
+      '      {\n' +
+      '        "@type": "type.googleapis.com/google.rpc.ErrorInfo",\n' +
+      '        "reason": "MODEL_CAPACITY_EXHAUSTED",\n' +
+      '        "domain": "cloudcode-pa.googleapis.com",\n' +
+      '        "metadata": {\n' +
+      '          "model": "gemini-3.1-pro-preview"\n' +
+      '        }\n' +
+      '      }\n' +
+      '    ]\n' +
+      '  }\n' +
+      '}\n' +
+      ']',
+    headers: {
+      'alt-svc': 'h3=":443"; ma=2592000,h3-29=":443"; ma=2592000',
+      'content-length': '630',
+      'content-type': 'application/json; charset=UTF-8',
+      date: 'Wed, 20 May 2026 21:23:30 GMT',
+      server: 'ESF',
+      'server-timing': 'gfet4t7; dur=233',
+      vary: 'Origin, X-Origin, Referer',
+      'x-cloudaicompanion-trace-id': 'b6c24608f3d1c441',
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'SAMEORIGIN',
+      'x-xss-protection': '0'
+    },
+    status: 429,
+    statusText: 'Too Many Requests',
+    request: {
+      responseURL: 'https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse'
+    }
+  },
+  error: undefined,
+  status: 429,
+  Symbol(gaxios-gaxios-error): '6.7.1'
+}
+Attempt 3 failed: No capacity available for model gemini-3.1-pro-preview on the server. Max attempts reached
+Error when talking to Gemini API Full report available at: /var/folders/45/jyvd421n6zb5gpkq8hr1gr9w0000gn/T/gemini-client-error-Turn.run-sendMessageStream-2026-05-20T21-23-41-564Z.json RetryableQuotaError: No capacity available for model gemini-3.1-pro-preview on the server
+    at classifyGoogleError (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:270093:10)
+    at retryWithBackoff (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:270707:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async GeminiChat.makeApiCallAndProcessStream (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:293631:28)
+    at async GeminiChat.streamWithRetries (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:293450:29)
+    at async Turn.run (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:294024:24)
+    at async GeminiClient.processTurn (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:306709:22)
+    at async GeminiClient.sendMessageStream (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/chunk-7VVHSNDQ.js:306797:14)
+    at async file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/gemini-QSTQ2DBG.js:10859:26
+    at async main (file:///opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/gemini-QSTQ2DBG.js:16137:5) {
+  cause: {
+    code: 429,
+    message: 'No capacity available for model gemini-3.1-pro-preview on the server',
+    details: [ [Object] ]
+  },
+  retryDelayMs: undefined
+}
+{
+  "session_id": "00d4f0c5-7f70-428a-97ef-d449738c4e27",
+  "error": {
+    "type": "Error",
+    "message": "No capacity available for model gemini-3.1-pro-preview on the server",
+    "code": 1
+  }
+}

@@ -1,0 +1,2021 @@
+Reading additional input from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: /Users/kenallred/Documents/dev-projects/peptides
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 019e473f-c5d4-7d33-a140-ecc4c84dff5e
+--------
+user
+Perform a deep review of the implementation plan (docs/implementation-plan.md) against the User Stories and System Architecture. Focus on: 1. Coverage — Does every AC have a task? 2. Executability — Are tasks small enough for agents? 3. Correctness — Is the critical path accurate? Respond with a JSON array of findings: [{"severity": "P0|P1|P2|P3", "category": "coverage|executability|correctness", "location": "task or wave", "description": "description of the issue", "suggestion": "recommended fix"}]
+
+<stdin>
+# Implementation Plan
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Wave Plan Summary
+
+| Wave | Focus | Agents | Tasks |
+|------|-------|--------|-------|
+| **Wave 1** | Foundation & Identity | 2 | 3 |
+| **Wave 2** | Core Pillars (Ref/Tracker) | 2 | 3 |
+| **Wave 3** | Ordering & MTProto | 1 | 3 |
+| **Wave 4** | Scale & Portability | 2 | 3 |
+
+---
+
+## 2. Task Breakdown
+
+### Wave 1: Foundation (Identity & Security)
+
+#### Task 1.1: Auth.js Infrastructure & User Schema
+- **Description**: Setup Auth.js v5 with Credentials provider and Prisma adapter. Create standard User, Account, and Session tables.
+- **Story**: US-AUT-03
+- **Files**: `prisma/schema.prisma`, `auth.ts`, `app/api/auth/[...nextauth]/route.ts`
+- **AC**: User can register and login with 12-char password. Session persists on refresh.
+- **Tests**: `tests/acceptance/AUT-auth.test.ts` (AC-1, AC-2)
+
+#### Task 1.2: Invitation & Password Reset Logic
+- **Description**: Implement `Invite` and `PasswordResetToken` logic with 1h/72h expiry. Setup Resend email transport.
+- **Story**: US-AUT-04, US-ADM-01
+- **Files**: `lib/auth/application/`, `app/actions/auth/`
+- **AC**: Reset link sent via email; valid for 1 hour. Invite link valid for 72 hours.
+- **Tests**: `tests/acceptance/ADM-admin.test.ts` (AC-1)
+
+#### Task 1.3: Audit & Math Domain Foundation
+- **Description**: Implement `AuditEvent` immutable logger and `Decimal`-based `ReconstitutionCalculator`.
+- **Story**: US-TRK-01 (Audit), US-REC-01
+- **Files**: `lib/audit/`, `lib/reconstitution/domain/`
+- **AC**: 100% test coverage for math. Every mutation writes to `AuditEvent` table.
+- **Tests**: `tests/acceptance/REC-reconstitution.test.ts` (AC-1, AC-2)
+
+---
+
+### Wave 2: Tracker & Reference (Happy Path)
+
+#### Task 2.1: Compound Catalog & Profile (RSC)
+- **Description**: Implement searchable catalog and detailed profile pages using React Server Components.
+- **Story**: US-REF-01, US-REF-02
+- **Files**: `app/(dashboard)/reference/`, `lib/reference/`
+- **AC**: Search filters results by name/category. Citations are clickable DOI links.
+- **Tests**: `tests/acceptance/REF-reference.test.ts`
+
+#### Task 2.1: Protocol CRUD & Basic Dose Logging
+- **Description**: Implement Protocol creation and individual Dose logging Server Actions.
+- **Story**: US-TRK-01, US-TRK-03
+- **Files**: `app/actions/tracker/`, `lib/tracker/`
+- **AC**: Dose log decrements vial remaining amount. Duplicate logs blocked via idempotency.
+- **Tests**: `tests/acceptance/TRK-tracker.test.ts` (AC-1, AC-3)
+
+#### Task 2.3: PWA Offline Shell (Serwist)
+- **Description**: Configure Serwist service worker and manifest. Implement offline App Shell caching.
+- **Story**: US-AUT-05
+- **Files**: `worker/`, `public/manifest.json`, `app/layout.tsx`
+- **AC**: App loads at `/` with no network connection. 
+- **Tests**: `tests/acceptance/AUT-auth.test.ts` (AC-1, AC-2)
+
+---
+
+### Wave 3: Ordering (The Moat)
+
+#### Task 3.1: GramJS & Session Encryption
+- **Description**: Setup GramJS MTProto client. Implement AES-256-GCM encryption for sessions.
+- **Story**: US-ORD-01
+- **Files**: `lib/ordering/infrastructure/`, `lib/shared/crypto.ts`
+- **AC**: Session string encrypted at rest; never returned to client.
+- **Tests**: `tests/acceptance/ORD-ordering.test.ts` (AC-1, AC-2)
+
+#### Task 3.2: Order Builder & Telegram Dispatch
+- **Description**: Implement Vendor catalog browsing and Order "Send" automation via GramJS.
+- **Story**: US-ORD-03, US-ORD-06
+- **Files**: `app/actions/ordering/`, `lib/ordering/application/`
+- **AC**: Automated message sent to Telegram; fallback text shown on failure.
+- **Tests**: `tests/acceptance/ORD-ordering.test.ts` (AC-1)
+
+#### Task 3.3: Payment Safety Gate
+- **Description**: Implement the 2-step Quote Confirmation and "Mark Paid" gate.
+- **Story**: US-ORD-04
+- **Files**: `app/ordering/[id]/confirm/`, `app/actions/ordering/`
+- **AC**: "Mark Paid" button blocked until checkbox acknowledged. Total verified against quote.
+- **Tests**: `tests/acceptance/ORD-ordering.test.ts` (AC-2)
+
+---
+
+### Wave 4: Scale & Portability
+
+#### Task 4.1: Admin Panel & Adherence Metrics
+- **Description**: Implement managed user list and 7-day adherence charts.
+- **Story**: US-ADM-02, US-ADM-03
+- **Files**: `app/admin/`, `lib/tracker/application/AnalyticsService.ts`
+- **AC**: Admin sees % adherence per family member.
+- **Tests**: `tests/acceptance/ADM-admin.test.ts` (AC-1)
+
+#### Task 4.2: PWA Sync Replay (IndexedDB)
+- **Description**: Implement offline dose log queuing in IndexedDB and background sync replay to `/api/sync`.
+- **Story**: US-TRK-03, US-TRK-05
+- **Files**: `worker/sync.ts`, `app/api/sync/route.ts`
+- **AC**: Doses logged offline appear in dashboard instantly and sync when online.
+- **Tests**: `tests/acceptance/TRK-tracker.test.ts` (AC-3)
+
+#### Task 4.3: Account Deletion & Data Export (Async)
+- **Description**: Implement JSON/CSV export generation and scheduled 48-hour deletion.
+- **Story**: US-AUT-02
+- **Files**: `lib/auth/application/ExportService.ts`, `lib/jobs/`
+- **AC**: Export contains all dose history. Deletion wipes all records from DB.
+- **Tests**: `tests/acceptance/AUT-auth.test.ts` (AC-1, AC-2)
+
+---
+
+## 3. Critical Path Analysis
+
+**Total Tasks**: 12  
+**Critical Path**: 1.1 -> 1.3 -> 2.1 -> 2.2 -> 3.1 -> 3.2 -> 3.3 -> 4.2  
+**Estimated Effort**: 4-6 weeks (Solo) / 2-3 weeks (2 Agents)
+
+---
+
+## 4. Risk Matrix
+
+| Risk | Mitigation |
+|------|------------|
+| MTProto fragility | Graceful fallback implemented in Task 3.2. |
+| Sync conflicts | Idempotency keys enforced in Task 1.3 and 4.2. |
+| Math errors | 100% branch coverage required in Task 1.3. |
+| Memory purge | Railway WAL backups configured in operations. |
+</stdin>
+codex
+I’ll use the review workflow and inspect the plan alongside the project story and architecture docs before producing the required JSON findings.
+exec
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+---
+name: using-superpowers
+description: Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions
+---
+
+<SUBAGENT-STOP>
+If you were dispatched as a subagent to execute a specific task, skip this skill.
+</SUBAGENT-STOP>
+
+<EXTREMELY-IMPORTANT>
+If you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.
+
+IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.
+
+This is not negotiable. This is not optional. You cannot rationalize your way out of this.
+</EXTREMELY-IMPORTANT>
+
+## Instruction Priority
+
+Superpowers skills override default system prompt behavior, but **user instructions always take precedence**:
+
+1. **User's explicit instructions** (CLAUDE.md, GEMINI.md, AGENTS.md, direct requests) — highest priority
+2. **Superpowers skills** — override default system behavior where they conflict
+3. **Default system prompt** — lowest priority
+
+If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "always use TDD," follow the user's instructions. The user is in control.
+
+## How to Access Skills
+
+**In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you—follow it directly. Never use the Read tool on skill files.
+
+**In Copilot CLI:** Use the `skill` tool. Skills are auto-discovered from installed plugins. The `skill` tool works the same as Claude Code's `Skill` tool.
+
+**In Gemini CLI:** Skills activate via the `activate_skill` tool. Gemini loads skill metadata at session start and activates the full content on demand.
+
+**In other environments:** Check your platform's documentation for how skills are loaded.
+
+## Platform Adaptation
+
+Skills use Claude Code tool names. Non-CC platforms: see `references/copilot-tools.md` (Copilot CLI), `references/codex-tools.md` (Codex) for tool equivalents. Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
+
+# Using Skills
+
+## The Rule
+
+**Invoke relevant or requested skills BEFORE any response or action.** Even a 1% chance a skill might apply means that you should invoke the skill to check. If an invoked skill turns out to be wrong for the situation, you don't need to use it.
+
+```dot
+digraph skill_flow {
+    "User message received" [shape=doublecircle];
+    "About to EnterPlanMode?" [shape=doublecircle];
+    "Already brainstormed?" [shape=diamond];
+    "Invoke brainstorming skill" [shape=box];
+    "Might any skill apply?" [shape=diamond];
+    "Invoke Skill tool" [shape=box];
+    "Announce: 'Using [skill] to [purpose]'" [shape=box];
+    "Has checklist?" [shape=diamond];
+    "Create TodoWrite todo per item" [shape=box];
+    "Follow skill exactly" [shape=box];
+    "Respond (including clarifications)" [shape=doublecircle];
+
+    "About to EnterPlanMode?" -> "Already brainstormed?";
+    "Already brainstormed?" -> "Invoke brainstorming skill" [label="no"];
+    "Already brainstormed?" -> "Might any skill apply?" [label="yes"];
+    "Invoke brainstorming skill" -> "Might any skill apply?";
+
+    "User message received" -> "Might any skill apply?";
+    "Might any skill apply?" -> "Invoke Skill tool" [label="yes, even 1%"];
+    "Might any skill apply?" -> "Respond (including clarifications)" [label="definitely not"];
+    "Invoke Skill tool" -> "Announce: 'Using [skill] to [purpose]'";
+    "Announce: 'Using [skill] to [purpose]'" -> "Has checklist?";
+    "Has checklist?" -> "Create TodoWrite todo per item" [label="yes"];
+    "Has checklist?" -> "Follow skill exactly" [label="no"];
+    "Create TodoWrite todo per item" -> "Follow skill exactly";
+}
+```
+
+## Red Flags
+
+These thoughts mean STOP—you're rationalizing:
+
+| Thought | Reality |
+|---------|---------|
+| "This is just a simple question" | Questions are tasks. Check for skills. |
+| "I need more context first" | Skill check comes BEFORE clarifying questions. |
+| "Let me explore the codebase first" | Skills tell you HOW to explore. Check first. |
+| "I can check git/files quickly" | Files lack conversation context. Check for skills. |
+| "Let me gather information first" | Skills tell you HOW to gather information. |
+| "This doesn't need a formal skill" | If a skill exists, use it. |
+| "I remember this skill" | Skills evolve. Read current version. |
+| "This doesn't count as a task" | Action = task. Check for skills. |
+| "The skill is overkill" | Simple things become complex. Use it. |
+| "I'll just do this one thing first" | Check BEFORE doing anything. |
+| "This feels productive" | Undisciplined action wastes time. Skills prevent this. |
+| "I know what that means" | Knowing the concept ≠ using the skill. Invoke it. |
+
+## Skill Priority
+
+When multiple skills could apply, use this order:
+
+1. **Process skills first** (brainstorming, debugging) - these determine HOW to approach the task
+2. **Implementation skills second** (frontend-design, mcp-builder) - these guide execution
+
+"Let's build X" → brainstorming first, then implementation skills.
+"Fix this bug" → debugging first, then domain-specific skills.
+
+## Skill Types
+
+**Rigid** (TDD, debugging): Follow exactly. Don't adapt away discipline.
+
+**Flexible** (patterns): Adapt principles to context.
+
+The skill itself tells you which.
+
+## User Instructions
+
+Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
+
+codex
+Using `superpowers:requesting-code-review` as the review discipline for this plan audit.
+exec
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/requesting-code-review/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+---
+name: requesting-code-review
+description: Use when completing tasks, implementing major features, or before merging to verify work meets requirements
+---
+
+# Requesting Code Review
+
+Dispatch superpowers:code-reviewer subagent to catch issues before they cascade. The reviewer gets precisely crafted context for evaluation — never your session's history. This keeps the reviewer focused on the work product, not your thought process, and preserves your own context for continued work.
+
+**Core principle:** Review early, review often.
+
+## When to Request Review
+
+**Mandatory:**
+- After each task in subagent-driven development
+- After completing major feature
+- Before merge to main
+
+**Optional but valuable:**
+- When stuck (fresh perspective)
+- Before refactoring (baseline check)
+- After fixing complex bug
+
+## How to Request
+
+**1. Get git SHAs:**
+```bash
+BASE_SHA=$(git rev-parse HEAD~1)  # or origin/main
+HEAD_SHA=$(git rev-parse HEAD)
+```
+
+**2. Dispatch code-reviewer subagent:**
+
+Use Task tool with superpowers:code-reviewer type, fill template at `code-reviewer.md`
+
+**Placeholders:**
+- `{WHAT_WAS_IMPLEMENTED}` - What you just built
+- `{PLAN_OR_REQUIREMENTS}` - What it should do
+- `{BASE_SHA}` - Starting commit
+- `{HEAD_SHA}` - Ending commit
+- `{DESCRIPTION}` - Brief summary
+
+**3. Act on feedback:**
+- Fix Critical issues immediately
+- Fix Important issues before proceeding
+- Note Minor issues for later
+- Push back if reviewer is wrong (with reasoning)
+
+## Example
+
+```
+[Just completed Task 2: Add verification function]
+
+You: Let me request code review before proceeding.
+
+BASE_SHA=$(git log --oneline | grep "Task 1" | head -1 | awk '{print $1}')
+HEAD_SHA=$(git rev-parse HEAD)
+
+[Dispatch superpowers:code-reviewer subagent]
+  WHAT_WAS_IMPLEMENTED: Verification and repair functions for conversation index
+  PLAN_OR_REQUIREMENTS: Task 2 from docs/superpowers/plans/deployment-plan.md
+  BASE_SHA: a7981ec
+  HEAD_SHA: 3df7661
+  DESCRIPTION: Added verifyIndex() and repairIndex() with 4 issue types
+
+[Subagent returns]:
+  Strengths: Clean architecture, real tests
+  Issues:
+    Important: Missing progress indicators
+    Minor: Magic number (100) for reporting interval
+  Assessment: Ready to proceed
+
+You: [Fix progress indicators]
+[Continue to Task 3]
+```
+
+## Integration with Workflows
+
+**Subagent-Driven Development:**
+- Review after EACH task
+- Catch issues before they compound
+- Fix before moving to next task
+
+**Executing Plans:**
+- Review after each batch (3 tasks)
+- Get feedback, apply, continue
+
+**Ad-Hoc Development:**
+- Review before merge
+- Review when stuck
+
+## Red Flags
+
+**Never:**
+- Skip review because "it's simple"
+- Ignore Critical issues
+- Proceed with unfixed Important issues
+- Argue with valid technical feedback
+
+**If reviewer wrong:**
+- Push back with technical reasoning
+- Show code/tests that prove it works
+- Request clarification
+
+See template at: requesting-code-review/code-reviewer.md
+
+codex
+I’m locating the authoritative story and architecture docs now, then I’ll map acceptance criteria to the plan tasks and check wave dependencies.
+exec
+/bin/zsh -lc 'rg --files docs' in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+docs/api-contracts.md
+docs/eval-standards.md
+docs/reviews/platform-parity-review.md
+docs/reviews/adrs/gemini-review.json
+docs/reviews/adrs/codex-review.json
+docs/reviews/adrs/review-summary.md
+docs/reviews/api/gemini-review.json
+docs/reviews/api/codex-review.json
+docs/reviews/api/review-summary.md
+docs/reviews/prd/gemini-review.json
+docs/reviews/prd/gemini-raw.txt
+docs/reviews/prd/codex-review.json
+docs/reviews/prd/review-summary.md
+docs/reviews/tech-stack/gemini-review.json
+docs/reviews/tech-stack/codex-review.json
+docs/reviews/tech-stack/review-summary.md
+docs/reviews/architecture/gemini-review.json
+docs/reviews/architecture/codex-review.json
+docs/reviews/architecture/review-summary.md
+docs/reviews/user-stories/gemini-review.json
+docs/reviews/user-stories/coverage.json
+docs/reviews/user-stories/codex-review.json
+docs/reviews/user-stories/requirements-index.md
+docs/reviews/user-stories/review-summary.md
+docs/reviews/review-security.md
+docs/reviews/ux/gemini-review.json
+docs/reviews/ux/codex-review.json
+docs/reviews/ux/review-summary.md
+docs/reviews/implementation-plan/gemini-review.json
+docs/reviews/implementation-plan/codex-review.json
+docs/reviews/testing/gemini-review.json
+docs/reviews/testing/codex-review.json
+docs/reviews/testing/review-summary.md
+docs/reviews/review-database.md
+docs/reviews/operations/review-summary.md
+docs/reviews/prd-innovation/codex-review.json
+docs/reviews/prd-innovation/review-summary.md
+docs/reviews/platform-parity/review-summary.md
+docs/reviews/pre-review-prd.md
+docs/reviews/review-operations.md
+docs/reviews/review-testing.md
+docs/reviews/review-domain-modeling.md
+docs/reviews/review-evals.md
+docs/reviews/review-api.md
+docs/reviews/vision-review-vision.md
+docs/implementation-plan.md
+docs/coding-standards.md
+docs/story-tests-map.md
+docs/ai-memory-setup.md
+docs/tech-stack.md
+docs/review-standards.md
+docs/reviews/security/review-summary.md
+docs/reviews/review-ux.md
+docs/reviews/review-architecture.md
+docs/domain-models/auth.md
+docs/domain-models/index.md
+docs/domain-models/audit.md
+docs/domain-models/reconstitution.md
+docs/domain-models/ordering.md
+docs/domain-models/reference.md
+docs/domain-models/tracker.md
+docs/user-stories.md
+docs/database-schema.md
+docs/tdd-standards.md
+docs/QSC  list - Price list 07-05-2026.pdf
+docs/git-workflow.md
+docs/peptide-reference_1.html
+docs/audits/audit-2026-05-20-211550939-fast-all-72bb21.md
+docs/audits/audit-2026-05-20-192234855-fast-all-b39ffd.json
+docs/audits/audit-2026-05-20-192702246-fast-all-0a2f07.md
+docs/audits/audit-2026-05-20-205321635-fast-all-b48346.json
+docs/audits/audit-2026-05-20-184818446-fast-all-6db656.md
+docs/audits/audit-2026-05-20-205321635-fast-all-02afd7.md
+docs/audits/audit-2026-05-20-211550939-fast-all-61ba32.json
+docs/audits/audit-2026-05-20-184818446-fast-all-6f6281.json
+docs/audits/audit-2026-05-20-192702246-fast-all-b8ec47.json
+docs/audits/audit-2026-05-20-192234855-fast-all-d131fa.md
+docs/system-architecture.md
+docs/security-review.md
+docs/reviews/evals/review-summary.md
+docs/dev-setup.md
+docs/reviews/database/gemini-review.json
+docs/reviews/database/codex-review.json
+docs/reviews/database/review-summary.md
+docs/reviews/review-adrs.md
+docs/adrs/ADR-008-testing-strategy.md
+docs/adrs/ADR-013-observability.md
+docs/adrs/ADR-004-authjs.md
+docs/adrs/ADR-001-nextjs-monolith.md
+docs/adrs/ADR-015-module-isolation.md
+docs/adrs/ADR-010-ai-strategy.md
+docs/adrs/ADR-005-gramjs.md
+docs/adrs/index.md
+docs/adrs/ADR-006-railway-hosting.md
+docs/adrs/ADR-012-scheduled-jobs.md
+docs/adrs/ADR-003-tailwind-shadcn.md
+docs/adrs/ADR-007-pwa-offline.md
+docs/adrs/ADR-002-postgresql-prisma.md
+docs/adrs/ADR-009-audit-logging.md
+docs/adrs/ADR-011-transactional-email.md
+docs/adrs/ADR-014-object-storage.md
+docs/plan.md
+docs/prd-innovation.md
+docs/design-system.md
+docs/vision.md
+docs/operations-runbook.md
+docs/project-structure.md
+docs/ux-spec.md
+docs/reviews/pre-review-user-stories.md
+docs/reviews/domain-modeling/gemini-review.json
+docs/reviews/domain-modeling/codex-review.json
+docs/reviews/domain-modeling/review-summary.md
+
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/implementation-plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+exec
+/bin/zsh -lc "find . -maxdepth 3 -iname '*stor*' -o -iname '*architecture*' -o -iname '*arch*'" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# Implementation Plan
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Wave Plan Summary
+
+| Wave | Focus | Agents | Tasks |
+|------|-------|--------|-------|
+| **Wave 1** | Foundation & Identity | 2 | 3 |
+| **Wave 2** | Core Pillars (Ref/Tracker) | 2 | 3 |
+| **Wave 3** | Ordering & MTProto | 1 | 3 |
+| **Wave 4** | Scale & Portability | 2 | 3 |
+
+---
+
+## 2. Task Breakdown
+
+### Wave 1: Foundation (Identity & Security)
+
+#### Task 1.1: Auth.js Infrastructure & User Schema
+- **Description**: Setup Auth.js v5 with Credentials provider and Prisma adapter. Create standard User, Account, and Session tables.
+- **Story**: US-AUT-03
+- **Files**: `prisma/schema.prisma`, `auth.ts`, `app/api/auth/[...nextauth]/route.ts`
+- **AC**: User can register and login with 12-char password. Session persists on refresh.
+- **Tests**: `tests/acceptance/AUT-auth.test.ts` (AC-1, AC-2)
+
+#### Task 1.2: Invitation & Password Reset Logic
+- **Description**: Implement `Invite` and `PasswordResetToken` logic with 1h/72h expiry. Setup Resend email transport.
+- **Story**: US-AUT-04, US-ADM-01
+- **Files**: `lib/auth/application/`, `app/actions/auth/`
+- **AC**: Reset link sent via email; valid for 1 hour. Invite link valid for 72 hours.
+- **Tests**: `tests/acceptance/ADM-admin.test.ts` (AC-1)
+
+#### Task 1.3: Audit & Math Domain Foundation
+- **Description**: Implement `AuditEvent` immutable logger and `Decimal`-based `ReconstitutionCalculator`.
+- **Story**: US-TRK-01 (Audit), US-REC-01
+- **Files**: `lib/audit/`, `lib/reconstitution/domain/`
+- **AC**: 100% test coverage for math. Every mutation writes to `AuditEvent` table.
+- **Tests**: `tests/acceptance/REC-reconstitution.test.ts` (AC-1, AC-2)
+
+---
+
+### Wave 2: Tracker & Reference (Happy Path)
+
+#### Task 2.1: Compound Catalog & Profile (RSC)
+- **Description**: Implement searchable catalog and detailed profile pages using React Server Components.
+- **Story**: US-REF-01, US-REF-02
+- **Files**: `app/(dashboard)/reference/`, `lib/reference/`
+- **AC**: Search filters results by name/category. Citations are clickable DOI links.
+- **Tests**: `tests/acceptance/REF-reference.test.ts`
+
+#### Task 2.1: Protocol CRUD & Basic Dose Logging
+- **Description**: Implement Protocol creation and individual Dose logging Server Actions.
+- **Story**: US-TRK-01, US-TRK-03
+- **Files**: `app/actions/tracker/`, `lib/tracker/`
+- **AC**: Dose log decrements vial remaining amount. Duplicate logs blocked via idempotency.
+- **Tests**: `tests/acceptance/TRK-tracker.test.ts` (AC-1, AC-3)
+
+#### Task 2.3: PWA Offline Shell (Serwist)
+- **Description**: Configure Serwist service worker and manifest. Implement offline App Shell caching.
+- **Story**: US-AUT-05
+- **Files**: `worker/`, `public/manifest.json`, `app/layout.tsx`
+- **AC**: App loads at `/` with no network connection. 
+- **Tests**: `tests/acceptance/AUT-auth.test.ts` (AC-1, AC-2)
+
+---
+
+### Wave 3: Ordering (The Moat)
+
+#### Task 3.1: GramJS & Session Encryption
+- **Description**: Setup GramJS MTProto client. Implement AES-256-GCM encryption for sessions.
+- **Story**: US-ORD-01
+- **Files**: `lib/ordering/infrastructure/`, `lib/shared/crypto.ts`
+- **AC**: Session string encrypted at rest; never returned to client.
+- **Tests**: `tests/acceptance/ORD-ordering.test.ts` (AC-1, AC-2)
+
+#### Task 3.2: Order Builder & Telegram Dispatch
+- **Description**: Implement Vendor catalog browsing and Order "Send" automation via GramJS.
+- **Story**: US-ORD-03, US-ORD-06
+- **Files**: `app/actions/ordering/`, `lib/ordering/application/`
+- **AC**: Automated message sent to Telegram; fallback text shown on failure.
+- **Tests**: `tests/acceptance/ORD-ordering.test.ts` (AC-1)
+
+#### Task 3.3: Payment Safety Gate
+- **Description**: Implement the 2-step Quote Confirmation and "Mark Paid" gate.
+- **Story**: US-ORD-04
+- **Files**: `app/ordering/[id]/confirm/`, `app/actions/ordering/`
+- **AC**: "Mark Paid" button blocked until checkbox acknowledged. Total verified against quote.
+- **Tests**: `tests/acceptance/ORD-ordering.test.ts` (AC-2)
+
+---
+
+### Wave 4: Scale & Portability
+
+#### Task 4.1: Admin Panel & Adherence Metrics
+- **Description**: Implement managed user list and 7-day adherence charts.
+- **Story**: US-ADM-02, US-ADM-03
+- **Files**: `app/admin/`, `lib/tracker/application/AnalyticsService.ts`
+- **AC**: Admin sees % adherence per family member.
+- **Tests**: `tests/acceptance/ADM-admin.test.ts` (AC-1)
+
+#### Task 4.2: PWA Sync Replay (IndexedDB)
+- **Description**: Implement offline dose log queuing in IndexedDB and background sync replay to `/api/sync`.
+- **Story**: US-TRK-03, US-TRK-05
+- **Files**: `worker/sync.ts`, `app/api/sync/route.ts`
+- **AC**: Doses logged offline appear in dashboard instantly and sync when online.
+- **Tests**: `tests/acceptance/TRK-tracker.test.ts` (AC-3)
+
+#### Task 4.3: Account Deletion & Data Export (Async)
+- **Description**: Implement JSON/CSV export generation and scheduled 48-hour deletion.
+- **Story**: US-AUT-02
+- **Files**: `lib/auth/application/ExportService.ts`, `lib/jobs/`
+- **AC**: Export contains all dose history. Deletion wipes all records from DB.
+- **Tests**: `tests/acceptance/AUT-auth.test.ts` (AC-1, AC-2)
+
+---
+
+## 3. Critical Path Analysis
+
+**Total Tasks**: 12  
+**Critical Path**: 1.1 -> 1.3 -> 2.1 -> 2.2 -> 3.1 -> 3.2 -> 3.3 -> 4.2  
+**Estimated Effort**: 4-6 weeks (Solo) / 2-3 weeks (2 Agents)
+
+---
+
+## 4. Risk Matrix
+
+| Risk | Mitigation |
+|------|------------|
+| MTProto fragility | Graceful fallback implemented in Task 3.2. |
+| Sync conflicts | Idempotency keys enforced in Task 1.3 and 4.2. |
+| Math errors | 100% branch coverage required in Task 1.3. |
+| Memory purge | Railway WAL backups configured in operations. |
+
+ succeeded in 0ms:
+./.DS_Store
+./tests/evals/architecture.test.ts
+./docs/system-architecture.md
+./docs/user-stories.md
+./docs/story-tests-map.md
+./docs/adrs/ADR-014-object-storage.md
+./docs/reviews/pre-review-user-stories.md
+./docs/reviews/review-architecture.md
+./docs/reviews/user-stories
+./docs/reviews/architecture
+
+codex
+The checked-in plan matches the pasted version. I’m reading the story index and architecture sections next so findings are anchored to actual ACs and dependency constraints, not just task labels.
+exec
+/bin/zsh -lc 'rg -n "''^##|''^###|''^####|Acceptance|AC-|US-" docs/user-stories.md' in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+10:## Persona Journey Maps
+12:### Journey: The Morning Routine (Power User)
+15:3. **Log**: Taps "Log All Scheduled" (US-TRK-05).
+19:### Journey: The Sourcing Loop (Power User)
+20:1. **Inventory Alert**: Receives alert that BPC-157 is running low (US-ORD-02).
+21:2. **Order Builder**: Opens order builder; BPC-157 is pre-suggested (US-ORD-03).
+23:4. **Send**: Taps "Send Order" (US-ORD-04). App sends Telegram message via MTProto.
+24:5. **Payment**: Vendor replies on Telegram. User captures wallet address/amount in app (US-ORD-05).
+29:## Epic 1: Reference Pillar (REF)
+31:### US-REF-01: View Compound Profile
+36:**Acceptance Criteria:**
+46:### US-REF-02: Search & Browse Catalog
+51:**Acceptance Criteria:**
+59:## Epic 2: Tracker Pillar (TRK)
+61:### US-TRK-01: Create and Edit Protocol
+66:**Acceptance Criteria:**
+76:### US-TRK-02: Protocol Lifecycle (Pause, Resume, Clone, Restart)
+81:**Acceptance Criteria:**
+91:### US-TRK-03: Individual Dose Logging
+96:**Acceptance Criteria:**
+106:### US-TRK-04: Injection Site Rotation
+111:**Acceptance Criteria:**
+119:### US-TRK-05: Batch "Log All Scheduled" (Must Have)
+124:**Acceptance Criteria:**
+133:### US-TRK-06: Subjective Outcome Logging
+138:**Acceptance Criteria:**
+146:### US-TRK-07: Outcome-Dose Correlation Timeline
+151:**Acceptance Criteria:**
+159:### US-TRK-08: Manage Cycles
+164:**Acceptance Criteria:**
+173:### US-TRK-09: Dose Reminders
+178:**Acceptance Criteria:**
+187:## Epic 3: Reconstitution Pillar (REC)
+189:### US-REC-01: Calculate Reconstitution
+194:**Acceptance Criteria:**
+204:### US-REC-02: Record Reconstitution (Vial Inventory)
+209:**Acceptance Criteria:**
+217:## Epic 4: Ordering Pillar (ORD)
+219:### US-ORD-01: Configure Telegram MTProto
+224:**Acceptance Criteria:**
+233:### US-ORD-02: Inventory-Aware Order Builder
+238:**Acceptance Criteria:**
+246:### US-ORD-03: Build and Send Telegram Order
+251:**Acceptance Criteria:**
+260:### US-ORD-04: Payment Confirmation Safety Gate
+265:**Acceptance Criteria:**
+273:### US-ORD-05: Receive Order and Update Inventory
+278:**Acceptance Criteria:**
+286:### US-ORD-06: Manage Vendor Catalog
+291:**Acceptance Criteria:**
+299:### US-ORD-07: Track Order Status (State Machine)
+304:**Acceptance Criteria:**
+312:## Epic 5: Multi-User & Admin (ADM)
+314:### US-ADM-01: Create Managed User
+319:**Acceptance Criteria:**
+327:### US-ADM-02: Monitor Adherence
+332:**Acceptance Criteria:**
+339:### US-ADM-03: Manage Managed Users
+344:**Acceptance Criteria:**
+352:## Epic 6: Auth & Account Management (AUT)
+354:### US-AUT-01: Onboarding Path (Power User vs Managed User)
+359:**Acceptance Criteria:**
+367:### US-AUT-02: Account Deletion and Data Export
+372:**Acceptance Criteria:**
+380:### US-AUT-03: User Registration and Login
+385:**Acceptance Criteria:**
+393:### US-AUT-04: Password Reset
+398:**Acceptance Criteria:**
+406:### US-AUT-05: PWA & Offline Support
+411:**Acceptance Criteria:**
+419:## US Splitting Rationale
+424:## Dependency Graph (High Level)
+425:- `US-AUT-03` (Registration) -> Foundation for all other stories.
+426:- `US-TRK-01` (Create Protocol) -> depends on `US-REF-01` (View Compound)
+427:- `US-REC-02` (Record Reconstitution) -> depends on `US-REC-01` (Calculate)
+428:- `US-ORD-03` (Send Order) -> depends on `US-ORD-01` (Telegram MTProto)
+429:- `US-ADM-01` (Managed User) -> depends on `US-AUT-03` (Auth)
+
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/story-tests-map.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# Story Tests Traceability Matrix
+
+This document maps user story acceptance criteria to their corresponding test cases.
+
+| Story ID | AC ID | Test Case | Layer | File |
+|----------|-------|-----------|-------|------|
+| **US-REF-01** | AC-1 | displays IUPAC name, mechanism, and routes | Integration | `tests/acceptance/REF-reference.test.ts` |
+| | AC-2 | ensures all benefit citations are valid DOI/PubMed links | Unit | `tests/acceptance/REF-reference.test.ts` |
+| | AC-3 | displays low/typical/high dosing ranges | Unit | `tests/acceptance/REF-reference.test.ts` |
+| | AC-4 | displays curated stacking notes | Integration | `tests/acceptance/REF-reference.test.ts` |
+| **US-REF-02** | AC-1 | filters catalog by name fragment | Unit | `tests/acceptance/REF-reference.test.ts` |
+| | AC-2 | filters catalog by goal category | Unit | `tests/acceptance/REF-reference.test.ts` |
+| **US-TRK-01** | AC-1 | generates schedule starting from selected date | Unit | `tests/acceptance/TRK-tracker.test.ts` |
+| | AC-2 | assigns protocol to managed user | Integration | `tests/acceptance/TRK-tracker.test.ts` |
+| | AC-3 | blocks saving if compound or dose is missing | Integration | `tests/acceptance/TRK-tracker.test.ts` |
+| | AC-4 | records audit log on creation/modification | Integration | `tests/acceptance/TRK-tracker.test.ts` |
+| **US-TRK-02** | AC-1 | hides paused protocol from Today doses | Integration | `tests/acceptance/TRK-tracker.test.ts` |
+| | AC-2 | resumes paused protocol instantly | Integration | `tests/acceptance/TRK-tracker.test.ts` |
+| | AC-3 | clones protocol preserving dose and frequency | Unit | `tests/acceptance/TRK-tracker.test.ts` |
+| | AC-4 | restarts cycle by cloning all protocols | Integration | `tests/acceptance/TRK-tracker.test.ts` |
+| **US-TRK-03** | AC-1 | records dose with timestamp and site | Integration | `tests/acceptance/TRK-tracker.test.ts` |
+| | AC-2 | records explicit skip event | Integration | `tests/acceptance/TRK-tracker.test.ts` |
+| | AC-3 | queues dose log while offline | E2E | `tests/acceptance/TRK-tracker.test.ts` |
+| | AC-4 | shows warning if vial inventory is empty | Integration | `tests/acceptance/TRK-tracker.test.ts` |
+| **US-TRK-05** | AC-1 | logs all scheduled doses in one action | Integration | `tests/acceptance/TRK-tracker.test.ts` |
+| | AC-2 | allows deselecting doses in review sheet | E2E | `tests/acceptance/TRK-tracker.test.ts` |
+| **US-TRK-08** | AC-1 | creates cycle with name and date range | Unit | `tests/acceptance/TRK-tracker.test.ts` |
+| | AC-2 | links multiple protocols to one cycle | Unit | `tests/acceptance/TRK-tracker.test.ts` |
+| | AC-3 | displays current week number on dashboard | Unit | `tests/acceptance/TRK-tracker.test.ts` |
+| **US-REC-01** | AC-1 | calculates correct concentration for 5mg vial | Unit | `tests/acceptance/REC-reconstitution.test.ts` |
+| | AC-2 | converts dose to syringe units | Unit | `tests/acceptance/REC-reconstitution.test.ts` |
+| | AC-3 | triggers safety warnings for extreme volumes | Unit | `tests/acceptance/REC-reconstitution.test.ts` |
+| | AC-4 | displays last logged dose for context | Integration | `tests/acceptance/REC-reconstitution.test.ts` |
+| **US-REC-02** | AC-1 | creates vial record with expiry date | Integration | `tests/acceptance/REC-reconstitution.test.ts` |
+| | AC-2 | shows low inventory badge on dashboard | Integration | `tests/acceptance/REC-reconstitution.test.ts` |
+| **US-ORD-01** | AC-1 | authenticates with phone and verification code | Integration | `tests/acceptance/ORD-ordering.test.ts` |
+| | AC-2 | encrypts session string at rest | Unit | `tests/acceptance/ORD-ordering.test.ts` |
+| | AC-3 | provides manual message fallback | Integration | `tests/acceptance/ORD-ordering.test.ts` |
+| **US-ORD-03** | AC-1 | adds items from vendor catalog to cart | Unit | `tests/acceptance/ORD-ordering.test.ts` |
+| | AC-2 | dispatches message via linked Telegram account | Integration | `tests/acceptance/ORD-ordering.test.ts` |
+| | AC-3 | archives sent message in history | Integration | `tests/acceptance/ORD-ordering.test.ts` |
+| **US-ORD-04** | AC-1 | enforces manual entry of wallet and total | Integration | `tests/acceptance/ORD-ordering.test.ts` |
+| | AC-2 | enables payment button only after verification display | E2E | `tests/acceptance/ORD-ordering.test.ts` |
+| **US-ORD-07** | AC-1 | transitions through state machine | Unit | `tests/acceptance/ORD-ordering.test.ts` |
+| | AC-2 | flags stale orders after 14 days | Integration | `tests/acceptance/ORD-ordering.test.ts` |
+| **US-ADM-01** | AC-1 | sends invite link valid for 72 hours | Unit | `tests/acceptance/ADM-admin.test.ts` |
+| | AC-2 | restricts managed user view to schedule only | E2E | `tests/acceptance/ADM-admin.test.ts` |
+| **US-ADM-02** | AC-1 | calculates 7-day adherence % per managed user | Unit | `tests/acceptance/ADM-admin.test.ts` |
+| **US-AUT-01** | AC-1 | guides power user through 3-step setup | E2E | `tests/acceptance/AUT-auth.test.ts` |
+| | AC-2 | guides managed user through walkthrough | E2E | `tests/acceptance/AUT-auth.test.ts` |
+| **US-AUT-02** | AC-1 | generates JSON and CSV export of all logs | Integration | `tests/acceptance/AUT-auth.test.ts` |
+| | AC-2 | wipes all data after 48-hour delay | Integration | `tests/acceptance/AUT-auth.test.ts` |
+| **US-AUT-03** | AC-1 | requires 12-character minimum password | Integration | `tests/acceptance/AUT-auth.test.ts` |
+| | AC-2 | uses secure httpOnly cookies with rolling expiry | Integration | `tests/acceptance/AUT-auth.test.ts` |
+| **US-AUT-05** | AC-1 | provides manifest for home screen installation | E2E | `tests/acceptance/AUT-auth.test.ts` |
+| | AC-2 | loads app shell instantly without connection | E2E | `tests/acceptance/AUT-auth.test.ts` |
+
+## Coverage Summary
+- **Total Stories**: 20
+- **Total ACs**: 48
+- **Total Test Cases**: 48
+- **Coverage**: 100%
+
+exec
+/bin/zsh -lc 'rg -n "''^##|''^###|Server Action|Audit|Prisma|Auth|PWA|Ordering|MTProto|Decimal|Offline|Module|Critical|Flow|Dependency|Architecture|Background|Queue|Domain" docs/system-architecture.md' in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+1:# System Architecture
+11:## 1. Architectural Style: Modular Monolith
+15:### 1.1 Layered Structure (Per Module)
+17:- **Application Layer**: Server Actions and Services in `lib/{module}/application/`.
+18:- **Domain Layer**: Entities and business logic in `lib/{module}/domain/`.
+23:## 2. Component Design
+25:### 2.1 Component Overview
+29:| **App Shell** | PWA Layout, Navigation, Auth Guards | Next.js, shadcn/ui |
+30:| **Auth** | Registration, Login, Session Mgmt | Auth.js v5 |
+31:| **Tracker** | Dose Logging, Protocols, PWA Sync | React, TanStack Query |
+34:| **Ordering** | Vendor Catalog, Telegram MTProto | GramJS, Server Actions |
+36:| **Audit** | Immutable Mutation Logs | Prisma (Postgres) |
+41:## 3. Data Flows
+43:### 3.1 Flow: Log a Dose (Offline-First)
+49:   - **Case: Logged**: Validate `idempotencyKey`, decrement `Vial.remainingMg` (if vial linked), write `DoseLog`, write `AuditLog`.
+50:   - **Case: Skipped**: Write `DoseLog` (status: Skipped), write `AuditLog`.
+51:   - **Case: Edited**: Only allowed same calendar day; update `DoseLog`, adjust `Vial`, write `AuditLog`.
+53:### 3.2 Flow: Place Telegram Order (Payment Safety Gate)
+58:5. **Audit**: Every status transition emits a signed `AuditEvent`.
+62:## 4. Module Structure (Bounded Context Slices)
+72:│   ├── ordering/               # Isolated Ordering UI (ADR-015)
+73:│   ├── actions/                # Server Action Entrypoints (grouped by context)
+79:│       └── sync/               # PWA Sync Handler
+80:├── lib/                        # Core Logic (Domain & Application)
+84:│   │   └── infrastructure/     # Prisma repos, external API clients
+85:│   ├── jobs/                   # Background job implementations
+93:## 5. State Management Design
+95:- **Server State (TanStack Query)**: MTProto connection, Sync status, Adherence metrics.
+96:- **Client UI State (React Context)**: Onboarding wizard, Ordering cart.
+97:- **Client Persistence (IndexedDB)**: Offline dose log queue, optimistic inventory projection.
+101:## 6. Scheduled Jobs (Railway Cron)
+107:| **Audit Purge** | Daily | Delete `AuditEvent` records > 90 days old. |
+112:## 7. Deployment Topology
+114:- **Runtime**: Node.js 20 on Railway Container (Always-on for MTProto).
+122:## 8. Failure Modes
+124:- **MTProto Logout**: Session invalidated; system falls back to display message + deep-link.
+125:- **Offline Sync Conflict**: Idempotency key `user:protocol:date` wins.
+126:- **Audit Write Failure**: Mutation rolled back via DB transaction.
+130:## 9. Testing Architecture
+134:- **Integration Tests (Vitest)**: Server Actions, repository transactions, MTProto session encryption.
+137:  - **Critical Path**: Offline dose log queuing and sync replay.
+138:  - **Auth**: Managed user invitation and permission isolation.
+
+exec
+/bin/zsh -lc "sed -n '29,187p' docs/user-stories.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+## Epic 1: Reference Pillar (REF)
+
+### US-REF-01: View Compound Profile
+**As a** Power User or Managed User,  
+**I want to** view a detailed profile for a peptide,  
+**so that** I understand its mechanism, dosing, and safety profile without checking multiple sites.
+
+**Acceptance Criteria:**
+- **AC 1 (Given/When/Then):** Given I am on the dashboard, when I search for "BPC-157" and select it, then I see its IUPAC name, mechanism of action, and administration routes.
+- **AC 2 (Citations):** Every researched benefit must include a clickable PubMed/DOI link.
+- **AC 3 (Dosing):** Dosing ranges are displayed for low, typical, and high categories with protocol context.
+- **AC 4 (Stacking):** If "Stacking Notes" exist, they are displayed prominently (e.g., "Commonly stacked with TB-500").
+
+**Domain Events:** `CompoundProfileViewed`
+
+---
+
+### US-REF-02: Search & Browse Catalog
+**As a** user,  
+**I want to** search and filter the compound catalog,  
+**so that** I can find peptides by name or physiological goal.
+
+**Acceptance Criteria:**
+- **AC 1 (Search):** Given I am in the catalog, when I type "sema", then "Semaglutide" appears in the filtered results.
+- **AC 2 (Categories):** When I select the "Healing" category, only peptides tagged with healing/recovery (e.g., BPC-157, TB-500) are shown.
+
+**Domain Events:** `CatalogSearched`, `CatalogFiltered`
+
+---
+
+## Epic 2: Tracker Pillar (TRK)
+
+### US-TRK-01: Create and Edit Protocol
+**As a** Power User,  
+**I want to** create and edit a dosing protocol for a compound,  
+**so that** I have a structured schedule for myself or a managed user.
+
+**Acceptance Criteria:**
+- **AC 1 (Setup):** Given I am creating a protocol, when I select "BPC-157" and set 250mcg daily, then the schedule is generated starting from the selected start date.
+- **AC 2 (Assignment):** I can assign the protocol to myself or any of my managed users.
+- **AC 3 (Validation):** Saving is blocked if compound or dose amount is missing.
+- **AC 4 (Audit):** Every creation or modification of a protocol is recorded in the audit log.
+
+**Domain Events:** `ProtocolCreated`, `ProtocolUpdated`
+
+---
+
+### US-TRK-02: Protocol Lifecycle (Pause, Resume, Clone, Restart)
+**As a** Power User,  
+**I want to** manage the lifecycle of my protocols,  
+**so that** I can handle breaks, illness, or cycle restarts without data loss.
+
+**Acceptance Criteria:**
+- **AC 1 (Pause):** When I set a protocol status to "Paused", it no longer appears in "Today's Doses".
+- **AC 2 (Resume):** When I resume a paused protocol, it immediately reappears in the daily dosing schedule.
+- **AC 3 (Clone):** I can duplicate an existing protocol to a new start date, preserving the original's dose and frequency.
+- **AC 4 (Restart):** I can "Restart Cycle" for a completed cycle, which clones all its protocols to a new start date.
+
+**Domain Events:** `ProtocolPaused`, `ProtocolResumed`, `ProtocolCloned`, `CycleRestarted`
+
+---
+
+### US-TRK-03: Individual Dose Logging
+**As a** user,  
+**I want to** log a single dose or record a skip,  
+**so that** I have an accurate record of my adherence and current injection site.
+
+**Acceptance Criteria:**
+- **AC 1 (Logging):** Given a pending dose on my dashboard, when I tap "Confirm", then the dose is recorded with the current timestamp and suggested site.
+- **AC 2 (Skip):** I can explicitly tap "Skip" on a dose, which records it as a "skip" event (distinct from "not logged").
+- **AC 3 (Offline):** Given I am offline, when I log a dose, then the log is queued in the app and synced to the server once I am back online.
+- **AC 4 (Inventory):** If I try to log a dose for a compound with 0 vials remaining, a prominent warning is shown.
+
+**Domain Events:** `DoseLogged`, `DoseSkipped`, `DoseSyncCompleted`
+
+---
+
+### US-TRK-04: Injection Site Rotation
+**As a** user,  
+**I want to** see a suggested injection site for my next dose,  
+**so that** I avoid tissue trauma from repeated injections in the same spot.
+
+**Acceptance Criteria:**
+- **AC 1 (Suggestion):** The app suggests the next site in a round-robin rotation (e.g., Left Abdomen -> Right Abdomen) based on the history for that specific compound.
+- **AC 2 (Visual):** I can see the last 7 sites used for the compound during the logging flow.
+
+**Domain Events:** `InjectionSiteSuggested`
+
+---
+
+### US-TRK-05: Batch "Log All Scheduled" (Must Have)
+**As a** Power User or Managed User,  
+**I want to** log all my daily doses in one action,  
+**so that** I can complete my morning routine in seconds.
+
+**Acceptance Criteria:**
+- **AC 1 (Batch Action):** Given I have 3 doses due today, when I tap "Log All Scheduled", then all 3 are marked as logged at their protocol amounts.
+- **AC 2 (Review):** Before final confirmation, I see a list of what will be logged and can deselect or skip individual doses.
+- **AC 3 (Offline):** Batch logs are queued while offline and synced upon reconnection.
+
+**Domain Events:** `DoseBatchLogged`
+
+---
+
+### US-TRK-06: Subjective Outcome Logging
+**As a** user,  
+**I want to** rate my wellbeing and log notes daily,  
+**so that** I can correlate my protocols with how I feel.
+
+**Acceptance Criteria:**
+- **AC 1 (Rating):** I can log an overall wellbeing rating (1-5) and select tags like "Energy" or "Pain".
+- **AC 2 (Notes):** I can add a free-text note (max 1000 chars) to the daily log.
+
+**Domain Events:** `OutcomeLogged`
+
+---
+
+### US-TRK-07: Outcome-Dose Correlation Timeline
+**As a** user,  
+**I want to** see my dose history and outcome ratings on a single chart,  
+**so that** I can identify if a protocol is actually working.
+
+**Acceptance Criteria:**
+- **AC 1 (Visualization):** A dual-axis chart shows dose events (bars) and outcome ratings (line) over a 30-day or 90-day window.
+- **AC 2 (Stats):** The UI displays the average outcome rating on "Dosed Days" vs "Non-Dosed Days".
+
+**Domain Events:** `CorrelationTimelineViewed`
+
+---
+
+### US-TRK-08: Manage Cycles
+**As a** Power User,  
+**I want to** group my protocols into cycles with specific dates,  
+**so that** I can track progress over time (e.g., "Week 3 of 12").
+
+**Acceptance Criteria:**
+- **AC 1 (Creation):** I can create a cycle with a name, start date, and optional end date.
+- **AC 2 (Association):** I can link multiple protocols to a single cycle.
+- **AC 3 (Display):** The dashboard shows the current week number for any active cycle.
+
+**Domain Events:** `CycleCreated`, `CycleUpdated`
+
+---
+
+### US-TRK-09: Dose Reminders
+**As a** user,  
+**I want to** receive a notification when my doses are due,  
+**so that** I don't forget to maintain my adherence.
+
+**Acceptance Criteria:**
+- **AC 1 (Config):** I can set a daily reminder time (e.g., 7:00 AM).
+- **AC 2 (Push):** If I have the PWA installed, I receive a browser push notification at the set time.
+- **AC 3 (Email):** If push is unavailable, the app sends an email reminder.
+
+**Domain Events:** `ReminderSent`
+
+---
+
+## Epic 3: Reconstitution Pillar (REC)
+
+exec
+/bin/zsh -lc "sed -n '187,312p' docs/user-stories.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+## Epic 3: Reconstitution Pillar (REC)
+
+### US-REC-01: Calculate Reconstitution
+**As a** user,  
+**I want to** calculate how much BAC water to add to a vial with safety guardrails,  
+**so that** I achieve a precise concentration and avoid dosing errors.
+
+**Acceptance Criteria:**
+- **AC 1 (Math):** Given a 5mg vial, when I enter 2mL BAC water, then the app shows a concentration of 2.5mg/mL (2500mcg/mL).
+- **AC 2 (Syringe Units):** Given a target dose of 250mcg, the app shows "10 units" on a 100-unit insulin syringe.
+- **AC 3 (Guardrails):** A yellow warning is shown if: (a) dose exceeds the reference profile high range, (b) injection volume > 1.5mL, or (c) BAC water volume < 0.5mL.
+- **AC 4 (Context):** The calculator displays my last logged dose for this compound to provide safety context.
+
+**Domain Events:** `ReconstitutionCalculated`
+
+---
+
+### US-REC-02: Record Reconstitution (Vial Inventory)
+**As a** user,  
+**I want to** save my reconstitution calculation as a new vial record,  
+**so that** my dose logging can decrement from the vial's total content.
+
+**Acceptance Criteria:**
+- **AC 1 (Persistence):** Saving a calculation creates a `Vial` record with an estimated expiry date (14 days default).
+- **AC 2 (Inventory):** The dashboard shows a "Low Inventory" or "Expiring" badge when the vial is nearly empty or past its date.
+
+**Domain Events:** `VialReconstituted`
+
+---
+
+## Epic 4: Ordering Pillar (ORD)
+
+### US-ORD-01: Configure Telegram MTProto
+**As a** Power User,  
+**I want to** link my Telegram account to the app with clear fallback options,  
+**so that** the app can send order messages directly to vendors while ensuring I can always order manually.
+
+**Acceptance Criteria:**
+- **AC 1 (Auth):** I can enter my phone number and the verification code from Telegram.
+- **AC 2 (Encryption):** The session is stored AES-256 encrypted and is never returned to the UI.
+- **AC 3 (Fallback):** Composed order messages and Telegram deep-links are always visible even if automation is enabled.
+
+**Domain Events:** `TelegramAccountLinked`
+
+---
+
+### US-ORD-02: Inventory-Aware Order Builder
+**As a** Power User,  
+**I want to** see suggested items to order based on my current vial levels,  
+**so that** I never run out of a compound I am currently using.
+
+**Acceptance Criteria:**
+- **AC 1 (Suggestions):** When I open the order builder, compounds with < 14 days of supply remaining are listed in a "Suggested" section.
+- **AC 2 (Quick Add):** I can add suggested items to my cart with one tap.
+
+**Domain Events:** `OrderSuggestionsGenerated`
+
+---
+
+### US-ORD-03: Build and Send Telegram Order
+**As a** Power User,  
+**I want to** build an order and have the app send it to the vendor's Telegram,  
+**so that** I don't have to manually format and copy-paste messages.
+
+**Acceptance Criteria:**
+- **AC 1 (Cart):** I can add items from the vendor catalog to a cart.
+- **AC 2 (MTProto Send):** Tapping "Send Order" sends the message via the linked Telegram account.
+- **AC 3 (Audit):** The full text of the sent message is archived in the order history.
+
+**Domain Events:** `OrderSent`
+
+---
+
+### US-ORD-04: Payment Confirmation Safety Gate
+**As a** Power User,  
+**I want to** explicitly verify the vendor's wallet address and amount before marking payment as sent,  
+**so that** I avoid non-reversible crypto payment errors.
+
+**Acceptance Criteria:**
+- **AC 1 (Gate):** I must enter the wallet address and amount from the vendor's reply.
+- **AC 2 (Verification):** The "Mark Payment Sent" button is only enabled after I view a summary screen showing the address and amount together.
+
+**Domain Events:** `OrderPaymentConfirmed`
+
+---
+
+### US-ORD-05: Receive Order and Update Inventory
+**As a** Power User,  
+**I want to** mark an order as received and review items before they enter inventory,  
+**so that** my vial records accurately reflect what arrived.
+
+**Acceptance Criteria:**
+- **AC 1 (Receive):** Marking as received opens a prompt to confirm which line items to add to inventory.
+- **AC 2 (History):** The order status updates to "Received" with a timestamp.
+
+**Domain Events:** `OrderReceived`
+
+---
+
+### US-ORD-06: Manage Vendor Catalog
+**As a** Power User,  
+**I want to** maintain a catalog of vendor products and prices,  
+**so that** the order builder has accurate data.
+
+**Acceptance Criteria:**
+- **AC 1 (Catalog):** I can create and edit products for a vendor (vial size, form, price, in-stock status).
+- **AC 2 (Linking):** Every catalog product must be linked to a compound in the reference catalog.
+
+**Domain Events:** `CatalogProductUpdated`
+
+---
+
+### US-ORD-07: Track Order Status (State Machine)
+**As a** Power User,  
+**I want to** track my order through its entire lifecycle,  
+**so that** I can identify stale orders or missing shipments.
+
+**Acceptance Criteria:**
+- **AC 1 (States):** Orders transition through: Draft -> Sent -> Confirmed -> Payment Sent -> Received.
+- **AC 2 (Stale):** If an order remains in "Sent" for 14 days, it is automatically flagged as "Stale".
+
+**Domain Events:** `OrderStatusChanged`
+
+---
+
+## Epic 5: Multi-User & Admin (ADM)
+
+exec
+/bin/zsh -lc "sed -n '312,430p' docs/user-stories.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+## Epic 5: Multi-User & Admin (ADM)
+
+### US-ADM-01: Create Managed User
+**As a** Power User,  
+**I want to** create accounts for family members,  
+**so that** I can manage their protocols without giving them admin access.
+
+**Acceptance Criteria:**
+- **AC 1 (Invite):** I can enter a name and email to send an invite link (valid for 72 hours).
+- **AC 2 (Access):** Managed users see a simplified dashboard with only their own schedule and reference info.
+
+**Domain Events:** `ManagedUserInvited`
+
+---
+
+### US-ADM-02: Monitor Adherence
+**As a** Power User,  
+**I want to** see adherence metrics for my managed users,  
+**so that** I know if they are following the protocols I configured.
+
+**Acceptance Criteria:**
+- **AC 1 (Dashboard):** The admin panel shows a 7-day adherence % (Doses Logged / Doses Scheduled) for each managed user.
+
+**Domain Events:** `AdherenceReportViewed`
+
+---
+
+### US-ADM-03: Manage Managed Users
+**As a** Power User,  
+**I want to** edit, deactivate, or reset passwords for managed users,  
+**so that** I can maintain control over the multi-user environment.
+
+**Acceptance Criteria:**
+- **AC 1 (Management):** I can deactivate a managed user account, which revokes their access but preserves their data.
+- **AC 2 (Password Reset):** I can trigger a password reset email for any managed user.
+
+**Domain Events:** `ManagedUserDeactivated`, `PasswordResetTriggered`
+
+---
+
+## Epic 6: Auth & Account Management (AUT)
+
+### US-AUT-01: Onboarding Path (Power User vs Managed User)
+**As a** new user,  
+**I want to** be guided through my role-specific setup,  
+**so that** I understand how to use the app immediately.
+
+**Acceptance Criteria:**
+- **AC 1 (Power User Wizard):** 3-step guide: Browse Catalog -> Create Protocol -> Optional Telegram Setup.
+- **AC 2 (Managed User Wizard):** 2-step guide: View My Schedule -> Log First Dose walkthrough.
+
+**Domain Events:** `OnboardingStarted`, `OnboardingCompleted`
+
+---
+
+### US-AUT-02: Account Deletion and Data Export
+**As a** user,  
+**I want to** delete my account and receive a full export of my data,  
+**so that** I maintain full control over my sensitive health-adjacent information.
+
+**Acceptance Criteria:**
+- **AC 1 (Export):** I can request a full JSON export at any time. CSV export is provided for dose logs and orders.
+- **AC 2 (Deletion):** After confirmation, all data is permanently wiped from the system after a 48-hour delay.
+
+**Domain Events:** `AccountDeletionRequested`, `DataExportGenerated`
+
+---
+
+### US-AUT-03: User Registration and Login
+**As a** user,  
+**I want to** securely register and log in to the app,  
+**so that** my private protocol data is protected.
+
+**Acceptance Criteria:**
+- **AC 1 (Auth):** I can register with email and a 12-character minimum password.
+- **AC 2 (Sessions):** Sessions use secure httpOnly cookies with 30-day rolling expiry.
+
+**Domain Events:** `UserRegistered`, `UserLoggedIn`
+
+---
+
+### US-AUT-04: Password Reset
+**As a** user,  
+**I want to** reset my password if I forget it,  
+**so that** I don't lose access to my dose history.
+
+**Acceptance Criteria:**
+- **AC 1 (Request):** I can request a reset link via email. The link is single-use and expires in 1 hour.
+- **AC 2 (Privacy):** The app does not reveal if an email is registered during the reset request flow.
+
+**Domain Events:** `PasswordResetRequested`, `PasswordChanged`
+
+---
+
+### US-AUT-05: PWA & Offline Support
+**As a** user,  
+**I want to** install the app on my home screen and use it without signal,  
+**so that** I can log my 7:00 AM doses regardless of connectivity.
+
+**Acceptance Criteria:**
+- **AC 1 (Install):** The app provides a manifest and service worker for home screen installation on iOS and Android.
+- **AC 2 (Offline Shell):** The app shell loads instantly even without an internet connection.
+
+**Domain Events:** `AppInstalled`
+
+---
+
+## US Splitting Rationale
+- **Pillar Splitting:** Stories are split by the four pillars (Reference, Tracker, Reconstitution, Ordering) to allow incremental delivery of value.
+- **Admin vs User:** Managed user functionality is split from super admin functionality.
+- **Security/Offline:** Critical non-functional requirements like Auth and PWA are elevated to Epic 6 to ensure they are prioritized as foundational.
+
+## Dependency Graph (High Level)
+- `US-AUT-03` (Registration) -> Foundation for all other stories.
+- `US-TRK-01` (Create Protocol) -> depends on `US-REF-01` (View Compound)
+- `US-REC-02` (Record Reconstitution) -> depends on `US-REC-01` (Calculate)
+- `US-ORD-03` (Send Order) -> depends on `US-ORD-01` (Telegram MTProto)
+- `US-ADM-01` (Managed User) -> depends on `US-AUT-03` (Auth)
+
+exec
+/bin/zsh -lc "sed -n '1,170p' docs/system-architecture.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# System Architecture
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**PRD source:** `docs/plan.md`  
+**ADR source:** `docs/adrs/`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Architectural Style: Modular Monolith
+
+We use a modular monolith architecture built on Next.js 15. The system is organized into bounded contexts that can be isolated (ADR-015) or eventually extracted into microservices if needed.
+
+### 1.1 Layered Structure (Per Module)
+- **UI Layer**: React components (RSC or Client) in `app/`.
+- **Application Layer**: Server Actions and Services in `lib/{module}/application/`.
+- **Domain Layer**: Entities and business logic in `lib/{module}/domain/`.
+- **Infrastructure Layer**: Persistence and external integrations in `lib/{module}/infrastructure/`.
+
+---
+
+## 2. Component Design
+
+### 2.1 Component Overview
+
+| Component | Responsibility | Tech Stack |
+|-----------|----------------|------------|
+| **App Shell** | PWA Layout, Navigation, Auth Guards | Next.js, shadcn/ui |
+| **Auth** | Registration, Login, Session Mgmt | Auth.js v5 |
+| **Tracker** | Dose Logging, Protocols, PWA Sync | React, TanStack Query |
+| **Reminders** | Web Push & Email Notification logic | Serwist, Resend |
+| **Reference** | Peptide Catalog, Profile Reference | RSC (Next.js) |
+| **Ordering** | Vendor Catalog, Telegram MTProto | GramJS, Server Actions |
+| **Reconstitution** | Concentration Math, Vial Inventory | lib (Typescript) |
+| **Audit** | Immutable Mutation Logs | Prisma (Postgres) |
+| **Observability** | Error tracking & Alerting | Sentry, Railway |
+
+---
+
+## 3. Data Flows
+
+### 3.1 Flow: Log a Dose (Offline-First)
+1. **User Action**: User taps "Confirm" or "Skip" on dashboard.
+2. **Client Layer**:
+   - Record event in IndexedDB (via Serwist).
+   - If Online: Trigger background sync to `/api/sync`.
+3. **Server Layer**:
+   - **Case: Logged**: Validate `idempotencyKey`, decrement `Vial.remainingMg` (if vial linked), write `DoseLog`, write `AuditLog`.
+   - **Case: Skipped**: Write `DoseLog` (status: Skipped), write `AuditLog`.
+   - **Case: Edited**: Only allowed same calendar day; update `DoseLog`, adjust `Vial`, write `AuditLog`.
+
+### 3.2 Flow: Place Telegram Order (Payment Safety Gate)
+1. **Draft -> Sent**: Power User clicks "Send Order"; GramJS dispatches message.
+2. **Sent -> Confirmed**: User receives Telegram reply, enters quoted total and wallet address in app.
+3. **Confirmed -> PaymentSent**: **Hard Gate**: App displays Wallet + Amount; user verifies on screen and clicks "Mark payment sent".
+4. **PaymentSent -> Received**: User confirms delivery; app prompts to add line items to Vial Inventory.
+5. **Audit**: Every status transition emits a signed `AuditEvent`.
+
+---
+
+## 4. Module Structure (Bounded Context Slices)
+
+```
+/
+├── app/                        # UI Layer (Next.js)
+│   ├── (auth)/                 # Registration, Login, Reset
+│   ├── (dashboard)/            # Main App Layout
+│   │   ├── tracker/            # Tracker UI
+│   │   ├── reference/          # Reference UI
+│   │   └── reconstitution/     # Calculator UI
+│   ├── ordering/               # Isolated Ordering UI (ADR-015)
+│   ├── actions/                # Server Action Entrypoints (grouped by context)
+│   │   ├── auth/
+│   │   ├── tracker/
+│   │   └── ordering/
+│   └── api/                    # Route Handlers
+│       ├── cron/               # Railway Cron Endpoints (Secured)
+│       └── sync/               # PWA Sync Handler
+├── lib/                        # Core Logic (Domain & Application)
+│   ├── {context}/              # auth, tracker, ordering, reference, jobs, audit
+│   │   ├── domain/             # Pure entities, invariants, events
+│   │   ├── application/        # Use cases, service logic
+│   │   └── infrastructure/     # Prisma repos, external API clients
+│   ├── jobs/                   # Background job implementations
+│   └── shared/                 # Common types, utils, cross-domain services
+├── prisma/                     # Global Schema
+└── worker/                     # Serwist Service Worker
+```
+
+---
+
+## 5. State Management Design
+
+- **Server State (TanStack Query)**: MTProto connection, Sync status, Adherence metrics.
+- **Client UI State (React Context)**: Onboarding wizard, Ordering cart.
+- **Client Persistence (IndexedDB)**: Offline dose log queue, optimistic inventory projection.
+
+---
+
+## 6. Scheduled Jobs (Railway Cron)
+
+| Job Name | Frequency | Responsibility |
+|----------|-----------|----------------|
+| **Dose Reminder** | Hourly | Check for users with reminders due; dispatch Push or Email. |
+| **Stale Order Checker** | Daily | Flag orders in "Sent" status > 14 days. |
+| **Audit Purge** | Daily | Delete `AuditEvent` records > 90 days old. |
+| **Vial Expiry Check** | Daily | Notify users of vials nearing 14-day expiry. |
+
+---
+
+## 7. Deployment Topology
+
+- **Runtime**: Node.js 20 on Railway Container (Always-on for MTProto).
+- **Database**: PostgreSQL 16 (Railway Managed).
+- **Email**: Resend (ADR-011).
+- **Storage**: Cloudflare R2 (ADR-014).
+- **Monitoring**: Sentry (ADR-013).
+
+---
+
+## 8. Failure Modes
+
+- **MTProto Logout**: Session invalidated; system falls back to display message + deep-link.
+- **Offline Sync Conflict**: Idempotency key `user:protocol:date` wins.
+- **Audit Write Failure**: Mutation rolled back via DB transaction.
+
+---
+
+## 9. Testing Architecture
+
+We follow a Pyramid strategy:
+- **Unit Tests (Vitest)**: Math calculations in `lib/reconstitution`, domain invariants in `lib/*/domain`.
+- **Integration Tests (Vitest)**: Server Actions, repository transactions, MTProto session encryption.
+- **E2E Tests (Playwright)**:
+  - **Hard Gate**: Payment safety verification screen.
+  - **Critical Path**: Offline dose log queuing and sync replay.
+  - **Auth**: Managed user invitation and permission isolation.
+
+codex
+I’ve got the main gaps: several full stories have no implementation task, and some tasks cite a story but only cover one or two ACs. I’m checking the existing traceability map once more so the final JSON groups issues at the right level.
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/reviews/implementation-plan/codex-review.json" in /Users/kenallred/Documents/dev-projects/peptides
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/reviews/implementation-plan/gemini-review.json" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+YOLO mode is enabled. All tool calls will be automatically approved.
+YOLO mode is enabled. All tool calls will be automatically approved.
+Ripgrep is not available. Falling back to GrepTool.
+{
+  "session_id": "1bec85ce-3f19-42a1-9645-338d25fb0545",
+  "response": "[\n  {\n    \"severity\": \"P0\",\n    \"category\": \"coverage\",\n    \"location\": \"Wave 2 / Wave 4\",\n    \"description\": \"US-TRK-05 (Batch 'Log All Scheduled') is missing from the implementation plan despite being marked as 'Must Have' and a primary user journey.\",\n    \"suggestion\": \"Add a task to Wave 2 or 4 to implement batch dose logging logic and UI.\"\n  },\n  {\n    \"severity\": \"P0\",\n    \"category\": \"coverage\",\n    \"location\": \"Wave 2\",\n    \"description\": \"US-TRK-02 (Protocol Lifecycle: Pause, Resume, Clone, Restart) is completely omitted. These are core state transitions for protocols.\",\n    \"suggestion\": \"Expand Task 2.2 or add a new task in Wave 2 to cover protocol state management and lifecycle actions.\"\n  },\n  {\n    \"severity\": \"P1\",\n    \"category\": \"coverage\",\n    \"location\": \"Wave 2\",\n    \"description\": \"US-TRK-04 (Injection Site Rotation) is missing. This is a key safety/UX feature for chronic injection management.\",\n    \"suggestion\": \"Add 'Injection site rotation logic and visual history' to Task 2.2.\"\n  },\n  {\n    \"severity\": \"P1\",\n    \"category\": \"coverage\",\n    \"location\": \"Wave 1 / Wave 2\",\n    \"description\": \"US-REC-02 (Record Reconstitution / Vial Inventory) is missing. Task 2.2 mentions decrementing vials, but the UI/Action to create a vial from a calculation is not planned.\",\n    \"suggestion\": \"Add a task to Wave 2 to implement the 'Save Reconstitution to Inventory' flow.\"\n  },\n  {\n    \"severity\": \"P1\",\n    \"category\": \"coverage\",\n    \"location\": \"Wave 4\",\n    \"description\": \"US-TRK-09 (Dose Reminders) is missing. The architecture mentions 'Dose Reminder' cron jobs, but the implementation plan lacks the tasks to build the UI and notification logic.\",\n    \"suggestion\": \"Add a task to Wave 4 for 'Notification Infrastructure (Web Push/Email) and Reminder UI'.\"\n  },\n  {\n    \"severity\": \"P2\",\n    \"category\": \"correctness\",\n    \"location\": \"Wave 2\",\n    \"description\": \"Task numbering error: there are two sections labeled 'Task 2.1'.\",\n    \"suggestion\": \"Renumber the 'Protocol CRUD & Basic Dose Logging' task to Task 2.2.\"\n  },\n  {\n    \"severity\": \"P2\",\n    \"category\": \"executability\",\n    \"location\": \"Task 2.2\",\n    \"description\": \"Task 2.2 (Protocol CRUD & Dose Logging) is overloaded. These are two distinct complex features (Schedule generation vs Event logging).\",\n    \"suggestion\": \"Split Task 2.2 into 'Task 2.2: Protocol Management' and 'Task 2.4: Dose Logging & Inventory decrement'.\"\n  },\n  {\n    \"severity\": \"P2\",\n    \"category\": \"coverage\",\n    \"location\": \"Wave 2 / Wave 4\",\n    \"description\": \"US-TRK-06 and US-TRK-07 (Subjective Outcome Logging and Correlation Timeline) are missing.\",\n    \"suggestion\": \"Add a task to Wave 4 for 'Analytics & Outcome Tracking'.\"\n  },\n  {\n    \"severity\": \"P2\",\n    \"category\": \"coverage\",\n    \"location\": \"Wave 3\",\n    \"description\": \"US-ORD-05 (Receive Order) and US-ORD-07 (Order Status State Machine) are missing from the Ordering wave.\",\n    \"suggestion\": \"Add 'Order Receiving flow' and 'Status transition logic' to Task 3.3 or a new Task 3.4.\"\n  },\n  {\n    \"severity\": \"P3\",\n    \"category\": \"coverage\",\n    \"location\": \"Wave 4\",\n    \"description\": \"US-AUT-01 (Onboarding Path) is missing.\",\n    \"suggestion\": \"Add a task to Wave 4 for 'Role-specific Onboarding Wizards'.\"\n  }\n]",
+  "stats": {
+    "models": {
+      "gemini-3.1-flash-lite": {
+        "api": {
+          "totalRequests": 1,
+          "totalErrors": 0,
+          "totalLatencyMs": 2158
+        },
+        "tokens": {
+          "input": 5052,
+          "prompt": 5052,
+          "candidates": 90,
+          "total": 5252,
+          "cached": 0,
+          "thoughts": 110,
+          "tool": 0
+        },
+        "roles": {
+          "utility_router": {
+            "totalRequests": 1,
+            "totalErrors": 0,
+            "totalLatencyMs": 2158,
+            "tokens": {
+              "input": 5052,
+              "prompt": 5052,
+              "candidates": 90,
+              "total": 5252,
+              "cached": 0,
+              "thoughts": 110,
+              "tool": 0
+            }
+          }
+        }
+      },
+      "gemini-3-flash-preview": {
+        "api": {
+          "totalRequests": 2,
+          "totalErrors": 0,
+          "totalLatencyMs": 23187
+        },
+        "tokens": {
+          "input": 23817,
+          "prompt": 35639,
+          "candidates": 1173,
+          "total": 39142,
+          "cached": 11822,
+          "thoughts": 2330,
+          "tool": 0
+        },
+        "roles": {
+          "main": {
+            "totalRequests": 2,
+            "totalErrors": 0,
+            "totalLatencyMs": 23187,
+            "tokens": {
+              "input": 23817,
+              "prompt": 35639,
+              "candidates": 1173,
+              "total": 39142,
+              "cached": 11822,
+              "thoughts": 2330,
+              "tool": 0
+            }
+          }
+        }
+      }
+    },
+    "tools": {
+      "totalCalls": 5,
+      "totalSuccess": 5,
+      "totalFail": 0,
+      "totalDurationMs": 40,
+      "totalDecisions": {
+        "accept": 5,
+        "reject": 0,
+        "modify": 0,
+        "auto_accept": 0
+      },
+      "byName": {
+        "update_topic": {
+          "count": 1,
+          "success": 1,
+          "fail": 0,
+          "durationMs": 6,
+          "decisions": {
+            "accept": 1,
+            "reject": 0,
+            "modify": 0,
+            "auto_accept": 0
+          }
+        },
+        "list_directory": {
+          "count": 1,
+          "success": 1,
+          "fail": 0,
+          "durationMs": 10,
+          "decisions": {
+            "accept": 1,
+            "reject": 0,
+            "modify": 0,
+            "auto_accept": 0
+          }
+        },
+        "read_file": {
+          "count": 3,
+          "success": 3,
+          "fail": 0,
+          "durationMs": 24,
+          "decisions": {
+            "accept": 3,
+            "reject": 0,
+            "modify": 0,
+            "auto_accept": 0
+          }
+        }
+      }
+    },
+    "files": {
+      "totalLinesAdded": 0,
+      "totalLinesRemoved": 0
+    }
+  }
+}
+ succeeded in 0ms:
+Reading additional input from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: /Users/kenallred/Documents/dev-projects/peptides
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 019e473f-c5d4-7d33-a140-ecc4c84dff5e
+--------
+user
+Perform a deep review of the implementation plan (docs/implementation-plan.md) against the User Stories and System Architecture. Focus on: 1. Coverage — Does every AC have a task? 2. Executability — Are tasks small enough for agents? 3. Correctness — Is the critical path accurate? Respond with a JSON array of findings: [{"severity": "P0|P1|P2|P3", "category": "coverage|executability|correctness", "location": "task or wave", "description": "description of the issue", "suggestion": "recommended fix"}]
+
+<stdin>
+# Implementation Plan
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Wave Plan Summary
+
+| Wave | Focus | Agents | Tasks |
+|------|-------|--------|-------|
+| **Wave 1** | Foundation & Identity | 2 | 3 |
+| **Wave 2** | Core Pillars (Ref/Tracker) | 2 | 3 |
+| **Wave 3** | Ordering & MTProto | 1 | 3 |
+| **Wave 4** | Scale & Portability | 2 | 3 |
+
+---
+
+## 2. Task Breakdown
+
+### Wave 1: Foundation (Identity & Security)
+
+#### Task 1.1: Auth.js Infrastructure & User Schema
+- **Description**: Setup Auth.js v5 with Credentials provider and Prisma adapter. Create standard User, Account, and Session tables.
+- **Story**: US-AUT-03
+- **Files**: `prisma/schema.prisma`, `auth.ts`, `app/api/auth/[...nextauth]/route.ts`
+- **AC**: User can register and login with 12-char password. Session persists on refresh.
+- **Tests**: `tests/acceptance/AUT-auth.test.ts` (AC-1, AC-2)
+
+#### Task 1.2: Invitation & Password Reset Logic
+- **Description**: Implement `Invite` and `PasswordResetToken` logic with 1h/72h expiry. Setup Resend email transport.
+- **Story**: US-AUT-04, US-ADM-01
+- **Files**: `lib/auth/application/`, `app/actions/auth/`
+- **AC**: Reset link sent via email; valid for 1 hour. Invite link valid for 72 hours.
+- **Tests**: `tests/acceptance/ADM-admin.test.ts` (AC-1)
+
+#### Task 1.3: Audit & Math Domain Foundation
+- **Description**: Implement `AuditEvent` immutable logger and `Decimal`-based `ReconstitutionCalculator`.
+- **Story**: US-TRK-01 (Audit), US-REC-01
+- **Files**: `lib/audit/`, `lib/reconstitution/domain/`
+- **AC**: 100% test coverage for math. Every mutation writes to `AuditEvent` table.
+- **Tests**: `tests/acceptance/REC-reconstitution.test.ts` (AC-1, AC-2)
+
+---
+
+### Wave 2: Tracker & Reference (Happy Path)
+
+#### Task 2.1: Compound Catalog & Profile (RSC)
+- **Description**: Implement searchable catalog and detailed profile pages using React Server Components.
+- **Story**: US-REF-01, US-REF-02
+- **Files**: `app/(dashboard)/reference/`, `lib/reference/`
+- **AC**: Search filters results by name/category. Citations are clickable DOI links.
+- **Tests**: `tests/acceptance/REF-reference.test.ts`
+
+#### Task 2.1: Protocol CRUD & Basic Dose Logging
+- **Description**: Implement Protocol creation and individual Dose logging Server Actions.
+- **Story**: US-TRK-01, US-TRK-03
+- **Files**: `app/actions/tracker/`, `lib/tracker/`
+- **AC**: Dose log decrements vial remaining amount. Duplicate logs blocked via idempotency.
+- **Tests**: `tests/acceptance/TRK-tracker.test.ts` (AC-1, AC-3)
+
+#### Task 2.3: PWA Offline Shell (Serwist)
+- **Description**: Configure Serwist service worker and manifest. Implement offline App Shell caching.
+- **Story**: US-AUT-05
+- **Files**: `worker/`, `public/manifest.json`, `app/layout.tsx`
+- **AC**: App loads at `/` with no network connection. 
+- **Tests**: `tests/acceptance/AUT-auth.test.ts` (AC-1, AC-2)
+
+---
+
+### Wave 3: Ordering (The Moat)
+
+#### Task 3.1: GramJS & Session Encryption
+- **Description**: Setup GramJS MTProto client. Implement AES-256-GCM encryption for sessions.
+- **Story**: US-ORD-01
+- **Files**: `lib/ordering/infrastructure/`, `lib/shared/crypto.ts`
+- **AC**: Session string encrypted at rest; never returned to client.
+- **Tests**: `tests/acceptance/ORD-ordering.test.ts` (AC-1, AC-2)
+
+#### Task 3.2: Order Builder & Telegram Dispatch
+- **Description**: Implement Vendor catalog browsing and Order "Send" automation via GramJS.
+- **Story**: US-ORD-03, US-ORD-06
+- **Files**: `app/actions/ordering/`, `lib/ordering/application/`
+- **AC**: Automated message sent to Telegram; fallback text shown on failure.
+- **Tests**: `tests/acceptance/ORD-ordering.test.ts` (AC-1)
+
+#### Task 3.3: Payment Safety Gate
+- **Description**: Implement the 2-step Quote Confirmation and "Mark Paid" gate.
+- **Story**: US-ORD-04
+- **Files**: `app/ordering/[id]/confirm/`, `app/actions/ordering/`
+- **AC**: "Mark Paid" button blocked until checkbox acknowledged. Total verified against quote.
+- **Tests**: `tests/acceptance/ORD-ordering.test.ts` (AC-2)
+
+---
+
+### Wave 4: Scale & Portability
+
+#### Task 4.1: Admin Panel & Adherence Metrics
+- **Description**: Implement managed user list and 7-day adherence charts.
+- **Story**: US-ADM-02, US-ADM-03
+- **Files**: `app/admin/`, `lib/tracker/application/AnalyticsService.ts`
+- **AC**: Admin sees % adherence per family member.
+- **Tests**: `tests/acceptance/ADM-admin.test.ts` (AC-1)
+
+#### Task 4.2: PWA Sync Replay (IndexedDB)
+- **Description**: Implement offline dose log queuing in IndexedDB and background sync replay to `/api/sync`.
+- **Story**: US-TRK-03, US-TRK-05
+- **Files**: `worker/sync.ts`, `app/api/sync/route.ts`
+- **AC**: Doses logged offline appear in dashboard instantly and sync when online.
+- **Tests**: `tests/acceptance/TRK-tracker.test.ts` (AC-3)
+
+#### Task 4.3: Account Deletion & Data Export (Async)
+- **Description**: Implement JSON/CSV export generation and scheduled 48-hour deletion.
+- **Story**: US-AUT-02
+- **Files**: `lib/auth/application/ExportService.ts`, `lib/jobs/`
+- **AC**: Export contains all dose history. Deletion wipes all records from DB.
+- **Tests**: `tests/acceptance/AUT-auth.test.ts` (AC-1, AC-2)
+
+---
+
+## 3. Critical Path Analysis
+
+**Total Tasks**: 12  
+**Critical Path**: 1.1 -> 1.3 -> 2.1 -> 2.2 -> 3.1 -> 3.2 -> 3.3 -> 4.2  
+**Estimated Effort**: 4-6 weeks (Solo) / 2-3 weeks (2 Agents)
+
+---
+
+## 4. Risk Matrix
+
+| Risk | Mitigation |
+|------|------------|
+| MTProto fragility | Graceful fallback implemented in Task 3.2. |
+| Sync conflicts | Idempotency keys enforced in Task 1.3 and 4.2. |
+| Math errors | 100% branch coverage required in Task 1.3. |
+| Memory purge | Railway WAL backups configured in operations. |
+</stdin>
+codex
+I’ll use the review workflow and inspect the plan alongside the project story and architecture docs before producing the required JSON findings.
+exec
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+---
+name: using-superpowers
+description: Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions
+---
+
+<SUBAGENT-STOP>
+If you were dispatched as a subagent to execute a specific task, skip this skill.
+</SUBAGENT-STOP>
+
+<EXTREMELY-IMPORTANT>
+If you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.
+
+IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.
+
+This is not negotiable. This is not optional. You cannot rationalize your way out of this.
+</EXTREMELY-IMPORTANT>
+
+## Instruction Priority
+
+Superpowers skills override default system prompt behavior, but **user instructions always take precedence**:
+
+1. **User's explicit instructions** (CLAUDE.md, GEMINI.md, AGENTS.md, direct requests) — highest priority
+2. **Superpowers skills** — override default system behavior where they conflict
+3. **Default system prompt** — lowest priority
+
+If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "always use TDD," follow the user's instructions. The user is in control.
+
+## How to Access Skills
+
+**In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you—follow it directly. Never use the Read tool on skill files.
+
+**In Copilot CLI:** Use the `skill` tool. Skills are auto-discovered from installed plugins. The `skill` tool works the same as Claude Code's `Skill` tool.
+
+**In Gemini CLI:** Skills activate via the `activate_skill` tool. Gemini loads skill metadata at session start and activates the full content on demand.
+
+**In other environments:** Check your platform's documentation for how skills are loaded.
+
+## Platform Adaptation
+
+Skills use Claude Code tool names. Non-CC platforms: see `references/copilot-tools.md` (Copilot CLI), `references/codex-tools.md` (Codex) for tool equivalents. Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
+
+# Using Skills
+
+## The Rule
+
+**Invoke relevant or requested skills BEFORE any response or action.** Even a 1% chance a skill might apply means that you should invoke the skill to check. If an invoked skill turns out to be wrong for the situation, you don't need to use it.
+
+```dot
+digraph skill_flow {
+    "User message received" [shape=doublecircle];
+    "About to EnterPlanMode?" [shape=doublecircle];
+    "Already brainstormed?" [shape=diamond];
+    "Invoke brainstorming skill" [shape=box];
+    "Might any skill apply?" [shape=diamond];
+    "Invoke Skill tool" [shape=box];
+    "Announce: 'Using [skill] to [purpose]'" [shape=box];
+    "Has checklist?" [shape=diamond];
+    "Create TodoWrite todo per item" [shape=box];
+    "Follow skill exactly" [shape=box];
+    "Respond (including clarifications)" [shape=doublecircle];
+
+    "About to EnterPlanMode?" -> "Already brainstormed?";
+    "Already brainstormed?" -> "Invoke brainstorming skill" [label="no"];
+    "Already brainstormed?" -> "Might any skill apply?" [label="yes"];
+    "Invoke brainstorming skill" -> "Might any skill apply?";
+
+    "User message received" -> "Might any skill apply?";
+    "Might any skill apply?" -> "Invoke Skill tool" [label="yes, even 1%"];
+    "Might any skill apply?" -> "Respond (including clarifications)" [label="definitely not"];
+    "Invoke Skill tool" -> "Announce: 'Using [skill] to [purpose]'";
+    "Announce: 'Using [skill] to [purpose]'" -> "Has checklist?";
+    "Has checklist?" -> "Create TodoWrite todo per item" [label="yes"];
+    "Has checklist?" -> "Follow skill exactly" [label="no"];
+    "Create TodoWrite todo per item" -> "Follow skill exactly";
+}
+```
+
+## Red Flags
+
+These thoughts mean STOP—you're rationalizing:
+
+| Thought | Reality |
+|---------|---------|
+| "This is just a simple question" | Questions are tasks. Check for skills. |
+| "I need more context first" | Skill check comes BEFORE clarifying questions. |
+| "Let me explore the codebase first" | Skills tell you HOW to explore. Check first. |
+| "I can check git/files quickly" | Files lack conversation context. Check for skills. |
+| "Let me gather information first" | Skills tell you HOW to gather information. |
+| "This doesn't need a formal skill" | If a skill exists, use it. |
+| "I remember this skill" | Skills evolve. Read current version. |
+| "This doesn't count as a task" | Action = task. Check for skills. |
+| "The skill is overkill" | Simple things become complex. Use it. |
+| "I'll just do this one thing first" | Check BEFORE doing anything. |
+| "This feels productive" | Undisciplined action wastes time. Skills prevent this. |
+| "I know what that means" | Knowing the concept ≠ using the skill. Invoke it. |
+
+## Skill Priority
+
+When multiple skills could apply, use this order:
+
+1. **Process skills first** (brainstorming, debugging) - these determine HOW to approach the task
+
+exec
+/bin/zsh -lc 'rg -n "US-TRK-04|US-TRK-06|US-TRK-07|US-TRK-09|US-ORD-02|US-ORD-05|US-ORD-07|US-AUT-01|REC-02|Dose Reminder|Stale Order" docs/implementation-plan.md docs/system-architecture.md docs/user-stories.md docs/story-tests-map.md' in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+docs/system-architecture.md:105:| **Dose Reminder** | Hourly | Check for users with reminders due; dispatch Push or Email. |
+docs/system-architecture.md:106:| **Stale Order Checker** | Daily | Flag orders in "Sent" status > 14 days. |
+docs/story-tests-map.md:34:| **US-REC-02** | AC-1 | creates vial record with expiry date | Integration | `tests/acceptance/REC-reconstitution.test.ts` |
+docs/story-tests-map.md:44:| **US-ORD-07** | AC-1 | transitions through state machine | Unit | `tests/acceptance/ORD-ordering.test.ts` |
+docs/story-tests-map.md:49:| **US-AUT-01** | AC-1 | guides power user through 3-step setup | E2E | `tests/acceptance/AUT-auth.test.ts` |
+docs/user-stories.md:20:1. **Inventory Alert**: Receives alert that BPC-157 is running low (US-ORD-02).
+docs/user-stories.md:24:5. **Payment**: Vendor replies on Telegram. User captures wallet address/amount in app (US-ORD-05).
+docs/user-stories.md:106:### US-TRK-04: Injection Site Rotation
+docs/user-stories.md:133:### US-TRK-06: Subjective Outcome Logging
+docs/user-stories.md:146:### US-TRK-07: Outcome-Dose Correlation Timeline
+docs/user-stories.md:173:### US-TRK-09: Dose Reminders
+docs/user-stories.md:204:### US-REC-02: Record Reconstitution (Vial Inventory)
+docs/user-stories.md:233:### US-ORD-02: Inventory-Aware Order Builder
+docs/user-stories.md:273:### US-ORD-05: Receive Order and Update Inventory
+docs/user-stories.md:299:### US-ORD-07: Track Order Status (State Machine)
+docs/user-stories.md:354:### US-AUT-01: Onboarding Path (Power User vs Managed User)
+docs/user-stories.md:427:- `US-REC-02` (Record Reconstitution) -> depends on `US-REC-01` (Calculate)
+
+codex
+[
+  {
+    "severity": "P0",
+    "category": "coverage",
+    "location": "Wave 2 / Wave 4 Tracker scope",
+    "description": "Large portions of the Tracker epic have no implementation task: US-TRK-02 pause/resume/clone/restart, US-TRK-04 injection site rotation, US-TRK-06 outcome logging, US-TRK-07 correlation timeline, US-TRK-08 cycles, US-TRK-09 reminders, and US-TRK-05 AC-1/AC-2 batch logging review flow.",
+    "suggestion": "Add explicit Tracker tasks for protocol lifecycle, site rotation, batch log-all UI/review, outcomes, timeline analytics, cycle management, and reminder configuration/delivery."
+  },
+  {
+    "severity": "P0",
+    "category": "correctness",
+    "location": "Critical Path Analysis",
+    "description": "The critical path references Task 2.2, but the task list has two Task 2.1 entries and no Task 2.2, making the execution sequence ambiguous and mechanically invalid.",
+    "suggestion": "Renumber Protocol CRUD & Basic Dose Logging to Task 2.2, update all references, and make the critical path use unique task IDs only."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "Critical Path Analysis / Task 4.2",
+    "description": "Offline dose queuing and sync replay are placed after Ordering, but the architecture identifies offline dose log queuing and sync replay as a critical path for Tracker and US-TRK-03/US-TRK-05.",
+    "suggestion": "Move Task 4.2 into Wave 2 after the PWA shell and before Tracker acceptance; make it depend on dose logging, IndexedDB queueing, and `/api/sync`."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Task 2.1 Protocol CRUD & Basic Dose Logging",
+    "description": "The task cites US-TRK-01 and US-TRK-03 but only covers vial decrement and idempotency. It omits schedule generation, managed-user assignment, required-field validation, timestamped logging, explicit skip events, suggested site, offline behavior, and empty-inventory warning.",
+    "suggestion": "Split into Protocol Creation/Edit, Daily Dose Logging, Skip Handling, Inventory Warning, and Offline Sync tasks, each mapped to the exact US-TRK-01 and US-TRK-03 ACs."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Task 1.3 Audit & Math Domain Foundation",
+    "description": "US-REC-01 is only partially covered. The plan includes Decimal math and tests for AC-1/AC-2 but omits guardrail warnings and displaying the user's last logged dose. US-REC-02 vial inventory persistence is absent.",
+    "suggestion": "Add Reconstitution UI/application tasks for guardrails, last-dose context, saving calculations as Vial records with 14-day expiry, and low/expiring inventory badges."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Wave 3 Ordering",
+    "description": "Ordering coverage is incomplete. US-ORD-02 inventory-aware suggestions, US-ORD-05 receive-and-add-to-inventory, and US-ORD-07 state machine/stale flagging are missing. US-ORD-03 also omits archived sent-message history, and US-ORD-06 omits create/edit catalog products linked to compounds.",
+    "suggestion": "Add separate tasks for order suggestions, vendor catalog CRUD/linking, order history archiving, order lifecycle state machine, stale-order cron, and receiving inventory."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Wave 1 / Wave 4 Auth and Admin",
+    "description": "Several Auth/Admin ACs are not planned: US-AUT-01 onboarding, US-AUT-03 secure httpOnly cookies with 30-day rolling expiry, US-AUT-04 single-use reset tokens and email-enumeration privacy, US-ADM-01 managed-user restricted dashboard, and US-ADM-03 deactivate/reset managed users.",
+    "suggestion": "Add explicit tasks for role-based onboarding, session cookie hardening, reset-token privacy, managed-user access scoping, and managed-user deactivation/password reset."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Task 2.1 Compound Catalog & Profile",
+    "description": "The Reference task covers search/category filtering and citation links but does not explicitly cover US-REF-01 ACs for IUPAC name, mechanism, administration routes, low/typical/high dosing ranges, protocol context, or stacking notes.",
+    "suggestion": "Expand the task AC list to include every compound profile field and add fixtures/tests for dosing ranges and stacking notes."
+  },
+  {
+    "severity": "P1",
+    "category": "executability",
+    "location": "Task 1.3 Audit & Math Domain Foundation",
+    "description": "This combines unrelated work: global immutable audit infrastructure and reconstitution math. The audit piece also cannot be completed as a standalone foundation task because every later mutation must integrate transactional AuditEvent writes.",
+    "suggestion": "Split into Audit Infrastructure, Audit Integration Per Mutation, and Reconstitution Calculator tasks. Require each Server Action mutation task to include its own audit transaction test."
+  },
+  {
+    "severity": "P1",
+    "category": "executability",
+    "location": "Task 3.2 Order Builder & Telegram Dispatch",
+    "description": "This task is too large for a single agent: vendor catalog browsing, cart/order builder, message composition, GramJS dispatch, fallback behavior, and order history are separate deliverables with different failure modes.",
+    "suggestion": "Split into Vendor Catalog, Cart/Message Composer, Telegram Dispatch Adapter, Fallback UX, and Order History Archival tasks."
+  },
+  {
+    "severity": "P2",
+    "category": "executability",
+    "location": "Task 4.1 Admin Panel & Adherence Metrics",
+    "description": "This mixes managed-user administration and adherence analytics. It cites US-ADM-02 and US-ADM-03 but only defines adherence output, leaving deactivation/reset behavior underspecified.",
+    "suggestion": "Split into Managed User Management and Adherence Metrics tasks, each with separate ACs and acceptance tests."
+  },
+  {
+    "severity": "P2",
+    "category": "correctness",
+    "location": "Architecture audit flow / mutation tasks",
+    "description": "The architecture requires audit writes to be transactional, and ordering status transitions require signed AuditEvents. The plan states audit exists globally but does not require each mutation task to rollback on audit failure or sign order transition events.",
+    "suggestion": "Add a cross-cutting requirement to every Server Action mutation task: write AuditEvent in the same DB transaction, test rollback on audit failure, and sign order status-transition events."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "Task 4.3 Account Deletion & Data Export",
+    "description": "The task says export contains dose history, but US-AUT-02 requires a full JSON export at any time and CSV export for dose logs and orders.",
+    "suggestion": "Expand Task 4.3 to include full-account JSON export plus CSV generation for both dose logs and orders."
+  }
+]
+tokens used
+47,206
+[
+  {
+    "severity": "P0",
+    "category": "coverage",
+    "location": "Wave 2 / Wave 4 Tracker scope",
+    "description": "Large portions of the Tracker epic have no implementation task: US-TRK-02 pause/resume/clone/restart, US-TRK-04 injection site rotation, US-TRK-06 outcome logging, US-TRK-07 correlation timeline, US-TRK-08 cycles, US-TRK-09 reminders, and US-TRK-05 AC-1/AC-2 batch logging review flow.",
+    "suggestion": "Add explicit Tracker tasks for protocol lifecycle, site rotation, batch log-all UI/review, outcomes, timeline analytics, cycle management, and reminder configuration/delivery."
+  },
+  {
+    "severity": "P0",
+    "category": "correctness",
+    "location": "Critical Path Analysis",
+    "description": "The critical path references Task 2.2, but the task list has two Task 2.1 entries and no Task 2.2, making the execution sequence ambiguous and mechanically invalid.",
+    "suggestion": "Renumber Protocol CRUD & Basic Dose Logging to Task 2.2, update all references, and make the critical path use unique task IDs only."
+  },
+  {
+    "severity": "P1",
+    "category": "correctness",
+    "location": "Critical Path Analysis / Task 4.2",
+    "description": "Offline dose queuing and sync replay are placed after Ordering, but the architecture identifies offline dose log queuing and sync replay as a critical path for Tracker and US-TRK-03/US-TRK-05.",
+    "suggestion": "Move Task 4.2 into Wave 2 after the PWA shell and before Tracker acceptance; make it depend on dose logging, IndexedDB queueing, and `/api/sync`."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Task 2.1 Protocol CRUD & Basic Dose Logging",
+    "description": "The task cites US-TRK-01 and US-TRK-03 but only covers vial decrement and idempotency. It omits schedule generation, managed-user assignment, required-field validation, timestamped logging, explicit skip events, suggested site, offline behavior, and empty-inventory warning.",
+    "suggestion": "Split into Protocol Creation/Edit, Daily Dose Logging, Skip Handling, Inventory Warning, and Offline Sync tasks, each mapped to the exact US-TRK-01 and US-TRK-03 ACs."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Task 1.3 Audit & Math Domain Foundation",
+    "description": "US-REC-01 is only partially covered. The plan includes Decimal math and tests for AC-1/AC-2 but omits guardrail warnings and displaying the user's last logged dose. US-REC-02 vial inventory persistence is absent.",
+    "suggestion": "Add Reconstitution UI/application tasks for guardrails, last-dose context, saving calculations as Vial records with 14-day expiry, and low/expiring inventory badges."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Wave 3 Ordering",
+    "description": "Ordering coverage is incomplete. US-ORD-02 inventory-aware suggestions, US-ORD-05 receive-and-add-to-inventory, and US-ORD-07 state machine/stale flagging are missing. US-ORD-03 also omits archived sent-message history, and US-ORD-06 omits create/edit catalog products linked to compounds.",
+    "suggestion": "Add separate tasks for order suggestions, vendor catalog CRUD/linking, order history archiving, order lifecycle state machine, stale-order cron, and receiving inventory."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Wave 1 / Wave 4 Auth and Admin",
+    "description": "Several Auth/Admin ACs are not planned: US-AUT-01 onboarding, US-AUT-03 secure httpOnly cookies with 30-day rolling expiry, US-AUT-04 single-use reset tokens and email-enumeration privacy, US-ADM-01 managed-user restricted dashboard, and US-ADM-03 deactivate/reset managed users.",
+    "suggestion": "Add explicit tasks for role-based onboarding, session cookie hardening, reset-token privacy, managed-user access scoping, and managed-user deactivation/password reset."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "Task 2.1 Compound Catalog & Profile",
+    "description": "The Reference task covers search/category filtering and citation links but does not explicitly cover US-REF-01 ACs for IUPAC name, mechanism, administration routes, low/typical/high dosing ranges, protocol context, or stacking notes.",
+    "suggestion": "Expand the task AC list to include every compound profile field and add fixtures/tests for dosing ranges and stacking notes."
+  },
+  {
+    "severity": "P1",
+    "category": "executability",
+    "location": "Task 1.3 Audit & Math Domain Foundation",
+    "description": "This combines unrelated work: global immutable audit infrastructure and reconstitution math. The audit piece also cannot be completed as a standalone foundation task because every later mutation must integrate transactional AuditEvent writes.",
+    "suggestion": "Split into Audit Infrastructure, Audit Integration Per Mutation, and Reconstitution Calculator tasks. Require each Server Action mutation task to include its own audit transaction test."
+  },
+  {
+    "severity": "P1",
+    "category": "executability",
+    "location": "Task 3.2 Order Builder & Telegram Dispatch",
+    "description": "This task is too large for a single agent: vendor catalog browsing, cart/order builder, message composition, GramJS dispatch, fallback behavior, and order history are separate deliverables with different failure modes.",
+    "suggestion": "Split into Vendor Catalog, Cart/Message Composer, Telegram Dispatch Adapter, Fallback UX, and Order History Archival tasks."
+  },
+  {
+    "severity": "P2",
+    "category": "executability",
+    "location": "Task 4.1 Admin Panel & Adherence Metrics",
+    "description": "This mixes managed-user administration and adherence analytics. It cites US-ADM-02 and US-ADM-03 but only defines adherence output, leaving deactivation/reset behavior underspecified.",
+    "suggestion": "Split into Managed User Management and Adherence Metrics tasks, each with separate ACs and acceptance tests."
+  },
+  {
+    "severity": "P2",
+    "category": "correctness",
+    "location": "Architecture audit flow / mutation tasks",
+    "description": "The architecture requires audit writes to be transactional, and ordering status transitions require signed AuditEvents. The plan states audit exists globally but does not require each mutation task to rollback on audit failure or sign order transition events.",
+    "suggestion": "Add a cross-cutting requirement to every Server Action mutation task: write AuditEvent in the same DB transaction, test rollback on audit failure, and sign order status-transition events."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "Task 4.3 Account Deletion & Data Export",
+    "description": "The task says export contains dose history, but US-AUT-02 requires a full JSON export at any time and CSV export for dose logs and orders.",
+    "suggestion": "Expand Task 4.3 to include full-account JSON export plus CSV generation for both dose logs and orders."
+  }
+]

@@ -1,0 +1,11 @@
+```json
+{
+  "model": "codex",
+  "findings": [
+    {
+      "id": "7.1",
+      "pass": 7,
+      "pass_name": "Error & Edge Case Coverage",
+      "severity": "P1",
+      "finding": "The business logic for cancelling an order or handling an order that is never fulfilled is not defined.",
+      "location": "Section

@@ -1,0 +1,1 @@
+# Project Lessons\n\nThis file tracks architectural and process learnings for future agents.\n\n## 2026-05-20\n- **Precision**: Math must use Decimal; floating point leads to rounding errors in dose calcs.\n- **Session Persistence**: Always-on containers (Railway) required for stable MTProto sessions.\n- **Audit**: Hard gate for immutable audit logs on all protocol mutations.

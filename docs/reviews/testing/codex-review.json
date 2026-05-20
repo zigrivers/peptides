@@ -1,0 +1,2679 @@
+Reading additional input from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: /Users/kenallred/Documents/dev-projects/peptides
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 019e46f5-6f1a-7e60-9ec8-171c47b6fb4a
+--------
+user
+Perform a deep review of the TDD standards (docs/tdd-standards.md) against the PRD, Domain Models, and System Architecture. Focus on: 1. Coverage — Are all domain invariants and architectural layers covered by tests? 2. Consistency — Do test environment assumptions match the tech stack? 3. Correctness — Are testing patterns appropriate for the tech stack? 4. Readiness — Are quality gates sufficient to prevent regressions? Respond with a JSON array of findings: [{"severity": "P0|P1|P2|P3", "category": "coverage|consistency|correctness|readiness", "location": "section or pattern reference", "description": "description of the issue", "suggestion": "recommended fix"}]
+
+<stdin>
+# TDD Standards
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**Tech Stack source:** `docs/tech-stack.md`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Test Pyramid
+
+We follow a standard Test Pyramid to balance speed, isolation, and confidence.
+
+| Layer | Tool | Target Coverage | Purpose |
+|-------|------|-----------------|---------|
+| **Unit** | Vitest | 90% (100% Math) | Pure logic, math, domain invariants. |
+| **Integration** | Vitest | 70% | Server Actions, Repositories, Auth logic. |
+| **E2E** | Playwright | 100% Critical Paths | Hard Gates, Offline Sync, Multi-user flow. |
+
+---
+
+## 2. Testing Patterns
+
+### 2.1 Unit Testing (Pure Logic)
+- **Location**: Colocated with implementation (`*.test.ts`).
+- **Mocking**: Zero. Only pure functions.
+- **Example**:
+```typescript
+import { calculateSyringeUnits } from './reconstitution-math';
+
+describe('calculateSyringeUnits', () => {
+  it('calculates 10 units for 250mcg in 2.5mg/mL concentration', () => {
+    const units = calculateSyringeUnits({
+      targetDoseMcg: 250,
+      concentrationMcgPerMl: 2500
+    });
+    expect(units).toBe(10);
+  });
+});
+```
+
+### 2.2 Integration Testing (Server Actions / DB)
+- **Location**: `lib/{module}/infrastructure/*.test.ts` or `app/actions/{module}/*.test.ts`.
+- **Mocking**: External APIs (Telegram, Resend) are mocked. Database is real (via test DB).
+- **Example**:
+```typescript
+describe('logDose Action', () => {
+  it('creates a log entry and decrements vial remaining amount', async () => {
+    // Setup test user and vial
+    const result = await logDose({ protocolId: '...', amountMcg: 250 });
+    expect(result.success).toBe(true);
+    // Assert audit log exists
+  });
+});
+```
+
+### 2.3 E2E Testing (Playwright)
+- **Location**: `tests/e2e/*.spec.ts`.
+- **Focus**: The "Hard Gates" and complex multi-step flows.
+- **Example**:
+```typescript
+test('Payment Safety Gate requires wallet address display', async ({ page }) => {
+  await page.goto('/ordering/123/confirm');
+  await expect(page.getByText('Verify Wallet Address')).toBeVisible();
+  await page.click('button:has-text("Mark payment sent")');
+  // Assert state change
+});
+```
+
+---
+
+## 3. Quality Gates
+
+All checks must pass in CI before a Pull Request can be merged.
+
+1. **Lint**: `npm run lint` (ESLint + Prettier)
+2. **Typecheck**: `npm run typecheck` (tsc)
+3. **Unit/Integration**: `npm run test` (Vitest)
+4. **E2E**: `npm run e2e` (Playwright)
+5. **Coverage**: `npm run test:coverage` (Threshold: 70% overall)
+
+---
+
+## 4. Test Data Strategy
+
+- **Factories**: Use factory functions in `tests/factories/` to generate valid domain objects.
+- **Cleanup**: Every integration/E2E test must run in a transaction or cleanup its own data.
+- **Seeds**: A minimal `prisma/seed.ts` provides the QSC reference catalog for development and E2E.
+
+---
+
+## 5. Performance & Contract Testing
+
+- **Benchmarks**: Reconstitution math must execute in < 1ms.
+- **Contract**: MTProto session serialization is verified against GramJS version updates.
+- **Visual Regression**: Critical dashboard layouts (Dose list, charts) use Playwright screenshots.
+# Audit Domain
+
+The Audit Domain provides a system-wide record of all sensitive mutations and security events.
+
+## Ubiquitous Language
+- **Audit Event**: A persistent, immutable record of a specific action.
+
+## Entities
+
+### AuditEvent (Aggregate Root)
+An immutable log entry.
+- **Attributes**:
+  - `id`: UUID
+  - `timestamp`: timestamp
+  - `actorUserId`: UUID (FK)
+  - `subjectUserId`: UUID (FK, optional)
+  - `category`: enum (Security, Protocol, Order, Admin)
+  - `action`: string (e.g., "PROTOCOL_CREATED")
+  - `resourceId`: UUID (Identity of the affected entity)
+  - `resourceType`: string (e.g., "Protocol")
+  - `metadata`: JSON (Captured request context, IP, User Agent)
+  - `oldValues`: JSON (optional)
+  - `newValues`: JSON (optional)
+
+## Aggregate: System Audit Trail
+- **Consistency Boundary**: A single AuditEvent record.
+- **Root**: AuditEvent
+- **Invariants**:
+  - Audit events are immutable; they can be created but never updated or deleted.
+  - Every event must be linked to an `actorUserId`.
+  - **Retention**: Events are retained for 90 days, then purged by a scheduled background job.
+
+## Invariants
+- `auditEvent.timestamp >= createdAt`
+- `auditEvent.action.length > 0`
+# Auth Domain
+
+The Auth Domain manages user accounts, sessions, and managed user invitations.
+
+## Ubiquitous Language
+- **User**: An authenticated person (Power User or Delegated Participant).
+- **Power User**: The system administrator who manages other users and the ordering module.
+- **Delegated Participant**: A user invited by a Power User (Managed User role).
+- **Invite**: A token-based invitation to join the app.
+
+## Entities
+
+### User (Aggregate Root)
+An account entity.
+- **Attributes**:
+  - `id`: UUID
+  - `email`: string (Unique)
+  - `passwordHash`: PasswordHash (Value Object)
+  - `role`: enum (PowerUser, ManagedUser)
+  - `managedBy`: UUID (FK, optional)
+  - `status`: enum (Active, Deactivated, Pending)
+  - `createdAt`: timestamp
+
+### PasswordResetToken (Entity)
+A single-use token for password recovery.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `tokenHash`: string
+  - `expiresAt`: timestamp
+  - `used`: boolean
+
+### AccountDeletionRequest (Entity)
+A request to wipe all user data.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `requestedAt`: timestamp
+  - `scheduledFor`: timestamp (48h delay)
+  - `status`: enum (Pending, Executed, Cancelled)
+
+### DataExportRequest (Entity)
+A request for data portability.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `format`: enum (JSON, CSV)
+  - `status`: enum (Pending, Processing, Completed, Failed)
+  - `downloadUrl`: string (optional)
+  - `expiresAt`: timestamp (optional)
+
+### OnboardingState (Value Object)
+Tracks the user's progress through the setup wizard.
+- **Attributes**:
+  - `step`: enum (Catalog, Protocol, Telegram, Done)
+  - `completedAt`: timestamp (optional)
+  - `dismissed`: boolean
+
+## Value Objects
+
+### PasswordHash
+Securely hashed password.
+- **Attributes**:
+  - `hash`: string
+  - `algorithm`: string (bcrypt)
+  - `cost`: number (default 12)
+
+## Aggregate: Account Identity
+- **Consistency Boundary**: A User and their auth-related state (tokens, sessions).
+- **Root**: User
+- **Invariants**:
+  - Password hash must use bcrypt with cost >= 12.
+  - Deleting a Power User requires all linked Managed Users to be deactivated first.
+
+## Domain Events
+- `UserRegistered`: A new Power User signs up.
+- `UserInvited`: A Power User sends an invite.
+- `InviteAccepted`: A Managed User completes registration.
+- `AccountDeletionScheduled`: A user requests data wipe.
+
+## Invariants
+- `invite.expiresAt == invite.createdAt + 72h`
+- `passwordResetToken.expiresAt == passwordResetToken.createdAt + 1h`
+# Domain Models Overview
+
+This directory contains the domain models for the Peptides application, organized by pillar and bounded context.
+
+## Bounded Contexts
+
+| Context | Description | Key Aggregates |
+|---------|-------------|----------------|
+| **Reference** | Static compound knowledge and research data. | `Compound` |
+| **Tracker** | Dosing schedules, logs, and subjective outcomes. | `Cycle`, `Protocol` |
+| **Reconstitution** | Vial inventory and math calculations. | `Vial` |
+| **Ordering** | Vendor products and Telegram order transactions. | `Order`, `Vendor` |
+| **Auth** | User accounts, sessions, and multi-user logic. | `User` |
+| **Audit** | Immutable system-wide record of sensitive mutations. | `AuditEvent` |
+
+## Context Map (High Level)
+
+- **Auth** provides the identity foundation for all other contexts (via `userId`).
+- **Audit** listens to events from all other domains to persist the audit trail.
+- **Tracker** references **Reference** (via `compoundId`) for dosing ranges and safety data.
+- **Tracker** references **Reconstitution** (via `vialId`) for inventory decrementing.
+- **Reconstitution** references **Reference** (via `compoundId`) for concentration calculations.
+- **Reconstitution** references **Ordering** (via `orderId`) for inventory updates on receipt.
+- **Ordering** references **Reference** (via `compoundId`) for catalog product linking.
+
+## Domain Model Files
+- [Reference Domain](reference.md)
+- [Tracker Domain](tracker.md)
+- [Reconstitution Domain](reconstitution.md)
+- [Ordering Domain](ordering.md)
+- [Auth Domain](auth.md)
+# Ordering Domain
+
+The Ordering Domain manages vendor product catalogs, Telegram communication, and the order lifecycle.
+
+## Ubiquitous Language
+- **Order**: A purchase transaction for one or more vendor products.
+- **Payment Confirmation**: The explicit step where a user verifies the destination wallet and amount.
+
+## Entities
+
+### Order (Aggregate Root)
+A purchase transaction.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `vendorId`: UUID (FK)
+  - `status`: enum (Draft, Sent, Confirmed, PaymentSent, Received, Cancelled, Stale)
+  - `paymentConfirmation`: PaymentConfirmation (Value Object, optional)
+  - `telegramMessageId`: string (optional)
+  - `idempotencyKey`: string (UUID)
+
+## Value Objects
+
+### PaymentConfirmation
+The safety gate for crypto payments.
+- **Attributes**:
+  - `confirmedTotal`: number
+  - `currency`: string (e.g., "USDT")
+  - `walletAddress`: string
+  - `acknowledgedAt`: timestamp
+  - `acknowledgedByUserId`: UUID
+
+## Aggregate: Order Transaction
+- **Consistency Boundary**: Order status and payment acknowledgement.
+- **Root**: Order
+- **Invariants**:
+  - `status` cannot transition to `PaymentSent` without a completed `paymentConfirmation`.
+  - `paymentConfirmation.walletAddress` must be non-empty.
+
+## Domain Events
+- `OrderSent`: Telegram message dispatched.
+- `PaymentAcknowledged`: User completes the safety gate verification.
+- `OrderReceived`: User confirms delivery and updates inventory.
+
+## Invariants
+- `order.idempotencyKey` is unique per order attempt.
+# Reconstitution Domain
+
+The Reconstitution Domain manages vial inventory and the mathematical calculations for concentration and syringe units.
+
+## Ubiquitous Language
+- **Vial**: A container of a compound in powder or liquid form.
+- **Concentration**: The resulting amount of compound per mL of liquid.
+- **Syringe Units**: The measurement on a 100-unit insulin syringe (1 unit = 0.01mL).
+
+## Entities
+
+### Vial (Aggregate Root)
+A single unit of inventory.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `compoundId`: UUID (FK)
+  - `totalMg`: number
+  - `bacWaterMl`: number (optional)
+  - `remainingMg`: number
+  - `status`: enum (Dry, Reconstituted, Empty, Expired)
+  - `reconstitutedAt`: timestamp (optional)
+  - `expiresAt`: timestamp (optional)
+
+## Value Objects
+
+### ReconstitutionResult
+The output of a reconstitution calculation.
+- **Attributes**:
+  - `concentrationMcgPerMl`: number
+  - `syringeUnitsPerDose`: number
+  - `injectionVolMl`: number
+
+## Domain Services
+
+### ReconstitutionCalculator
+Performs safe reconstitution math with warning policy evaluation.
+- **Warning Policy**:
+  - `injectionVolMl > 1.5` -> Trigger "High Volume" warning.
+  - `bacWaterMl < 0.5` -> Trigger "Low BAC Volume" warning.
+  - `dose > Profile.maxDose` -> Trigger "Above Reference Range" warning.
+
+## Domain Events
+- `VialReconstituted`: BAC water is added to a vial.
+- `SafetyWarningTriggered`: A calculation results in a policy violation.
+
+## Invariants
+- `vial.remainingMg >= 0`
+- `vial.totalMg > 0`
+- `bacWaterMl > 0` (once reconstituted)
+# Reference Domain
+
+The Reference Domain manages the static knowledge base of compounds, their physiological profiles, and the vendor product catalog.
+
+## Ubiquitous Language
+- **Compound**: A biological substance (peptide) with defined mechanism and safety data.
+- **Profile**: Detailed research-backed data associated with a compound.
+- **Catalog**: A searchable collection of compounds available to the user.
+
+## Entities
+
+### Compound (Aggregate Root)
+A peptide or biological substance.
+- **Attributes**:
+  - `id`: UUID
+  - `name`: string (e.g., "BPC-157")
+  - `iupacName`: string (optional)
+  - `synonyms`: string[]
+  - `mechanismOfAction`: text
+  - `administrationRoutes`: enum[] (SC, IM, Oral, Nasal)
+  - `status`: enum (Draft, Published, Archived)
+  - `archivedAt`: timestamp (optional)
+
+### Profile (Entity)
+Detailed research data for a Compound.
+- **Attributes**:
+  - `id`: UUID
+  - `compoundId`: UUID (FK)
+  - `dosingLow`: DoseAmount
+  - `dosingTypical`: DoseAmount
+  - `dosingHigh`: DoseAmount
+  - `sideEffects`: text
+  - `contraindications`: text
+  - `stackingNotes`: text (curated)
+  - `citations`: Citation[] (Value Objects)
+
+## Value Objects
+
+### Citation
+A research reference.
+- **Attributes**:
+  - `title`: string
+  - `url`: string (URL)
+  - `doi`: string (optional)
+  - `pmid`: string (optional)
+- **Invariants**:
+  - Must have either a URL, DOI, or PMID.
+
+## Aggregate: Compound Catalog
+- **Consistency Boundary**: A Compound and its Profile must be consistent.
+- **Root**: Compound
+- **Invariants**:
+  - A published Compound must have at least one administration route.
+  - A Compound name must be unique within the catalog.
+
+## Domain Events
+- `CompoundCreated`: Triggered when a new compound is added.
+- `CompoundProfileUpdated`: Triggered when mechanism or dosing data changes.
+- `CompoundArchived`: Triggered when a compound is soft-deleted.
+
+## Invariants
+- `compound.name.length > 0`
+- `count(compound.administrationRoutes) > 0` if `status == Published`
+# Tracker Domain
+
+The Tracker Domain manages user protocols, daily dosing logs, cycles, and subjective outcomes.
+
+## Ubiquitous Language
+- **Protocol**: A scheduled plan for a specific compound (e.g., "BPC-157 250mcg daily").
+- **Dose Log**: A record of a completed or skipped dose event.
+- **Cycle**: A logical grouping of protocols over a defined period.
+- **Outcome Log**: A subjective rating of wellbeing and notes for a given day.
+- **Injection Site**: The physiological location of an administration (e.g., "Left Abdomen").
+
+## Entities
+
+### Protocol (Aggregate Root)
+A scheduled dosing plan.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `compoundId`: UUID (FK)
+  - `cycleId`: UUID (FK, optional)
+  - `dose`: DoseAmount (Value Object)
+  - `schedule`: Schedule (Value Object)
+  - `administrationRoute`: enum (SC, IM, Oral, Nasal)
+  - `startDate`: date
+  - `endDate`: date (optional)
+  - `status`: enum (Active, Paused, Completed, Deactivated)
+  - `notes`: text
+
+### Cycle (Aggregate Root)
+A logical container for one or more protocols.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `name`: string
+  - `startDate`: date
+  - `endDate`: date (optional)
+  - `status`: enum (Active, Completed, Archived)
+
+### Dose Log (Entity)
+A record of a dose event.
+- **Attributes**:
+  - `id`: UUID
+  - `protocolId`: UUID (FK)
+  - `idempotencyKey`: string (UUID, unique per user-scheduledDate-protocolId)
+  - `loggedAt`: timestamp
+  - `scheduledDate`: date
+  - `amount`: DoseAmount (Value Object)
+  - `status`: enum (Logged, Skipped)
+  - `injectionSite`: InjectionSite (Value Object)
+  - `isBatchLog`: boolean
+  - `loggedByUserId`: UUID (FK)
+
+## Value Objects
+
+### DoseAmount
+- **Attributes**:
+  - `value`: number
+  - `unit`: enum (mcg, mg, IU, mL)
+
+### Schedule
+- **Attributes**:
+  - `frequency`: enum (Daily, EOD, MWF, CustomInterval)
+  - `intervalDays`: number (optional)
+
+### InjectionSite
+- **Attributes**:
+  - `location`: string (e.g., "Left Abdomen")
+  - `group`: enum (Abdomen, Thigh, Deltoid, Glute)
+
+## Domain Services
+
+### SiteRotationPolicy
+Calculates the next suggested injection site based on a user's `DoseLog` history for a specific route.
+- **Rule**: Round-robin through available sites in the preferred group.
+
+## Aggregate: Dose Adherence
+- **Consistency Boundary**: Protocol and its Dose Logs.
+- **Root**: Protocol
+- **Invariants**:
+  - Cannot log a future dose.
+  - Cannot edit a dose log past the same calendar day.
+
+## Domain Events
+- `DoseLogged`: A user confirms a dose.
+- `DoseSkipped`: A user explicitly skips a dose.
+- `InjectionSiteSuggested`: The rotation policy produces a new suggestion.
+
+## Invariants
+- `dose.value > 0`
+- `cycle.startDate <= cycle.endDate` (if exists)
+# System Architecture
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**PRD source:** `docs/plan.md`  
+**ADR source:** `docs/adrs/`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Architectural Style: Modular Monolith
+
+We use a modular monolith architecture built on Next.js 15. The system is organized into bounded contexts that can be isolated (ADR-015) or eventually extracted into microservices if needed.
+
+### 1.1 Layered Structure (Per Module)
+- **UI Layer**: React components (RSC or Client) in `app/`.
+- **Application Layer**: Server Actions and Services in `lib/{module}/application/`.
+- **Domain Layer**: Entities and business logic in `lib/{module}/domain/`.
+- **Infrastructure Layer**: Persistence and external integrations in `lib/{module}/infrastructure/`.
+
+---
+
+## 2. Component Design
+
+### 2.1 Component Overview
+
+| Component | Responsibility | Tech Stack |
+|-----------|----------------|------------|
+| **App Shell** | PWA Layout, Navigation, Auth Guards | Next.js, shadcn/ui |
+| **Auth** | Registration, Login, Session Mgmt | Auth.js v5 |
+| **Tracker** | Dose Logging, Protocols, PWA Sync | React, TanStack Query |
+| **Reminders** | Web Push & Email Notification logic | Serwist, Resend |
+| **Reference** | Peptide Catalog, Profile Reference | RSC (Next.js) |
+| **Ordering** | Vendor Catalog, Telegram MTProto | GramJS, Server Actions |
+| **Reconstitution** | Concentration Math, Vial Inventory | lib (Typescript) |
+| **Audit** | Immutable Mutation Logs | Prisma (Postgres) |
+| **Observability** | Error tracking & Alerting | Sentry, Railway |
+
+---
+
+## 3. Data Flows
+
+### 3.1 Flow: Log a Dose (Offline-First)
+1. **User Action**: User taps "Confirm" or "Skip" on dashboard.
+2. **Client Layer**:
+   - Record event in IndexedDB (via Serwist).
+   - If Online: Trigger background sync to `/api/sync`.
+3. **Server Layer**:
+   - **Case: Logged**: Validate `idempotencyKey`, decrement `Vial.remainingMg` (if vial linked), write `DoseLog`, write `AuditLog`.
+   - **Case: Skipped**: Write `DoseLog` (status: Skipped), write `AuditLog`.
+   - **Case: Edited**: Only allowed same calendar day; update `DoseLog`, adjust `Vial`, write `AuditLog`.
+
+### 3.2 Flow: Place Telegram Order (Payment Safety Gate)
+1. **Draft -> Sent**: Power User clicks "Send Order"; GramJS dispatches message.
+2. **Sent -> Confirmed**: User receives Telegram reply, enters quoted total and wallet address in app.
+3. **Confirmed -> PaymentSent**: **Hard Gate**: App displays Wallet + Amount; user verifies on screen and clicks "Mark payment sent".
+4. **PaymentSent -> Received**: User confirms delivery; app prompts to add line items to Vial Inventory.
+5. **Audit**: Every status transition emits a signed `AuditEvent`.
+
+---
+
+## 4. Module Structure (Bounded Context Slices)
+
+```
+/
+├── app/                        # UI Layer (Next.js)
+│   ├── (auth)/                 # Registration, Login, Reset
+│   ├── (dashboard)/            # Main App Layout
+│   │   ├── tracker/            # Tracker UI
+│   │   ├── reference/          # Reference UI
+│   │   └── reconstitution/     # Calculator UI
+│   ├── ordering/               # Isolated Ordering UI (ADR-015)
+│   ├── actions/                # Server Action Entrypoints (grouped by context)
+│   │   ├── auth/
+│   │   ├── tracker/
+│   │   └── ordering/
+│   └── api/                    # Route Handlers
+│       ├── cron/               # Railway Cron Endpoints (Secured)
+│       └── sync/               # PWA Sync Handler
+├── lib/                        # Core Logic (Domain & Application)
+│   ├── {context}/              # auth, tracker, ordering, reference, jobs, audit
+│   │   ├── domain/             # Pure entities, invariants, events
+│   │   ├── application/        # Use cases, service logic
+│   │   └── infrastructure/     # Prisma repos, external API clients
+│   ├── jobs/                   # Background job implementations
+│   └── shared/                 # Common types, utils, cross-domain services
+├── prisma/                     # Global Schema
+└── worker/                     # Serwist Service Worker
+```
+
+---
+
+## 5. State Management Design
+
+- **Server State (TanStack Query)**: MTProto connection, Sync status, Adherence metrics.
+- **Client UI State (React Context)**: Onboarding wizard, Ordering cart.
+- **Client Persistence (IndexedDB)**: Offline dose log queue, optimistic inventory projection.
+
+---
+
+## 6. Scheduled Jobs (Railway Cron)
+
+| Job Name | Frequency | Responsibility |
+|----------|-----------|----------------|
+| **Dose Reminder** | Hourly | Check for users with reminders due; dispatch Push or Email. |
+| **Stale Order Checker** | Daily | Flag orders in "Sent" status > 14 days. |
+| **Audit Purge** | Daily | Delete `AuditEvent` records > 90 days old. |
+| **Vial Expiry Check** | Daily | Notify users of vials nearing 14-day expiry. |
+
+---
+
+## 7. Deployment Topology
+
+- **Runtime**: Node.js 20 on Railway Container (Always-on for MTProto).
+- **Database**: PostgreSQL 16 (Railway Managed).
+- **Email**: Resend (ADR-011).
+- **Storage**: Cloudflare R2 (ADR-014).
+- **Monitoring**: Sentry (ADR-013).
+
+---
+
+## 8. Failure Modes
+
+- **MTProto Logout**: Session invalidated; system falls back to display message + deep-link.
+- **Offline Sync Conflict**: Idempotency key `user:protocol:date` wins.
+- **Audit Write Failure**: Mutation rolled back via DB transaction.
+
+---
+
+## 9. Testing Architecture
+
+We follow a Pyramid strategy:
+- **Unit Tests (Vitest)**: Math calculations in `lib/reconstitution`, domain invariants in `lib/*/domain`.
+- **Integration Tests (Vitest)**: Server Actions, repository transactions, MTProto session encryption.
+- **E2E Tests (Playwright)**:
+  - **Hard Gate**: Payment safety verification screen.
+  - **Critical Path**: Offline dose log queuing and sync replay.
+  - **Auth**: Managed user invitation and permission isolation.
+</stdin>
+codex
+I’m using `superpowers:using-superpowers` first as required, then I’ll cross-check the TDD draft against the local PRD/domain/architecture docs and return only the requested JSON.
+exec
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && rg --files docs | sort" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+---
+name: using-superpowers
+description: Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions
+---
+
+<SUBAGENT-STOP>
+If you were dispatched as a subagent to execute a specific task, skip this skill.
+</SUBAGENT-STOP>
+
+<EXTREMELY-IMPORTANT>
+If you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.
+
+IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.
+
+This is not negotiable. This is not optional. You cannot rationalize your way out of this.
+</EXTREMELY-IMPORTANT>
+
+## Instruction Priority
+
+Superpowers skills override default system prompt behavior, but **user instructions always take precedence**:
+
+1. **User's explicit instructions** (CLAUDE.md, GEMINI.md, AGENTS.md, direct requests) — highest priority
+2. **Superpowers skills** — override default system behavior where they conflict
+3. **Default system prompt** — lowest priority
+
+If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "always use TDD," follow the user's instructions. The user is in control.
+
+## How to Access Skills
+
+**In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you—follow it directly. Never use the Read tool on skill files.
+
+**In Copilot CLI:** Use the `skill` tool. Skills are auto-discovered from installed plugins. The `skill` tool works the same as Claude Code's `Skill` tool.
+
+**In Gemini CLI:** Skills activate via the `activate_skill` tool. Gemini loads skill metadata at session start and activates the full content on demand.
+
+**In other environments:** Check your platform's documentation for how skills are loaded.
+
+## Platform Adaptation
+
+Skills use Claude Code tool names. Non-CC platforms: see `references/copilot-tools.md` (Copilot CLI), `references/codex-tools.md` (Codex) for tool equivalents. Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
+
+# Using Skills
+
+## The Rule
+
+**Invoke relevant or requested skills BEFORE any response or action.** Even a 1% chance a skill might apply means that you should invoke the skill to check. If an invoked skill turns out to be wrong for the situation, you don't need to use it.
+
+```dot
+digraph skill_flow {
+    "User message received" [shape=doublecircle];
+    "About to EnterPlanMode?" [shape=doublecircle];
+    "Already brainstormed?" [shape=diamond];
+    "Invoke brainstorming skill" [shape=box];
+    "Might any skill apply?" [shape=diamond];
+    "Invoke Skill tool" [shape=box];
+    "Announce: 'Using [skill] to [purpose]'" [shape=box];
+    "Has checklist?" [shape=diamond];
+    "Create TodoWrite todo per item" [shape=box];
+    "Follow skill exactly" [shape=box];
+    "Respond (including clarifications)" [shape=doublecircle];
+
+    "About to EnterPlanMode?" -> "Already brainstormed?";
+    "Already brainstormed?" -> "Invoke brainstorming skill" [label="no"];
+    "Already brainstormed?" -> "Might any skill apply?" [label="yes"];
+    "Invoke brainstorming skill" -> "Might any skill apply?";
+
+    "User message received" -> "Might any skill apply?";
+    "Might any skill apply?" -> "Invoke Skill tool" [label="yes, even 1%"];
+    "Might any skill apply?" -> "Respond (including clarifications)" [label="definitely not"];
+    "Invoke Skill tool" -> "Announce: 'Using [skill] to [purpose]'";
+    "Announce: 'Using [skill] to [purpose]'" -> "Has checklist?";
+    "Has checklist?" -> "Create TodoWrite todo per item" [label="yes"];
+    "Has checklist?" -> "Follow skill exactly" [label="no"];
+    "Create TodoWrite todo per item" -> "Follow skill exactly";
+}
+```
+
+## Red Flags
+
+These thoughts mean STOP—you're rationalizing:
+
+| Thought | Reality |
+|---------|---------|
+| "This is just a simple question" | Questions are tasks. Check for skills. |
+| "I need more context first" | Skill check comes BEFORE clarifying questions. |
+| "Let me explore the codebase first" | Skills tell you HOW to explore. Check first. |
+| "I can check git/files quickly" | Files lack conversation context. Check for skills. |
+| "Let me gather information first" | Skills tell you HOW to gather information. |
+| "This doesn't need a formal skill" | If a skill exists, use it. |
+| "I remember this skill" | Skills evolve. Read current version. |
+| "This doesn't count as a task" | Action = task. Check for skills. |
+| "The skill is overkill" | Simple things become complex. Use it. |
+| "I'll just do this one thing first" | Check BEFORE doing anything. |
+| "This feels productive" | Undisciplined action wastes time. Skills prevent this. |
+| "I know what that means" | Knowing the concept ≠ using the skill. Invoke it. |
+
+## Skill Priority
+
+When multiple skills could apply, use this order:
+
+1. **Process skills first** (brainstorming, debugging) - these determine HOW to approach the task
+2. **Implementation skills second** (frontend-design, mcp-builder) - these guide execution
+
+"Let's build X" → brainstorming first, then implementation skills.
+"Fix this bug" → debugging first, then domain-specific skills.
+
+## Skill Types
+
+**Rigid** (TDD, debugging): Follow exactly. Don't adapt away discipline.
+
+**Flexible** (patterns): Adapt principles to context.
+
+The skill itself tells you which.
+
+## User Instructions
+
+Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
+docs/adrs/ADR-001-nextjs-monolith.md
+docs/adrs/ADR-002-postgresql-prisma.md
+docs/adrs/ADR-003-tailwind-shadcn.md
+docs/adrs/ADR-004-authjs.md
+docs/adrs/ADR-005-gramjs.md
+docs/adrs/ADR-006-railway-hosting.md
+docs/adrs/ADR-007-pwa-offline.md
+docs/adrs/ADR-008-testing-strategy.md
+docs/adrs/ADR-009-audit-logging.md
+docs/adrs/ADR-010-ai-strategy.md
+docs/adrs/ADR-011-transactional-email.md
+docs/adrs/ADR-012-scheduled-jobs.md
+docs/adrs/ADR-013-observability.md
+docs/adrs/ADR-014-object-storage.md
+docs/adrs/ADR-015-module-isolation.md
+docs/adrs/index.md
+docs/audits/audit-2026-05-20-184818446-fast-all-6db656.md
+docs/audits/audit-2026-05-20-184818446-fast-all-6f6281.json
+docs/audits/audit-2026-05-20-192234855-fast-all-b39ffd.json
+docs/audits/audit-2026-05-20-192234855-fast-all-d131fa.md
+docs/audits/audit-2026-05-20-192702246-fast-all-0a2f07.md
+docs/audits/audit-2026-05-20-192702246-fast-all-b8ec47.json
+docs/coding-standards.md
+docs/domain-models/audit.md
+docs/domain-models/auth.md
+docs/domain-models/index.md
+docs/domain-models/ordering.md
+docs/domain-models/reconstitution.md
+docs/domain-models/reference.md
+docs/domain-models/tracker.md
+docs/peptide-reference_1.html
+docs/plan.md
+docs/prd-innovation.md
+docs/project-structure.md
+docs/QSC  list - Price list 07-05-2026.pdf
+docs/reviews/adrs/codex-review.json
+docs/reviews/adrs/gemini-review.json
+docs/reviews/adrs/review-summary.md
+docs/reviews/architecture/codex-review.json
+docs/reviews/architecture/gemini-review.json
+docs/reviews/architecture/review-summary.md
+docs/reviews/domain-modeling/codex-review.json
+docs/reviews/domain-modeling/gemini-review.json
+docs/reviews/domain-modeling/review-summary.md
+docs/reviews/prd-innovation/codex-review.json
+docs/reviews/prd-innovation/review-summary.md
+docs/reviews/prd/codex-review.json
+docs/reviews/prd/gemini-raw.txt
+docs/reviews/prd/gemini-review.json
+docs/reviews/prd/review-summary.md
+docs/reviews/pre-review-prd.md
+docs/reviews/pre-review-user-stories.md
+docs/reviews/review-adrs.md
+docs/reviews/review-architecture.md
+docs/reviews/review-domain-modeling.md
+docs/reviews/tech-stack/codex-review.json
+docs/reviews/tech-stack/gemini-review.json
+docs/reviews/tech-stack/review-summary.md
+docs/reviews/testing/codex-review.json
+docs/reviews/testing/gemini-review.json
+docs/reviews/user-stories/codex-review.json
+docs/reviews/user-stories/coverage.json
+docs/reviews/user-stories/gemini-review.json
+docs/reviews/user-stories/requirements-index.md
+docs/reviews/user-stories/review-summary.md
+docs/reviews/vision-review-vision.md
+docs/system-architecture.md
+docs/tdd-standards.md
+docs/tech-stack.md
+docs/user-stories.md
+docs/vision.md
+
+codex
+I’ve confirmed the relevant docs are present locally. I’m reading the PRD, architecture, tech stack, and domain model files now so the findings are grounded in the repo docs rather than only the pasted excerpt.
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+<!-- scaffold:create-prd v1 2026-05-20 -->
+<!-- scaffold:review-prd v1 2026-05-20 -->
+<!-- scaffold:innovate-prd v1 2026-05-20 -->
+# Product Requirements Document
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**Vision source:** `docs/vision.md` (scaffold:vision v2 + innovate-vision v1)  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Problem Statement
+
+**User group:** Advanced biohackers who self-direct multi-compound protocols (peptides, and in the near term TRT/anabolics) using grey-market vendors operating via Telegram.
+
+**Pain:** Each of the four critical weekly tasks — researching a compound, placing an order, reconstituting a vial, and logging a dose — requires a different tool (browser/Obsidian, Telegram/PDF, a calculator, a spreadsheet). None of these tools know about each other. The user is the integration layer, and errors at any step translate to real harm: wrong reconstitution dose, lost crypto payment, or a missed injection.
+
+**Scope of the problem:** Reddit r/Peptides has 250k+ members; the grey-market peptide vendor ecosystem sustains dozens of active Telegram-based vendors. Ordering errors in this context are non-reversible — crypto payments cannot be recalled if sent to the wrong wallet address or for the wrong amount. Estimated median order value: $100–500 USD per transaction. Manual reconstitution errors (wrong BAC water volume → wrong concentration) translate directly to dosing errors in the next injection.
+
+**Hypothesis:** If we unify the four workflows (reference, ordering, reconstitution math, and dose tracking) into a single web app where each step is aware of the others, the Power User will abandon their existing four-tool workflow within 90 days and place at least 20 successful orders via the app within 12 months.
+
+**Validation method:** Power User daily active use, spreadsheet and Obsidian notes decommissioned (self-reported), order history in app ≥ 20 successful orders in Year 1.
+
+---
+
+## 2. Target Users
+
+### 2.1 Primary Persona — *Power User / Super Admin*
+
+| Dimension | Detail |
+|-----------|--------|
+| **Description** | Self-directed biohacker running 3–7 concurrent peptide protocols; manages sourcing independently. Also manages peptide access for 2–10 family members or close friends. |
+| **Primary need** | One tool that connects research → ordering → reconstitution → daily dosing → outcome logging without the user being the integration layer. |
+| **Current behavior** | Obsidian for research notes, browser tabs for PubMed, Telegram for vendor orders, Coinbase for crypto payments, spreadsheet for dose logging, a calculator tab for reconstitution math, calendar notes for cycle tracking. |
+| **Constraints** | Solo builder (is also the developer). Dose window is 3–5 minutes at 7am. Uncomfortable with "research use only" compliance theater. |
+| **Success looks like** | Opens one app at 7am. Sees today's stack. Logs doses in < 60 seconds. At order time: builds order in app, app sends Telegram message to vendor automatically, user confirms crypto payment, inventory updates. Spreadsheet decommissioned within 90 days. |
+| **Admin role** | Creates and configures managed user accounts. Configures protocols for Delegated Participants. Can view all managed users' adherence dashboards. |
+
+### 2.2 Secondary Persona — *Delegated Participant (managed user, v1)*
+
+| Dimension | Detail |
+|-----------|--------|
+| **Description** | Family member or close friend on 1–2 peptides, guided by the Power User. Does not self-research or order independently. |
+| **Primary need** | See their daily injection schedule, confirm doses, and understand what they're taking — without navigating a complex interface. |
+| **Current behavior** | Texting the Power User for every question. Sometimes guessing the dose. Sometimes skipping out of uncertainty. |
+| **Constraints** | Non-technical. Low tolerance for complexity. Cannot configure their own protocol. First reconstitution done with Power User present. |
+| **Success looks like** | Opens app, sees "today: 250mcg BPC-157, left abdomen." Taps confirm. Closes app. Zero texts to the Power User asking "how much do I take?" |
+| **v1 scope** | Account created and protocol configured *by Power User only*. No self-serve onboarding. No ordering capability. Simplified view: schedule + dose logging + peptide info only. |
+
+### 2.3 Adjacent Audience (v2 horizon, not v1)
+- **TRT / anabolic users** — same Telegram/crypto ordering ecosystem; v1 architecture supports, v2 adds compound profiles
+- **Compounding pharmacy patients** — bridge-sourcing architecture ready; UX deferred to v2
+
+### 2.4 Non-Users (explicitly out of scope for v1)
+- Clinicians and prescribers
+- Mass-market wellness consumers / GLP-1-curious newcomers
+- Anonymous SEO visitors
+- Anyone seeking AI-personalized dose recommendations
+
+---
+
+## 3. Feature Scope Summary
+
+### 3.1 In Scope (v1)
+
+| Pillar | Features |
+|--------|----------|
+| **Reference** | Peptide profile pages (mechanism, dosing, citations, side effects, stacking notes); browse/search catalog; ~20–30 compounds seeded from QSC vendor catalog |
+| **Tracker** | Protocol creation + management + clone/restart + pause/resume; daily dose logging with batch "Log All Scheduled"; injection site rotation; cycle management; subjective outcome logging; vial inventory with expiry warnings; stack overview dashboard; dose reminders; outcome-dose correlation timeline |
+| **Reconstitution** | BAC water + concentration calculator; syringe unit calculator; integration with dose history and vial inventory |
+| **Ordering** | Vendor catalog (QSC-first); inventory-aware order builder (suggests compounds running low); automated Telegram message dispatch via MTProto; payment capture checklist; order history; inventory update on delivery |
+| **Multi-user** | Super admin panel; managed user account creation; protocol assignment to managed users; adherence visibility; simplified managed-user view |
+| **Auth** | Email/password accounts; secure sessions; password reset; account deletion with data export; first-run setup wizard; PWA / home screen install |
+
+### 3.2 Out of Scope (will NOT be built in v1)
+- AI-generated dose recommendations or stack optimization
+- Community features (forums, shared stacks, outcome comparisons, leaderboards)
+- Public reference site / SEO landing pages
+- App Store distribution (iOS, Android native apps)
+- Automated Telegram response parsing (v2)
+- Automated crypto payment execution (manual payment only)
+- Wearable integration (Oura, Whoop)
+- Lab data / bloodwork import and protocol correlation
+- TRT/anabolic compound profiles (architecture supports; profiles deferred)
+- Compounding pharmacy order flow (architecture allows; UX deferred)
+- Self-serve managed-user onboarding (Delegated Participants created by Power User only)
+- Multi-vendor ordering (QSC only; additional vendors = v2)
+- Paid license / billing system (legal review required first; family/friends use for free)
+
+### 3.3 Deferred (v2+)
+
+| Feature | Why deferred |
+|---------|-------------|
+| AI Telegram response parser | Requires persistent Telegram read + AI parsing; v1 handles vendor reply manually. **v2 stub:** reads vendor's reply message from Telegram chat history, extracts confirmed total + wallet address + line items, pre-fills the payment confirmation screen. Requires: message-read MTProto scope, AI extraction layer (LLM or regex), idempotent order-update endpoint. |
+| Automated PubMed watch | Background AI job + notification system; not needed for personal-tool phase. **v2 stub:** user subscribes to compounds; background job queries PubMed API weekly for new papers mentioning subscribed compounds; sends email digest with titles, abstracts, and DOI links. Requires: PubMed API integration, background job runner, email digest template, notification preferences UI. |
+| Lab data import + protocol correlation | High technical complexity; validates after core tracking is proven |
+| TRT/anabolic compound profiles | Same toolchain; v2 adds compound-type profiles and protocol templates |
+| Multi-vendor ordering | Single vendor first to validate the ordering flow |
+| Community features | Anti-vision for v1; opt-in Year 2 only if personal-tool adoption succeeds |
+| Compounding pharmacy sourcing | Bridge-sourcing architecture ready; UX deferred |
+| Public reference + SEO | Year 2 if personal-tool phase validates value |
+| Paid license / billing | Before paid launch: legal review required (see §7.5) |
+
+---
+
+## 4. MoSCoW Prioritization
+
+### Must Have — v1 launch is blocked without these
+- Dose logging: confirmed date/time/amount/compound; Power User and Delegated Participant both log
+- **Batch "Log All Scheduled"**: one-tap action to confirm all of today's doses at protocol amounts
+- Protocol management: create/edit/deactivate/pause/resume a protocol with compound, dose, and schedule
+- **Protocol clone / restart**: duplicate a protocol or restart a completed cycle with a new start date
+- Reconstitution calculator: BAC water volume, syringe units, pre-filled from active protocol
+- **Vial expiry + low-inventory warning**: dashboard alerts when vials are expiring or running low
+- Compound reference pages: all QSC catalog peptides (~20–30) with dosing ranges, citations, and stacking notes
+- Automated Telegram ordering: order builder + MTProto bot-dispatched Telegram message to vendor + manual fallback
+- **Inventory-aware order builder**: suggests compounds running low when building an order
+- Order history + inventory capture: order logged, inventory updated post-delivery
+- Multi-user admin panel: Power User can create/configure managed user accounts
+- Auth: email/password accounts, sessions, password reset
+- **PWA / home screen install**: web app installable to phone home screen; service worker for offline dose-log queuing
+- **First-run setup wizard**: 3-step onboarding on first login (browse compound → create protocol → optional Telegram setup)
+
+### Should Have — missing degrades experience but doesn't block launch
+- Injection site rotation tracking with site suggestion
+- Cycle management (start/end dates, current week display, scheduled breaks)
+- **Protocol pause / resume**: pause individual protocols without deleting them
+- Subjective outcome logging (daily rating + free-text note)
+- Vial inventory tracking (per-vial reconstitution record, doses-remaining estimate)
+- Stack overview dashboard (all active protocols, today's status)
+- Coinbase payment checklist (payment amount + address capture, guided payment steps)
+- Peptide search/browse (by name and category)
+- **Dose reminders**: browser push or email notification at user-configured dose time
+- **Outcome-dose correlation timeline**: per-compound chart of dose events vs. outcome ratings
+- **CSV export**: dose logs and orders as CSV alongside JSON full export
+- **Stacking notes on compound profiles**: admin-curated "commonly stacked with" field
+
+### Could Have — include if time permits
+- Protocol history (full audit log of every dose)
+- Vendor price catalog import from PDF
+- Admin panel and Power User workflow mobile polish (dose-logging mobile UX = Must Have per §8.6; this entry covers remaining layout optimization)
+- Dark mode
+
+### Won't Have — this release
+All items in the Out of Scope list (§3.2).
+
+> **Phase vs. MoSCoW alignment:** MoSCoW defines what must be complete before "v1 done" is declared. Phases (§10) define build order — Must Have features are delivered across Phase 1 and Phase 2 in sequence, not all on day one. If a Must Have feature appears in Phase 2, it is scheduled for Phase 2 delivery but still blocks v1 completion. "Mobile-optimized layout" in Could Have refers to admin panel and Power User workflow refinement; mobile dose-logging UX is first-class per §8.6 and is a Must Have acceptance criterion, not optional polish.
+
+---
+
+## 5. Feature Specifications
+
+### 5.1 Pillar 1 — Reference
+
+**What it does:**
+Provides honest, citation-backed compound profiles for each peptide in the catalog — written for a user planning to inject this compound, not a researcher. No "research use only" boilerplate.
+
+**Compound profile fields:**
+- Common name + IUPAC name
+- Mechanism of action (evidence-based, plain language + optional technical depth toggle)
+- Researched benefits (each benefit links to primary PubMed citation where available)
+- Dosing ranges: low / typical / high dose; protocol context (healing vs. performance vs. cosmetic)
+- Administration route(s): subcutaneous, intramuscular, intranasal, oral
+- Reconstitution guidance: recommended BAC water dilution, shelf life reconstituted
+- Half-life and timing notes (e.g., "best taken fasted," "AM vs. PM relevance")
+- Known side effects and contraindications (labeled as anecdotal when evidence is weak)
+- Research citations (PubMed links; DOI where available)
+- Sourcing note: "Available from [vendor] as [form/size]" — honest, no compliance theater
+- Stacking notes: admin-curated 1-2 sentence "Commonly stacked with" field (e.g., "BPC-157 is often stacked with TB-500 for synergistic soft tissue repair"). Optional; shown when present. No AI generation — curated by Power User.
+
+**Out of scope for this feature:**
+- Community-contributed profile edits
+- AI-generated profiles without human review (AI may draft; Power User must review and approve)
+- Drug interaction checker (v2 after Peptify-style pharmacokinetic modeling is evaluated)
+- Dose recommendation ("take X mcg" framing — avoided per anti-vision; ranges only)
+
+**v1 catalog scope:**
+~20–30 compounds seeded from QSC vendor PDF. Every compound the user might order from QSC should have a profile before v1 ships.
+
+**Search & browse:**
+- Text search by common name (e.g., "BPC", "TB-500", "sema")
+- Browse by category: healing/recovery, GH secretagogues, GLP-1/metabolic, nootropics/cognitive, cosmetic/skin, other
+- Sort: alphabetical, most common (manually curated rank), recently viewed
+
+**Error scenarios:**
+- Compound is in QSC catalog but profile is not yet complete → show "Profile in progress" placeholder with compound name and basic sourcing info; not a 404
+- Search returns 0 results → "Not yet in catalog — check back or submit a request" (v2: request form)
+- Compound is deleted from the vendor catalog but is referenced by an existing protocol or dose log → compound record is soft-deleted (never hard-deleted); UI shows the compound name as "[Name] (archived)" with no active profile link; FK integrity preserved across all historical records
+
+---
+
+### 5.2 Pillar 2 — Protocol Tracker
+
+**What it does:**
+Manages multi-compound stacks for the Power User and their managed users. Replaces a spreadsheet-and-memory system with a structured schedule supporting daily logging, injection site tracking, cycle management, and subjective outcome recording.
+
+#### 5.2.1 Protocol Definition
+
+**Protocol fields:**
+- Compound (linked to reference catalog; required)
+- Dose amount (numeric; unit: mcg / mg / IU / mL)
+- Dose frequency: daily / every other day (EOD) / specific days of week / custom interval (days)
+- Administration route (defaults from compound profile; overridable)
+- Start date (required)
+- Optional end date
+- Cycle association (optional link to a cycle record)
+- Free-text notes field
+
+**Protocol status lifecycle:** active | paused | completed | deactivated
+- **Pause / Resume:** "Pause" sets status to paused; paused protocols are excluded from "today's doses" but visible in protocol list with status indicator. "Resume" restores active status. Dose history is unaffected by pause/resume.
+- **Clone:** "Clone this protocol" creates a copy with all fields copied (compound, dose, frequency, route, notes). User sets a new start date. The clone starts in draft state and is not active until the start date is confirmed.
+- **Restart cycle:** "Restart cycle" reopens a completed cycle with a new start date, re-linking all its associated protocols as new clones. The original completed cycle is preserved in history.
+
+**Out of scope:** AI-suggested protocols, community protocol templates
+
+**Error scenarios:**
+- Protocol saved with no compound → blocked: "Compound required"
+- Protocol dose of 0 → blocked: "Dose amount must be greater than zero"
+- Protocol start date in the past → allowed; no back-fill of historical dose logs
+- Clone of a paused or deactivated protocol → allowed; clone starts as active (with user-set start date)
+
+#### 5.2.2 Daily Dose Logging
+
+**Logging flow (individual):**
+1. Dashboard shows "Today's doses" — list of all active protocol doses due today for the logged-in user
+2. User taps a dose entry → sees dose details (compound, scheduled amount, suggested injection site)
+3. User confirms dose or edits the actual amount taken if it differed from scheduled
+4. Optional: add a note (free text, max 500 chars)
+5. Log entry saved with timestamp; dashboard updates to mark dose as logged
+
+**Batch logging flow ("Log All Scheduled" — Must Have):**
+1. "Log All Scheduled" button appears at top of today's doses when ≥ 1 dose is pending
+2. User taps → review screen shows all pending doses pre-filled at protocol amounts with suggested injection sites
+3. Any dose with a vial expiry warning is flagged in the review list (not blocked)
+4. User taps "Confirm all" → all doses logged simultaneously with current timestamp
+5. User can remove individual doses from the batch before confirming (e.g., skip one compound)
+6. Success: dashboard clears all logged doses; total time target ≤ 3 taps
+
+**Log record fields:**
+- Protocol reference (FK)
+- Actual dose taken (may differ from scheduled amount)
+- Timestamp (auto-captured; editable within same calendar day only)
+- Injection site used
+- Note (optional)
+- Logged by (user ID — relevant for admin visibility)
+
+**Error scenarios:**
+- User attempts to log a dose when vial inventory shows 0 remaining → warning ("No active vial recorded for this compound — log anyway?"); does not block, but flags prominently
+- Duplicate log for same protocol + same day → "You already logged this today. Log again?" — requires confirmation
+- Missed dose (calendar day passes with no log) → no automatic fill or penalty; appears as "Not logged" in history; retroactive logging not supported after the calendar day ends (audit integrity)
+- Dose skip (user intentionally skips) → user can tap "Skip" on a dose entry; recorded as a skip event; counts as 0 in adherence metrics; distinguishable from "Not logged" in history
+- Late dose (logged same calendar day but past typical window) → accepted; no time-window enforcement; timestamp is as logged
+- Timezone / DST shift → all timestamps stored in UTC; dashboard "today's doses" resolves based on user's browser local date
+
+#### 5.2.3 Injection Site Rotation
+
+**Rotation system:**
+- Selectable sites: left abdomen, right abdomen, left thigh, right thigh, left deltoid, right deltoid, ventrogluteal L, ventrogluteal R
+- Per-compound site history (peptides with route requirements respect the correct site group)
+
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# System Architecture
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**PRD source:** `docs/plan.md`  
+**ADR source:** `docs/adrs/`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Architectural Style: Modular Monolith
+
+We use a modular monolith architecture built on Next.js 15. The system is organized into bounded contexts that can be isolated (ADR-015) or eventually extracted into microservices if needed.
+
+### 1.1 Layered Structure (Per Module)
+- **UI Layer**: React components (RSC or Client) in `app/`.
+- **Application Layer**: Server Actions and Services in `lib/{module}/application/`.
+- **Domain Layer**: Entities and business logic in `lib/{module}/domain/`.
+- **Infrastructure Layer**: Persistence and external integrations in `lib/{module}/infrastructure/`.
+
+---
+
+## 2. Component Design
+
+### 2.1 Component Overview
+
+| Component | Responsibility | Tech Stack |
+|-----------|----------------|------------|
+| **App Shell** | PWA Layout, Navigation, Auth Guards | Next.js, shadcn/ui |
+| **Auth** | Registration, Login, Session Mgmt | Auth.js v5 |
+| **Tracker** | Dose Logging, Protocols, PWA Sync | React, TanStack Query |
+| **Reminders** | Web Push & Email Notification logic | Serwist, Resend |
+| **Reference** | Peptide Catalog, Profile Reference | RSC (Next.js) |
+| **Ordering** | Vendor Catalog, Telegram MTProto | GramJS, Server Actions |
+| **Reconstitution** | Concentration Math, Vial Inventory | lib (Typescript) |
+| **Audit** | Immutable Mutation Logs | Prisma (Postgres) |
+| **Observability** | Error tracking & Alerting | Sentry, Railway |
+
+---
+
+## 3. Data Flows
+
+### 3.1 Flow: Log a Dose (Offline-First)
+1. **User Action**: User taps "Confirm" or "Skip" on dashboard.
+2. **Client Layer**:
+   - Record event in IndexedDB (via Serwist).
+   - If Online: Trigger background sync to `/api/sync`.
+3. **Server Layer**:
+   - **Case: Logged**: Validate `idempotencyKey`, decrement `Vial.remainingMg` (if vial linked), write `DoseLog`, write `AuditLog`.
+   - **Case: Skipped**: Write `DoseLog` (status: Skipped), write `AuditLog`.
+   - **Case: Edited**: Only allowed same calendar day; update `DoseLog`, adjust `Vial`, write `AuditLog`.
+
+### 3.2 Flow: Place Telegram Order (Payment Safety Gate)
+1. **Draft -> Sent**: Power User clicks "Send Order"; GramJS dispatches message.
+2. **Sent -> Confirmed**: User receives Telegram reply, enters quoted total and wallet address in app.
+3. **Confirmed -> PaymentSent**: **Hard Gate**: App displays Wallet + Amount; user verifies on screen and clicks "Mark payment sent".
+4. **PaymentSent -> Received**: User confirms delivery; app prompts to add line items to Vial Inventory.
+5. **Audit**: Every status transition emits a signed `AuditEvent`.
+
+---
+
+## 4. Module Structure (Bounded Context Slices)
+
+```
+/
+├── app/                        # UI Layer (Next.js)
+│   ├── (auth)/                 # Registration, Login, Reset
+│   ├── (dashboard)/            # Main App Layout
+│   │   ├── tracker/            # Tracker UI
+│   │   ├── reference/          # Reference UI
+│   │   └── reconstitution/     # Calculator UI
+│   ├── ordering/               # Isolated Ordering UI (ADR-015)
+│   ├── actions/                # Server Action Entrypoints (grouped by context)
+│   │   ├── auth/
+│   │   ├── tracker/
+│   │   └── ordering/
+│   └── api/                    # Route Handlers
+│       ├── cron/               # Railway Cron Endpoints (Secured)
+│       └── sync/               # PWA Sync Handler
+├── lib/                        # Core Logic (Domain & Application)
+│   ├── {context}/              # auth, tracker, ordering, reference, jobs, audit
+│   │   ├── domain/             # Pure entities, invariants, events
+│   │   ├── application/        # Use cases, service logic
+│   │   └── infrastructure/     # Prisma repos, external API clients
+│   ├── jobs/                   # Background job implementations
+│   └── shared/                 # Common types, utils, cross-domain services
+├── prisma/                     # Global Schema
+└── worker/                     # Serwist Service Worker
+```
+
+---
+
+## 5. State Management Design
+
+- **Server State (TanStack Query)**: MTProto connection, Sync status, Adherence metrics.
+- **Client UI State (React Context)**: Onboarding wizard, Ordering cart.
+- **Client Persistence (IndexedDB)**: Offline dose log queue, optimistic inventory projection.
+
+---
+
+## 6. Scheduled Jobs (Railway Cron)
+
+| Job Name | Frequency | Responsibility |
+|----------|-----------|----------------|
+| **Dose Reminder** | Hourly | Check for users with reminders due; dispatch Push or Email. |
+| **Stale Order Checker** | Daily | Flag orders in "Sent" status > 14 days. |
+| **Audit Purge** | Daily | Delete `AuditEvent` records > 90 days old. |
+| **Vial Expiry Check** | Daily | Notify users of vials nearing 14-day expiry. |
+
+---
+
+## 7. Deployment Topology
+
+- **Runtime**: Node.js 20 on Railway Container (Always-on for MTProto).
+- **Database**: PostgreSQL 16 (Railway Managed).
+- **Email**: Resend (ADR-011).
+- **Storage**: Cloudflare R2 (ADR-014).
+- **Monitoring**: Sentry (ADR-013).
+
+---
+
+## 8. Failure Modes
+
+- **MTProto Logout**: Session invalidated; system falls back to display message + deep-link.
+- **Offline Sync Conflict**: Idempotency key `user:protocol:date` wins.
+- **Audit Write Failure**: Mutation rolled back via DB transaction.
+
+---
+
+## 9. Testing Architecture
+
+We follow a Pyramid strategy:
+- **Unit Tests (Vitest)**: Math calculations in `lib/reconstitution`, domain invariants in `lib/*/domain`.
+- **Integration Tests (Vitest)**: Server Actions, repository transactions, MTProto session encryption.
+- **E2E Tests (Playwright)**:
+  - **Hard Gate**: Payment safety verification screen.
+  - **Critical Path**: Offline dose log queuing and sync replay.
+  - **Auth**: Managed user invitation and permission isolation.
+
+exec
+/bin/zsh -lc "sed -n '1,240p' docs/tech-stack.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+<!-- scaffold:tech-stack v1 2026-05-20 -->
+# Technology Stack
+
+**Date:** 2026-05-20
+**PRD source:** `docs/plan.md` (post-innovate-prd v1)
+**Methodology:** deep | Depth: 5/5
+**Status:** COMPLETE — all decisions finalized
+
+---
+
+## 1. Architecture Overview
+
+### 1.1 Pattern: Full-Stack Monolith (Next.js App Router)
+
+A single Next.js 15 application handles both the frontend and backend. This is the correct pattern for a solo-developer personal tool at 1–50 users:
+
+- **No microservices.** Zero operational benefit at this scale; massive coordination cost.
+- **No separate API server.** Next.js API routes and Server Actions replace Express/Fastify entirely.
+- **Stateless HTTP layer + stateful Telegram layer.** HTTP endpoints are stateless. The MTProto Telegram session is held server-side (encrypted in Postgres) and reconnected per-request. This works correctly on Railway (always-on), not on serverless platforms.
+
+### 1.2 Rendering Strategy
+
+| Surface | Strategy | Rationale |
+|---------|----------|-----------|
+| Reference pages (compound profiles) | SSG (static) with 24h ISR | Content changes rarely; maximum CDN performance; SEO-irrelevant but fast load |
+| Dashboard + dose logging | Server Components + Client Components | Personalized; auth-gated; streaming SSR for fast FCP |
+| Admin panel | SSR (server-side rendered) | Personalized, no public caching |
+| Order builder | Client Components | Interactive cart state; no SSG benefit |
+| Reconstitution calculator | Client Component | Real-time math; all client-side computation |
+| Auth pages (login, register) | SSR | Session check server-side; prevents flash of unauthenticated state |
+
+**Progressive hydration principle:** Server Components for read-only, non-interactive UI (reference pages, dose history). Client Components only where interactivity is required (dose log form, order cart, calculator input fields).
+
+### 1.3 Always-On Requirement
+
+The app **must** run on an always-on server (Railway), not serverless. Two reasons:
+1. **GramJS MTProto** requires a persistent Node.js process or at minimum reliable session storage. Cold starts on serverless create auth latency and session issues.
+2. **Scheduled dose reminders** require a cron-triggered server process, not on-demand invocation.
+
+### 1.4 PWA Architecture
+
+```
+Browser (PWA shell)
+  └── Service Worker (Serwist)
+        ├── Cache: App shell, static assets
+        ├── Offline queue: IndexedDB → background sync → POST /api/dose-logs
+        └── Push: Web Push API subscription → web-push server → Sentry alert if fails
+```
+
+Offline dose-log writes are queued in IndexedDB via Workbox background-sync. On reconnect, the service worker replays them against the API. The server applies standard idempotency checks (duplicate log for same protocol + same day → confirmation prompt).
+
+---
+
+## 2. Language & Runtime
+
+### 2.1 TypeScript 5.x (strict mode)
+
+**Decision:** TypeScript strict mode throughout. No `any` except explicitly typed as `unknown` first.
+
+**Why:** Safety-critical reconstitution math and payment flows require compile-time type guarantees. TypeScript strict mode catches dose-unit mismatches, null pointer errors in protocol lookups, and API response shape mismatches at build time rather than runtime.
+
+**Alternatives considered:**
+- JavaScript only — eliminates type safety on dose calculations; rejected
+- Zod-only runtime types — complements TypeScript, does not replace compile-time types
+
+**AI compatibility:** Maximum. TypeScript is the #1 language in Claude Code training data for web development. Type annotations let AI tools generate more accurate code on first attempt.
+
+**Configuration:** `tsconfig.json` with `"strict": true`, `"noUncheckedIndexedAccess": true` (prevents `array[i]` from returning `T | undefined` silently).
+
+### 2.2 Node.js 22 LTS
+
+**Decision:** Node.js 22 LTS on Railway.
+
+**Why:** Long-term support until April 2027. Native fetch, native `crypto.subtle`, `--watch` mode, improved ESM support. GramJS and all chosen dependencies are compatible.
+
+**Runtime target:** `@types/node@22`, `engines: { node: ">=22" }` in `package.json`.
+
+### 2.3 Package Manager: pnpm 9.x
+
+**Decision:** pnpm over npm or yarn.
+
+**Why:** 50–70% faster installs than npm via content-addressable store. Strict node_modules layout prevents phantom dependencies (a risk with Prisma client generation). Railway supports pnpm natively via `packageManager` field in `package.json`.
+
+**Alternatives considered:**
+- npm — slower, no phantom dependency protection
+- Bun — incompatible with GramJS native deps; avoid for production Node.js apps until ecosystem matures
+
+---
+
+## 3. Meta-Framework: Next.js 15 (App Router)
+
+**Decision:** Next.js 15 with App Router. React 19.
+
+**Why:**
+- **Full-stack in one framework.** API routes + Server Actions + React in a single codebase eliminates the context switch between frontend and backend.
+- **App Router** enables React Server Components (zero-JS reference pages), streaming SSR (fast dashboard FCP), and native layouts for the multi-page authenticated app structure.
+- **PWA-ready.** Works with Serwist for service worker generation.
+- **AI compatibility:** Strongest AI tooling coverage of any full-stack web framework. Every AI coding tool (Claude Code, Copilot, Cursor) has extensive Next.js App Router training data.
+
+**Alternatives considered:**
+- **SvelteKit** — smaller bundles, simpler mental model, but smaller ecosystem and less AI training data. No compelling advantage over Next.js for this app.
+- **Remix** — excellent progressive enhancement story but smaller community and less AI coverage. Not worth the tradeoff for a solo developer.
+- **Express + Vite + React** — more control, but replaces Next.js conventions with bespoke wiring. Every convention Next.js provides (routing, layouts, middleware, Server Actions) would require custom implementation. Solo dev cost: high.
+
+**Version pins:** `next@15.x`, `react@19.x`, `react-dom@19.x`
+
+**Key App Router conventions used:**
+- `app/` directory (not `pages/`)
+- Server Components by default; `"use client"` boundary for interactive components
+- Server Actions for all form mutations (dose logging, protocol creation, order submission)
+- Route handlers (`app/api/*/route.ts`) for machine-to-machine API calls (PWA sync, cron triggers)
+- Middleware (`middleware.ts`) for session validation on protected routes
+
+---
+
+## 4. Frontend Stack
+
+### 4.1 CSS: Tailwind CSS 3.x
+
+**Decision:** Tailwind CSS 3.x (utility-first).
+
+**Why:**
+- Required per user preference.
+- Pairs natively with shadcn/ui — all component variants are Tailwind class strings.
+- AI tools generate accurate Tailwind markup on first attempt (huge AI training corpus).
+- CSS-in-JS alternatives (styled-components, Emotion) add runtime overhead and complicate RSC boundaries.
+
+**Configuration:** `tailwind.config.ts` with custom design tokens for the app's color palette (to be defined at implementation). PostCSS pipeline via `postcss.config.mjs`.
+
+### 4.2 Components: shadcn/ui
+
+**Decision:** shadcn/ui component library.
+
+**Why:**
+- Required per user preference.
+- Copy-paste model: components are owned code, not a black-box dependency. This matters for a solo dev — customize freely without monkey-patching an external package.
+- Built on Radix UI primitives (accessible by default — satisfies WCAG 2.1 AA requirement for Delegated Participant flows).
+- Tailwind-native: component variants are class strings, not JS objects.
+- AI compatibility: Claude Code has strong shadcn/ui training data; generates accurate component usage and customization.
+
+**Install model:** `npx shadcn@latest add <component>`. Components live in `components/ui/`.
+
+**Components anticipated for this app:**
+- `button`, `card`, `badge`, `dialog`, `drawer` — dose logging, protocol views
+- `form`, `input`, `select`, `checkbox`, `textarea` — all form flows
+- `table`, `data-table` — order history, dose history, admin user list
+- `tabs` — compound profile (overview / my data)
+- `sheet` — mobile slide-up for quick log, batch confirm
+- `toast` — dose logged confirmation, order sent feedback
+- `progress`, `skeleton` — loading states
+- `chart` (Recharts-based) — outcome-dose correlation timeline
+
+### 4.3 Charts: shadcn/ui Charts (Recharts-based)
+
+**Decision:** shadcn/ui chart components, which wrap Recharts.
+
+**Why:**
+- PRD requires a dual-axis dose-vs-outcome chart (§5.2.8).
+- shadcn's chart components are styled with Tailwind, match the app's design system, and are owned code (copyable, modifiable).
+- Recharts is a React-native library (no imperative DOM manipulation), meaning it composes naturally with Server and Client Components.
+- AI compatibility: both shadcn chart patterns and Recharts are well-represented in AI training data.
+
+**Alternatives considered:**
+- **Tremor Raw** — React component library with built-in charts; less flexible than shadcn copy-paste model
+- **Chart.js** — vanilla JS with React wrapper; imperative API is less natural in React; larger bundle
+- **Victory** — React-native but smaller community; less AI coverage
+
+**Implementation note:** The correlation timeline needs a `ComposedChart` with `Bar` (dose events) and `Line` (outcome rating). This is a standard Recharts pattern.
+
+### 4.4 Forms: React Hook Form 7.x + Zod 3.x
+
+**Decision:** React Hook Form with Zod resolver.
+
+**Why:**
+- React Hook Form: uncontrolled inputs (no re-render per keystroke), well-maintained, standard shadcn/ui integration pattern.
+- Zod: schema-first validation; the same Zod schema validates Server Action inputs (server-side) and form inputs (client-side) — single source of truth for validation logic.
+- `@hookform/resolvers/zod` bridges the two.
+
+**Pattern:**
+```
+Zod schema (shared) → React Hook Form (client) + Server Action (server)
+                    → Prisma type (via zod-prisma-types or manual mapping)
+```
+
+**Alternatives considered:**
+- Formik — older, more verbose, less performant
+- Plain `<form>` + Server Actions — fine for simple forms; React Hook Form needed for complex multi-field validation (reconstitution calculator, order builder)
+
+### 4.5 Icons: Lucide React
+
+**Decision:** Lucide React (bundled with shadcn/ui).
+
+**Why:** shadcn/ui uses Lucide by convention. Tree-shakeable SVG icons. No additional install needed.
+
+### 4.6 Date Handling: date-fns 3.x
+
+**Decision:** date-fns 3.x for all date manipulation and formatting.
+
+**Why:**
+- PRD: UTC storage, browser-local-timezone display (§8.8).
+- date-fns is functional (pure functions), tree-shakeable, and has excellent TypeScript types.
+- `formatInTimeZone` (via `date-fns-tz`) handles UTC → user-local conversion correctly.
+- Lightweight alternative to moment.js (deprecated) and Day.js (minimal TypeScript support for some edge cases).
+
+**Pattern:**
+- All timestamps stored as UTC ISO 8601 in Postgres (`TIMESTAMPTZ`).
+- Display: `formatInTimeZone(utcDate, userBrowserTimezone, 'MMM d, yyyy h:mm a')`.
+- "Today's doses" resolved using user's `Intl.DateTimeFormat().resolvedOptions().timeZone` (captured in client, sent as header or stored in session).
+
+**Alternatives considered:**
+- Day.js — lighter but `date-fns-tz` has better TypeScript support for timezone conversion
+- Native `Intl.DateTimeFormat` — adequate for formatting but no utility functions for arithmetic
+
+### 4.7 Client State: TanStack Query 5.x + React Context
+
+**Decision:** TanStack Query for server state; React Context for UI state (wizard step, batch log selection).
+
+**Why:**
+- **TanStack Query:** Handles data fetching, caching, background refetch, and optimistic updates for client-side interactions (search, inventory live updates). Better than SWR for this app's needs (more control over cache invalidation when dose is logged).
+- **React Context:** Lightweight UI state (auth user object, current wizard step, batch log selection set). No global store library (Redux, Zustand) needed — app complexity doesn't justify it.
+- **Server Actions + `useActionState`:** For all form mutations (React 19 native pattern). No client-side fetch needed for most forms.
+
+**Alternatives considered:**
+- Zustand — appropriate if cross-component state grows complex; not needed at v1 scale
+- SWR — less powerful cache invalidation; fewer features than TanStack Query
+
+---
+
+## 5. Backend Stack
+
+### 5.1 Authentication: Auth.js v5 (NextAuth)
+
+**Decision:** Auth.js v5 (formerly NextAuth) with Credentials provider and Prisma adapter.
+
+**Why:**
+- Auth.js v5 is the v1-stable release of NextAuth, built for Next.js App Router. It handles session cookies, CSRF protection, and edge middleware natively.
+- Credentials provider supports email/password with custom bcrypt verification (min cost 12 per PRD §5.6).
+- Prisma adapter stores sessions and users in Postgres — no additional session store needed.
+- Password reset via custom token flow (Auth.js does not include reset out of the box; implement a token table and email link per PRD §5.6 spec).
+- AI compatibility: Auth.js/NextAuth is the most widely documented auth library in the Next.js ecosystem; Claude Code generates accurate boilerplate.
+
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/tdd-standards.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# TDD Standards
+
+**Status:** Draft  
+**Date:** 2026-05-20  
+**Tech Stack source:** `docs/tech-stack.md`  
+**Methodology:** deep | Depth: 5/5
+
+---
+
+## 1. Test Pyramid
+
+We follow a standard Test Pyramid to balance speed, isolation, and confidence.
+
+| Layer | Tool | Target Coverage | Purpose |
+|-------|------|-----------------|---------|
+| **Unit** | Vitest | 90% (100% Math) | Pure logic, math, domain invariants. |
+| **Integration** | Vitest | 70% | Server Actions, Repositories, Auth logic. |
+| **E2E** | Playwright | 100% Critical Paths | Hard Gates, Offline Sync, Multi-user flow. |
+
+---
+
+## 2. Testing Patterns
+
+### 2.1 Unit Testing (Pure Logic)
+- **Location**: Colocated with implementation (`*.test.ts`).
+- **Mocking**: Zero. Only pure functions.
+- **Example**:
+```typescript
+import { calculateSyringeUnits } from './reconstitution-math';
+
+describe('calculateSyringeUnits', () => {
+  it('calculates 10 units for 250mcg in 2.5mg/mL concentration', () => {
+    const units = calculateSyringeUnits({
+      targetDoseMcg: 250,
+      concentrationMcgPerMl: 2500
+    });
+    expect(units).toBe(10);
+  });
+});
+```
+
+### 2.2 Integration Testing (Server Actions / DB)
+- **Location**: `lib/{module}/infrastructure/*.test.ts` or `app/actions/{module}/*.test.ts`.
+- **Mocking**: External APIs (Telegram, Resend) are mocked. Database is real (via test DB).
+- **Example**:
+```typescript
+describe('logDose Action', () => {
+  it('creates a log entry and decrements vial remaining amount', async () => {
+    // Setup test user and vial
+    const result = await logDose({ protocolId: '...', amountMcg: 250 });
+    expect(result.success).toBe(true);
+    // Assert audit log exists
+  });
+});
+```
+
+### 2.3 E2E Testing (Playwright)
+- **Location**: `tests/e2e/*.spec.ts`.
+- **Focus**: The "Hard Gates" and complex multi-step flows.
+- **Example**:
+```typescript
+test('Payment Safety Gate requires wallet address display', async ({ page }) => {
+  await page.goto('/ordering/123/confirm');
+  await expect(page.getByText('Verify Wallet Address')).toBeVisible();
+  await page.click('button:has-text("Mark payment sent")');
+  // Assert state change
+});
+```
+
+---
+
+## 3. Quality Gates
+
+All checks must pass in CI before a Pull Request can be merged.
+
+1. **Lint**: `npm run lint` (ESLint + Prettier)
+2. **Typecheck**: `npm run typecheck` (tsc)
+3. **Unit/Integration**: `npm run test` (Vitest)
+4. **E2E**: `npm run e2e` (Playwright)
+5. **Coverage**: `npm run test:coverage` (Threshold: 70% overall)
+
+---
+
+## 4. Test Data Strategy
+
+- **Factories**: Use factory functions in `tests/factories/` to generate valid domain objects.
+- **Cleanup**: Every integration/E2E test must run in a transaction or cleanup its own data.
+- **Seeds**: A minimal `prisma/seed.ts` provides the QSC reference catalog for development and E2E.
+
+---
+
+## 5. Performance & Contract Testing
+
+- **Benchmarks**: Reconstitution math must execute in < 1ms.
+- **Contract**: MTProto session serialization is verified against GramJS version updates.
+- **Visual Regression**: Critical dashboard layouts (Dose list, charts) use Playwright screenshots.
+
+exec
+/bin/zsh -lc "for f in docs/domain-models/*.md; do printf '\\nFILE %s\\n' \""'$f"; sed -n '"'1,220p' \""'$f"; done' in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+
+FILE docs/domain-models/audit.md
+# Audit Domain
+
+The Audit Domain provides a system-wide record of all sensitive mutations and security events.
+
+## Ubiquitous Language
+- **Audit Event**: A persistent, immutable record of a specific action.
+
+## Entities
+
+### AuditEvent (Aggregate Root)
+An immutable log entry.
+- **Attributes**:
+  - `id`: UUID
+  - `timestamp`: timestamp
+  - `actorUserId`: UUID (FK)
+  - `subjectUserId`: UUID (FK, optional)
+  - `category`: enum (Security, Protocol, Order, Admin)
+  - `action`: string (e.g., "PROTOCOL_CREATED")
+  - `resourceId`: UUID (Identity of the affected entity)
+  - `resourceType`: string (e.g., "Protocol")
+  - `metadata`: JSON (Captured request context, IP, User Agent)
+  - `oldValues`: JSON (optional)
+  - `newValues`: JSON (optional)
+
+## Aggregate: System Audit Trail
+- **Consistency Boundary**: A single AuditEvent record.
+- **Root**: AuditEvent
+- **Invariants**:
+  - Audit events are immutable; they can be created but never updated or deleted.
+  - Every event must be linked to an `actorUserId`.
+  - **Retention**: Events are retained for 90 days, then purged by a scheduled background job.
+
+## Invariants
+- `auditEvent.timestamp >= createdAt`
+- `auditEvent.action.length > 0`
+
+FILE docs/domain-models/auth.md
+# Auth Domain
+
+The Auth Domain manages user accounts, sessions, and managed user invitations.
+
+## Ubiquitous Language
+- **User**: An authenticated person (Power User or Delegated Participant).
+- **Power User**: The system administrator who manages other users and the ordering module.
+- **Delegated Participant**: A user invited by a Power User (Managed User role).
+- **Invite**: A token-based invitation to join the app.
+
+## Entities
+
+### User (Aggregate Root)
+An account entity.
+- **Attributes**:
+  - `id`: UUID
+  - `email`: string (Unique)
+  - `passwordHash`: PasswordHash (Value Object)
+  - `role`: enum (PowerUser, ManagedUser)
+  - `managedBy`: UUID (FK, optional)
+  - `status`: enum (Active, Deactivated, Pending)
+  - `createdAt`: timestamp
+
+### PasswordResetToken (Entity)
+A single-use token for password recovery.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `tokenHash`: string
+  - `expiresAt`: timestamp
+  - `used`: boolean
+
+### AccountDeletionRequest (Entity)
+A request to wipe all user data.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `requestedAt`: timestamp
+  - `scheduledFor`: timestamp (48h delay)
+  - `status`: enum (Pending, Executed, Cancelled)
+
+### DataExportRequest (Entity)
+A request for data portability.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `format`: enum (JSON, CSV)
+  - `status`: enum (Pending, Processing, Completed, Failed)
+  - `downloadUrl`: string (optional)
+  - `expiresAt`: timestamp (optional)
+
+### OnboardingState (Value Object)
+Tracks the user's progress through the setup wizard.
+- **Attributes**:
+  - `step`: enum (Catalog, Protocol, Telegram, Done)
+  - `completedAt`: timestamp (optional)
+  - `dismissed`: boolean
+
+## Value Objects
+
+### PasswordHash
+Securely hashed password.
+- **Attributes**:
+  - `hash`: string
+  - `algorithm`: string (bcrypt)
+  - `cost`: number (default 12)
+
+## Aggregate: Account Identity
+- **Consistency Boundary**: A User and their auth-related state (tokens, sessions).
+- **Root**: User
+- **Invariants**:
+  - Password hash must use bcrypt with cost >= 12.
+  - Deleting a Power User requires all linked Managed Users to be deactivated first.
+
+## Domain Events
+- `UserRegistered`: A new Power User signs up.
+- `UserInvited`: A Power User sends an invite.
+- `InviteAccepted`: A Managed User completes registration.
+- `AccountDeletionScheduled`: A user requests data wipe.
+
+## Invariants
+- `invite.expiresAt == invite.createdAt + 72h`
+- `passwordResetToken.expiresAt == passwordResetToken.createdAt + 1h`
+
+FILE docs/domain-models/index.md
+# Domain Models Overview
+
+This directory contains the domain models for the Peptides application, organized by pillar and bounded context.
+
+## Bounded Contexts
+
+| Context | Description | Key Aggregates |
+|---------|-------------|----------------|
+| **Reference** | Static compound knowledge and research data. | `Compound` |
+| **Tracker** | Dosing schedules, logs, and subjective outcomes. | `Cycle`, `Protocol` |
+| **Reconstitution** | Vial inventory and math calculations. | `Vial` |
+| **Ordering** | Vendor products and Telegram order transactions. | `Order`, `Vendor` |
+| **Auth** | User accounts, sessions, and multi-user logic. | `User` |
+| **Audit** | Immutable system-wide record of sensitive mutations. | `AuditEvent` |
+
+## Context Map (High Level)
+
+- **Auth** provides the identity foundation for all other contexts (via `userId`).
+- **Audit** listens to events from all other domains to persist the audit trail.
+- **Tracker** references **Reference** (via `compoundId`) for dosing ranges and safety data.
+- **Tracker** references **Reconstitution** (via `vialId`) for inventory decrementing.
+- **Reconstitution** references **Reference** (via `compoundId`) for concentration calculations.
+- **Reconstitution** references **Ordering** (via `orderId`) for inventory updates on receipt.
+- **Ordering** references **Reference** (via `compoundId`) for catalog product linking.
+
+## Domain Model Files
+- [Reference Domain](reference.md)
+- [Tracker Domain](tracker.md)
+- [Reconstitution Domain](reconstitution.md)
+- [Ordering Domain](ordering.md)
+- [Auth Domain](auth.md)
+
+FILE docs/domain-models/ordering.md
+# Ordering Domain
+
+The Ordering Domain manages vendor product catalogs, Telegram communication, and the order lifecycle.
+
+## Ubiquitous Language
+- **Order**: A purchase transaction for one or more vendor products.
+- **Payment Confirmation**: The explicit step where a user verifies the destination wallet and amount.
+
+## Entities
+
+### Order (Aggregate Root)
+A purchase transaction.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `vendorId`: UUID (FK)
+  - `status`: enum (Draft, Sent, Confirmed, PaymentSent, Received, Cancelled, Stale)
+  - `paymentConfirmation`: PaymentConfirmation (Value Object, optional)
+  - `telegramMessageId`: string (optional)
+  - `idempotencyKey`: string (UUID)
+
+## Value Objects
+
+### PaymentConfirmation
+The safety gate for crypto payments.
+- **Attributes**:
+  - `confirmedTotal`: number
+  - `currency`: string (e.g., "USDT")
+  - `walletAddress`: string
+  - `acknowledgedAt`: timestamp
+  - `acknowledgedByUserId`: UUID
+
+## Aggregate: Order Transaction
+- **Consistency Boundary**: Order status and payment acknowledgement.
+- **Root**: Order
+- **Invariants**:
+  - `status` cannot transition to `PaymentSent` without a completed `paymentConfirmation`.
+  - `paymentConfirmation.walletAddress` must be non-empty.
+
+## Domain Events
+- `OrderSent`: Telegram message dispatched.
+- `PaymentAcknowledged`: User completes the safety gate verification.
+- `OrderReceived`: User confirms delivery and updates inventory.
+
+## Invariants
+- `order.idempotencyKey` is unique per order attempt.
+
+FILE docs/domain-models/reconstitution.md
+# Reconstitution Domain
+
+The Reconstitution Domain manages vial inventory and the mathematical calculations for concentration and syringe units.
+
+## Ubiquitous Language
+- **Vial**: A container of a compound in powder or liquid form.
+- **Concentration**: The resulting amount of compound per mL of liquid.
+- **Syringe Units**: The measurement on a 100-unit insulin syringe (1 unit = 0.01mL).
+
+## Entities
+
+### Vial (Aggregate Root)
+A single unit of inventory.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `compoundId`: UUID (FK)
+  - `totalMg`: number
+  - `bacWaterMl`: number (optional)
+  - `remainingMg`: number
+  - `status`: enum (Dry, Reconstituted, Empty, Expired)
+  - `reconstitutedAt`: timestamp (optional)
+  - `expiresAt`: timestamp (optional)
+
+## Value Objects
+
+### ReconstitutionResult
+The output of a reconstitution calculation.
+- **Attributes**:
+  - `concentrationMcgPerMl`: number
+  - `syringeUnitsPerDose`: number
+  - `injectionVolMl`: number
+
+## Domain Services
+
+### ReconstitutionCalculator
+Performs safe reconstitution math with warning policy evaluation.
+- **Warning Policy**:
+  - `injectionVolMl > 1.5` -> Trigger "High Volume" warning.
+  - `bacWaterMl < 0.5` -> Trigger "Low BAC Volume" warning.
+  - `dose > Profile.maxDose` -> Trigger "Above Reference Range" warning.
+
+## Domain Events
+- `VialReconstituted`: BAC water is added to a vial.
+- `SafetyWarningTriggered`: A calculation results in a policy violation.
+
+## Invariants
+- `vial.remainingMg >= 0`
+- `vial.totalMg > 0`
+- `bacWaterMl > 0` (once reconstituted)
+
+FILE docs/domain-models/reference.md
+# Reference Domain
+
+The Reference Domain manages the static knowledge base of compounds, their physiological profiles, and the vendor product catalog.
+
+## Ubiquitous Language
+- **Compound**: A biological substance (peptide) with defined mechanism and safety data.
+- **Profile**: Detailed research-backed data associated with a compound.
+- **Catalog**: A searchable collection of compounds available to the user.
+
+## Entities
+
+### Compound (Aggregate Root)
+A peptide or biological substance.
+- **Attributes**:
+  - `id`: UUID
+  - `name`: string (e.g., "BPC-157")
+  - `iupacName`: string (optional)
+  - `synonyms`: string[]
+  - `mechanismOfAction`: text
+  - `administrationRoutes`: enum[] (SC, IM, Oral, Nasal)
+  - `status`: enum (Draft, Published, Archived)
+  - `archivedAt`: timestamp (optional)
+
+### Profile (Entity)
+Detailed research data for a Compound.
+- **Attributes**:
+  - `id`: UUID
+  - `compoundId`: UUID (FK)
+  - `dosingLow`: DoseAmount
+  - `dosingTypical`: DoseAmount
+  - `dosingHigh`: DoseAmount
+  - `sideEffects`: text
+  - `contraindications`: text
+  - `stackingNotes`: text (curated)
+  - `citations`: Citation[] (Value Objects)
+
+## Value Objects
+
+### Citation
+A research reference.
+- **Attributes**:
+  - `title`: string
+  - `url`: string (URL)
+  - `doi`: string (optional)
+  - `pmid`: string (optional)
+- **Invariants**:
+  - Must have either a URL, DOI, or PMID.
+
+## Aggregate: Compound Catalog
+- **Consistency Boundary**: A Compound and its Profile must be consistent.
+- **Root**: Compound
+- **Invariants**:
+  - A published Compound must have at least one administration route.
+  - A Compound name must be unique within the catalog.
+
+## Domain Events
+- `CompoundCreated`: Triggered when a new compound is added.
+- `CompoundProfileUpdated`: Triggered when mechanism or dosing data changes.
+- `CompoundArchived`: Triggered when a compound is soft-deleted.
+
+## Invariants
+- `compound.name.length > 0`
+- `count(compound.administrationRoutes) > 0` if `status == Published`
+
+FILE docs/domain-models/tracker.md
+# Tracker Domain
+
+The Tracker Domain manages user protocols, daily dosing logs, cycles, and subjective outcomes.
+
+## Ubiquitous Language
+- **Protocol**: A scheduled plan for a specific compound (e.g., "BPC-157 250mcg daily").
+- **Dose Log**: A record of a completed or skipped dose event.
+- **Cycle**: A logical grouping of protocols over a defined period.
+- **Outcome Log**: A subjective rating of wellbeing and notes for a given day.
+- **Injection Site**: The physiological location of an administration (e.g., "Left Abdomen").
+
+## Entities
+
+### Protocol (Aggregate Root)
+A scheduled dosing plan.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `compoundId`: UUID (FK)
+  - `cycleId`: UUID (FK, optional)
+  - `dose`: DoseAmount (Value Object)
+  - `schedule`: Schedule (Value Object)
+  - `administrationRoute`: enum (SC, IM, Oral, Nasal)
+  - `startDate`: date
+  - `endDate`: date (optional)
+  - `status`: enum (Active, Paused, Completed, Deactivated)
+  - `notes`: text
+
+### Cycle (Aggregate Root)
+A logical container for one or more protocols.
+- **Attributes**:
+  - `id`: UUID
+  - `userId`: UUID (FK)
+  - `name`: string
+  - `startDate`: date
+  - `endDate`: date (optional)
+  - `status`: enum (Active, Completed, Archived)
+
+### Dose Log (Entity)
+A record of a dose event.
+- **Attributes**:
+  - `id`: UUID
+  - `protocolId`: UUID (FK)
+  - `idempotencyKey`: string (UUID, unique per user-scheduledDate-protocolId)
+  - `loggedAt`: timestamp
+  - `scheduledDate`: date
+  - `amount`: DoseAmount (Value Object)
+  - `status`: enum (Logged, Skipped)
+  - `injectionSite`: InjectionSite (Value Object)
+  - `isBatchLog`: boolean
+  - `loggedByUserId`: UUID (FK)
+
+## Value Objects
+
+### DoseAmount
+- **Attributes**:
+  - `value`: number
+  - `unit`: enum (mcg, mg, IU, mL)
+
+### Schedule
+- **Attributes**:
+  - `frequency`: enum (Daily, EOD, MWF, CustomInterval)
+  - `intervalDays`: number (optional)
+
+### InjectionSite
+- **Attributes**:
+  - `location`: string (e.g., "Left Abdomen")
+  - `group`: enum (Abdomen, Thigh, Deltoid, Glute)
+
+## Domain Services
+
+### SiteRotationPolicy
+Calculates the next suggested injection site based on a user's `DoseLog` history for a specific route.
+- **Rule**: Round-robin through available sites in the preferred group.
+
+## Aggregate: Dose Adherence
+- **Consistency Boundary**: Protocol and its Dose Logs.
+- **Root**: Protocol
+- **Invariants**:
+  - Cannot log a future dose.
+  - Cannot edit a dose log past the same calendar day.
+
+## Domain Events
+- `DoseLogged`: A user confirms a dose.
+- `DoseSkipped`: A user explicitly skips a dose.
+- `InjectionSiteSuggested`: The rotation policy produces a new suggestion.
+
+## Invariants
+- `dose.value > 0`
+- `cycle.startDate <= cycle.endDate` (if exists)
+
+codex
+The first pass shows several gaps around offline sync, scheduled jobs, RSC/Server Action testing, and domain invariant traceability. I’m doing one targeted search through the PRD/ADRs for acceptance criteria and testing decisions so the severity levels are calibrated.
+exec
+/bin/zsh -lc "sed -n '1,240p' docs/adrs/ADR-008-testing-strategy.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# ADR-008: Use Vitest and Playwright for Automated Testing
+
+## Status
+Accepted
+
+## Context
+Safety-critical math (reconstitution) and payment flows require 100% test coverage to prevent user harm and financial loss. A solo developer needs fast, reliable tests that run in CI.
+
+## Decision
+We will use Vitest for unit and integration testing and Playwright for end-to-end (E2E) testing.
+
+## Alternatives Considered
+- **Jest**: Slower and worse ESM support than Vitest for modern Next.js projects.
+- **Cypress**: Excellent but slower and has less WebKit support than Playwright for iOS PWA testing.
+- **No E2E testing**: Too risky for the payment safety gate and offline sync requirements.
+
+## Consequences
+- **Benefits**: Extremely fast unit tests; reliable cross-browser E2E testing (Chromium, Firefox, WebKit); visual debugging in Playwright; 100% coverage target for critical math.
+- **Costs**: Time investment to maintain the E2E suite; potential flakiness in complex PWA sync tests.
+
+exec
+/bin/zsh -lc "sed -n '1,240p' docs/adrs/ADR-007-pwa-offline.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# ADR-007: Implement PWA with Serwist for Offline Dose Logging
+
+## Status
+Accepted
+
+## Context
+The "7:00 AM routine" often takes place when users have poor or no internet connectivity (e.g., in a basement gym or traveling). Dose logging must work offline to ensure accuracy and user retention.
+
+## Decision
+We will implement the application as a Progressive Web App (PWA) using Serwist to manage the service worker and offline queuing.
+
+## Alternatives Considered
+- **next-pwa**: Unmaintained since 2022; Serwist is its active successor.
+- **Pure Web App (Online Only)**: Violates the core "7am routine" requirement and MoSCoW "Must Have" status for offline logging.
+- **Native Mobile App**: Higher development cost; rejected by App Store policies for grey-market ordering features.
+
+## Consequences
+- **Benefits**: Home screen installation; offline dose logging with Background Sync; fast app shell loading via service worker cache.
+- **Costs**: Service worker complexity; IndexedDB management for the offline queue; potential sync conflicts (mitigated by idempotency keys).
+
+exec
+/bin/zsh -lc 'rg -n "acceptance|test|offline|idempotency|cron|reminder|audit|deletion|export|managed|permission|payment|wallet|timezone|DST|coverage|CI|Playwright|Vitest|mock|Prisma|pnpm|Node.js|Node 22|Node 20" docs/plan.md docs/adrs/ADR-008-testing-strategy.md docs/adrs/ADR-007-pwa-offline.md docs/adrs/ADR-009-audit-logging.md docs/adrs/ADR-012-scheduled-jobs.md docs/adrs/ADR-004-authjs.md docs/adrs/ADR-005-gramjs.md docs/system-architecture.md docs/tech-stack.md' in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+docs/adrs/ADR-005-gramjs.md:16:3. **Excluded**: Never returned in API responses or included in data exports.
+docs/adrs/ADR-005-gramjs.md:17:4. **Revocable**: Immediately deleted from the DB on account deletion or manual request.
+docs/adrs/ADR-005-gramjs.md:26:- **Benefits**: Battle-tested; extensive documentation; standard patterns for session string serialization and restoration.
+docs/system-architecture.md:36:| **Audit** | Immutable Mutation Logs | Prisma (Postgres) |
+docs/system-architecture.md:49:   - **Case: Logged**: Validate `idempotencyKey`, decrement `Vial.remainingMg` (if vial linked), write `DoseLog`, write `AuditLog`.
+docs/system-architecture.md:55:2. **Sent -> Confirmed**: User receives Telegram reply, enters quoted total and wallet address in app.
+docs/system-architecture.md:56:3. **Confirmed -> PaymentSent**: **Hard Gate**: App displays Wallet + Amount; user verifies on screen and clicks "Mark payment sent".
+docs/system-architecture.md:78:│       ├── cron/               # Railway Cron Endpoints (Secured)
+docs/system-architecture.md:81:│   ├── {context}/              # auth, tracker, ordering, reference, jobs, audit
+docs/system-architecture.md:84:│   │   └── infrastructure/     # Prisma repos, external API clients
+docs/system-architecture.md:105:| **Dose Reminder** | Hourly | Check for users with reminders due; dispatch Push or Email. |
+docs/system-architecture.md:114:- **Runtime**: Node.js 20 on Railway Container (Always-on for MTProto).
+docs/system-architecture.md:133:- **Unit Tests (Vitest)**: Math calculations in `lib/reconstitution`, domain invariants in `lib/*/domain`.
+docs/system-architecture.md:134:- **Integration Tests (Vitest)**: Server Actions, repository transactions, MTProto session encryption.
+docs/system-architecture.md:135:- **E2E Tests (Playwright)**:
+docs/system-architecture.md:138:  - **Auth**: Managed user invitation and permission isolation.
+docs/adrs/ADR-012-scheduled-jobs.md:7:Dose reminders, stale-order detection, and audit purges require a reliable task scheduler. Next.js does not have a built-in background job processor.
+docs/adrs/ADR-004-authjs.md:10:We will use Auth.js v5 (NextAuth) with the Credentials provider and Prisma adapter.
+docs/adrs/ADR-004-authjs.md:18:- **Benefits**: Native integration with Next.js App Router; large ecosystem; easy database persistence via Prisma adapter; handles complex auth flows out-of-the-box.
+docs/adrs/ADR-009-audit-logging.md:7:The PRD requires a "Hard Gate" for audit log completeness (100% of protocol mutations, dose logs, and order events). This is necessary for security, system integrity, and potentially future regulatory compliance.
+docs/adrs/ADR-009-audit-logging.md:10:We will implement a system-wide `audit_events` table in PostgreSQL to store immutable records of all sensitive state changes.
+docs/adrs/ADR-009-audit-logging.md:13:- **Application Logs (Stdout)**: Easier to implement but ephemeral and harder to query for user-facing audit trails.
+docs/adrs/ADR-009-audit-logging.md:14:- **Prisma Middleware**: Can capture changes but harder to attribute to a specific user/request context in some scenarios.
+docs/adrs/ADR-009-audit-logging.md:15:- **Temporal / Event Sourcing**: Provides a complete audit trail but adds significant architectural complexity.
+docs/adrs/ADR-009-audit-logging.md:19:- **Costs**: Database storage growth (mitigated by 90-day rolling purge); additional latency on writes to record the audit event.
+docs/adrs/ADR-007-pwa-offline.md:7:The "7:00 AM routine" often takes place when users have poor or no internet connectivity (e.g., in a basement gym or traveling). Dose logging must work offline to ensure accuracy and user retention.
+docs/adrs/ADR-007-pwa-offline.md:10:We will implement the application as a Progressive Web App (PWA) using Serwist to manage the service worker and offline queuing.
+docs/adrs/ADR-007-pwa-offline.md:14:- **Pure Web App (Online Only)**: Violates the core "7am routine" requirement and MoSCoW "Must Have" status for offline logging.
+docs/adrs/ADR-007-pwa-offline.md:18:- **Benefits**: Home screen installation; offline dose logging with Background Sync; fast app shell loading via service worker cache.
+docs/adrs/ADR-007-pwa-offline.md:19:- **Costs**: Service worker complexity; IndexedDB management for the offline queue; potential sync conflicts (mitigated by idempotency keys).
+docs/adrs/ADR-008-testing-strategy.md:1:# ADR-008: Use Vitest and Playwright for Automated Testing
+docs/adrs/ADR-008-testing-strategy.md:7:Safety-critical math (reconstitution) and payment flows require 100% test coverage to prevent user harm and financial loss. A solo developer needs fast, reliable tests that run in CI.
+docs/adrs/ADR-008-testing-strategy.md:10:We will use Vitest for unit and integration testing and Playwright for end-to-end (E2E) testing.
+docs/adrs/ADR-008-testing-strategy.md:13:- **Jest**: Slower and worse ESM support than Vitest for modern Next.js projects.
+docs/adrs/ADR-008-testing-strategy.md:14:- **Cypress**: Excellent but slower and has less WebKit support than Playwright for iOS PWA testing.
+docs/adrs/ADR-008-testing-strategy.md:15:- **No E2E testing**: Too risky for the payment safety gate and offline sync requirements.
+docs/adrs/ADR-008-testing-strategy.md:18:- **Benefits**: Extremely fast unit tests; reliable cross-browser E2E testing (Chromium, Firefox, WebKit); visual debugging in Playwright; 100% coverage target for critical math.
+docs/adrs/ADR-008-testing-strategy.md:19:- **Costs**: Time investment to maintain the E2E suite; potential flakiness in complex PWA sync tests.
+docs/tech-stack.md:37:1. **GramJS MTProto** requires a persistent Node.js process or at minimum reliable session storage. Cold starts on serverless create auth latency and session issues.
+docs/tech-stack.md:38:2. **Scheduled dose reminders** require a cron-triggered server process, not on-demand invocation.
+docs/tech-stack.md:50:Offline dose-log writes are queued in IndexedDB via Workbox background-sync. On reconnect, the service worker replays them against the API. The server applies standard idempotency checks (duplicate log for same protocol + same day → confirmation prompt).
+docs/tech-stack.md:60:**Why:** Safety-critical reconstitution math and payment flows require compile-time type guarantees. TypeScript strict mode catches dose-unit mismatches, null pointer errors in protocol lookups, and API response shape mismatches at build time rather than runtime.
+docs/tech-stack.md:70:### 2.2 Node.js 22 LTS
+docs/tech-stack.md:72:**Decision:** Node.js 22 LTS on Railway.
+docs/tech-stack.md:78:### 2.3 Package Manager: pnpm 9.x
+docs/tech-stack.md:80:**Decision:** pnpm over npm or yarn.
+docs/tech-stack.md:82:**Why:** 50–70% faster installs than npm via content-addressable store. Strict node_modules layout prevents phantom dependencies (a risk with Prisma client generation). Railway supports pnpm natively via `packageManager` field in `package.json`.
+docs/tech-stack.md:86:- Bun — incompatible with GramJS native deps; avoid for production Node.js apps until ecosystem matures
+docs/tech-stack.md:98:- **AI compatibility:** Strongest AI tooling coverage of any full-stack web framework. Every AI coding tool (Claude Code, Copilot, Cursor) has extensive Next.js App Router training data.
+docs/tech-stack.md:102:- **Remix** — excellent progressive enhancement story but smaller community and less AI coverage. Not worth the tradeoff for a solo developer.
+docs/tech-stack.md:111:- Route handlers (`app/api/*/route.ts`) for machine-to-machine API calls (PWA sync, cron triggers)
+docs/tech-stack.md:141:**Install model:** `npx shadcn@latest add <component>`. Components live in `components/ui/`.
+docs/tech-stack.md:166:- **Victory** — React-native but smaller community; less AI coverage
+docs/tech-stack.md:182:                    → Prisma type (via zod-prisma-types or manual mapping)
+docs/tech-stack.md:200:- PRD: UTC storage, browser-local-timezone display (§8.8).
+docs/tech-stack.md:211:- Day.js — lighter but `date-fns-tz` has better TypeScript support for timezone conversion
+docs/tech-stack.md:233:**Decision:** Auth.js v5 (formerly NextAuth) with Credentials provider and Prisma adapter.
+docs/tech-stack.md:238:- Prisma adapter stores sessions and users in Postgres — no additional session store needed.
+docs/tech-stack.md:250:- Better Auth is newer (2024), well-designed, has a Prisma adapter.
+docs/tech-stack.md:252:- Auth.js v5 has the largest documentation corpus and most AI training coverage of any Next.js auth library.
+docs/tech-stack.md:253:- Decision: Auth.js v5 for maximum AI-assisted development velocity. Re-evaluate if Auth.js v5 causes issues (migration to Better Auth is straightforward — same Prisma adapter pattern).
+docs/tech-stack.md:256:- Better Auth — technically sound; rejected due to low AI training coverage
+docs/tech-stack.md:265:- PRD §7.1 explicitly defers MTProto library choice to this step and requires: Node.js compatible, user-level Telegram access (not bot API), session storage and restoration.
+docs/tech-stack.md:266:- GramJS is the most widely-used JavaScript MTProto client, with extensive documentation, community examples, and battle-tested session management.
+docs/tech-stack.md:273:3. App encrypts the string with AES-256-GCM (Node.js `crypto` module; key from `TELEGRAM_SESSION_KEY` env var) and stores in `telegram_sessions` Postgres table (user-scoped).
+docs/tech-stack.md:285:- mtcute — technically superior API; rejected due to low ecosystem maturity and AI coverage
+docs/tech-stack.md:286:- MTKruto — newer, Deno/Bun-first; Node.js support less mature; rejected
+docs/tech-stack.md:296:- PRD §7.1 and §7.3 require transactional email for invites, password reset, async export delivery, and dose reminder fallback.
+docs/tech-stack.md:304:- Async data export delivery (download link)
+docs/tech-stack.md:305:- Dose reminder (fallback when push is unavailable)
+docs/tech-stack.md:311:- Nodemailer (SMTP) — DIY; not a managed service; deliverability responsibility falls on developer
+docs/tech-stack.md:318:- PRD §5.2.7 requires browser push notifications as the primary dose reminder channel.
+docs/tech-stack.md:319:- `web-push` is the standard Node.js library for sending Web Push API payloads. No third-party service required — VAPID keys are self-generated and stored as env vars.
+docs/tech-stack.md:323:**iOS note:** Web Push on iOS Safari requires the PWA to be installed via "Add to Home Screen" (iOS 16.4+). App must show a banner explaining this requirement when push permission is denied (§5.2.7 error scenario).
+docs/tech-stack.md:337:- Zod integrates with React Hook Form (`@hookform/resolvers/zod`), Prisma (via `zod-prisma-types`), and tRPC/Server Actions.
+docs/tech-stack.md:352:### 6.1 PostgreSQL 16 (Railway-managed)
+docs/tech-stack.md:354:**Decision:** PostgreSQL 16, hosted by Railway's managed Postgres service.
+docs/tech-stack.md:360:- Railway-managed Postgres: automatic backups (30-day retention per PRD §8.4), connection pooling via PgBouncer, no operational burden.
+docs/tech-stack.md:366:- Audit log table (`audit_events`) for protocol mutations, dose logs, order events, admin actions — 90-day rolling retention (PRD §5.7, §8.2).
+docs/tech-stack.md:369:**Connection:** Direct TCP connection via Railway's internal networking. No connection pooler needed at < 50 users (Prisma manages its own pool with `connection_limit = 10`). Re-evaluate Prisma Accelerate or PgBouncer at 100+ concurrent users.
+docs/tech-stack.md:371:### 6.2 ORM: Prisma 5.x
+docs/tech-stack.md:373:**Decision:** Prisma as the ORM — CONFIRMED per user preference.
+docs/tech-stack.md:377:- Type-safe queries: Prisma Client generates TypeScript types from the schema. Every query result is fully typed.
+docs/tech-stack.md:378:- PRD §8.2 security: "parameterized queries only; ORM or query builder; no raw string concatenation" — Prisma satisfies this by default.
+docs/tech-stack.md:379:- `prisma migrate deploy` in CI/CD ensures migrations run before code deploys.
+docs/tech-stack.md:381:**AI compatibility:** Maximum. Prisma schema syntax and Prisma Client query patterns are extremely well-represented in AI training data.
+docs/tech-stack.md:383:**Key Prisma features used:**
+docs/tech-stack.md:390:- Drizzle ORM — SQL-first, zero overhead; good TypeScript support; less AI training data than Prisma; more verbose for complex queries; acceptable alternative if Prisma performance becomes a concern
+docs/tech-stack.md:401:- Always-on PaaS: single Railway service runs the Next.js server process continuously. No cold starts. Correct for GramJS MTProto and cron-triggered dose reminders.
+docs/tech-stack.md:402:- Postgres included: Railway-managed Postgres as a linked service to the main app service.
+docs/tech-stack.md:405:- Environment variables: managed via Railway dashboard; available to Next.js via `process.env`.
+docs/tech-stack.md:409:- **Postgres service:** Railway-managed Postgres 16
+docs/tech-stack.md:410:- **Cron service:** Railway cron for scheduled jobs (see §7.2)
+docs/tech-stack.md:420:| Cloudflare R2 (exports) | Free (10GB) |
+docs/tech-stack.md:425:**Decision:** Railway cron service hitting a protected Next.js API route.
+docs/tech-stack.md:428:- Dose reminders (§5.2.7) require firing at user-configured daily times — a background job, not a request handler.
+docs/tech-stack.md:429:- Railway has a native cron service (a separate service that runs on a schedule).
+docs/tech-stack.md:430:- Pattern: Railway cron → `curl -H "Authorization: Bearer $CRON_SECRET" https://app.railway.app/api/cron/send-reminders`
+docs/tech-stack.md:431:- The API route validates `Authorization: Bearer $CRON_SECRET` before executing. `CRON_SECRET` is a 32-byte random string set as an env var on both the app service and the cron service.
+docs/tech-stack.md:436:| `send-reminders` | Every 15 min | Find users whose reminder time falls in current 15-min window; send push/email |
+docs/tech-stack.md:441:- **node-cron** (in-process) — simpler but couples cron to the web process; Railway restarts could skip a job; no visibility into job history
+docs/tech-stack.md:442:- **Inngest / Trigger.dev** — event-driven job platforms; excellent features but adds SaaS dependency and monthly cost; overkill for 3 simple cron jobs
+docs/tech-stack.md:443:- **pg_cron** — PostgreSQL extension for in-database cron; requires PostgreSQL extension permissions; Railway Postgres supports it but Railway cron is simpler and more observable
+docs/tech-stack.md:452:- Workbox-based: offline dose-log queuing uses Workbox's `BackgroundSyncPlugin` strategy, which queues failed POST requests in IndexedDB and replays them on reconnect.
+docs/tech-stack.md:475:- Dose log submit: queue in IndexedDB; sync on reconnect; UI shows "Saved offline — will sync when connected"
+docs/tech-stack.md:476:- All other features: show "You're offline" state; no writes attempted
+docs/tech-stack.md:483:- PRD §8.7 requires P0 errors (reconstitution math failure, payment flow error, audit write failure) alerted within 15 minutes. Sentry alerts can trigger email/Slack/webhook on any error matching a rule.
+docs/tech-stack.md:490:- PII scrubbing: all Sentry events must have `beforeSend` hook that strips dose amounts, compound names, and wallet addresses before transmission
+docs/tech-stack.md:511:### 7.6 Object Storage: Cloudflare R2 (async data exports)
+docs/tech-stack.md:513:**Decision:** Cloudflare R2 for data exports ≥ 10MB.
+docs/tech-stack.md:516:- PRD §5.7: exports ≥ 10MB generated asynchronously; download link emailed within 5 minutes.
+docs/tech-stack.md:517:- At < 50 users, exports are almost certainly < 10MB. R2 is for future-proofing and the async path.
+docs/tech-stack.md:526:**Implementation note:** For v1 at < 50 users, synchronous download (streaming response from API route) is the first implementation path. R2 is only needed when an export actually exceeds 10MB — implement async R2 path at that point.
+docs/tech-stack.md:532:### 8.1 Testing: Vitest 2.x + Playwright 1.x
+docs/tech-stack.md:534:**Decision:** Vitest for unit/integration tests; Playwright for E2E.
+docs/tech-stack.md:536:**Unit/integration tests (Vitest):**
+docs/tech-stack.md:537:- **Why:** Faster than Jest for Vite-based toolchains; native ESM support; compatible with Next.js App Router via `@vitejs/plugin-react`; jsdom environment for React component tests.
+docs/tech-stack.md:538:- **Critical test surface:** `lib/math/reconstitution.ts` — **100% branch coverage required** (PRD §7.4, §6 hard gates). Every reconstitution calculation must have a matching test with known reference values.
+docs/tech-stack.md:539:- **React Testing Library** (`@testing-library/react`) for component tests.
+docs/tech-stack.md:540:- **MSW (Mock Service Worker)** for mocking external API calls (Resend, push notification service) in integration tests.
+docs/tech-stack.md:542:**E2E tests (Playwright):**
+docs/tech-stack.md:543:- **Why:** Gold standard for E2E in 2025. Supports Chromium, Firefox, and WebKit (for iOS Safari PWA testing). `--ui` mode provides a visual test runner.
+docs/tech-stack.md:545:  - Payment confirmation flow: wallet address + amount must be visible before "Mark payment sent" can be clicked
+docs/tech-stack.md:548:  - Auth: login, password reset, invite acceptance
+docs/tech-stack.md:549:- **Playwright component testing** for interactive components (dose log form, order cart).
+docs/tech-stack.md:551:**CI gate:** All unit tests and E2E critical path tests must pass before merge to main.
+docs/tech-stack.md:554:- Jest — slower; worse ESM support; no compelling advantage over Vitest for Next.js
+docs/tech-stack.md:555:- Cypress — better visual debugging than Playwright but slower, less WebKit support
+docs/tech-stack.md:573:### 8.3 CI/CD: GitHub Actions
+docs/tech-stack.md:575:**Decision:** GitHub Actions for CI pipeline; Railway auto-deploy on push to `main`.
+docs/tech-stack.md:580:  → GitHub Actions: type-check → lint → unit tests → E2E tests (Playwright)
+docs/tech-stack.md:588:- `ci.yml`: runs on PR and push to main; type-check, lint, vitest, playwright
+docs/tech-stack.md:589:- Caching: pnpm store cache, Next.js build cache
+docs/tech-stack.md:606:| `CRON_SECRET` | Shared secret for cron API route authentication |
+docs/tech-stack.md:623:| Dose logging (daily, batch) | Next.js Server Actions + Prisma | None |
+docs/tech-stack.md:624:| Protocol management (CRUD, pause, clone, restart) | Server Actions + Prisma | None |
+docs/tech-stack.md:625:| Reconstitution calculator | Client Component (math lib); Vitest 100% coverage | None |
+docs/tech-stack.md:626:| Vial inventory + expiry warnings | Prisma queries; Railway cron `check-vial-expiry` | None |
+docs/tech-stack.md:627:| Compound reference pages | Next.js SSG/ISR; Prisma | None |
+docs/tech-stack.md:628:| Stacking notes | Prisma text field on compound | None |
+docs/tech-stack.md:629:| Injection site rotation | Prisma query (last 7 sites); Client Component | None |
+docs/tech-stack.md:630:| Cycle management | Prisma; Server Actions | None |
+docs/tech-stack.md:631:| Outcome logging + timeline chart | Prisma + shadcn/ui chart (Recharts) | None |
+docs/tech-stack.md:632:| Stack overview dashboard | RSC + Server Components; Prisma | None |
+docs/tech-stack.md:633:| Telegram ordering (MTProto) | GramJS + Prisma (session storage) + AES-256 encryption | None |
+docs/tech-stack.md:634:| Inventory-aware order builder | Prisma query (days-to-depletion calc) + Server Component | None |
+docs/tech-stack.md:635:| Order tracking + payment flow | Prisma state machine; Server Actions | None |
+docs/tech-stack.md:636:| Multi-user admin panel | Prisma (RLS via user_id scoping); Auth.js roles | None |
+docs/tech-stack.md:637:| Invite link lifecycle | Prisma + Resend (email) + Auth.js | None |
+docs/tech-stack.md:643:| Dose reminders (push + email) | web-push (VAPID) + Resend; Railway cron | None |
+docs/tech-stack.md:644:| CSV export | Node.js stream (csv-stringify or manual) + Cloudflare R2 | None |
+docs/tech-stack.md:645:| JSON export | Prisma full-table queries + JSON.stringify | None |
+docs/tech-stack.md:646:| Audit log | Prisma `audit_events` table; 90-day rolling | None |
+docs/tech-stack.md:647:| Data retention controls | Prisma cascade deletes on account deletion | None |
+docs/tech-stack.md:648:| WCAG 2.1 AA (Delegated Participant flows) | shadcn/ui (Radix primitives); axe CI scan | None |
+docs/tech-stack.md:650:| AES-256 MTProto session | Node.js `crypto.createCipheriv('aes-256-gcm')` | None |
+docs/tech-stack.md:653:| DB backup (30-day) | Railway-managed Postgres | None |
+docs/tech-stack.md:654:| Zero reconstitution math defects | Vitest 100% branch coverage | None |
+docs/tech-stack.md:670:| Prisma | ★★★★★ | Schema-first; Claude generates accurate queries |
+docs/tech-stack.md:672:| Zod | ★★★★★ | Elite coverage; complex schemas generated accurately |
+docs/tech-stack.md:674:| TanStack Query | ★★★★☆ | Strong coverage; specify v5 to avoid v4 patterns |
+docs/tech-stack.md:675:| GramJS | ★★★☆☆ | Moderate coverage; session patterns require explicit prompting |
+docs/tech-stack.md:678:| Resend + React Email | ★★★★☆ | Good coverage; JSX templates AI-friendly |
+docs/tech-stack.md:679:| Vitest | ★★★★★ | Vitest docs well-represented; Jest-compatible syntax |
+docs/tech-stack.md:680:| Playwright | ★★★★★ | Best E2E AI coverage; locator patterns well-understood |
+docs/tech-stack.md:696:| SQL injection: parameterized queries only | Prisma Client by default; `$queryRaw` banned except with `Prisma.sql` template tag |
+docs/tech-stack.md:698:| IDOR: user_id scoping on all queries | Zod-validated route params; every Prisma query includes `where: { userId: session.user.id }` |
+docs/tech-stack.md:699:| Audit log: 90-day rolling | `audit_events` table; Railway cron purges rows older than 90 days |
+docs/tech-stack.md:722:| `@auth/prisma-adapter` | latest | Auth.js Prisma adapter |
+docs/tech-stack.md:724:| `@types/bcrypt` | latest | TypeScript types |
+docs/tech-stack.md:730:| `shadcn` (CLI, not a package) | latest | Component scaffolding |
+docs/tech-stack.md:731:| `@radix-ui/react-*` | latest | shadcn/ui Radix primitives |
+docs/tech-stack.md:732:| `lucide-react` | latest | Icons |
+docs/tech-stack.md:733:| `class-variance-authority` | latest | shadcn component variants |
+docs/tech-stack.md:734:| `clsx` | latest | Class name utility |
+docs/tech-stack.md:735:| `tailwind-merge` | latest | Tailwind class deduplication |
+docs/tech-stack.md:744:| `@hookform/resolvers` | latest | Zod resolver for RHF |
+docs/tech-stack.md:764:| `telegram` | latest | GramJS MTProto client |
+docs/tech-stack.md:765:| `input` | latest | GramJS dependency (stdin input) |
+docs/tech-stack.md:771:| `resend` | latest | Transactional email SDK |
+docs/tech-stack.md:772:| `@react-email/components` | latest | React Email component library |
+docs/tech-stack.md:778:| `@serwist/next` | latest | Next.js PWA / service worker |
+docs/tech-stack.md:779:| `serwist` | latest | Serwist core (Workbox wrapper) |
+docs/tech-stack.md:780:| `web-push` | latest | Web Push API (VAPID) |
+docs/tech-stack.md:781:| `@types/web-push` | latest | TypeScript types |
+docs/tech-stack.md:787:| `@sentry/nextjs` | latest | Sentry integration for Next.js |
+docs/tech-stack.md:794:| `@aws-sdk/s3-request-presigner` | 3.x | Pre-signed URLs for exports |
+docs/tech-stack.md:800:| `vitest` | 2.x | Unit test runner |
+docs/tech-stack.md:801:| `@vitest/ui` | 2.x | Vitest visual UI |
+docs/tech-stack.md:802:| `@testing-library/react` | latest | React component testing |
+docs/tech-stack.md:803:| `@testing-library/user-event` | latest | User interaction simulation |
+docs/tech-stack.md:804:| `jsdom` | latest | DOM environment for Vitest |
+docs/tech-stack.md:805:| `msw` | 2.x | API mocking |
+docs/tech-stack.md:806:| `playwright` | 1.x | E2E test runner |
+docs/tech-stack.md:807:| `@playwright/test` | 1.x | Playwright test framework |
+docs/tech-stack.md:811:| `eslint-config-prettier` | latest | Disable conflicting ESLint rules |
+docs/tech-stack.md:812:| `@typescript-eslint/eslint-plugin` | latest | TypeScript ESLint rules |
+docs/tech-stack.md:818:| Node.js | 22 LTS |
+docs/tech-stack.md:819:| Package manager | pnpm 9.x |
+docs/tech-stack.md:822:| Prisma schema | PostgreSQL provider |
+docs/tech-stack.md:824:| Serwist config | BackgroundSync for offline dose logs |
+docs/plan.md:17:**Pain:** Each of the four critical weekly tasks — researching a compound, placing an order, reconstituting a vial, and logging a dose — requires a different tool (browser/Obsidian, Telegram/PDF, a calculator, a spreadsheet). None of these tools know about each other. The user is the integration layer, and errors at any step translate to real harm: wrong reconstitution dose, lost crypto payment, or a missed injection.
+docs/plan.md:19:**Scope of the problem:** Reddit r/Peptides has 250k+ members; the grey-market peptide vendor ecosystem sustains dozens of active Telegram-based vendors. Ordering errors in this context are non-reversible — crypto payments cannot be recalled if sent to the wrong wallet address or for the wrong amount. Estimated median order value: $100–500 USD per transaction. Manual reconstitution errors (wrong BAC water volume → wrong concentration) translate directly to dosing errors in the next injection.
+docs/plan.md:35:| **Current behavior** | Obsidian for research notes, browser tabs for PubMed, Telegram for vendor orders, Coinbase for crypto payments, spreadsheet for dose logging, a calculator tab for reconstitution math, calendar notes for cycle tracking. |
+docs/plan.md:37:| **Success looks like** | Opens one app at 7am. Sees today's stack. Logs doses in < 60 seconds. At order time: builds order in app, app sends Telegram message to vendor automatically, user confirms crypto payment, inventory updates. Spreadsheet decommissioned within 90 days. |
+docs/plan.md:38:| **Admin role** | Creates and configures managed user accounts. Configures protocols for Delegated Participants. Can view all managed users' adherence dashboards. |
+docs/plan.md:40:### 2.2 Secondary Persona — *Delegated Participant (managed user, v1)*
+docs/plan.md:70:| **Tracker** | Protocol creation + management + clone/restart + pause/resume; daily dose logging with batch "Log All Scheduled"; injection site rotation; cycle management; subjective outcome logging; vial inventory with expiry warnings; stack overview dashboard; dose reminders; outcome-dose correlation timeline |
+docs/plan.md:72:| **Ordering** | Vendor catalog (QSC-first); inventory-aware order builder (suggests compounds running low); automated Telegram message dispatch via MTProto; payment capture checklist; order history; inventory update on delivery |
+docs/plan.md:73:| **Multi-user** | Super admin panel; managed user account creation; protocol assignment to managed users; adherence visibility; simplified managed-user view |
+docs/plan.md:74:| **Auth** | Email/password accounts; secure sessions; password reset; account deletion with data export; first-run setup wizard; PWA / home screen install |
+docs/plan.md:82:- Automated crypto payment execution (manual payment only)
+docs/plan.md:87:- Self-serve managed-user onboarding (Delegated Participants created by Power User only)
+docs/plan.md:95:| AI Telegram response parser | Requires persistent Telegram read + AI parsing; v1 handles vendor reply manually. **v2 stub:** reads vendor's reply message from Telegram chat history, extracts confirmed total + wallet address + line items, pre-fills the payment confirmation screen. Requires: message-read MTProto scope, AI extraction layer (LLM or regex), idempotent order-update endpoint. |
+docs/plan.md:120:- Multi-user admin panel: Power User can create/configure managed user accounts
+docs/plan.md:122:- **PWA / home screen install**: web app installable to phone home screen; service worker for offline dose-log queuing
+docs/plan.md:132:- Coinbase payment checklist (payment amount + address capture, guided payment steps)
+docs/plan.md:134:- **Dose reminders**: browser push or email notification at user-configured dose time
+docs/plan.md:136:- **CSV export**: dose logs and orders as CSV alongside JSON full export
+docs/plan.md:140:- Protocol history (full audit log of every dose)
+docs/plan.md:148:> **Phase vs. MoSCoW alignment:** MoSCoW defines what must be complete before "v1 done" is declared. Phases (§10) define build order — Must Have features are delivered across Phase 1 and Phase 2 in sequence, not all on day one. If a Must Have feature appears in Phase 2, it is scheduled for Phase 2 delivery but still blocks v1 completion. "Mobile-optimized layout" in Could Have refers to admin panel and Power User workflow refinement; mobile dose-logging UX is first-class per §8.6 and is a Must Have acceptance criterion, not optional polish.
+docs/plan.md:196:Manages multi-compound stacks for the Power User and their managed users. Replaces a spreadsheet-and-memory system with a structured schedule supporting daily logging, injection site tracking, cycle management, and subjective outcome recording.
+docs/plan.md:251:- Missed dose (calendar day passes with no log) → no automatic fill or penalty; appears as "Not logged" in history; retroactive logging not supported after the calendar day ends (audit integrity)
+docs/plan.md:254:- Timezone / DST shift → all timestamps stored in UTC; dashboard "today's doses" resolves based on user's browser local date
+docs/plan.md:283:**Out of scope:** Automated reminders on break/restart, AI-suggested cycle lengths
+docs/plan.md:318:Notifies the user (or managed user) at a configured time to open the app and log their doses. Addresses the retention risk that users forget to open the app, which makes adherence tracking worthless.
+docs/plan.md:321:- User sets a single daily reminder time per account (e.g., 7:00am)
+docs/plan.md:322:- Reminder is global (covers all active protocols); per-protocol reminder time = out of scope for v1
+docs/plan.md:323:- Managed users configure their own reminder time (or Power User can set it during protocol setup)
+docs/plan.md:326:1. **Browser push notification** — available if the user has installed the PWA and granted notification permission; delivered via Web Push API at the configured time
+docs/plan.md:327:2. **Email reminder** — fallback if push is not available or not granted; uses the existing transactional email provider (§7.1); email subject: "Your [N] doses are due today" with a deep-link back to the app
+docs/plan.md:329:**Out of scope:** SMS reminders, per-dose reminders at different times, reminder snooze, reminder history
+docs/plan.md:332:- Push permission denied → app shows banner "Enable notifications for dose reminders" with link to browser settings; falls back to email
+docs/plan.md:382:- Zero dose-calculation defects: all math must be covered by unit tests with known reference values
+docs/plan.md:403:Enables the Power User to place a vendor order via Telegram with the app sending the order message automatically via MTProto (user's own Telegram account). The user then handles crypto payment manually through Coinbase.
+docs/plan.md:408:**External actor — QSC vendor:** The vendor is a key external participant in the ordering flow. v1 assumes QSC's Telegram-first ordering pattern: user sends an item list message → vendor replies with confirmed price and wallet address. Vendor reply format is unstructured; v1 processes vendor replies manually. The v2 AI response parser adds automated reply extraction.
+docs/plan.md:420:6. App sends a test "ping" message (or skips — user discretion) to confirm connection
+docs/plan.md:477:4. App composes the Telegram order message using vendor's template (e.g., "Hi, I'd like to order: 10x BPC-157 5mg, 5x TB-500 5mg. Please confirm price and wallet address. Thank you.")
+docs/plan.md:489:- Payment fields (populated in §5.4.4): confirmed total, currency, wallet address, tx ID (optional)
+docs/plan.md:510:3. User manually enters in app: confirmed order total, crypto currency, wallet address from vendor's message
+docs/plan.md:511:4. App shows payment confirmation step: total, currency, wallet address — all visible together on one screen
+docs/plan.md:512:5. **User must acknowledge the wallet address + amount display before proceeding** (safety gate)
+docs/plan.md:513:6. User sends crypto payment from Coinbase or other wallet manually (app does not execute payment)
+docs/plan.md:514:7. User optionally enters transaction ID in app (for audit record)
+docs/plan.md:515:8. User clicks "Mark payment sent" → order status: "Payment sent — awaiting shipment"
+docs/plan.md:520:The wallet address and payment amount must be visible on screen at the moment the user clicks "Mark payment sent." This step cannot be bypassed. If no wallet address has been entered, the "Mark payment sent" button is greyed with tooltip: "Enter vendor's wallet address first."
+docs/plan.md:537:**Out of scope:** Automated crypto sending, Coinbase API wallet integration (no custodial access), automated vendor reply parsing (v2)
+docs/plan.md:540:- User clicks "Mark payment sent" with no wallet address recorded → blocked with clear error
+docs/plan.md:543:- Duplicate send attempt (double-click or network retry) → idempotency check: if an identical message was sent to the same vendor within the last 60 seconds, show "Possible duplicate — send again?" before proceeding
+docs/plan.md:544:- Vendor changes quoted price after order sent → user enters the new total at payment confirmation time; no lock on the amount at "order sent" time; previous vendor replies are visible in Telegram for reference
+docs/plan.md:545:- Stale wallet address → user is shown the wallet address from their most recent order to the same vendor for comparison, but must verify the current address from the vendor's Telegram reply before marking payment sent
+docs/plan.md:555:- Create managed user accounts: name + email; app sends an invite email with a one-time setup link (expires after 72 hours)
+docs/plan.md:556:- Configure protocols for any managed user (using the same protocol editor as their own)
+docs/plan.md:557:- View any managed user's dose log and 7/30-day adherence metrics
+docs/plan.md:558:- Edit or deactivate managed user protocols
+docs/plan.md:559:- Reset a managed user's password (sends a reset email to the managed user)
+docs/plan.md:560:- Deactivate a managed user account (their data is retained; access is revoked)
+docs/plan.md:561:- Delete a managed user account (with user's data export generated first)
+docs/plan.md:585:- List of all managed users: name, email, last login, invite status, 7-day adherence % (doses logged ÷ doses scheduled)
+docs/plan.md:586:- Click-through to any managed user's dose history and active protocols
+docs/plan.md:587:- No logging-on-behalf-of (audit integrity: logs are always attributed to the user who confirmed)
+docs/plan.md:590:- Role hierarchy beyond (super admin + managed user)
+docs/plan.md:598:- Admin tries to delete their own super admin account while managed users are active → blocked: "You have N active managed users. Deactivate or transfer them before deleting your account."
+docs/plan.md:599:- Managed user navigates to `/ordering` → 403 with message: "Ordering is managed by your administrator"
+docs/plan.md:600:- Deactivating a managed user with active protocols: protocols are not auto-deleted; admin sees a warning "This user has N active protocols. Deactivating their account will prevent them from logging doses. Continue?"
+docs/plan.md:615:- Delete account: generates and delivers a full data export (JSON), then permanently deletes the account and all associated records after 48-hour delay (or immediate with double-confirmation modal)
+docs/plan.md:618:Triggered on first login after account creation (or invite acceptance for managed users). A 3-step guided flow to reach first-value quickly.
+docs/plan.md:638:- Super admin account deletion while managed users are active → blocked (see §5.5 error scenarios)
+docs/plan.md:645:- User can request a full export of their data at any time from account settings
+docs/plan.md:646:- **Full export (JSON):** protocols, dose logs, vial inventory, order history, outcome logs — complete data portability
+docs/plan.md:647:- **CSV export (Should Have):** dose logs and orders available as CSV download (dose_logs.csv, orders.csv) alongside the JSON export. Columns match data model fields. Useful for analysis in Excel / Google Sheets.
+docs/plan.md:648:- For exports < 10MB: download immediately
+docs/plan.md:649:- For exports ≥ 10MB: generated asynchronously; download link emailed within 5 minutes
+docs/plan.md:652:- Account deletion deletes all user data: protocols, dose logs, order history, vial records, outcome logs
+docs/plan.md:654:- All associated managed user accounts must be deactivated before super admin account can be deleted
+docs/plan.md:660:| Dose logs | Until account deletion | No automatic archival or expiry |
+docs/plan.md:661:| Protocol history | Until account deletion | |
+docs/plan.md:662:| Order history | Until account deletion | |
+docs/plan.md:663:| Vial records | Until account deletion | |
+docs/plan.md:664:| Outcome logs | Until account deletion | |
+docs/plan.md:667:| Telegram MTProto session | Revoked on account deletion or on user request | Not included in data export |
+docs/plan.md:669:All user-created data is retained until explicit account deletion. No automatic purge, expiry, or archival of any tracker, ordering, or protocol data.
+docs/plan.md:685:| Dose-calculation defects | Zero known defects | Unit tests for all reconstitution calculations with reference values; no regressions in CI |
+docs/plan.md:686:| Payment confirmation flow | 100% of crypto payments require explicit wallet address + amount display before "payment sent" can be marked | Manual QA + E2E test |
+docs/plan.md:687:| Silent failures | Zero — every order, dose, and vial event has a visible error state and recovery path | E2E test suite covering failure paths |
+docs/plan.md:688:| Audit log completeness | 100% of protocol mutations, dose logs, and order events are recorded | DB-level assertion in integration tests |
+docs/plan.md:697:| Protocol setup speed | New 3-compound protocol created in < 5 minutes | Manual timed test |
+docs/plan.md:698:| Reconstitution calc accuracy | Syringe-unit output matches manual calculation for all test cases | Unit test suite |
+docs/plan.md:705:| Delegated Participant retention | ≥ 70% of managed users log doses ≥ 5 days/week for 30 days | Dose log frequency |
+docs/plan.md:714:| Reference coverage | 30–50 peptide profiles with primary citations and dosing ranges | Catalog count |
+docs/plan.md:735:- **Crypto payments:** Manual. No custodial wallet. No automated transaction execution. User pays from their own Coinbase. App tracks payment metadata only.
+docs/plan.md:736:- **No App Store:** Web/PWA is the only distribution channel. PWA manifest + service worker required for home screen install and offline dose-log queuing (see §8.6).
+docs/plan.md:737:- **Transactional email:** Required for invite links, password reset, and async export delivery (§5.5, §5.6, §5.7). Provider selection is a tech-stack decision (budget line item in §7.3). Deliverability is a constraint — transactional email must reach consumer inboxes reliably (not bulk/marketing sender reputation).
+docs/plan.md:750:- **Third-party services:** PostgreSQL hosting, transactional email (Resend or Postmark), object storage for exports — commodity services only.
+docs/plan.md:758:- No QA team: automated test coverage is non-negotiable to compensate. Critical paths (reconstitution math, payment confirmation flow) require 100% unit test coverage.
+docs/plan.md:762:- **Product framing:** Honestly described as a peptide tracker and reference web app. Ordering = opt-in advanced module. No misrepresentation to payment processors.
+docs/plan.md:764:- **Phase 2 legal gate:** Before Phase 2 ships (managed users), conduct a precautionary review of data stewardship obligations for storing dose and health-adjacent data on behalf of third parties (family members). This is not a HIPAA obligation for personal use, but managing other people's health-adjacent data creates stewardship responsibility. Review before Phase 2 launch.
+docs/plan.md:776:| Page load (FCP) | < 2.5s on broadband | Lighthouse CI in PR | > 3.0s blocks deploy |
+docs/plan.md:777:| API read response | p95 < 200ms | k6 load test in CI | > 300ms triggers investigation |
+docs/plan.md:778:| API write response | p95 < 500ms | k6 load test in CI | > 800ms triggers investigation |
+docs/plan.md:779:| Dose log submit (end-to-end) | < 500ms | E2E test timing | > 1s degrades AM routine |
+docs/plan.md:781:| Telegram order send | < 5s from click to delivery | E2E with test Telegram account | > 10s: show progress indicator; > 30s: timeout + fallback |
+docs/plan.md:789:| Telegram session storage | AES-256 encrypted at rest; never returned via API; user-scoped | Code review + integration test |
+docs/plan.md:793:| IDOR | All data-access queries include user_id scoping; no sequential ID enumeration in public-facing routes | Integration test suite |
+docs/plan.md:815:| Failure behavior | If API is unreachable, dose log flow degrades to "offline pending" if technically feasible; otherwise shows clear "service unavailable" with no data loss |
+docs/plan.md:822:- **Testing:** axe automated scan on every CI build; manual keyboard navigation check on critical flows (dose logging, reconstitution calculator)
+docs/plan.md:837:- Service worker: caches app shell for fast load; queues dose-log writes when offline and syncs on reconnection
+docs/plan.md:838:- Offline behavior: dose logging works offline (queued writes); all other features show "offline" state gracefully
+docs/plan.md:839:- Push notification support: Web Push API for dose reminders (§5.2.7); requires notification permission grant
+docs/plan.md:847:| Application error tracking | Unhandled server errors logged and surfaced; P0 errors (reconstitution math failure, payment flow error, audit write failure) alerted within 15 minutes |
+docs/plan.md:851:| Audit log integrity | DB assertion in integration tests that audit events are written; alert if audit write fails silently |
+docs/plan.md:859:- Timezone: all timestamps stored in UTC; displayed in user's local browser timezone
+docs/plan.md:877:- **Titer:** row-level security + CSV export as a privacy baseline; match their data controls
+docs/plan.md:897:6. Basic order history and payment tracking
+docs/plan.md:901:> **Note on data export:** Account deletion with full data export (§5.7) is implemented in Phase 1 as part of Auth, even though the export-on-demand settings UI is refined in Phase 3. Phase 1 ships: account deletion + full JSON export generated at deletion time. Phase 3 adds: "Export my data" button in account settings at any time.
+docs/plan.md:910:1. Multi-user system: admin panel, managed user invitation, simplified managed-user view
+docs/plan.md:915:6. Coinbase payment checklist (guided payment details capture)
+docs/plan.md:920:> **Legal gate:** Before Phase 2 ships, complete the Phase 2 legal review (see §7.5) covering managed user data stewardship obligations.
+docs/plan.md:930:2. Data export (JSON) and full account deletion
+docs/plan.md:931:3. AI Telegram response parser (v2 feature: reads vendor confirmation, auto-captures wallet address + total)
+docs/plan.md:963:| Managed user non-adoption | LOW | HIGH | Don't force adoption. Track usage. Only invest in managed-user UX that real managed users request. |
+docs/plan.md:974:| Vision Q5 | Multi-user architecture | Distinct accounts; Power User = super admin; managed users see own data only |
+
+exec
+/bin/zsh -lc "sed -n '1,220p' docs/adrs/ADR-012-scheduled-jobs.md" in /Users/kenallred/Documents/dev-projects/peptides
+exec
+/bin/zsh -lc "sed -n '1,220p' docs/adrs/ADR-009-audit-logging.md" in /Users/kenallred/Documents/dev-projects/peptides
+ succeeded in 0ms:
+# ADR-012: Use Railway Cron for Scheduled Jobs
+
+## Status
+Accepted
+
+## Context
+Dose reminders, stale-order detection, and audit purges require a reliable task scheduler. Next.js does not have a built-in background job processor.
+
+## Decision
+We will use Railway's native Cron scheduler to trigger API routes in the monolith for recurring tasks.
+
+## Alternatives Considered
+- **Inngest**: Excellent for complex workflows, but potentially overkill for v1.
+- **BullMQ + Redis**: Adds significant operational complexity (requires Redis).
+- **Upstash Workflow**: Good serverless option, but Railway Cron is already integrated into the hosting platform.
+
+## Consequences
+- **Benefits**: Zero additional infrastructure cost; simple implementation via HTTP endpoints; centralized monitoring in Railway.
+- **Costs**: Endpoints must be secured with a shared secret (`CRON_SECRET`); limited to periodic tasks (no fine-grained event-driven delays).
+
+ succeeded in 0ms:
+# ADR-009: Implement Persistent Audit Logging for Sensitive Mutations
+
+## Status
+Accepted
+
+## Context
+The PRD requires a "Hard Gate" for audit log completeness (100% of protocol mutations, dose logs, and order events). This is necessary for security, system integrity, and potentially future regulatory compliance.
+
+## Decision
+We will implement a system-wide `audit_events` table in PostgreSQL to store immutable records of all sensitive state changes.
+
+## Alternatives Considered
+- **Application Logs (Stdout)**: Easier to implement but ephemeral and harder to query for user-facing audit trails.
+- **Prisma Middleware**: Can capture changes but harder to attribute to a specific user/request context in some scenarios.
+- **Temporal / Event Sourcing**: Provides a complete audit trail but adds significant architectural complexity.
+
+## Consequences
+- **Benefits**: Immutable record of system state; easy to query for admin adherence monitoring; satisfies security requirements; provides data recovery path.
+- **Costs**: Database storage growth (mitigated by 90-day rolling purge); additional latency on writes to record the audit event.
+
+## Retention Policy
+Audit events will be retained for 90 days. A daily background job will delete events older than 90 days to manage database size.
+
+codex
+[
+  {
+    "severity": "P1",
+    "category": "readiness",
+    "location": "§3 Quality Gates / Coverage threshold",
+    "description": "The 70% overall coverage gate is weaker than the PRD hard gates for zero dose-calculation defects, 100% payment confirmation enforcement, and 100% audit log completeness. A PR could pass while leaving safety-critical branches untested.",
+    "suggestion": "Add per-surface thresholds: 100% branch coverage for reconstitution math, payment state transitions, audit-writing paths, idempotency checks, and domain invariant modules; keep the overall threshold only as a secondary signal."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§1 Test Pyramid / Unit purpose",
+    "description": "The standards say unit tests cover domain invariants, but they do not enumerate or trace each invariant from the domain models. Auth, Audit, Reference, Tracker, Reconstitution, and Ordering all have explicit invariants that could be missed.",
+    "suggestion": "Add an invariant coverage matrix mapping each invariant to required unit, integration, or E2E tests, including bcrypt cost, invite/reset expiry, audit immutability, published compound routes, citation references, vial bounds, dose bounds, cycle dates, and order payment rules."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§2.2 Integration Testing / logDose example",
+    "description": "Tracker coverage is underspecified for the PRD's highest-frequency workflow. The standard only tests creation and vial decrement, but misses future-dose rejection, same-calendar-day edit limits, duplicate/idempotency behavior, batch logging, skip vs not-logged semantics, timezone/DST handling, and injection site rotation.",
+    "suggestion": "Define required Tracker test cases across domain, Server Action, and Playwright layers, including UTC storage with browser-local 'today' resolution and offline replay of `user:protocol:date` idempotency keys."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§2.3 E2E Testing / Payment Safety Gate",
+    "description": "The payment gate example only asserts wallet text visibility before clicking. It does not require server-side rejection of invalid `PaymentSent` transitions, non-empty wallet enforcement, amount/currency display at the click moment, duplicate send protection, or inventory update on receipt.",
+    "suggestion": "Add Ordering state-machine tests at domain and integration level, plus E2E cases for disabled payment action without wallet, visible wallet plus total plus currency, duplicate Telegram send retry handling, stale order marking, and received-order inventory capture."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§2.3 E2E Testing / Offline Sync",
+    "description": "Offline sync is named as a focus but no concrete Serwist, Workbox, IndexedDB, or background-sync testing pattern is specified. This is a Must Have PRD requirement and an architectural critical path.",
+    "suggestion": "Specify Playwright tests that install or simulate the service worker, force offline mode, queue dose logs in IndexedDB, restore connectivity, replay to `/api/sync` or `/api/dose-logs`, verify idempotency, and assert visible pending/synced/error states."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§2.2 Integration Testing / Audit assertions",
+    "description": "Audit logging is treated as an example comment rather than a mandatory hard gate, despite the PRD requiring 100% of protocol mutations, dose logs, order events, and admin actions to be recorded and architecture requiring mutation rollback on audit write failure.",
+    "suggestion": "Require a shared assertion helper for sensitive mutations that verifies audit event category/action/resource/actor/metadata, and add failure-injection tests proving the primary mutation rolls back when audit persistence fails."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§1 Test Pyramid / Integration target",
+    "description": "Scheduled jobs and protected cron routes are absent from the standards, but the architecture defines dose reminders, stale order checking, audit purge, and vial expiry checks as recurring jobs.",
+    "suggestion": "Add integration tests for each Railway cron endpoint, including `CRON_SECRET` authorization, reminder push/email fallback behavior, stale Sent orders after 14 days, 90-day audit purge boundaries, and 14-day vial expiry notifications."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§1 Test Pyramid / Auth logic and Multi-user flow",
+    "description": "Multi-user and authorization testing is too vague for the PRD's IDOR and stewardship requirements. Managed users must be isolated from ordering/admin data, and Power Users must be constrained when deleting accounts with active managed users.",
+    "suggestion": "Require integration tests for user_id scoping on every repository query, managed-user 403 access to `/ordering`, protocol assignment visibility, no logging-on-behalf attribution violations, account deletion blocks, export-before-delete behavior, and password reset/invite token expiry."
+  },
+  {
+    "severity": "P2",
+    "category": "consistency",
+    "location": "§3 Quality Gates / command names",
+    "description": "The standards use `npm run ...`, but the tech stack standardizes on pnpm 9.x and relies on pnpm's strict dependency behavior.",
+    "suggestion": "Change CI commands to `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm e2e`, and `pnpm test:coverage`; document Node 22 LTS and PostgreSQL 16 as the test runtime baseline."
+  },
+  {
+    "severity": "P2",
+    "category": "correctness",
+    "location": "§4 Test Data Strategy / Cleanup",
+    "description": "The requirement that every integration/E2E test run in a transaction is not generally valid for browser-driven E2E tests or Next.js Server Actions, because the app server owns its own Prisma connection outside the test transaction.",
+    "suggestion": "Use isolated test databases or schemas per worker where feasible, plus deterministic cleanup by test id/user id. Reserve transaction rollbacks for lower-level repository tests where the transaction client is explicitly injected."
+  },
+  {
+    "severity": "P2",
+    "category": "correctness",
+    "location": "§2.2 Integration Testing / Server Actions",
+    "description": "The integration pattern does not explain how to test Next.js 15 Server Actions with Auth.js session context, cookies, redirects, cache revalidation, and Zod/RHF validation boundaries.",
+    "suggestion": "Define a Server Action test harness: authenticated session factory, request/cookie context setup, Prisma test client setup, validation-error assertions, redirect/revalidate assertions, and separate route-handler tests for `/api/sync` and cron endpoints."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "§1 Test Pyramid / UI layer",
+    "description": "The architecture includes RSC, Client Components, React Hook Form, shadcn/ui, TanStack Query, and Recharts, but the standards do not require component tests or accessibility checks for critical UI flows.",
+    "suggestion": "Add React Testing Library or Playwright component tests for dose log form, batch confirm sheet, order cart, payment confirmation, reconstitution calculator, onboarding wizard, and charts; include axe scans and keyboard navigation checks for critical flows."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "§2.2 Integration Testing / Mocking",
+    "description": "External API mocking only names Telegram and Resend. The tech stack also includes Web Push, Sentry, Cloudflare R2 for exports, and possibly Railway cron callbacks.",
+    "suggestion": "Expand the mocking and contract strategy to include web-push/VAPID, Sentry PII scrubbing, R2 export storage, Resend email templates, GramJS encrypted session storage, and Railway cron authorization."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "§5 Performance & Contract Testing",
+    "description": "Performance gates cover only reconstitution math, while the PRD defines budgets for FCP, API read/write latency, dose log submit, and Telegram order send latency.",
+    "suggestion": "Add Lighthouse CI for FCP, API timing tests or k6 smoke checks for read/write p95 budgets, Playwright timing assertions for dose logging, and a mocked Telegram send timeout/fallback test."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "§4 Test Data Strategy / Seeds",
+    "description": "The seed strategy mentions a minimal QSC reference catalog, but the PRD requires 20-30 QSC compounds for v1 and success metrics reference 30-50 profiles with citations and dosing ranges.",
+    "suggestion": "Add seed integrity tests that assert catalog count, required profile fields, dosing ranges, route presence for published compounds, citation URL/DOI/PMID validity, and archived compound FK preservation."
+  },
+  {
+    "severity": "P2",
+    "category": "readiness",
+    "location": "§3 Quality Gates",
+    "description": "The quality gates do not include build, Prisma migration validation, generated Prisma client freshness, dependency audit, or environment validation. Regressions in Next.js build output or schema drift could merge despite passing tests.",
+    "suggestion": "Add `pnpm build`, Prisma schema validation/migration checks, generated-client verification, environment variable validation for required secrets, and a minimal dependency/security audit gate."
+  },
+  {
+    "severity": "P3",
+    "category": "correctness",
+    "location": "§5 Performance & Contract Testing / Benchmarks",
+    "description": "A strict '< 1ms' benchmark for reconstitution math can be flaky in CI and does not add much safety beyond correctness and branch coverage.",
+    "suggestion": "Keep deterministic unit tests with reference values as the hard gate, and make performance a coarse regression budget using repeated samples with a stable threshold rather than a single sub-millisecond assertion."
+  }
+]
+tokens used
+42,944
+[
+  {
+    "severity": "P1",
+    "category": "readiness",
+    "location": "§3 Quality Gates / Coverage threshold",
+    "description": "The 70% overall coverage gate is weaker than the PRD hard gates for zero dose-calculation defects, 100% payment confirmation enforcement, and 100% audit log completeness. A PR could pass while leaving safety-critical branches untested.",
+    "suggestion": "Add per-surface thresholds: 100% branch coverage for reconstitution math, payment state transitions, audit-writing paths, idempotency checks, and domain invariant modules; keep the overall threshold only as a secondary signal."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§1 Test Pyramid / Unit purpose",
+    "description": "The standards say unit tests cover domain invariants, but they do not enumerate or trace each invariant from the domain models. Auth, Audit, Reference, Tracker, Reconstitution, and Ordering all have explicit invariants that could be missed.",
+    "suggestion": "Add an invariant coverage matrix mapping each invariant to required unit, integration, or E2E tests, including bcrypt cost, invite/reset expiry, audit immutability, published compound routes, citation references, vial bounds, dose bounds, cycle dates, and order payment rules."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§2.2 Integration Testing / logDose example",
+    "description": "Tracker coverage is underspecified for the PRD's highest-frequency workflow. The standard only tests creation and vial decrement, but misses future-dose rejection, same-calendar-day edit limits, duplicate/idempotency behavior, batch logging, skip vs not-logged semantics, timezone/DST handling, and injection site rotation.",
+    "suggestion": "Define required Tracker test cases across domain, Server Action, and Playwright layers, including UTC storage with browser-local 'today' resolution and offline replay of `user:protocol:date` idempotency keys."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§2.3 E2E Testing / Payment Safety Gate",
+    "description": "The payment gate example only asserts wallet text visibility before clicking. It does not require server-side rejection of invalid `PaymentSent` transitions, non-empty wallet enforcement, amount/currency display at the click moment, duplicate send protection, or inventory update on receipt.",
+    "suggestion": "Add Ordering state-machine tests at domain and integration level, plus E2E cases for disabled payment action without wallet, visible wallet plus total plus currency, duplicate Telegram send retry handling, stale order marking, and received-order inventory capture."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§2.3 E2E Testing / Offline Sync",
+    "description": "Offline sync is named as a focus but no concrete Serwist, Workbox, IndexedDB, or background-sync testing pattern is specified. This is a Must Have PRD requirement and an architectural critical path.",
+    "suggestion": "Specify Playwright tests that install or simulate the service worker, force offline mode, queue dose logs in IndexedDB, restore connectivity, replay to `/api/sync` or `/api/dose-logs`, verify idempotency, and assert visible pending/synced/error states."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§2.2 Integration Testing / Audit assertions",
+    "description": "Audit logging is treated as an example comment rather than a mandatory hard gate, despite the PRD requiring 100% of protocol mutations, dose logs, order events, and admin actions to be recorded and architecture requiring mutation rollback on audit write failure.",
+    "suggestion": "Require a shared assertion helper for sensitive mutations that verifies audit event category/action/resource/actor/metadata, and add failure-injection tests proving the primary mutation rolls back when audit persistence fails."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§1 Test Pyramid / Integration target",
+    "description": "Scheduled jobs and protected cron routes are absent from the standards, but the architecture defines dose reminders, stale order checking, audit purge, and vial expiry checks as recurring jobs.",
+    "suggestion": "Add integration tests for each Railway cron endpoint, including `CRON_SECRET` authorization, reminder push/email fallback behavior, stale Sent orders after 14 days, 90-day audit purge boundaries, and 14-day vial expiry notifications."
+  },
+  {
+    "severity": "P1",
+    "category": "coverage",
+    "location": "§1 Test Pyramid / Auth logic and Multi-user flow",
+    "description": "Multi-user and authorization testing is too vague for the PRD's IDOR and stewardship requirements. Managed users must be isolated from ordering/admin data, and Power Users must be constrained when deleting accounts with active managed users.",
+    "suggestion": "Require integration tests for user_id scoping on every repository query, managed-user 403 access to `/ordering`, protocol assignment visibility, no logging-on-behalf attribution violations, account deletion blocks, export-before-delete behavior, and password reset/invite token expiry."
+  },
+  {
+    "severity": "P2",
+    "category": "consistency",
+    "location": "§3 Quality Gates / command names",
+    "description": "The standards use `npm run ...`, but the tech stack standardizes on pnpm 9.x and relies on pnpm's strict dependency behavior.",
+    "suggestion": "Change CI commands to `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm e2e`, and `pnpm test:coverage`; document Node 22 LTS and PostgreSQL 16 as the test runtime baseline."
+  },
+  {
+    "severity": "P2",
+    "category": "correctness",
+    "location": "§4 Test Data Strategy / Cleanup",
+    "description": "The requirement that every integration/E2E test run in a transaction is not generally valid for browser-driven E2E tests or Next.js Server Actions, because the app server owns its own Prisma connection outside the test transaction.",
+    "suggestion": "Use isolated test databases or schemas per worker where feasible, plus deterministic cleanup by test id/user id. Reserve transaction rollbacks for lower-level repository tests where the transaction client is explicitly injected."
+  },
+  {
+    "severity": "P2",
+    "category": "correctness",
+    "location": "§2.2 Integration Testing / Server Actions",
+    "description": "The integration pattern does not explain how to test Next.js 15 Server Actions with Auth.js session context, cookies, redirects, cache revalidation, and Zod/RHF validation boundaries.",
+    "suggestion": "Define a Server Action test harness: authenticated session factory, request/cookie context setup, Prisma test client setup, validation-error assertions, redirect/revalidate assertions, and separate route-handler tests for `/api/sync` and cron endpoints."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "§1 Test Pyramid / UI layer",
+    "description": "The architecture includes RSC, Client Components, React Hook Form, shadcn/ui, TanStack Query, and Recharts, but the standards do not require component tests or accessibility checks for critical UI flows.",
+    "suggestion": "Add React Testing Library or Playwright component tests for dose log form, batch confirm sheet, order cart, payment confirmation, reconstitution calculator, onboarding wizard, and charts; include axe scans and keyboard navigation checks for critical flows."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "§2.2 Integration Testing / Mocking",
+    "description": "External API mocking only names Telegram and Resend. The tech stack also includes Web Push, Sentry, Cloudflare R2 for exports, and possibly Railway cron callbacks.",
+    "suggestion": "Expand the mocking and contract strategy to include web-push/VAPID, Sentry PII scrubbing, R2 export storage, Resend email templates, GramJS encrypted session storage, and Railway cron authorization."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "§5 Performance & Contract Testing",
+    "description": "Performance gates cover only reconstitution math, while the PRD defines budgets for FCP, API read/write latency, dose log submit, and Telegram order send latency.",
+    "suggestion": "Add Lighthouse CI for FCP, API timing tests or k6 smoke checks for read/write p95 budgets, Playwright timing assertions for dose logging, and a mocked Telegram send timeout/fallback test."
+  },
+  {
+    "severity": "P2",
+    "category": "coverage",
+    "location": "§4 Test Data Strategy / Seeds",
+    "description": "The seed strategy mentions a minimal QSC reference catalog, but the PRD requires 20-30 QSC compounds for v1 and success metrics reference 30-50 profiles with citations and dosing ranges.",
+    "suggestion": "Add seed integrity tests that assert catalog count, required profile fields, dosing ranges, route presence for published compounds, citation URL/DOI/PMID validity, and archived compound FK preservation."
+  },
+  {
+    "severity": "P2",
+    "category": "readiness",
+    "location": "§3 Quality Gates",
+    "description": "The quality gates do not include build, Prisma migration validation, generated Prisma client freshness, dependency audit, or environment validation. Regressions in Next.js build output or schema drift could merge despite passing tests.",
+    "suggestion": "Add `pnpm build`, Prisma schema validation/migration checks, generated-client verification, environment variable validation for required secrets, and a minimal dependency/security audit gate."
+  },
+  {
+    "severity": "P3",
+    "category": "correctness",
+    "location": "§5 Performance & Contract Testing / Benchmarks",
+    "description": "A strict '< 1ms' benchmark for reconstitution math can be flaky in CI and does not add much safety beyond correctness and branch coverage.",
+    "suggestion": "Keep deterministic unit tests with reference values as the hard gate, and make performance a coarse regression budget using repeated samples with a stable threshold rather than a single sub-millisecond assertion."
+  }
+]

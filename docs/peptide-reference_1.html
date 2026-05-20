@@ -1,0 +1,2029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Peptide Protocol Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=DM+Sans:opsz,wght@9..40,300..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAF7F1;
+  --bg-warm: #F4EDDE;
+  --surface: #FFFFFF;
+  --ink: #1C1A16;
+  --ink-soft: #524C42;
+  --ink-faint: #8B847A;
+  --rule: #E5DDC9;
+  --rule-soft: #EFE8D6;
+  --accent: #6B2222;
+  --accent-soft: #A85959;
+  --warn-ink: #8A5A0F;
+  --warn-bg: #FBEFD2;
+  --warn-rule: #E6C988;
+  --critical-ink: #7A1414;
+  --critical-bg: #F5DAD5;
+  --critical-rule: #D49890;
+  --safe-ink: #2B5234;
+  --safe-bg: #E2EBDF;
+  --safe-rule: #A9BFA7;
+  --info-ink: #1F4356;
+  --info-bg: #DFEAF1;
+  --info-rule: #9FBBCC;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse at top, rgba(244, 237, 222, 0.4) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(229, 221, 201, 0.3) 0%, transparent 40%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  padding: 0 24px 80px;
+}
+
+.container {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+/* Typography */
+h1, h2, h3, h4 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+h1 {
+  font-size: clamp(2.8rem, 6vw, 4.4rem);
+  line-height: 1.02;
+  font-weight: 400;
+  font-variation-settings: 'opsz' 144, 'SOFT' 50;
+  letter-spacing: -0.035em;
+}
+
+h2 {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  line-height: 1.15;
+  font-weight: 500;
+  font-variation-settings: 'opsz' 72;
+  margin-bottom: 1rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+  line-height: 1.2;
+  font-weight: 500;
+  font-variation-settings: 'opsz' 36;
+}
+
+h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+p { margin-bottom: 0.75rem; }
+
+.mono { font-family: 'JetBrains Mono', monospace; font-feature-settings: 'tnum'; }
+
+/* Header */
+header {
+  padding: 80px 0 60px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 60px;
+}
+
+.kicker {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 1.5rem;
+}
+
+.subtitle {
+  font-family: 'Fraunces', serif;
+  font-size: 1.4rem;
+  font-style: italic;
+  font-variation-settings: 'opsz' 24, 'SOFT' 100;
+  color: var(--ink-soft);
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  max-width: 640px;
+}
+
+.meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+  margin-top: 2rem;
+}
+
+.meta span { color: var(--accent); }
+
+/* Critical warning block */
+.critical-block {
+  background: var(--critical-bg);
+  border: 1px solid var(--critical-rule);
+  border-left: 4px solid var(--critical-ink);
+  padding: 32px 36px;
+  margin-bottom: 60px;
+  border-radius: 2px;
+}
+
+.critical-block h2 {
+  color: var(--critical-ink);
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.critical-block h2::before {
+  content: "⚠";
+  font-size: 1.4rem;
+  color: var(--critical-ink);
+}
+
+.critical-block ol {
+  padding-left: 24px;
+  color: var(--ink);
+}
+
+.critical-block li {
+  margin-bottom: 0.85rem;
+  line-height: 1.55;
+}
+
+.critical-block li::marker {
+  color: var(--critical-ink);
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.critical-block strong { color: var(--critical-ink); }
+
+/* Table of contents */
+.toc {
+  background: var(--bg-warm);
+  padding: 28px 32px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  margin-bottom: 60px;
+}
+
+.toc h2 {
+  font-size: 0.78rem;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 1.25rem;
+}
+
+.toc ol {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 32px;
+  counter-reset: toc;
+}
+
+.toc li {
+  counter-increment: toc;
+  border-bottom: 1px dotted var(--rule);
+  padding: 6px 0;
+}
+
+.toc li a {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  transition: color 0.15s;
+}
+
+.toc li a::before {
+  content: counter(toc, decimal-leading-zero);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.toc li a:hover { color: var(--accent); }
+
+@media (max-width: 640px) {
+  .toc ol { grid-template-columns: 1fr; }
+}
+
+/* Section structure */
+section {
+  margin-bottom: 80px;
+  scroll-margin-top: 20px;
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.section-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+
+/* Quick reference table */
+.quick-ref-wrapper {
+  overflow-x: auto;
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+table thead th {
+  text-align: left;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 12px 14px;
+  border-bottom: 1.5px solid var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+table tbody td {
+  padding: 14px 14px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+table tbody tr:hover { background: var(--bg-warm); }
+
+table .num { font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; }
+table .peptide-name { font-weight: 600; }
+table .peptide-name a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+
+/* Peptide cards */
+.peptide-card {
+  margin-bottom: 56px;
+  scroll-margin-top: 20px;
+}
+
+.peptide-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.peptide-title h3 {
+  font-size: 2.2rem;
+  font-weight: 400;
+  font-variation-settings: 'opsz' 72, 'SOFT' 30;
+  line-height: 1;
+  margin-bottom: 8px;
+  letter-spacing: -0.025em;
+}
+
+.peptide-category {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+}
+
+.peptide-meta {
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.peptide-meta .price {
+  font-size: 1.4rem;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* Protocol grid */
+.protocol-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  margin: 24px 0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.protocol-cell {
+  background: var(--surface);
+  padding: 18px 22px;
+}
+
+.protocol-cell .label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.protocol-cell .value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  color: var(--ink);
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.protocol-cell .value strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .protocol-grid { grid-template-columns: 1fr; }
+}
+
+/* Sub-section labels within cards */
+.card-section {
+  margin: 24px 0;
+}
+
+.card-section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+  display: block;
+  font-weight: 600;
+}
+
+/* Timeline list */
+.timeline {
+  list-style: none;
+  padding: 0;
+  border-left: 2px solid var(--rule);
+  margin-left: 12px;
+}
+
+.timeline li {
+  position: relative;
+  padding: 8px 0 8px 24px;
+  font-size: 0.95rem;
+}
+
+.timeline li::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 16px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--accent);
+}
+
+.timeline li .when {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Callouts */
+.callout {
+  padding: 16px 22px;
+  border-radius: 2px;
+  margin: 18px 0;
+  font-size: 0.94rem;
+  line-height: 1.55;
+  border-left: 3px solid;
+}
+
+.callout.warning {
+  background: var(--warn-bg);
+  border-color: var(--warn-ink);
+  color: var(--warn-ink);
+}
+
+.callout.critical {
+  background: var(--critical-bg);
+  border-color: var(--critical-ink);
+  color: var(--critical-ink);
+}
+
+.callout.safe {
+  background: var(--safe-bg);
+  border-color: var(--safe-ink);
+  color: var(--safe-ink);
+}
+
+.callout.info {
+  background: var(--info-bg);
+  border-color: var(--info-ink);
+  color: var(--info-ink);
+}
+
+.callout strong { font-weight: 700; }
+
+.callout-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* List styling */
+.body-list {
+  padding-left: 20px;
+  margin: 12px 0;
+}
+
+.body-list li {
+  margin-bottom: 6px;
+  padding-left: 4px;
+}
+
+.body-list li::marker { color: var(--accent); }
+
+/* Reorder timeline visualization */
+.reorder-timeline {
+  margin: 24px 0;
+}
+
+.reorder-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 100px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.92rem;
+}
+
+.reorder-row:last-child { border-bottom: none; }
+
+.reorder-name {
+  font-weight: 600;
+}
+
+.reorder-bar-container {
+  height: 10px;
+  background: var(--rule-soft);
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.reorder-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+  border-radius: 6px;
+}
+
+.reorder-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .reorder-row { grid-template-columns: 1fr; gap: 4px; }
+  .reorder-date { text-align: left; }
+}
+
+/* Schedule grid */
+.schedule-grid {
+  display: grid;
+  grid-template-columns: 100px repeat(7, 1fr);
+  font-size: 0.84rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.schedule-cell {
+  padding: 10px 8px;
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  text-align: center;
+  background: var(--surface);
+  min-height: 60px;
+}
+
+.schedule-cell:nth-child(8n) { border-right: none; }
+.schedule-cell.header {
+  background: var(--bg-warm);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 600;
+  padding: 12px 4px;
+}
+.schedule-cell.row-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--bg-warm);
+  color: var(--ink-soft);
+  font-weight: 600;
+  text-align: left;
+  padding-left: 12px;
+}
+
+.schedule-cell .item {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 2px 5px;
+  margin: 1px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.item.bpc { background: #DCE8DC; color: #2B5234; }
+.item.tirz { background: #F5DAD5; color: #7A1414; }
+.item.tesa { background: #DDE5EE; color: #1F4356; }
+.item.mots { background: #EEDFCA; color: #6B3F0E; }
+.item.glow { background: #E8DCEC; color: #4A2657; }
+.item.epit { background: #F0E4C3; color: #5C4A0A; }
+
+@media (max-width: 720px) {
+  .schedule-grid { grid-template-columns: 80px repeat(7, 1fr); font-size: 0.72rem; }
+  .schedule-cell .item { font-size: 0.6rem; padding: 1px 3px; }
+}
+
+/* Side effects table */
+.severity-table {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.severity-table .sev-cell {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.sev-red { background: var(--critical-bg); color: var(--critical-ink); }
+.sev-amber { background: var(--warn-bg); color: var(--warn-ink); }
+.sev-green { background: var(--safe-bg); color: var(--safe-ink); }
+
+/* Footer */
+footer {
+  margin-top: 80px;
+  padding-top: 32px;
+  border-top: 1px solid var(--rule);
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+  line-height: 1.7;
+}
+
+footer .disclaimer {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  background: var(--bg-warm);
+  border-radius: 2px;
+  margin-bottom: 24px;
+}
+
+/* Print styles */
+@media print {
+  body { background: white; font-size: 11pt; padding: 0; }
+  .container { max-width: 100%; }
+  .toc { page-break-after: always; }
+  .peptide-card { page-break-inside: avoid; }
+  section { page-break-inside: avoid; }
+  header { padding-top: 0; }
+  a { color: inherit; text-decoration: none; }
+}
+
+/* Smooth hover transitions */
+a { transition: color 0.15s, background 0.15s; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <p class="kicker">Personal Reference · Internal Document</p>
+  <h1>Peptide Protocol Reference.</h1>
+  <p class="subtitle">A complete operational reference for the aggressive seven-peptide stack — doses, reconstitution math, schedules, reorder timing, lab monitoring.</p>
+  <p class="meta">Compiled <span>19 May 2026</span> · Subject <span>56 yo male</span> · Inventory cost <span>$1,095</span> · Not medical advice</p>
+</header>
+
+<!-- CRITICAL WARNINGS -->
+<div class="critical-block">
+  <h2>Read before starting</h2>
+  <ol>
+    <li><strong>Prescribed tirzepatide conflict.</strong> You're already on 16.25 mg/week compounded tirzepatide from Cedar Pharmacy. Do not stack the gray-market tirzepatide on top of it (that's double-dosing), and do not stack the CagriSema mix on top of it (that's compounding GLP-1 receptor activation past the safe ceiling). Pick exactly one GLP-1 path from these three: continue Cedar Rx, switch to gray-market tirzepatide, or switch to CagriSema.</li>
+    <li><strong>CagriSema + Tirzepatide must never run together.</strong> Both activate the GLP-1 receptor heavily. Stacking risks severe nausea, vomiting, gastroparesis, pancreatitis, gallbladder disease, accelerated lean mass loss — at 56, the lean mass risk is the under-discussed cost.</li>
+    <li><strong>Baseline labs are not optional before Tesamorelin.</strong> At 56, any GH-axis intervention requires baseline IGF-1 and PSA, with recheck at 8 weeks. Target upper-normal IGF-1, not above range. See section 07.</li>
+    <li><strong>Vendor-blend uncertainty.</strong> GLOW50 composition and CagriSema ratio are not standardized — request the lab report (Janoshik) before dosing, and adjust based on the actual ratio confirmed.</li>
+  </ol>
+</div>
+
+<!-- TOC -->
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#quick-reference">At a glance — all peptides</a></li>
+    <li><a href="#schedule">Weekly injection schedule</a></li>
+    <li><a href="#bpc">BPC-157 — recovery &amp; healing</a></li>
+    <li><a href="#cagrisema">CagriSema mix — weight loss</a></li>
+    <li><a href="#glow">GLOW50 — skin &amp; aesthetic</a></li>
+    <li><a href="#tesamorelin">Tesamorelin — visceral fat &amp; GH</a></li>
+    <li><a href="#epitalon">Epitalon — sleep &amp; pineal</a></li>
+    <li><a href="#motsc">MOTS-c — mitochondrial</a></li>
+    <li><a href="#tirzepatide">Tirzepatide — GLP-1/GIP</a></li>
+    <li><a href="#reorder">Reorder timeline</a></li>
+    <li><a href="#labs">Baseline &amp; monitoring labs</a></li>
+    <li><a href="#logistics">Injection logistics</a></li>
+    <li><a href="#storage">Vial shelf life &amp; storage</a></li>
+    <li><a href="#side-effects">Side-effects watch list</a></li>
+    <li><a href="#interactions">Drug interactions</a></li>
+    <li><a href="#supplements">Supporting supplements</a></li>
+  </ol>
+</nav>
+
+<!-- QUICK REFERENCE TABLE -->
+<section id="quick-reference">
+  <div class="section-header">
+    <span class="section-number">§ 01</span>
+    <h2>At a glance — all seven peptides</h2>
+  </div>
+
+  <div class="quick-ref-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Peptide</th>
+          <th>Total</th>
+          <th>Dose</th>
+          <th>Frequency</th>
+          <th>Reconst.</th>
+          <th>Units</th>
+          <th>Supply</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="peptide-name"><a href="#bpc">BPC-157</a></td>
+          <td class="num">200 mg</td>
+          <td class="num">500 mcg</td>
+          <td>2× daily</td>
+          <td class="num">20mg + 2mL</td>
+          <td class="num">5u × 2</td>
+          <td class="num">~6.5 mo</td>
+        </tr>
+        <tr>
+          <td class="peptide-name"><a href="#cagrisema">CagriSema mix</a></td>
+          <td class="num">100 mg</td>
+          <td class="num">4.8 mg</td>
+          <td>1× weekly</td>
+          <td class="num">10mg + 1mL</td>
+          <td class="num">48u</td>
+          <td class="num">~5–7 mo</td>
+        </tr>
+        <tr>
+          <td class="peptide-name"><a href="#glow">GLOW50</a></td>
+          <td class="num">500 mg</td>
+          <td class="num">2 mg</td>
+          <td>Daily</td>
+          <td class="num">50mg + 5mL</td>
+          <td class="num">20u</td>
+          <td class="num">~8 mo</td>
+        </tr>
+        <tr>
+          <td class="peptide-name"><a href="#tesamorelin">Tesamorelin</a></td>
+          <td class="num">100 mg</td>
+          <td class="num">2 mg</td>
+          <td>Daily PM</td>
+          <td class="num">10mg + 2mL</td>
+          <td class="num">40u</td>
+          <td class="num">~7–10 wk</td>
+        </tr>
+        <tr>
+          <td class="peptide-name"><a href="#epitalon">Epitalon</a></td>
+          <td class="num">100 mg</td>
+          <td class="num">5 mg</td>
+          <td>20-day cycle</td>
+          <td class="num">10mg + 2mL</td>
+          <td class="num">20u</td>
+          <td class="num">1 cycle / 6 mo</td>
+        </tr>
+        <tr>
+          <td class="peptide-name"><a href="#motsc">MOTS-c</a></td>
+          <td class="num">400 mg</td>
+          <td class="num">10 mg</td>
+          <td>3× weekly</td>
+          <td class="num">40mg + 2mL</td>
+          <td class="num">50u</td>
+          <td class="num">~13 wk</td>
+        </tr>
+        <tr>
+          <td class="peptide-name"><a href="#tirzepatide">Tirzepatide</a></td>
+          <td class="num">600 mg</td>
+          <td class="num">16.25 mg</td>
+          <td>1× weekly</td>
+          <td class="num">30mg + 1.2mL</td>
+          <td class="num">65u</td>
+          <td class="num">~8.5 mo</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="margin-top: 16px; font-size: 0.88rem; color: var(--ink-soft); font-style: italic;">All units assume U-100 insulin syringe (100 units = 1 mL). Supply durations assume continuous dosing at the listed protocol; cycling extends totals.</p>
+</section>
+
+<!-- WEEKLY SCHEDULE -->
+<section id="schedule">
+  <div class="section-header">
+    <span class="section-number">§ 02</span>
+    <h2>Weekly injection schedule</h2>
+  </div>
+
+  <p>Recommended layout assuming you continue prescribed tirzepatide and skip CagriSema. Color-coded by peptide. AM injections together (one site or split), PM together. Some can share a syringe — see § 12.</p>
+
+  <div class="schedule-grid" style="margin-top: 24px;">
+    <div class="schedule-cell header"></div>
+    <div class="schedule-cell header">Mon</div>
+    <div class="schedule-cell header">Tue</div>
+    <div class="schedule-cell header">Wed</div>
+    <div class="schedule-cell header">Thu</div>
+    <div class="schedule-cell header">Fri</div>
+    <div class="schedule-cell header">Sat</div>
+    <div class="schedule-cell header">Sun</div>
+
+    <div class="schedule-cell row-label">AM</div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span><span class="item glow">GLOW</span><span class="item mots">MOTS</span></div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span><span class="item glow">GLOW</span></div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span><span class="item glow">GLOW</span><span class="item mots">MOTS</span></div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span><span class="item glow">GLOW</span></div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span><span class="item glow">GLOW</span><span class="item mots">MOTS</span></div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span><span class="item glow">GLOW</span></div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span><span class="item glow">GLOW</span><span class="item tirz">TIRZ</span></div>
+
+    <div class="schedule-cell row-label">PM</div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span><span class="item tesa">TESA</span></div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span><span class="item tesa">TESA</span></div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span><span class="item tesa">TESA</span></div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span><span class="item tesa">TESA</span></div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span><span class="item tesa">TESA</span></div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span></div>
+    <div class="schedule-cell"><span class="item bpc">BPC</span></div>
+  </div>
+
+  <div class="callout info" style="margin-top: 24px;">
+    <span class="callout-label">Epitalon cycle</span>
+    Run Epitalon as a separate 20-day course (5 mg PM, alongside Tesamorelin), then pause 4–6 months. Don't bake it into the weekly grid above — it's cyclic. <strong>Suggested first cycle: weeks 1–3 of starting the stack</strong>, then again ~Nov 2026.
+  </div>
+
+  <div class="callout warning">
+    <span class="callout-label">Injection volume</span>
+    Tesamorelin (PM) is best alone — its acetate excipient can affect mixing. BPC + GLOW can share a syringe (compatible pH, both small peptides). GLP-1s always alone. MOTS-c alone. Plan: 2–3 injections AM, 1–2 PM.
+  </div>
+</section>
+
+<!-- BPC-157 -->
+<section id="bpc" class="peptide-card">
+  <div class="peptide-header">
+    <div class="peptide-title">
+      <p class="peptide-category">Recovery · Tissue Repair · Gut</p>
+      <h3>BPC-157</h3>
+    </div>
+    <div class="peptide-meta">
+      <div class="price">$115</div>
+      <div>200 mg total · 10 × 20 mg</div>
+    </div>
+  </div>
+
+  <p><strong>Body Protection Compound — 15</strong>. A 15-amino-acid synthetic peptide derived from a protective protein in human gastric juice. The most-used peptide in the 50+ active population because the bottleneck at this age is recovery, not work capacity.</p>
+
+  <p>It accelerates tendon-to-bone and ligament healing, restores gut lining (especially helpful with NSAID damage or GERD), modulates inflammation through nitric oxide pathways, and upregulates growth-hormone receptors locally at injured tissue — meaning systemic GH/IGF-1 has a bigger effect at the injury site.</p>
+
+  <h4 style="margin-top: 28px;">Aggressive protocol</h4>
+  <div class="protocol-grid">
+    <div class="protocol-cell">
+      <span class="label">Dose</span>
+      <span class="value"><strong>500 mcg</strong> per injection</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Frequency</span>
+      <span class="value"><strong>2× daily</strong> (AM + PM) = 1 mg/day</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Reconstitute</span>
+      <span class="value">20 mg vial + <strong>2 mL</strong> bac water → 10 mg/mL</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Syringe</span>
+      <span class="value"><strong>5 units</strong> per injection (U-100 insulin)</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Injection site</span>
+      <span class="value">Subq abdomen, or local near injured tissue</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Supply duration</span>
+      <span class="value"><strong>200 days</strong> continuous (~6.5 months)</span>
+    </div>
+  </div>
+
+  <div class="card-section">
+    <span class="card-section-label">Expected benefits timeline</span>
+    <ul class="timeline">
+      <li><span class="when">Week 1–2</span>Subtle GI improvements if present (reflux, bloating); reduced inflammation markers</li>
+      <li><span class="when">Week 3–4</span>Faster post-workout recovery, noticeable reduction in joint pain</li>
+      <li><span class="when">Week 6–8</span>Tendon and ligament healing apparent (if treating an injury)</li>
+      <li><span class="when">Month 3+</span>Sustained tissue remodeling, improved baseline joint comfort</li>
+    </ul>
+  </div>
+
+  <div class="callout safe">
+    <span class="callout-label">Safety profile</span>
+    Excellent. No serious adverse effects documented in animal models or anecdotal human use. Mild injection site reactions are the only common complaint. Suggested cycling: <strong>6 weeks on, 2–4 weeks off</strong> to prevent receptor desensitization, though continuous use is also reported as well-tolerated.
+  </div>
+
+  <div class="callout info">
+    <span class="callout-label">Local vs systemic</span>
+    For a specific joint or tendon, inject 5 units subq as close to the affected tissue as practical. For systemic effects (gut, general inflammation), abdomen subq is fine.
+  </div>
+</section>
+
+<!-- CAGRISEMA -->
+<section id="cagrisema" class="peptide-card">
+  <div class="peptide-header">
+    <div class="peptide-title">
+      <p class="peptide-category">GLP-1 / Amylin · Weight Loss</p>
+      <h3>Cagrilintide / Semaglutide mix</h3>
+    </div>
+    <div class="peptide-meta">
+      <div class="price">$130</div>
+      <div>100 mg total · 10 × 10 mg</div>
+    </div>
+  </div>
+
+  <div class="callout critical">
+    <span class="callout-label">Conflict</span>
+    <strong>Do not run this concurrently with tirzepatide (prescribed or gray-market).</strong> Both heavily activate the GLP-1 receptor. Stacking creates compounded gastric, pancreatic, and gallbladder risk without proportional benefit. Choose <strong>one</strong> weight-loss path.
+  </div>
+
+  <p>The combination of <strong>cagrilintide</strong> (long-acting amylin analog) and <strong>semaglutide</strong> (GLP-1 agonist) — Novo Nordisk's experimental obesity drug "CagriSema." In Phase 3 REDEFINE trials, the combination produced approximately 22% body weight loss at 68 weeks at maximum dose. The mechanism is dual: GLP-1 receptor activation (appetite suppression, gastric emptying delay, insulin response) plus amylin receptor activation (separate satiety pathway, glucagon suppression).</p>
+
+  <h4 style="margin-top: 28px;">Aggressive protocol</h4>
+  <div class="protocol-grid">
+    <div class="protocol-cell">
+      <span class="label">Target dose (max)</span>
+      <span class="value"><strong>4.8 mg/week</strong> of mix (2.4mg cagri + 2.4mg sema, assumes 1:1)</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Frequency</span>
+      <span class="value"><strong>Once weekly</strong>, same day each week</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Reconstitute</span>
+      <span class="value">10 mg vial + <strong>1 mL</strong> bac water → 10 mg/mL</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Syringe (max)</span>
+      <span class="value"><strong>48 units</strong> (U-100) at full titration</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Injection site</span>
+      <span class="value">Subq abdomen, rotate quadrants weekly</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Supply duration</span>
+      <span class="value"><strong>~20 weeks</strong> at full dose · ~6–7 months including titration</span>
+    </div>
+  </div>
+
+  <div class="card-section">
+    <span class="card-section-label">Mandatory titration schedule</span>
+    <p style="font-size: 0.95rem;">Starting at full dose causes severe GI side effects. Titrate up 4 weeks per step:</p>
+    <ul class="timeline">
+      <li><span class="when">Weeks 1–4</span>0.5 mg of mix · 5 units</li>
+      <li><span class="when">Weeks 5–8</span>1.0 mg of mix · 10 units</li>
+      <li><span class="when">Weeks 9–12</span>2.0 mg of mix · 20 units</li>
+      <li><span class="when">Weeks 13–16</span>3.2 mg of mix · 32 units</li>
+      <li><span class="when">Week 17+</span>4.8 mg of mix · 48 units (full dose)</li>
+    </ul>
+  </div>
+
+  <div class="card-section">
+    <span class="card-section-label">Expected benefits</span>
+    <ul class="body-list">
+      <li>~20–22% body weight loss over 60+ weeks at full dose (Phase 3 average)</li>
+      <li>Greater absolute weight loss than semaglutide alone or tirzepatide alone in head-to-head data</li>
+      <li>Improved A1c, lipids, blood pressure as secondary effects</li>
+      <li>Stronger satiety signal than single-agent GLP-1s</li>
+    </ul>
+  </div>
+
+  <div class="callout warning">
+    <span class="callout-label">Vendor verification required</span>
+    Request the Janoshik lab report for this specific batch. The cagri:sema ratio matters — some "mixes" are 1:1 by weight, others weight toward semaglutide. Adjust the protocol to actual ratio.
+  </div>
+
+  <div class="callout critical">
+    <span class="callout-label">Side effects to expect</span>
+    Nausea (very common during up-titration), vomiting, diarrhea, constipation, fatigue. Less common but serious: pancreatitis (severe persistent abdominal pain), gallstones (RUQ pain, especially with rapid weight loss), gastroparesis. <strong>Lean mass loss is the biggest under-discussed risk at 56</strong> — pair with resistance training 3×/week and 1g protein per lb body weight.
+  </div>
+</section>
+
+<!-- GLOW50 -->
+<section id="glow" class="peptide-card">
+  <div class="peptide-header">
+    <div class="peptide-title">
+      <p class="peptide-category">Aesthetic · Collagen · Hair</p>
+      <h3>GLOW50</h3>
+    </div>
+    <div class="peptide-meta">
+      <div class="price">$150</div>
+      <div>500 mg total · 10 × 50 mg</div>
+    </div>
+  </div>
+
+  <div class="callout warning">
+    <span class="callout-label">Composition unknown — verify with vendor</span>
+    "GLOW50" is a vendor-specific blend, not a standardized peptide. Most GLOW formulations are predominantly <strong>GHK-Cu</strong> (copper tripeptide-1). Some include BPC-157 and/or TB-500. <strong>Request the exact composition from the vendor before dosing.</strong> Protocol below assumes pure GHK-Cu at 50 mg per vial.
+  </div>
+
+  <p><strong>GHK-Cu</strong> (Glycyl-L-Histidyl-L-Lysine + copper) is a naturally occurring copper-binding peptide that declines sharply with age — plasma levels at 60 are roughly 30% of what they were at 20. It activates fibroblasts (collagen, elastin, glycosaminoglycan synthesis), regulates over 4,000 human genes (gene-expression "reset" effects), stimulates hair follicle proliferation, and has wound-healing and antioxidant activity.</p>
+
+  <h4 style="margin-top: 28px;">Aggressive protocol</h4>
+  <div class="protocol-grid">
+    <div class="protocol-cell">
+      <span class="label">Dose</span>
+      <span class="value"><strong>2 mg</strong> per injection (can push to 3 mg)</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Frequency</span>
+      <span class="value"><strong>Daily</strong>, AM or PM (consistent)</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Reconstitute</span>
+      <span class="value">50 mg vial + <strong>5 mL</strong> bac water → 10 mg/mL</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Syringe</span>
+      <span class="value"><strong>20 units</strong> (= 2 mg) daily</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Injection site</span>
+      <span class="value">Subq abdomen; can also be used topically in small amounts</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Supply duration</span>
+      <span class="value"><strong>250 days</strong> at 2 mg/day (~8 months)</span>
+    </div>
+  </div>
+
+  <div class="card-section">
+    <span class="card-section-label">Expected benefits timeline</span>
+    <ul class="timeline">
+      <li><span class="when">Week 2–4</span>Skin hydration improves, mild softening of fine lines</li>
+      <li><span class="when">Week 6–8</span>Visible texture improvement, smoother skin tone</li>
+      <li><span class="when">Month 3–4</span>Hair density and growth rate changes (where applicable)</li>
+      <li><span class="when">Month 4–6</span>Deeper structural skin improvements, scar remodeling, joint comfort as bonus</li>
+    </ul>
+  </div>
+
+  <div class="callout safe">
+    <span class="callout-label">Safety profile</span>
+    Generally excellent. Injection-site irritation is the most common issue. Theoretical concern: long-term high-dose use could elevate copper stores — worth periodic serum copper / ceruloplasmin checks if running aggressive doses continuously for 12+ months.
+  </div>
+
+  <div class="callout info">
+    <span class="callout-label">Hybrid use</span>
+    A small portion of each reconstituted vial can be added to fragrance-free moisturizer (10:1 cream:GHK-Cu) for topical use on face/scalp. Adds nothing to total injected dose but maximizes localized effect on skin/hair.
+  </div>
+</section>
+
+<!-- TESAMORELIN -->
+<section id="tesamorelin" class="peptide-card">
+  <div class="peptide-header">
+    <div class="peptide-title">
+      <p class="peptide-category">GH Axis · Visceral Fat · Body Comp</p>
+      <h3>Tesamorelin</h3>
+    </div>
+    <div class="peptide-meta">
+      <div class="price">$170</div>
+      <div>100 mg total · 10 × 10 mg</div>
+    </div>
+  </div>
+
+  <p>A growth-hormone-releasing-hormone (GHRH) analog, FDA-approved as <em>Egrifta</em> for HIV-associated lipodystrophy. Of all GH peptides, Tesamorelin has the strongest clinical evidence base for <strong>visceral adipose tissue (VAT) reduction</strong> — the dangerous belly fat that surrounds organs and drives metabolic disease.</p>
+
+  <p>It binds GHRH receptors in the anterior pituitary, stimulating endogenous, pulsatile GH release — meaning IGF-1 rises within a physiological pattern rather than the supra-physiological constant elevation that exogenous HGH produces. This makes it safer at age 56 than direct HGH.</p>
+
+  <h4 style="margin-top: 28px;">Aggressive protocol</h4>
+  <div class="protocol-grid">
+    <div class="protocol-cell">
+      <span class="label">Dose</span>
+      <span class="value"><strong>2 mg</strong> per injection (FDA-approved Egrifta dose)</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Frequency</span>
+      <span class="value"><strong>Daily, evening</strong> (10pm or pre-bed)</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Reconstitute</span>
+      <span class="value">10 mg vial + <strong>2 mL</strong> bac water → 5 mg/mL</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Syringe</span>
+      <span class="value"><strong>40 units</strong> (= 2 mg) once daily</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Injection site</span>
+      <span class="value">Subq abdomen, rotate quadrants daily</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Supply duration</span>
+      <span class="value"><strong>50 days</strong> continuous · <strong>~10 weeks</strong> with 5-on/2-off cycling</span>
+    </div>
+  </div>
+
+  <div class="card-section">
+    <span class="card-section-label">Expected benefits timeline</span>
+    <ul class="timeline">
+      <li><span class="when">Week 1–2</span>Sleep quality and depth improve (GH pulse normalization)</li>
+      <li><span class="when">Week 3–4</span>Subjective body comp shifts begin (slight reduction in midsection)</li>
+      <li><span class="when">Week 6–8</span>Measurable VAT reduction on imaging; waist circumference shrinks</li>
+      <li><span class="when">Week 12–24</span>Sustained VAT loss; improved triglycerides; better skin quality</li>
+    </ul>
+  </div>
+
+  <div class="callout critical">
+    <span class="callout-label">Critical: monitor IGF-1</span>
+    Baseline IGF-1 before starting. Recheck at <strong>week 8</strong>. Target: upper-normal for age (typically 150–250 ng/mL at 56). Above this, cancer-promotion concerns increase, especially prostate. Get a baseline PSA too.
+  </div>
+
+  <div class="callout warning">
+    <span class="callout-label">Glucose interaction with tirzepatide</span>
+    Tesamorelin raises fasting glucose by 5–10 mg/dL on average. Your tirzepatide lowers it. Net effect typically still favorable, but check fasting glucose and HbA1c at week 8 to confirm.
+  </div>
+
+  <div class="callout warning">
+    <span class="callout-label">Side effects to monitor</span>
+    Injection site reactions (most common), joint pain, peripheral edema (puffy hands/feet), carpal tunnel symptoms (numbness/tingling in hands — early sign to reduce dose). Less common: blood sugar elevation, mild gynecomastia.
+  </div>
+
+  <div class="callout info">
+    <span class="callout-label">Supply note</span>
+    Supply is short — order more by <strong>~July 28, 2026</strong> if running continuous, or you'll run out mid-protocol. Consider 5-on/2-off cycling (no injection Sat/Sun) to extend supply and reduce receptor desensitization.
+  </div>
+</section>
+
+<!-- EPITALON -->
+<section id="epitalon" class="peptide-card">
+  <div class="peptide-header">
+    <div class="peptide-title">
+      <p class="peptide-category">Pineal · Sleep · Longevity</p>
+      <h3>Epitalon</h3>
+    </div>
+    <div class="peptide-meta">
+      <div class="price">$60</div>
+      <div>100 mg total · 10 × 10 mg</div>
+    </div>
+  </div>
+
+  <p>A synthetic tetrapeptide (Ala-Glu-Asp-Gly) developed by Russian gerontologist Vladimir Khavinson, modeled on a natural pineal extract called epithalamin. It is thought to restore age-related pineal function — most importantly melatonin synthesis, which crashes by ~50% between ages 30 and 60. Animal and Russian clinical studies also report telomerase activation, though the Western evidence base is limited.</p>
+
+  <p>For a 56-year-old, the sleep effect alone justifies a cycle. Melatonin replacement (oral pills) is downstream; Epitalon may restore upstream pineal production capacity.</p>
+
+  <h4 style="margin-top: 28px;">Aggressive protocol (Khavinson)</h4>
+  <div class="protocol-grid">
+    <div class="protocol-cell">
+      <span class="label">Dose</span>
+      <span class="value"><strong>5 mg</strong> per injection</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Frequency</span>
+      <span class="value"><strong>Daily for 20 days</strong>, then pause 4–6 months</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Reconstitute</span>
+      <span class="value">10 mg vial + <strong>2 mL</strong> bac water → 5 mg/mL</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Syringe</span>
+      <span class="value"><strong>20 units</strong> (= 5 mg) once daily</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Best timing</span>
+      <span class="value">Evening, 1–2 hours before bed</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Supply duration</span>
+      <span class="value"><strong>One full cycle</strong> (20 days); reorder before next cycle in 4–6 months</span>
+    </div>
+  </div>
+
+  <div class="card-section">
+    <span class="card-section-label">Expected benefits</span>
+    <ul class="timeline">
+      <li><span class="when">Days 3–7</span>Deeper, more consolidated sleep; easier morning wake</li>
+      <li><span class="when">Days 10–14</span>Vivid dreams (commonly reported, harmless)</li>
+      <li><span class="when">Post-cycle</span>Sleep improvements persist 3–6 months in most users; suggests upstream effect, not just acute melatonin elevation</li>
+      <li><span class="when">Long-term claims</span>Telomerase activation, immune restoration — less robustly verified outside Russian literature</li>
+    </ul>
+  </div>
+
+  <div class="callout safe">
+    <span class="callout-label">Safety profile</span>
+    Excellent. No significant side effects reported in 25+ years of clinical use in Russia. Vivid dreams are expected, not pathological.
+  </div>
+
+  <div class="callout info">
+    <span class="callout-label">Cycle structure</span>
+    Recommended: 2 cycles per year. With 100 mg supply at 5 mg × 20 days = 100 mg = exactly one cycle. <strong>Reorder another 100 mg vial set by Nov 2026</strong> for the second cycle.
+  </div>
+</section>
+
+<!-- MOTS-c -->
+<section id="motsc" class="peptide-card">
+  <div class="peptide-header">
+    <div class="peptide-title">
+      <p class="peptide-category">Mitochondrial · Metabolic · Longevity</p>
+      <h3>MOTS-c</h3>
+    </div>
+    <div class="peptide-meta">
+      <div class="price">$250</div>
+      <div>400 mg total · 10 × 40 mg</div>
+    </div>
+  </div>
+
+  <p>A 16-amino-acid peptide <em>encoded within mitochondrial DNA</em> — making it one of the few peptides that originates inside the cell's energy organelle and signals out to the nucleus to regulate gene expression. It activates AMPK (the metabolic master switch), improves insulin sensitivity, drives mitochondrial biogenesis, and enhances fat oxidation during exercise.</p>
+
+  <p>Of all the peptides on this stack, MOTS-c has arguably the strongest mechanistic rationale for healthy aging — mitochondrial decline is a primary driver of age-related metabolic disease, and MOTS-c levels themselves drop significantly with age.</p>
+
+  <h4 style="margin-top: 28px;">Aggressive protocol</h4>
+  <div class="protocol-grid">
+    <div class="protocol-cell">
+      <span class="label">Dose</span>
+      <span class="value"><strong>10 mg</strong> per injection</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Frequency</span>
+      <span class="value"><strong>3× weekly</strong> (Mon/Wed/Fri) = 30 mg/week</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Reconstitute</span>
+      <span class="value">40 mg vial + <strong>2 mL</strong> bac water → 20 mg/mL</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Syringe</span>
+      <span class="value"><strong>50 units</strong> (= 10 mg) per injection</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Best timing</span>
+      <span class="value">AM, ideally pre-workout on training days</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Supply duration</span>
+      <span class="value"><strong>~13 weeks</strong> continuous · longer with cycling</span>
+    </div>
+  </div>
+
+  <div class="card-section">
+    <span class="card-section-label">Expected benefits timeline</span>
+    <ul class="timeline">
+      <li><span class="when">Week 1–2</span>Some users report initial fatigue (mitochondrial remodeling); resolves quickly</li>
+      <li><span class="when">Week 3–4</span>Better workout endurance, faster between-set recovery</li>
+      <li><span class="when">Week 6–8</span>Improved fasting glucose and insulin sensitivity (stacks well with tirzepatide)</li>
+      <li><span class="when">Week 8+</span>Enhanced fat oxidation during exercise, improved metabolic flexibility</li>
+    </ul>
+  </div>
+
+  <div class="callout safe">
+    <span class="callout-label">Safety profile</span>
+    Well-tolerated in clinical research. No significant adverse events documented. Cycle <strong>12 weeks on, 4 weeks off</strong> to allow endogenous receptor sensitivity to remain responsive.
+  </div>
+
+  <div class="callout info">
+    <span class="callout-label">Stack synergy</span>
+    Excellent companion to tirzepatide — both improve metabolic markers but through entirely different mechanisms (GLP-1/GIP signaling vs. intracellular AMPK activation). Combined, they tend to produce better fasting glucose and HbA1c than either alone.
+  </div>
+</section>
+
+<!-- TIRZEPATIDE -->
+<section id="tirzepatide" class="peptide-card">
+  <div class="peptide-header">
+    <div class="peptide-title">
+      <p class="peptide-category">GLP-1 / GIP Dual Agonist · Weight Loss</p>
+      <h3>Tirzepatide</h3>
+    </div>
+    <div class="peptide-meta">
+      <div class="price">$220</div>
+      <div>600 mg total · 20 × 30 mg</div>
+    </div>
+  </div>
+
+  <div class="callout critical">
+    <span class="callout-label">Already prescribed</span>
+    You currently have a Cedar Pharmacy compounded tirzepatide Rx at <strong>16.25 mg/week</strong>. The math below assumes you either continue Cedar Rx (and this 600 mg becomes a backup/replacement supply) OR you switch to this gray-market source. <strong>Do not run both at once.</strong>
+  </div>
+
+  <p>Dual GLP-1 / GIP receptor agonist, marketed as Mounjaro (diabetes) and Zepbound (obesity). Average ~21% body weight loss at 72 weeks at 15 mg/week in the SURMOUNT-1 trial. GIP activation adds an insulin-sensitizing and lipid-handling component that semaglutide alone doesn't have — which is why tirzepatide tends to outperform semaglutide on body composition.</p>
+
+  <h4 style="margin-top: 28px;">Maintenance protocol (your current dose)</h4>
+  <div class="protocol-grid">
+    <div class="protocol-cell">
+      <span class="label">Dose</span>
+      <span class="value"><strong>16.25 mg</strong> once weekly (top of compounded range)</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Frequency</span>
+      <span class="value">Once weekly, same day (e.g., Sunday AM)</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Reconstitute</span>
+      <span class="value">30 mg vial + <strong>1.2 mL</strong> bac water → 25 mg/mL (matches Cedar Rx)</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Syringe</span>
+      <span class="value"><strong>65 units</strong> (U-100 insulin) — same as current Rx</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Per-vial dosing</span>
+      <span class="value">Each 30 mg vial lasts ~1.85 weeks of dosing</span>
+    </div>
+    <div class="protocol-cell">
+      <span class="label">Supply duration</span>
+      <span class="value"><strong>~37 weeks (~8.5 months)</strong></span>
+    </div>
+  </div>
+
+  <div class="callout warning">
+    <span class="callout-label">Missing B-vitamins vs Cedar Rx</span>
+    Your Cedar compounded version includes methylcobalamin (B12) and pyridoxine (B6) specifically to reduce nausea. Gray-market raw tirzepatide doesn't. <strong>Replace orally:</strong>
+    <ul class="body-list" style="margin-top: 8px;">
+      <li>Pyridoxine (B6) 25–50 mg daily — well-established for nausea control</li>
+      <li>Sublingual methylcobalamin (B12) 1 mg daily</li>
+    </ul>
+  </div>
+
+  <div class="callout critical">
+    <span class="callout-label">Lean mass risk at 56</span>
+    GLP-1s drive ~25–40% of weight loss from lean mass if not actively defended. At 56, this compounds with age-related sarcopenia. Non-negotiable protections:
+    <ul class="body-list" style="margin-top: 8px;">
+      <li>Resistance training <strong>3× per week minimum</strong>, progressive load</li>
+      <li>Protein <strong>1 g per lb body weight</strong>, distributed across 3–4 meals</li>
+      <li>Annual DEXA scan or InBody to track lean vs fat changes</li>
+    </ul>
+  </div>
+
+  <div class="callout warning">
+    <span class="callout-label">Beyond 15 mg/week</span>
+    16.25 mg is already above the FDA-approved 15 mg max. Some compounded protocols push to 20 mg, but data is thin and side effects scale steeply. <strong>Don't go higher than your current dose.</strong>
+  </div>
+</section>
+
+<!-- REORDER TIMELINE -->
+<section id="reorder">
+  <div class="section-header">
+    <span class="section-number">§ 09</span>
+    <h2>Reorder timeline</h2>
+  </div>
+
+  <p>Assuming start date <strong>May 19, 2026</strong>, continuous dosing at the protocols above. Bars are scaled to the longest-lasting peptide (GLOW50 at ~8 months).</p>
+
+  <div class="reorder-timeline" style="margin-top: 32px;">
+    <div class="reorder-row">
+      <div class="reorder-name">Tesamorelin</div>
+      <div class="reorder-bar-container"><div class="reorder-bar" style="width: 29%;"></div></div>
+      <div class="reorder-date">Jul 28, 2026</div>
+    </div>
+    <div class="reorder-row">
+      <div class="reorder-name">MOTS-c</div>
+      <div class="reorder-bar-container"><div class="reorder-bar" style="width: 38%;"></div></div>
+      <div class="reorder-date">Aug 18, 2026</div>
+    </div>
+    <div class="reorder-row">
+      <div class="reorder-name">Epitalon (cycle 2)</div>
+      <div class="reorder-bar-container"><div class="reorder-bar" style="width: 57%;"></div></div>
+      <div class="reorder-date">Nov 18, 2026</div>
+    </div>
+    <div class="reorder-row">
+      <div class="reorder-name">BPC-157</div>
+      <div class="reorder-bar-container"><div class="reorder-bar" style="width: 63%;"></div></div>
+      <div class="reorder-date">Dec 5, 2026</div>
+    </div>
+    <div class="reorder-row">
+      <div class="reorder-name">CagriSema*</div>
+      <div class="reorder-bar-container"><div class="reorder-bar" style="width: 80%;"></div></div>
+      <div class="reorder-date">Mar 2027*</div>
+    </div>
+    <div class="reorder-row">
+      <div class="reorder-name">GLOW50</div>
+      <div class="reorder-bar-container"><div class="reorder-bar" style="width: 80%;"></div></div>
+      <div class="reorder-date">Jan 24, 2027</div>
+    </div>
+    <div class="reorder-row">
+      <div class="reorder-name">Tirzepatide</div>
+      <div class="reorder-bar-container"><div class="reorder-bar" style="width: 85%;"></div></div>
+      <div class="reorder-date">Feb 2, 2027</div>
+    </div>
+  </div>
+
+  <p style="margin-top: 20px; font-size: 0.88rem; color: var(--ink-soft); font-style: italic;">* CagriSema timeline assumes you use it <em>instead of</em> tirzepatide, with full titration. If you stick with tirzepatide, you don't need to reorder CagriSema.</p>
+
+  <div class="callout warning" style="margin-top: 24px;">
+    <span class="callout-label">Order ahead by 4 weeks</span>
+    International shipping plus reconstitution / quality validation takes time. Place reorders <strong>4 weeks before the dates above</strong> to avoid running out mid-protocol. Particularly important for Tesamorelin (first to run out).
+  </div>
+</section>
+
+<!-- LABS -->
+<section id="labs">
+  <div class="section-header">
+    <span class="section-number">§ 10</span>
+    <h2>Baseline & monitoring labs</h2>
+  </div>
+
+  <p>This stack touches multiple hormone axes and metabolic pathways. Skipping baseline labs at 56 is a meaningful risk. Most can be ordered via Quest, Labcorp, Marek Health, Ulta Lab Tests, or Function — out-of-pocket cost is typically $200–400 for a full panel.</p>
+
+  <h4 style="margin-top: 32px;">Baseline panel (before starting)</h4>
+  <table style="margin-top: 16px;">
+    <thead>
+      <tr>
+        <th>Marker</th>
+        <th>Why it matters</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>IGF-1</strong></td><td>Mandatory baseline before Tesamorelin. Target post-treatment: upper-normal for age, <strong>not above range</strong>.</td></tr>
+      <tr><td><strong>PSA (free + total)</strong></td><td>Mandatory before any GH-axis peptide at 56. Recheck annually.</td></tr>
+      <tr><td><strong>CMP</strong> (kidney, liver, electrolytes, glucose)</td><td>Baseline organ function. Critical for monitoring GLP-1 effects on liver and kidneys.</td></tr>
+      <tr><td><strong>HbA1c + fasting insulin</strong></td><td>Pre-tirzepatide / pre-tesamorelin baseline. Calculate HOMA-IR.</td></tr>
+      <tr><td><strong>Lipid panel</strong></td><td>Cardiovascular baseline. GLP-1s typically improve; tesamorelin can affect.</td></tr>
+      <tr><td><strong>Lipase + amylase</strong></td><td>Pancreas baseline — critical for GLP-1 monitoring (pancreatitis risk).</td></tr>
+      <tr><td><strong>CBC</strong></td><td>Baseline blood counts.</td></tr>
+      <tr><td><strong>TSH, free T3, free T4</strong></td><td>Thyroid baseline. GH peptides can affect.</td></tr>
+      <tr><td><strong>Total + free T, SHBG, estradiol</strong></td><td>Hormone baseline. Especially if libido/energy concerns or considering TRT.</td></tr>
+      <tr><td><strong>hs-CRP, ferritin</strong></td><td>Inflammation and iron stores baseline.</td></tr>
+      <tr><td><strong>AM cortisol</strong></td><td>Stress axis baseline.</td></tr>
+      <tr><td><strong>Vitamin D, B12</strong></td><td>Common deficiencies; B12 especially relevant given GLP-1 effects on absorption.</td></tr>
+    </tbody>
+  </table>
+
+  <h4 style="margin-top: 32px;">Recheck at week 8 and week 16</h4>
+  <ul class="body-list">
+    <li><strong>IGF-1</strong> — confirm upper-normal range, not above</li>
+    <li><strong>HbA1c, fasting glucose, fasting insulin</strong></li>
+    <li><strong>Lipase, amylase</strong> — pancreas monitoring</li>
+    <li><strong>CMP</strong> — liver and kidney function</li>
+    <li><strong>Lipid panel</strong></li>
+    <li><strong>PSA</strong> at 6 months</li>
+  </ul>
+
+  <div class="callout info" style="margin-top: 24px;">
+    <span class="callout-label">DEXA or InBody</span>
+    Strongly recommended baseline body composition scan, then at 6 months. Distinguishes between fat loss (good) and lean mass loss (bad) — invisible to the scale. Marek Health and most major cities have DEXA available for $50–100.
+  </div>
+</section>
+
+<!-- LOGISTICS -->
+<section id="logistics">
+  <div class="section-header">
+    <span class="section-number">§ 11</span>
+    <h2>Injection logistics</h2>
+  </div>
+
+  <h4>Supplies needed</h4>
+  <ul class="body-list">
+    <li><strong>Syringes:</strong> BD U-100 insulin syringes, 31G × 5/16" or 8mm, 0.3 mL or 0.5 mL barrel. Buy in bulk (100-count box ~$25 on Amazon or pharmacy).</li>
+    <li><strong>Bacteriostatic water:</strong> 0.9% sodium chloride with 0.9% benzyl alcohol preservative. 30 mL vials. Order from compounding pharmacies (Empower, Cedar, Hallandale) or research-grade suppliers.</li>
+    <li><strong>Alcohol prep pads:</strong> Standard medical, sterile, individually wrapped. Box of 200, ~$5.</li>
+    <li><strong>Sharps container:</strong> 1-quart minimum. Local pharmacies sell or accept.</li>
+    <li><strong>Refrigerator space:</strong> Dedicated shelf, 36–46°F (2–8°C). Do not store in door (temperature fluctuates).</li>
+  </ul>
+
+  <h4 style="margin-top: 28px;">Standard subq injection technique</h4>
+  <ol class="body-list">
+    <li>Wash hands. Alcohol-swab vial top and injection site, let air-dry 15 seconds.</li>
+    <li>Draw correct unit volume into syringe. Tap to remove air bubbles, push to zero plunger.</li>
+    <li>Pinch 1–2 inches of subcutaneous tissue at injection site (abdomen, 2+ inches from navel).</li>
+    <li>Insert needle at 45° (thin) or 90° (average) angle, fully.</li>
+    <li>Release pinch, push plunger slowly over 3–5 seconds.</li>
+    <li>Withdraw needle, brief pressure with cotton if bleeding.</li>
+    <li>Dispose of syringe in sharps container — never recap.</li>
+  </ol>
+
+  <h4 style="margin-top: 28px;">Site rotation</h4>
+  <p>Abdomen has four usable quadrants (upper-left, upper-right, lower-left, lower-right of navel). Each site needs <strong>7–10 days</strong> recovery before reuse to prevent lipodystrophy and scarring. For multiple daily injections, use different quadrants AM vs PM. Thighs and upper buttocks are secondary sites.</p>
+
+  <h4 style="margin-top: 28px;">Combining peptides in one syringe</h4>
+  <table style="margin-top: 16px;">
+    <thead>
+      <tr><th>Combination</th><th>Compatible?</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>BPC-157 + GHK-Cu (GLOW)</td><td><span class="sev-cell sev-green">Yes</span> — compatible pH, both small peptides</td></tr>
+      <tr><td>Any GLP-1 (Tirz, Sema, Cagri) + anything else</td><td><span class="sev-cell sev-red">Never</span> — keep solo</td></tr>
+      <tr><td>Tesamorelin + anything</td><td><span class="sev-cell sev-red">Never</span> — acetate excipient</td></tr>
+      <tr><td>MOTS-c + BPC-157</td><td><span class="sev-cell sev-amber">Likely OK</span> — limited data; safest separate</td></tr>
+      <tr><td>Epitalon + BPC-157</td><td><span class="sev-cell sev-green">Yes</span> — small peptides, compatible</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- STORAGE -->
+<section id="storage">
+  <div class="section-header">
+    <span class="section-number">§ 12</span>
+    <h2>Vial shelf life &amp; storage</h2>
+  </div>
+
+  <p>The most important fact: <strong>lyophilized (freeze-dried) peptides are far more stable than people fear during shipping, and far more fragile once reconstituted than people assume.</strong> Degradation requires water — the freeze-drying process removes it, which is why a powder can survive a warm transit but a reconstituted vial cannot survive a hot car. Understanding the lyophilized → bac water → reconstituted timeline is the single highest-yield piece of operational knowledge for this stack.</p>
+
+  <!-- UPON RECEIPT -->
+  <h4 style="margin-top: 32px;">Step 1 — Upon receipt: inspect before storing</h4>
+  <p>Every shipment gets a 60-second inspection before anything goes in the fridge. This is your only chance to identify a problem batch and request replacement.</p>
+
+  <table style="margin-top: 16px;">
+    <thead>
+      <tr><th>Check</th><th>Pass</th><th>Fail / contact vendor</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Package exterior</strong></td>
+        <td>Intact, no water damage, no crushing</td>
+        <td>Visibly damaged, soaked, or punctured</td>
+      </tr>
+      <tr>
+        <td><strong>Cold pack status</strong> (if included)</td>
+        <td>Cool to slightly warm — expected after transit</td>
+        <td>Hot, or pack ruptured/leaking</td>
+      </tr>
+      <tr>
+        <td><strong>Vial seal</strong></td>
+        <td>Crimped aluminum cap intact, no tampering signs</td>
+        <td>Cap loose, lifted, or appears refitted</td>
+      </tr>
+      <tr>
+        <td><strong>Powder appearance</strong></td>
+        <td>White to off-white fluffy powder or compact "puck" at vial bottom</td>
+        <td>Visibly wet, melted, yellow/brown discoloration, clumped wet, partially dissolved</td>
+      </tr>
+      <tr>
+        <td><strong>GLOW50 (if GHK-Cu)</strong></td>
+        <td>White-to-very-faint-blue powder</td>
+        <td>Deep blue or green = oxidized copper, likely degraded</td>
+      </tr>
+      <tr>
+        <td><strong>Labeling / lot number</strong></td>
+        <td>Matches Janoshik COA / lab report supplied</td>
+        <td>Missing label, lot mismatch, no COA</td>
+      </tr>
+      <tr>
+        <td><strong>Liquid present</strong></td>
+        <td>None — vials should be dry powder only</td>
+        <td>Any visible liquid = stopper failure, contaminated</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout info" style="margin-top: 20px;">
+    <span class="callout-label">Transit warming is OK</span>
+    A package that arrives at room temp — or even briefly warm — does not mean the peptides are degraded. Lyophilized peptides tolerate brief exposure to 40–50°C (104–122°F) with minimal degradation because hydrolysis requires water that isn't present. The cold pack is a safety margin, not a hard requirement. <strong>What matters far more: appearance, seal, and how quickly you get them into refrigeration after arrival.</strong>
+  </div>
+
+  <!-- SHELF LIFE TABLE -->
+  <h4 style="margin-top: 32px;">Step 2 — Lyophilized vial shelf life by storage condition</h4>
+  <p>General shelf life of unopened lyophilized peptide powder, with numbers based on industry consensus across vendor specs, USP guidance, and peptide chemistry literature:</p>
+
+  <table style="margin-top: 16px;">
+    <thead>
+      <tr><th>Storage condition</th><th>Temperature</th><th>Shelf life</th><th>Practical use</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Room temperature</strong></td>
+        <td class="num">68–77°F (20–25°C)</td>
+        <td class="num">~2–4 weeks</td>
+        <td>Acceptable for active rotation (vial in current use)</td>
+      </tr>
+      <tr>
+        <td><strong>Refrigerator</strong></td>
+        <td class="num">36–46°F (2–8°C)</td>
+        <td class="num">12–24 months</td>
+        <td><strong>Default storage for vials you'll use within a year</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Standard freezer</strong></td>
+        <td class="num">–4°F (–20°C)</td>
+        <td class="num">2–5 years</td>
+        <td>Long-term reserve; vials you won't touch for 6+ months</td>
+      </tr>
+      <tr>
+        <td><strong>Ultra-low freezer</strong></td>
+        <td class="num">–112°F (–80°C)</td>
+        <td class="num">5+ years</td>
+        <td>Not realistic for home use; lab-grade only</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout warning" style="margin-top: 20px;">
+    <span class="callout-label">Vendor labeling note</span>
+    Gray-market vendors often print no expiration date, or print one that's an overestimate. <strong>Treat the date you receive the vial as Day 0 and apply the table above based on where you store it.</strong> The vendor's "manufactured" date matters less than ambient conditions since manufacture.
+  </div>
+
+  <!-- PER-PEPTIDE TABLE -->
+  <h4 style="margin-top: 32px;">Step 3 — Per-peptide lyophilized stability (your inventory)</h4>
+  <p>Adjusted for the specific chemistry of each peptide on your list. These assume properly sealed vials kept dry and dark.</p>
+
+  <table style="margin-top: 16px;">
+    <thead>
+      <tr>
+        <th>Peptide</th>
+        <th>Room temp</th>
+        <th>Refrigerated</th>
+        <th>Frozen –20°C</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>BPC-157</strong></td>
+        <td class="num">2–4 wk</td>
+        <td class="num">12–18 mo</td>
+        <td class="num">2–3 yr</td>
+        <td>Robust pentadecapeptide; well-studied stability</td>
+      </tr>
+      <tr>
+        <td><strong>CagriSema</strong></td>
+        <td class="num">3–4 wk</td>
+        <td class="num">12–24 mo</td>
+        <td class="num">2–3 yr</td>
+        <td>GLP-1s structurally stabilized; long shelf life</td>
+      </tr>
+      <tr>
+        <td><strong>GLOW50 (GHK-Cu)</strong></td>
+        <td class="num">2–3 wk</td>
+        <td class="num">12 mo</td>
+        <td class="num">2–3 yr</td>
+        <td>⚠ Light-sensitive — copper oxidizes; keep dark</td>
+      </tr>
+      <tr>
+        <td><strong>Tesamorelin</strong></td>
+        <td class="num">1–2 wk</td>
+        <td class="num">6–12 mo</td>
+        <td class="num">18–24 mo</td>
+        <td>⚠ Least stable on this list — refrigerate immediately</td>
+      </tr>
+      <tr>
+        <td><strong>Epitalon</strong></td>
+        <td class="num">2–4 wk</td>
+        <td class="num">12–18 mo</td>
+        <td class="num">2–3 yr</td>
+        <td>Small tetrapeptide; very stable</td>
+      </tr>
+      <tr>
+        <td><strong>MOTS-c</strong></td>
+        <td class="num">2–4 wk</td>
+        <td class="num">12 mo</td>
+        <td class="num">2 yr</td>
+        <td>Moderate stability; standard handling</td>
+      </tr>
+      <tr>
+        <td><strong>Tirzepatide</strong></td>
+        <td class="num">3–4 wk</td>
+        <td class="num">18–24 mo</td>
+        <td class="num">3 yr</td>
+        <td>FDA-approved; well-documented stability</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout critical" style="margin-top: 20px;">
+    <span class="callout-label">Tesamorelin priority handling</span>
+    Tesamorelin is the least thermally stable peptide in your stack. Get it into the refrigerator within hours of receipt, and into the freezer if you won't start it in the next 30 days. Of all seven peptides, this is the one most likely to lose potency from poor handling.
+  </div>
+
+  <!-- STORAGE STRATEGY -->
+  <h4 style="margin-top: 32px;">Step 4 — Storage strategy decision tree</h4>
+  <p>Apply this to each vial individually upon receipt:</p>
+
+  <table style="margin-top: 16px;">
+    <thead>
+      <tr><th>Timeline to use</th><th>Where to store</th><th>Rationale</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Within 30 days (active vial)</td>
+        <td><strong>Refrigerator</strong>, back shelf</td>
+        <td>Temperature stability + accessibility; no freeze-thaw stress</td>
+      </tr>
+      <tr>
+        <td>1–6 months</td>
+        <td><strong>Refrigerator</strong>, back shelf</td>
+        <td>Within refrigerated shelf life for all peptides</td>
+      </tr>
+      <tr>
+        <td>6–12 months</td>
+        <td><strong>Refrigerator</strong>, back shelf</td>
+        <td>Still within window; freezer transition adds risk</td>
+      </tr>
+      <tr>
+        <td>12+ months</td>
+        <td><strong>Freezer</strong>, –20°C (–4°F)</td>
+        <td>Beyond refrigerated stability for most</td>
+      </tr>
+      <tr>
+        <td>Tesamorelin, any 6+ month wait</td>
+        <td><strong>Freezer</strong> immediately</td>
+        <td>Lower thermal stability than rest of stack</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout info" style="margin-top: 20px;">
+    <span class="callout-label">Practical layout for your inventory</span>
+    With ~78 total vials (7 peptides × 10–20 vials each), divide into <strong>"active" (current month's vials) on a dedicated fridge shelf</strong> and <strong>"reserve" (everything else) in the freezer</strong>. Pull a month's worth from freezer to fridge as needed. This minimizes freeze-thaw cycles and keeps your active rotation organized.
+  </div>
+
+  <!-- CRITICAL EQUILIBRATION RULE -->
+  <h4 style="margin-top: 32px;">Step 5 — The equilibration rule (most-overlooked step)</h4>
+  <div class="callout critical">
+    <span class="callout-label">Before opening a cold vial</span>
+    Let it sit at room temperature for <strong>15–30 minutes</strong> until it's no longer cold to the touch. If you open a refrigerated or frozen vial immediately, warm humid air condenses inside the vial onto the powder — introducing the very moisture the lyophilization was designed to eliminate. This is the single most common (and most consequential) handling mistake.
+  </div>
+
+  <p style="margin-top: 16px;">This rule applies to both initial reconstitution and every subsequent draw from a reconstituted vial. The 15-minute equilibration is cheap insurance against accumulated moisture damage across multiple uses.</p>
+
+  <!-- BAC WATER -->
+  <h4 style="margin-top: 32px;">Bacteriostatic water</h4>
+  <p>Once the rubber stopper is first punctured, the USP-recommended use period is <strong>28 days</strong>. The 0.9% benzyl alcohol preservative inhibits bacterial growth during that window. After 28 days, discard regardless of remaining volume. Unopened: stable at room temp until the manufacturer's expiration date (typically 2–5 years).</p>
+
+  <!-- RECONSTITUTED -->
+  <h4 style="margin-top: 32px;">Reconstituted peptide stability (refrigerated, 36–46°F)</h4>
+  <table style="margin-top: 16px;">
+    <thead>
+      <tr><th>Peptide</th><th>Refrigerated stability</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>BPC-157</td><td class="num">~30 days</td><td>Robust; can extend with careful handling</td></tr>
+      <tr><td>CagriSema mix</td><td class="num">~30–45 days</td><td>GLP-1s generally stable; longer than most</td></tr>
+      <tr><td>GHK-Cu (GLOW)</td><td class="num">~30 days</td><td>Light-sensitive; wrap in foil or use amber vial</td></tr>
+      <tr><td>Tesamorelin</td><td class="num">~14–21 days</td><td>Least stable on this list — use quickly</td></tr>
+      <tr><td>Epitalon</td><td class="num">~14–28 days</td><td>Use entire vial within the 20-day cycle</td></tr>
+      <tr><td>MOTS-c</td><td class="num">~28–30 days</td><td>Stable</td></tr>
+      <tr><td>Tirzepatide</td><td class="num">~30–45 days</td><td>Very stable when refrigerated; pharmaceutical versions tolerate longer than research-grade</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout critical" style="margin-top: 16px;">
+    <span class="callout-label">Never freeze reconstituted peptides</span>
+    Once in solution, freezing forms ice crystals that disrupt peptide structure and cause aggregation. Repeated freeze-thaw cycles destroy potency. Reconstituted vials stay in the refrigerator, period.
+  </div>
+
+  <!-- RECONSTITUTION PROCEDURE -->
+  <h4 style="margin-top: 32px;">Reconstitution procedure — step by step</h4>
+
+  <p>This is the detailed procedure for every peptide vial. Once familiar, it takes about 5 minutes. Sterile technique matters — you're creating an injectable solution, and contamination introduced at this stage can't be undone.</p>
+
+  <span class="card-section-label" style="margin-top: 20px;">Supplies to set out before starting</span>
+  <ul class="body-list">
+    <li><strong>Bacteriostatic water</strong>, 30 mL vial (0.9% benzyl alcohol preservative)</li>
+    <li><strong>U-100 insulin syringes</strong>, 31G × 5/16" (8mm), 1 mL or 0.5 mL barrel — minimum two: one for drawing bac water, one for dosing</li>
+    <li><strong>Alcohol prep pads</strong>, sterile, individually wrapped</li>
+    <li><strong>Sharps container</strong> within arm's reach</li>
+    <li><strong>Sharpie + masking tape or small labels</strong> for marking reconstitution and discard dates</li>
+    <li><strong>Clean, flat work surface</strong> — kitchen counter wiped with alcohol, paper towel underneath</li>
+  </ul>
+
+  <span class="card-section-label" style="margin-top: 24px;">Step-by-step</span>
+  <ol class="body-list">
+    <li><strong>Equilibrate.</strong> Take both vials (peptide + bac water) out of the fridge and let them sit at room temp for 15–30 minutes until no longer cold to the touch. Skip this and you'll condense moisture into the vial when you puncture it.</li>
+    <li><strong>Prep workspace.</strong> Wash hands thoroughly. Wipe the work surface with alcohol. Lay out all supplies before opening anything.</li>
+    <li><strong>Swab vial stoppers.</strong> Use a fresh alcohol pad on each vial's rubber stopper. Let air-dry 15 seconds — don't blow on it (introduces breath moisture and bacteria).</li>
+    <li><strong>Pressure-equalize the bac water vial.</strong> Pull air into the empty syringe equal to the volume of bac water you'll withdraw (e.g., 2 mL of air for 2 mL of water). Insert into the bac water vial, push the air in, then invert the vial and slowly withdraw your bac water volume. This prevents vacuum, which causes drips and inaccurate measurements.</li>
+    <li><strong>Insert into the peptide vial at 45°.</strong> Position the needle bevel against the inner glass wall <em>above</em> the powder, not directly aimed at it.</li>
+    <li><strong>Trickle, don't squirt.</strong> Push the plunger slowly so bac water runs down the side of the vial onto the powder. Direct impact on lyophilized powder can denature peptides.</li>
+    <li><strong>Withdraw the needle, set the vial down.</strong> Do not shake. Shaking creates foam and shears peptide structure.</li>
+    <li><strong>Swirl, don't agitate.</strong> Gently roll or swirl the vial in a circular motion every 30 seconds. Most peptides fully dissolve in 1–5 minutes; some larger or stubborn ones take up to 15.</li>
+    <li><strong>If slow to dissolve:</strong> warm gently in your palms for 60 seconds at a time. Never microwave, run under warm water, or heat above body temperature.</li>
+    <li><strong>Inspect the solution.</strong> Should be clear or only faintly colored (GHK-Cu blue; everything else colorless). Cloudiness, particles, or unusual color = discard and use a fresh vial.</li>
+    <li><strong>Label the vial.</strong> Write reconstitution date and 28-day discard date on tape or directly on the glass with Sharpie. Example: "Recon 5/20 · Discard 6/17."</li>
+    <li><strong>Store upright in the back of the fridge,</strong> away from light. For GHK-Cu specifically, wrap the vial in aluminum foil or keep in a small opaque container — copper is light-sensitive.</li>
+    <li><strong>Dispose of the syringe</strong> in your sharps container. Never recap a used needle (needlestick risk).</li>
+  </ol>
+
+  <span class="card-section-label" style="margin-top: 24px;">Pro tips that prevent the most common mistakes</span>
+  <ul class="body-list">
+    <li><strong>The 15-minute equilibration applies to every dose pull, not just initial reconstitution.</strong> Cold vial + warm room air = condensation inside the vial. Every time you open a stored vial, let it warm first.</li>
+    <li><strong>One syringe = one purpose.</strong> Use a separate syringe for drawing bac water vs. drawing your dose. Don't reuse syringes between different peptide vials — cross-contamination is a real risk.</li>
+    <li><strong>Pressure-equalize every draw.</strong> Even pulling small dose volumes, briefly inject a matching volume of air before withdrawing. Reduces drips and improves measurement accuracy at small volumes.</li>
+    <li><strong>If powder won't fully dissolve after 15 minutes,</strong> it likely absorbed moisture during storage. The vial is compromised — use another.</li>
+    <li><strong>Bubbles are normal during dissolution.</strong> Wait — they'll settle on their own. Don't tap or flick aggressively to dislodge them; that's shearing the peptide.</li>
+    <li><strong>Reconstitute only what you'll use within ~28 days.</strong> Leave the rest as lyophilized powder in the fridge or freezer where they remain stable for months to years.</li>
+  </ul>
+
+  <!-- RECONSTITUTION MATH FOR BLENDS -->
+  <h4 style="margin-top: 32px;">Reconstitution math for blend vials</h4>
+
+  <p>Single-peptide vials are simple: choose a bac water volume that gives clean unit math. Blend vials (GLOW, CagriSema, any combo) require calculating <strong>per-component dosing per unit</strong>. The principle: dose for the limiting (lowest-mass) peptide in the blend, then accept the proportional doses of the other components.</p>
+
+  <div class="callout info" style="margin-top: 16px;">
+    <span class="callout-label">Worked example — GHK-Cu / BPC-157 / TB-500 blend (60mg + 10mg + 10mg = 80mg total)</span>
+    <ul class="body-list" style="margin-top: 8px;">
+      <li>Reconstitute 80 mg with <strong>2 mL bac water</strong> → 40 mg/mL total mass</li>
+      <li>Per unit (0.01 mL): <strong>300 mcg GHK-Cu + 50 mcg BPC-157 + 50 mcg TB-500</strong></li>
+      <li>10 units = 3 mg GHK-Cu + 500 mcg BPC-157 + 500 mcg TB-500 (one full BPC-157 dose, with proportional doses of the other two — a complete healing cocktail in one injection)</li>
+    </ul>
+  </div>
+
+  <div class="callout info" style="margin-top: 12px;">
+    <span class="callout-label">Worked example — CagriSema mix (assumes 1:1 cagri:sema, 10mg total)</span>
+    <ul class="body-list" style="margin-top: 8px;">
+      <li>Reconstitute 10 mg with <strong>1 mL bac water</strong> → 10 mg/mL total mass</li>
+      <li>Per unit (0.01 mL): <strong>50 mcg cagrilintide + 50 mcg semaglutide</strong></li>
+      <li>48 units = 2.4 mg cagri + 2.4 mg sema (full Phase 3 target weekly dose)</li>
+    </ul>
+  </div>
+
+  <div class="callout warning" style="margin-top: 16px;">
+    <span class="callout-label">Always confirm the ratio</span>
+    For any blend, confirm the actual component ratio from the vendor's Janoshik COA <em>before</em> dosing. Assumed ratios can be wrong, and "1:1 by weight" is not the same thing as "1:1 by moles." The math above only holds if the label matches the lab report.
+  </div>
+
+  <!-- DEGRADATION SIGNS -->
+  <h4 style="margin-top: 32px;">Signs of degradation — when to discard</h4>
+  <p>Inspect before every dose. Any of the following = discard the vial, regardless of remaining content or how recent.</p>
+
+  <table style="margin-top: 16px;">
+    <thead>
+      <tr><th>Observation</th><th>What it means</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Cloudiness or haze</strong></td>
+        <td>Bacterial contamination or peptide aggregation</td>
+      </tr>
+      <tr>
+        <td><strong>Visible particles or floating debris</strong></td>
+        <td>Aggregation or contamination — never inject</td>
+      </tr>
+      <tr>
+        <td><strong>Color change</strong> (yellow, brown, deep blue)</td>
+        <td>Oxidation; peptide is altered. GHK-Cu faint blue is normal; deep blue or green is not</td>
+      </tr>
+      <tr>
+        <td><strong>Unusual odor</strong> when vial first opened</td>
+        <td>Bacterial breakdown products; do not use</td>
+      </tr>
+      <tr>
+        <td><strong>Difficulty reconstituting</strong> (powder won't dissolve)</td>
+        <td>Moisture damage during storage or aggregation</td>
+      </tr>
+      <tr>
+        <td><strong>Loss of expected effect</strong> after consistent dosing</td>
+        <td>Possible silent degradation; reconstitute a fresh vial and compare</td>
+      </tr>
+      <tr>
+        <td><strong>Crystalline deposits</strong></td>
+        <td>Peptide crystallization from moisture or temperature stress</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout warning" style="margin-top: 20px;">
+    <span class="callout-label">Power outage protocol</span>
+    Fridge stayed closed, &lt; 4 hours: peptides likely fine, continue using. 4–12 hours: assess by visual inspection; if any doubt, discard active reconstituted vials but keep sealed lyophilized vials. &gt; 12 hours: discard reconstituted; lyophilized vials likely still viable based on transit data. The lyophilized form is your insurance policy.
+  </div>
+</section>
+
+<!-- SIDE EFFECTS -->
+<section id="side-effects">
+  <div class="section-header">
+    <span class="section-number">§ 13</span>
+    <h2>Side-effects watch list</h2>
+  </div>
+
+  <p>Three-tier severity. Memorize the red items — these are emergency-stop signals.</p>
+
+  <table class="severity-table" style="margin-top: 20px;">
+    <thead>
+      <tr><th>Symptom</th><th>Severity</th><th>Action</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Severe abdominal pain, persistent vomiting</td>
+        <td><span class="sev-cell sev-red">Red</span></td>
+        <td>Stop GLP-1 immediately. ER for pancreatitis workup (lipase, amylase, imaging).</td>
+      </tr>
+      <tr>
+        <td>Yellow eyes / skin, right-upper-quadrant pain</td>
+        <td><span class="sev-cell sev-red">Red</span></td>
+        <td>Stop GLP-1. Urgent gallbladder evaluation.</td>
+      </tr>
+      <tr>
+        <td>Severe persistent headache, vision changes</td>
+        <td><span class="sev-cell sev-red">Red</span></td>
+        <td>Stop Tesamorelin. Evaluate for intracranial hypertension.</td>
+      </tr>
+      <tr>
+        <td>Chest pain, severe SOB</td>
+        <td><span class="sev-cell sev-red">Red</span></td>
+        <td>Stop everything. ER.</td>
+      </tr>
+      <tr>
+        <td>Spreading injection site redness / warmth / fever</td>
+        <td><span class="sev-cell sev-red">Red</span></td>
+        <td>Cellulitis / abscess. Same-day medical care.</td>
+      </tr>
+      <tr>
+        <td>Persistent hand numbness / tingling</td>
+        <td><span class="sev-cell sev-amber">Amber</span></td>
+        <td>Reduce Tesamorelin dose 25% — early carpal tunnel from GH effect.</td>
+      </tr>
+      <tr>
+        <td>Persistent nausea &gt; 2 weeks</td>
+        <td><span class="sev-cell sev-amber">Amber</span></td>
+        <td>Reduce GLP-1 dose. Add B6 (50 mg). Ensure adequate hydration and protein.</td>
+      </tr>
+      <tr>
+        <td>Peripheral edema (puffy hands / feet)</td>
+        <td><span class="sev-cell sev-amber">Amber</span></td>
+        <td>Reduce Tesamorelin dose or cycle. Recheck weekly.</td>
+      </tr>
+      <tr>
+        <td>Fasting glucose climbing &gt; 110</td>
+        <td><span class="sev-cell sev-amber">Amber</span></td>
+        <td>Reduce Tesamorelin frequency. Reassess in 4 weeks.</td>
+      </tr>
+      <tr>
+        <td>Rapid weight loss &gt; 2 lb/week sustained</td>
+        <td><span class="sev-cell sev-amber">Amber</span></td>
+        <td>Reduce GLP-1 dose. Lean mass loss accelerates above this rate.</td>
+      </tr>
+      <tr>
+        <td>Mild injection site redness / bruising</td>
+        <td><span class="sev-cell sev-green">Green</span></td>
+        <td>Expected. Rotate sites more aggressively.</td>
+      </tr>
+      <tr>
+        <td>Vivid dreams (Epitalon)</td>
+        <td><span class="sev-cell sev-green">Green</span></td>
+        <td>Expected and harmless.</td>
+      </tr>
+      <tr>
+        <td>Initial fatigue first week (MOTS-c)</td>
+        <td><span class="sev-cell sev-green">Green</span></td>
+        <td>Expected; mitochondrial remodeling. Resolves in 1–2 weeks.</td>
+      </tr>
+      <tr>
+        <td>Mild appetite reduction (GLP-1s)</td>
+        <td><span class="sev-cell sev-green">Green</span></td>
+        <td>Expected. Monitor that you're still hitting protein target.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- INTERACTIONS -->
+<section id="interactions">
+  <div class="section-header">
+    <span class="section-number">§ 14</span>
+    <h2>Drug &amp; substance interactions</h2>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Combination</th><th>Effect</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Tirzepatide + Tesamorelin</td><td>Opposing glucose effects (tirz lowers, tesa raises). Net usually still net-improvement. Monitor fasting glucose.</td></tr>
+      <tr><td>GLP-1 + alcohol</td><td>Increased pancreatitis risk. Limit to ≤ 1 drink, avoid binge pattern.</td></tr>
+      <tr><td>GLP-1 + opioids</td><td>Increased gastroparesis risk. Avoid combining.</td></tr>
+      <tr><td>GLP-1 + NSAIDs (ibuprofen, naproxen)</td><td>Increased GI bleeding risk on already-delayed gastric emptying. Use sparingly.</td></tr>
+      <tr><td>Tesamorelin + corticosteroids (prednisone, etc.)</td><td>Steroids blunt GH response. Cycle off Tesamorelin during steroid courses.</td></tr>
+      <tr><td>Tirzepatide + Cagrilintide/Semaglutide</td><td><strong>Do not combine.</strong> Triple GLP-1 receptor activation.</td></tr>
+      <tr><td>GLP-1 + oral medications</td><td>Delayed gastric emptying = delayed absorption of oral meds. Take orals 1 hour before any GLP-1 injection day.</td></tr>
+      <tr><td>Multiple peptides in one syringe</td><td>See § 11 compatibility table.</td></tr>
+      <tr><td>Surgery / general anesthesia</td><td>Stop GLP-1s 1 week prior (current ASA guidance) — gastroparesis aspiration risk.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- SUPPORTING SUPPLEMENTS -->
+<section id="supplements">
+  <div class="section-header">
+    <span class="section-number">§ 15</span>
+    <h2>Supporting supplements</h2>
+  </div>
+
+  <p>Specifically chosen to address the failure modes of this stack — not generic "wellness" stack-padding.</p>
+
+  <h4 style="margin-top: 24px;">Mandatory (addresses specific risks)</h4>
+  <ul class="body-list">
+    <li><strong>Vitamin B6 (pyridoxine), 25–50 mg daily</strong> — Replaces what the Cedar compounded version provides. Nausea control on GLP-1s.</li>
+    <li><strong>Methylcobalamin (B12), 1 mg sublingual daily</strong> — GLP-1s reduce B12 absorption; B12 deficiency is sneaky and can cause neuropathy.</li>
+    <li><strong>Protein supplement (whey or casein)</strong> — Reach 1 g/lb body weight daily target. Lean mass preservation is the central risk of this stack.</li>
+    <li><strong>Creatine monohydrate, 5 g daily</strong> — Cheap, well-evidenced lean mass preservation aid, especially valuable during GLP-1-driven weight loss.</li>
+    <li><strong>Magnesium glycinate, 300–400 mg PM</strong> — Common deficiency; supports sleep, glucose handling, neuromuscular function.</li>
+    <li><strong>Vitamin D3 + K2, 5,000 IU + 100 mcg daily</strong> — Bone density during weight loss, immune function.</li>
+  </ul>
+
+  <h4 style="margin-top: 24px;">Optional but logical additions</h4>
+  <ul class="body-list">
+    <li><strong>Berberine, 500 mg 2× daily</strong> — AMPK activator like MOTS-c via different mechanism; mild additional glucose benefit.</li>
+    <li><strong>Omega-3 (EPA/DHA), 2–3 g daily</strong> — Anti-inflammatory; cardiovascular support during weight loss.</li>
+    <li><strong>Bovine colostrum, 1 tbsp daily</strong> — Gut barrier support; complements BPC-157 effects.</li>
+    <li><strong>Taurine, 1–3 g daily</strong> — Supports bile flow (important during rapid weight loss with gallstone risk); cardiovascular and longevity benefits.</li>
+  </ul>
+
+  <div class="callout info" style="margin-top: 20px;">
+    <span class="callout-label">Avoid</span>
+    Avoid melatonin pills during Epitalon cycles — Epitalon's mechanism may be partially via upstream restoration of endogenous melatonin synthesis. Exogenous melatonin may suppress this signal. Resume melatonin between cycles if used.
+  </div>
+</section>
+
+<footer>
+  <div class="disclaimer">
+    This document is a personal reference compiled from research literature, clinical trial data, and harm-reduction sources. It is not medical advice. Peptides on this list range from FDA-approved (tirzepatide, tesamorelin) to research-only (most others). Sourcing is the user's responsibility. Discuss with a knowledgeable physician before initiating any protocol. Get baseline labs. Monitor.
+  </div>
+  <p>Document version 1.2 · Compiled May 19, 2026 · Expanded shelf life, storage &amp; reconstitution procedure</p>
+</footer>
+
+</div>
+</body>
+</html>
