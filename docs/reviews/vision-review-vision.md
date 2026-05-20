@@ -1,9 +1,9 @@
 # Review Report: docs/vision.md
 
-**Date**: 2026-05-20
+**Date**: 2026-05-20 (initial) / 2026-05-20 (re-review, auto-fix batch)
 **Methodology**: deep | Depth: 5/5
-**Status**: INITIAL
-**Models**: Claude (Sonnet 4.6) + Codex (GPT-5.5) + Gemini
+**Status**: RE-REVIEWED — all new findings fixed
+**Models**: Claude (Sonnet 4.6) + Codex (GPT-5.5) + Gemini (initial); Claude (Opus 4.7) for re-review
 
 ---
 
@@ -150,3 +150,61 @@ No new P0/P1 findings introduced by fixes.
   - Platform is web app; App Store is explicitly excluded
   - Q3 (local-first sync approach) is now moot — replaced by standard web app DB + auth
 - **Remaining P2/P3 items**: Vision statement still describes features not positive change (P2 — known quality gap, acceptable for a personal tool vision); AI policy boundary still implicit (P2 — can be resolved in PRD or tech-stack step)
+
+---
+
+## Re-Review Pass — 2026-05-20 (auto-fix batch)
+
+**Reviewer**: Claude (Opus 4.7), single-channel re-review of the updated `docs/vision.md`. Depth 5/strict. Auto-fix mode: findings are fixed inline and recorded here.
+
+### New findings
+
+| # | Severity | Finding | Location | Detection |
+|---|----------|---------|----------|-----------|
+| N1 | **P1** | §12 Q9 "Legal review trigger" is labeled `[PRD-blocking]` but contains no directional decision — only restates the open question. PRD generation will stall here. | §12 Q9 | Pass 5 (downstream readiness) |
+| N2 | P3 | §6 Genuine Differentiation lists 8 advantage bullets but never closes with a consolidated competitive thesis sentence. Reader must synthesize "where we win" themselves. | §6 line ~107 | Pass 3 (competitive rigor) |
+| N3 | P3 | §10 Year 1 target "20 successful orders" doesn't specify guided-manual vs. automated ordering, creating ambiguity against §5's v1 scope note. | §10 line ~188 | Pass 4 (strategic coherence) + Pass 5 (handoff clarity) |
+
+### Previously accepted P2/P3 findings re-opened for this fix batch
+
+Per the auto-fix directive ("fix all findings"), these prior-pass findings that were accepted as known gaps are now fixed:
+
+| # | Severity | Prior finding | Why fix now |
+|---|----------|---------------|-------------|
+| 1.3 | P3 | "Honest" is the pivot word but never operationally defined | Operational definition prevents drift across PRD/spec generation |
+| 2.2 | P2 | Primary persona anchored to "you" without behavioral qualifier for identifying future Power Users | A qualifier checklist constrains scope decisions; prevents accidentally building for borderline users |
+| 3.3 | P2 | "Honest tone earns trust — a structural advantage" overclaims; honest tone is brand-level, not structural | Mis-stating the moat distorts roadmap priorities |
+
+### Intentionally retained (NOT fixed)
+
+- **1.1 (P2)**: Vision statement names functions ("learn, dose, track, source") rather than describing positive change in the user's life. Retained because the prior 3-model consensus already accepted this gap, the founder confirmed the statement reads correctly for the target audience, and re-revising the North Star line risks regression for downstream documents that already reference its phrasing. Marked as a permanent known quality gap.
+
+### Regressions detected
+
+None. All P1 findings from the initial review remain fixed.
+
+### Fixes applied
+
+| Finding | Section edited | Why (root cause) | How (the change) |
+|---------|----------------|------------------|------------------|
+| 1.3 | §1, after vision statement | "Honest" was used as a load-bearing principle without operational meaning, leaving room for drift downstream | Added a 5-point "what 'honest' means here, operationally" list: (1) name the grey market, (2) no insincere disclaimers, (3) primary-research citations + anecdote labeling, (4) no paywalled safety features, (5) vendor referral revenue never biases sourcing recommendations |
+| 2.2 | §4, after Primary Persona success criteria | Persona was anchored to "you" with behaviors implied but no test for matching future users — risk of scope drift when family adopts and friends-of-friends ask for access | Added a "Future Power User qualifier" 5-point checklist (3+ peptides concurrently with intent; cycles with PK/biomarker awareness; crypto-comfortable; sources outside telehealth; logs outcomes today or wants to) with the explicit rule "fails one — wrong product; fails two — categorically wrong product" |
+| 3.3 + N2 | §6, end of Genuine Differentiation | The "honesty earns trust" bullet overstated honesty as a moat (which it is not — competitors could mimic it). Reader also had to synthesize 8 advantages into a thesis themselves | Rewrote the bullet to acknowledge honesty alone is not the moat; named the structural moat explicitly as (web platform) + (closed data loop) + (grey-market-first sourcing); added a "Net competitive thesis" closing sentence |
+| N3 | §10 Year 1 success | "20 successful orders" was ambiguous against §5 v1 scope (guided-manual) — could read as either guided-manual or fully automated | Rewrote to explicitly say v1 guided-manual mode (app composes Telegram message + payment checklist; user clicks send and pays); noted v2 full automation is not required to hit the Year 1 metric |
+| N1 | §12 Q9 | Q9 was labeled PRD-blocking but the body said "Define the line" without defining it — PRD generation could not proceed | Resolved with a directional default: legal review required before (a) any non-family external user accesses the app, OR (b) any paid license sale, whichever first. Personal + family use below the threshold. Listed three explicit re-trigger conditions. Relabeled `[RESOLVED — PRD inherits this default]` |
+
+### Re-validation (post-fix)
+
+- **Pass 1 (Vision Clarity)**: "Honest" now operationally defined. Vision statement unchanged (intentional). ✓
+- **Pass 2 (Audience Precision)**: Power User qualifier checklist now provides a fitness test for future users. ✓
+- **Pass 3 (Competitive Rigor)**: Moat correctly attributed to structural factors; honesty correctly framed as consequence not cause; net thesis closes the section. ✓
+- **Pass 4 (Strategic Coherence)**: §10 Year 1 metric now consistent with §5 v1 scope. No new contradictions introduced. ✓
+- **Pass 5 (Downstream Readiness)**: Q9 resolved; all `[PRD-blocking]` items now have directional answers. PRD can proceed without strategic clarification. ✓
+
+### Gate result (re-review)
+
+- **Gate**: **Full Pass** (upgraded from Conditional Pass)
+- **All PRD-blocking opens resolved**: Q4, Q5, Q8, Q9 all have decisions
+- **Remaining known gaps** (deliberately retained):
+  - 1.1 (P2) — vision statement is functional, not aspirational (accepted)
+- **Re-trigger conditions for future review**: significant change to multi-user architecture; new payment-processor exposure event; FDA enforcement action against a similar grey-market peptide product; expansion of the audience scope beyond the explicit "NOT" list

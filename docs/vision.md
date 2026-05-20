@@ -8,6 +8,13 @@
 
 **Give serious peptide users one honest place to learn, dose, track, and source — without pretending the grey market doesn't exist.**
 
+*What "honest" means here, operationally — the test we apply to product decisions:*
+1. We name the grey market explicitly and design for it; we do not hide ordering behind compliance theater.
+2. We do not write "for research use only" disclaimers we do not mean.
+3. Every peptide profile cites primary research; anecdote is labeled as anecdote.
+4. Safety-critical features (reconstitution math, dose confirmation) are never paywalled.
+5. Vendor referral revenue, if accepted, never biases which vendors the sourcing tool recommends, and the arrangement is disclosed in-product.
+
 ## 2. Elevator Pitch
 
 > For **serious biohackers and the family/friends they guide** who **self-direct complex protocols — peptides, TRT, and related compounds — outside or alongside the telehealth mainstream**, *Project Peptides* is a **self-directed biopharmaceutical management platform** that **unifies a deep evidence-based reference, multi-user protocol tracking, reconstitution math, biomarker correlation, and end-to-end vendor ordering (grey-market Telegram + crypto or compounding pharmacy) in one honest tool**. Unlike **App-Store-bound trackers (PeptIQ, PeptPro, Peptify) and reference-only sites (PepGuide, Know Your Peptide)** that can't touch ordering or are locked into their own vendor ecosystems, our product **treats the user's actual sourcing workflow as a first-class feature and the user as a competent adult managing their own biology**.
@@ -32,6 +39,14 @@ A specific user lives this every week:
 - **Context of use:** Daily — morning dose logging, weekly — reviewing outcomes, monthly — ordering/restock, occasional — researching a new peptide before adding it.
 - **Workarounds today:** Obsidian notes + spreadsheet + bookmarks + Telegram threads + Coinbase + a calculator tab. Functional but degrades as the stack grows.
 - **Success for them:** Open one app at 7am. See today's stack. Confirm doses. Log them. Close the app. At order time: app drives the Telegram + crypto handshake instead of the human.
+
+**Future Power User qualifier (5-point fit check — all five required):**
+1. Running 3+ peptides concurrently with intent (not curious dabbling).
+2. Cycles or sequences peptides with awareness of pharmacokinetics or biomarkers.
+3. Crypto-comfortable: owns a wallet, has executed crypto transactions, accepts non-reversible risk.
+4. Sources outside telehealth — Telegram + crypto, compounding pharmacy direct, or both — *not* a subscription telehealth clinic.
+5. Logs outcomes (subjective scoring, biomarker tracking, or both) today, or actively wants to.
+*Fails one — wrong product. Fails two — categorically wrong product. We do not bend the design to capture borderline users.*
 
 ### Secondary Persona — *The Delegated Participant (family & friends, v1)*
 - **Behavior:** First or second peptide. Has their account created and protocol configured *by the Power User* (super admin). Does not need to understand reconstitution math — they just see their schedule and log doses. May occasionally look up "what does this peptide do?"
@@ -105,7 +120,9 @@ The user already gets by with their tab-soup. Building this only matters if the 
 - **Bridge-sourcing survives regulatory shifts.** As FDA tightens grey-market peptide access (2026 trend), the product supports compounding pharmacy + telehealth orders alongside Telegram/crypto. A grey-market-only tool becomes unusable if the landscape shifts; this one adapts because sourcing is order-source-agnostic.
 - **Biomarker correlation without vendor lock-in.** PeptPro gestures at AI bloodwork analysis — but it's locked to their own marketplace. We bring protocol-biomarker correlation to the user's actual sourcing workflow, regardless of where they buy.
 - **All-in-one.** Loses on isolated dimensions (PepGuide has more peptides; PeptIQ has nicer UI; Titer has stronger privacy branding; Peptify has pharmacokinetic depth) but wins on integration nobody else can ship.
-- **Honest tone earns trust** — a structural advantage because it's *consistent with the architecture*, not a brand claim competitors can copy without rebuilding their compliance posture.
+- **Honest tone is consistent with the architecture, but honesty alone is not the moat.** A competitor *could* adopt our tone tomorrow. What they cannot copy without rebuilding their entire compliance posture — and what therefore constitutes the structural moat — is the combination of (a) being on the open web instead of App Stores, (b) closing the order → inventory → dose → log data loop, and (c) treating grey-market sourcing as a first-class feature. Honesty is the *consequence* of that posture, not the moat itself.
+
+**Net competitive thesis:** *We win by being the only product that closes the order → inventory → dose → log data loop for users sourcing outside App Store ecosystems. Everything else is supporting evidence.*
 
 ### Honest weaknesses to acknowledge
 - Reference depth will lag PepGuide for years.
@@ -185,7 +202,7 @@ What this product is NOT — and the traps to avoid:
 ### Year 1 success (depth-5 horizon: 12 months)
 - **Personal adoption locked in.** The Power User uses it daily. Spreadsheet is decommissioned.
 - **Family/friend adoption: 3-10 users.** Each has at least one active protocol configured by the Power User. They check in for their daily dose.
-- **Ordering loop closed end-to-end.** At least 20 successful orders placed through the app with no manual Telegram intervention required.
+- **Ordering loop closed end-to-end.** At least 20 successful orders placed through the app in v1 *guided-manual* mode (app composes the Telegram message and assembles the payment checklist; the user clicks send and pays). Full Telegram-bot automation is a v2 target — not required to hit the Year 1 metric.
 - **Reference depth: 30-50 peptides** with primary citations, dosing ranges, mechanism notes.
 
 ### Year 3 aspirations (if pursued past personal-tool stage)
@@ -236,7 +253,7 @@ Questions marked **[PRD-blocking]** must be answered before writing user stories
 6. **[Later] Public reference site: Year 2 or never?** Depends on whether personal-tool adoption proves the model first.
 7. **[Later] Community features: kept out entirely, or opt-in Year 2?** Anti-vision rejects engagement-platform dynamics; a curated low-noise community might be compatible. Not in v1.
 8. **[PRD-blocking] Vendor sourcing scope: just QSC initially, or N vendors?** Pragmatically QSC-first for v1 ordering; architecture should allow adding vendors. Confirm in PRD.
-9. **[PRD-blocking] Legal review trigger.** Before family adoption? Before any paid license? Define the line. Failure to decide creates ambiguity about what can ship.
+9. **[RESOLVED — PRD inherits this default] Legal review trigger.** Legal review is required before either (a) any non-family external user accesses the app, OR (b) any paid license sale, whichever comes first. Personal use plus a closed family/friends circle on free access sits below the trigger threshold and can proceed without prior legal review. Revisit this default if family adoption surfaces unexpected legal questions, if a state-level enforcement action targets a similar product, or if the ordering module's processing footprint changes materially.
 10. **[Tech-stack] AI assistance scope.** Allowed uses defined in §8 Anti-Vision. Technical approach (vector search? OpenAI? local model?) deferred to tech-stack step.
 
 ---

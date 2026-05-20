@@ -5,12 +5,7 @@
   "config_methodology": "deep",
   "init-mode": "greenfield",
   "created": "2026-05-20T15:24:01.181Z",
-  "in_progress": {
-    "step": "review-vision",
-    "started": "2026-05-20T23:48:34.525Z",
-    "partial_artifacts": [],
-    "actor": "scaffold-run"
-  },
+  "in_progress": null,
   "steps": {
     "review-architecture": {
       "status": "completed",
@@ -754,15 +749,15 @@
       "artifacts_verified": true
     },
     "review-vision": {
-      "status": "in_progress",
+      "status": "completed",
       "source": "pipeline",
       "produces": [
         "docs/reviews/vision-review-vision.md"
       ],
-      "at": "2026-05-20T23:48:34.525Z",
-      "completed_at": "2026-05-20T15:41:49.843Z",
-      "completed_by": "scaffold-run",
-      "depth": 5,
+      "at": "2026-05-20T23:57:45.234Z",
+      "completed_at": "2026-05-20T23:57:45.234Z",
+      "completed_by": "user",
+      "depth": 3,
       "artifacts_verified": true
     }
   },
@@ -776,6 +771,6 @@
     "new-enhancement"
   ],
   "extra-steps": [],
-  "save_counter": 112,
+  "save_counter": 113,
   "next_eligible_hash": "b0f96612b7489b4407a2f088950aeae539aca5bb924eab64281c9be389457d2e"
 }
