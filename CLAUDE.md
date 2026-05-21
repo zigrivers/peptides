@@ -10,10 +10,24 @@
 | Task | Command |
 |------|---------|
 | Start Dev | `make dev` or `pnpm dev` |
+| Production Build | `pnpm build` |
+| Start Prod Server | `pnpm start` |
+| Lint | `pnpm lint` |
+| Typecheck | `pnpm typecheck` |
+| Format | `pnpm format` |
+| Format Check | `pnpm format:check` |
 | Full Check | `make check` (Lint + Type + Test) |
+| Unit Tests | `pnpm test` |
+| Tests (watch) | `pnpm test:watch` |
+| Test Coverage | `pnpm test:coverage` |
 | Run Evals | `pnpm eval` |
 | Run E2E | `pnpm e2e` |
-| DB Setup | `make db-setup` |
+| DB Setup | `make db-setup` or `pnpm db:setup` |
+| DB Reset | `pnpm db:reset` |
+| Prisma Dev Migration | `pnpm prisma:dev` |
+| Prisma Deploy Migration | `pnpm prisma:deploy` |
+| Prisma Generate | `pnpm prisma:generate` |
+| Prisma Validate | `pnpm prisma:validate` |
 
 ## Git & PR Workflow (9-step lifecycle + 4.5 PR review)
 1. **Commit**: `type(scope): desc`.

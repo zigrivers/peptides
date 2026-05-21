@@ -13,7 +13,7 @@
 We use a modular monolith architecture built on Next.js 15. The system is organized into bounded contexts that can be isolated (ADR-015) or eventually extracted into microservices if needed.
 
 ### 1.1 Layered Structure (Per Module)
-- **UI Layer**: React components (RSC or Client) in `app/`.
+- **UI Layer**: React components (RSC or Client) with Tailwind CSS in `app/`.
 - **Application Layer**: Server Actions and Services in `lib/{module}/application/`.
 - **Domain Layer**: Entities and business logic in `lib/{module}/domain/`.
 - **Infrastructure Layer**: Persistence and external integrations in `lib/{module}/infrastructure/`.

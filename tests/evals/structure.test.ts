@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
-import glob from 'glob';
 
 describe('Structure Eval', () => {
   it('follows feature-based slice rules for lib/', () => {
