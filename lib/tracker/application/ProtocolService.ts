@@ -149,6 +149,9 @@ export async function pauseProtocol(input: LifecycleInput): Promise<Protocol> {
   return prisma.$transaction(async (tx) => {
     const protocol = await requireProtocolForActor(tx, input.protocolId, input.actorUserId);
     if (protocol.status === 'PAUSED') throw new Error('Protocol is already paused');
+    if (protocol.status === 'COMPLETED' || protocol.status === 'DEACTIVATED') {
+      throw new Error(`Cannot pause a ${protocol.status.toLowerCase()} protocol`);
+    }
 
     const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'PAUSED');
 
@@ -196,6 +199,9 @@ export async function resumeProtocol(input: LifecycleInput): Promise<Protocol> {
 export async function cloneProtocol(input: CloneInput): Promise<Protocol> {
   return prisma.$transaction(async (tx) => {
     const source = await requireProtocolForActor(tx, input.protocolId, input.actorUserId);
+    if (source.status === 'DEACTIVATED') {
+      throw new Error('Cannot clone a deactivated protocol');
+    }
 
     const cloned = await createProtocolRecord(tx, {
       userId: source.userId,
@@ -228,6 +234,9 @@ export async function deactivateProtocol(input: LifecycleInput): Promise<Protoco
   return prisma.$transaction(async (tx) => {
     const protocol = await requireProtocolForActor(tx, input.protocolId, input.actorUserId);
     if (protocol.status === 'DEACTIVATED') throw new Error('Protocol is already deactivated');
+    if (protocol.status === 'COMPLETED') {
+      throw new Error('Cannot deactivate a completed protocol');
+    }
 
     const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'DEACTIVATED');
 

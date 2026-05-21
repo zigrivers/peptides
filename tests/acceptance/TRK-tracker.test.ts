@@ -415,6 +415,11 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
       mockProtocolFindFirst.mockResolvedValue(pausedProtocolRow);
       await expect(pauseProtocol({ actorUserId, protocolId })).rejects.toThrow(/paused|already/i);
     });
+
+    it('throws if protocol is COMPLETED', async () => {
+      mockProtocolFindFirst.mockResolvedValue({ ...activeProtocolRow, status: 'COMPLETED' });
+      await expect(pauseProtocol({ actorUserId, protocolId })).rejects.toThrow(/completed/i);
+    });
   });
 
   describe('resumeProtocol', () => {
@@ -466,6 +471,13 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
         cloneProtocol({ actorUserId, protocolId, newStartDate: new Date('2026-07-01') })
       ).rejects.toThrow(/not found/i);
     });
+
+    it('throws if source protocol is DEACTIVATED (server-side guard)', async () => {
+      mockProtocolFindFirst.mockResolvedValue({ ...activeProtocolRow, status: 'DEACTIVATED' });
+      await expect(
+        cloneProtocol({ actorUserId, protocolId, newStartDate: new Date('2026-07-01') })
+      ).rejects.toThrow(/deactivated/i);
+    });
   });
 
   describe('deactivateProtocol', () => {
@@ -487,6 +499,11 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
     it('throws if protocol is already DEACTIVATED', async () => {
       mockProtocolFindFirst.mockResolvedValue({ ...activeProtocolRow, status: 'DEACTIVATED' });
       await expect(deactivateProtocol({ actorUserId, protocolId })).rejects.toThrow(/deactivated|already/i);
+    });
+
+    it('throws if protocol is COMPLETED', async () => {
+      mockProtocolFindFirst.mockResolvedValue({ ...activeProtocolRow, status: 'COMPLETED' });
+      await expect(deactivateProtocol({ actorUserId, protocolId })).rejects.toThrow(/completed/i);
     });
   });
 });

@@ -12,6 +12,14 @@ import {
 
 type Props = { protocol: Protocol };
 
+// Parse YYYY-MM-DD string as UTC midnight to avoid timezone off-by-one.
+// new Date('YYYY-MM-DD') already parses as UTC per ECMAScript spec, which is
+// the desired behavior: the server stores startDate as UTC date-only.
+function parseDateUTC(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
 export function ProtocolActions({ protocol }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -33,7 +41,7 @@ export function ProtocolActions({ protocol }: Props) {
   }
 
   const { status, id } = protocol;
-  const isTerminal = status === 'DEACTIVATED';
+  const isTerminal = status === 'DEACTIVATED' || status === 'COMPLETED';
 
   return (
     <div className="mt-6 space-y-4">
@@ -103,7 +111,7 @@ export function ProtocolActions({ protocol }: Props) {
               disabled={isPending || !cloneDate}
               onClick={() =>
                 run(() =>
-                  cloneProtocolAction({ protocolId: id, newStartDate: new Date(cloneDate) })
+                  cloneProtocolAction({ protocolId: id, newStartDate: parseDateUTC(cloneDate) })
                 )
               }
               className="rounded-md bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 transition-colors"
