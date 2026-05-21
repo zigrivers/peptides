@@ -13,11 +13,17 @@ const mockPrismaTelegramSessionFindUnique = vi.fn();
 const mockPrismaTelegramSessionDelete = vi.fn();
 const mockPrismaTelegramSessionDeleteMany = vi.fn();
 const mockPrismaAuditEventCreate = vi.fn();
+const mockPrismaOrderCreate = vi.fn();
+const mockPrismaOrderFindFirst = vi.fn();
+const mockPrismaOrderFindMany = vi.fn();
+const mockPrismaOrderUpdate = vi.fn();
+const mockPrismaOrderItemCreateMany = vi.fn();
 
 const mockStartPhoneAuth = vi.fn();
 const mockCompletePhoneAuth = vi.fn();
 const mockCompletePhoneAuthWithPassword = vi.fn();
 const mockLogoutSession = vi.fn();
+const mockSendTelegramMessage = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
@@ -39,6 +45,15 @@ vi.mock('@/lib/shared/prisma', () => ({
       delete: mockPrismaTelegramSessionDelete,
       deleteMany: mockPrismaTelegramSessionDeleteMany,
     },
+    order: {
+      create: mockPrismaOrderCreate,
+      findFirst: mockPrismaOrderFindFirst,
+      findMany: mockPrismaOrderFindMany,
+      update: mockPrismaOrderUpdate,
+    },
+    orderItem: {
+      createMany: mockPrismaOrderItemCreateMany,
+    },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
         vendor: {
@@ -57,6 +72,14 @@ vi.mock('@/lib/shared/prisma', () => ({
           delete: mockPrismaTelegramSessionDelete,
           deleteMany: mockPrismaTelegramSessionDeleteMany,
         },
+        order: {
+          create: mockPrismaOrderCreate,
+          findFirst: mockPrismaOrderFindFirst,
+          update: mockPrismaOrderUpdate,
+        },
+        orderItem: {
+          createMany: mockPrismaOrderItemCreateMany,
+        },
         auditEvent: { create: mockPrismaAuditEventCreate },
       };
       return fn(tx);
@@ -69,6 +92,7 @@ vi.mock('@/lib/ordering/infrastructure/MTProtoClient', () => ({
   completePhoneAuth: mockCompletePhoneAuth,
   completePhoneAuthWithPassword: mockCompletePhoneAuthWithPassword,
   logoutSession: mockLogoutSession,
+  sendTelegramMessage: mockSendTelegramMessage,
 }));
 
 /**
@@ -391,19 +415,207 @@ describe('US-ORD-01: Configure Telegram MTProto', () => {
 });
 
 /**
+ * Story: US-ORD-02 - Build Order (create-draft)
+ */
+describe('US-ORD-02: Build Order', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPrismaAuditEventCreate.mockResolvedValue({});
+    process.env.TELEGRAM_SESSION_KEY = 'a'.repeat(64);
+  });
+
+  it('AC-1: createDraftOrder creates an order with items and writes ORDER_DRAFTED audit', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-1', createdAt: new Date() });
+    mockPrismaOrderItemCreateMany.mockResolvedValueOnce({ count: 2 });
+
+    const result = await createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 2 },
+      { compoundId: 'cmp-2', compoundName: 'TB-500', form: 'LYOPHILIZED_POWDER', vialSizeMg: '2', quantity: 1 },
+    ]);
+
+    expect(result.orderId).toBe('order-1');
+    expect(mockPrismaOrderCreate).toHaveBeenCalledOnce();
+    expect(mockPrismaOrderItemCreateMany).toHaveBeenCalledOnce();
+    expect(mockPrismaAuditEventCreate).toHaveBeenCalledOnce();
+    const auditCall = mockPrismaAuditEventCreate.mock.calls[0][0];
+    expect(auditCall.data.action).toBe('ORDER_DRAFTED');
+  });
+
+  it('AC-1: createDraftOrder merges duplicate items (same compoundId+form+vialSizeMg)', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-2', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-2', createdAt: new Date() });
+    mockPrismaOrderItemCreateMany.mockResolvedValueOnce({ count: 1 });
+
+    await createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 2 },
+      // Duplicate — same compound+form+size, should be merged into quantity 3
+      { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1 },
+    ]);
+
+    const itemsArg = mockPrismaOrderItemCreateMany.mock.calls[0][0];
+    expect(itemsArg.data).toHaveLength(1);
+    expect(itemsArg.data[0].quantity).toBe(3);
+  });
+
+  it('AC-1: createDraftOrder throws vendor_not_found when vendor does not belong to user', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce(null);
+
+    await expect(createDraftOrder('user-1', 'vendor-other', [
+      { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1 },
+    ])).rejects.toThrow('vendor_not_found');
+  });
+});
+
+/**
  * Story: US-ORD-03 - Build and Send Telegram Order
  */
 describe('US-ORD-03: Build and Send Telegram Order', () => {
-  it.todo('AC-1: adds items from vendor catalog to cart', () => {
-    // Hint: check lib/ordering/domain/Order aggregate
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPrismaAuditEventCreate.mockResolvedValue({});
+    process.env.TELEGRAM_SESSION_KEY = 'a'.repeat(64);
+    process.env.TELEGRAM_APP_ID = '12345';
+    process.env.TELEGRAM_APP_HASH = 'abc123hash';
   });
 
-  it.todo('AC-2: dispatches message via linked Telegram account', () => {
-    // Hint: check GramJS client integration
+  it('AC-2: sendOrder sends via AUTOMATED when Telegram session is linked', async () => {
+    const { sendOrder } = await import('@/lib/ordering/application/OrderService');
+    const { encryptSession } = await import('@/lib/ordering/application/SessionManager');
+
+    const encryptedSession = encryptSession('plain-session');
+    const orderWithDetails = {
+      id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
+      idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null },
+      items: [
+        { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 2 },
+      ],
+    };
+
+    mockPrismaOrderFindFirst
+      .mockResolvedValueOnce(orderWithDetails) // get order for sendOrder
+      .mockResolvedValueOnce(null);            // no recent duplicate
+
+    mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce({ sessionString: encryptedSession, isActive: true, userId: 'user-1' });
+    mockSendTelegramMessage.mockResolvedValueOnce({ messageId: 'tg-msg-123' });
+    mockPrismaOrderUpdate.mockResolvedValueOnce({ id: 'order-1', status: 'SENT', sendMethod: 'AUTOMATED' });
+
+    const result = await sendOrder('user-1', 'order-1');
+
+    expect(result.sendMethod).toBe('AUTOMATED');
+    expect(result.telegramMessageId).toBe('tg-msg-123');
+    expect(mockSendTelegramMessage).toHaveBeenCalledWith('plain-session', 'qsc_vendor', expect.any(String));
   });
 
-  it.todo('AC-3: archives sent message in history', () => {
-    // Hint: check telegramMessageId field in Order table
+  it('AC-2: sendOrder falls back to MANUAL_FALLBACK when no Telegram session is linked', async () => {
+    const { sendOrder } = await import('@/lib/ordering/application/OrderService');
+
+    const orderWithDetails = {
+      id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
+      idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null },
+      items: [
+        { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
+      ],
+    };
+
+    mockPrismaOrderFindFirst
+      .mockResolvedValueOnce(orderWithDetails)
+      .mockResolvedValueOnce(null);
+    mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce(null);
+    mockPrismaOrderUpdate.mockResolvedValueOnce({ id: 'order-1', status: 'SENT', sendMethod: 'MANUAL_FALLBACK' });
+
+    const result = await sendOrder('user-1', 'order-1');
+
+    expect(result.sendMethod).toBe('MANUAL_FALLBACK');
+    expect(result.fallbackDeepLink).toBe('tg://resolve?domain=qsc_vendor');
+    expect(result.fallbackText).toBeTruthy();
+    expect(mockSendTelegramMessage).not.toHaveBeenCalled();
+  });
+
+  it('AC-3: sendOrder archives messageText to the order record on success', async () => {
+    const { sendOrder } = await import('@/lib/ordering/application/OrderService');
+
+    const orderWithDetails = {
+      id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
+      idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null },
+      items: [
+        { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 2 },
+      ],
+    };
+
+    mockPrismaOrderFindFirst
+      .mockResolvedValueOnce(orderWithDetails)
+      .mockResolvedValueOnce(null);
+    mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce(null);
+    mockPrismaOrderUpdate.mockResolvedValueOnce({ id: 'order-1', status: 'SENT', sendMethod: 'MANUAL_FALLBACK' });
+
+    await sendOrder('user-1', 'order-1');
+
+    const updateCall = mockPrismaOrderUpdate.mock.calls[0][0];
+    expect(updateCall.data.messageText).toBeTruthy();
+    expect(updateCall.data.status).toBe('SENT');
+    expect(updateCall.data.sentAt).toBeInstanceOf(Date);
+  });
+
+  it('AC-3: sendOrder blocks duplicate send within 60 seconds without force', async () => {
+    const { sendOrder } = await import('@/lib/ordering/application/OrderService');
+
+    const orderWithDetails = {
+      id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
+      idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null },
+      items: [
+        { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
+      ],
+    };
+    const recentDuplicate = { id: 'order-0', sentAt: new Date(), messageText: 'same' };
+
+    mockPrismaOrderFindFirst
+      .mockResolvedValueOnce(orderWithDetails)  // get order
+      .mockResolvedValueOnce(recentDuplicate);  // duplicate check finds one
+
+    await expect(sendOrder('user-1', 'order-1')).rejects.toThrow('possible_duplicate_send');
+    // Audit DUPLICATE_SEND_BLOCKED should be written
+    const auditActions = mockPrismaAuditEventCreate.mock.calls.map((c: unknown[]) => (c[0] as { data: { action: string } }).data.action);
+    expect(auditActions).toContain('DUPLICATE_SEND_BLOCKED');
+  });
+
+  it('AC-3: sendOrder proceeds past 60s duplicate check when force=true', async () => {
+    const { sendOrder } = await import('@/lib/ordering/application/OrderService');
+
+    const orderWithDetails = {
+      id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
+      idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null },
+      items: [
+        { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
+      ],
+    };
+    const recentDuplicate = { id: 'order-0', sentAt: new Date(), messageText: 'same' };
+
+    mockPrismaOrderFindFirst
+      .mockResolvedValueOnce(orderWithDetails)
+      .mockResolvedValueOnce(recentDuplicate); // duplicate found, but force=true
+    mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce(null);
+    mockPrismaOrderUpdate.mockResolvedValueOnce({ id: 'order-1', status: 'SENT', sendMethod: 'MANUAL_FALLBACK' });
+
+    const result = await sendOrder('user-1', 'order-1', true);
+    expect(result.sendMethod).toBe('MANUAL_FALLBACK');
   });
 });
 

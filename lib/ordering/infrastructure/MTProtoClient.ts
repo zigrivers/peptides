@@ -100,6 +100,21 @@ export async function logoutSession(plainSessionString: string): Promise<void> {
   }
 }
 
+export async function sendTelegramMessage(
+  sessionString: string,
+  recipientUsername: string,
+  text: string
+): Promise<{ messageId: string }> {
+  const client = makeClient(sessionString);
+  await client.connect();
+  try {
+    const result = await client.sendMessage(recipientUsername, { message: text });
+    return { messageId: String(result.id) };
+  } finally {
+    await client.disconnect();
+  }
+}
+
 export async function checkSession(encryptedSession: string, decryptFn: (s: string) => string): Promise<boolean> {
   let client: ReturnType<typeof makeClient> | null = null;
   try {

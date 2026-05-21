@@ -1,0 +1,196 @@
+import { randomUUID } from 'crypto';
+import { prisma } from '@/lib/shared/prisma';
+import { withAudit } from '@/lib/audit/application/withAudit';
+import type { OrderLineItemInput, SendMethod } from '@/lib/ordering/domain/types';
+import { sendTelegramMessage } from '@/lib/ordering/infrastructure/MTProtoClient';
+import { getDecryptedSession } from './TelegramAuthService';
+import { buildFallbackDeepLink } from './TelegramAuthService';
+
+export interface CreateDraftOrderResult {
+  orderId: string;
+}
+
+export interface SendOrderResult {
+  sendMethod: SendMethod;
+  telegramMessageId?: string;
+  fallbackText?: string;
+  fallbackDeepLink?: string;
+}
+
+function mergeItems(items: OrderLineItemInput[]): OrderLineItemInput[] {
+  const map = new Map<string, OrderLineItemInput>();
+  for (const item of items) {
+    const key = `${item.compoundId}:${item.form}:${item.vialSizeMg}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.quantity += item.quantity;
+    } else {
+      map.set(key, { ...item });
+    }
+  }
+  return Array.from(map.values());
+}
+
+function composeMessage(
+  vendor: { name: string; preferredCurrency: string; messageTemplate: string | null },
+  items: Array<{ compoundName: string; form: string; vialSizeMg: { toString(): string }; quantity: number }>
+): string {
+  const itemLines = items
+    .map((i) => `- ${i.quantity}x ${i.compoundName} ${i.vialSizeMg.toString()}mg (${i.form === 'LYOPHILIZED_POWDER' ? 'lyophilized' : 'solution'})`)
+    .join('\n');
+
+  if (vendor.messageTemplate) {
+    return vendor.messageTemplate.includes('{ITEMS}')
+      ? vendor.messageTemplate.replace('{ITEMS}', itemLines)
+      : `${vendor.messageTemplate}\n\n${itemLines}`;
+  }
+
+  return `Hi ${vendor.name}, I'd like to order:\n${itemLines}\nPreferred currency: ${vendor.preferredCurrency}`;
+}
+
+export async function createDraftOrder(
+  userId: string,
+  vendorId: string,
+  items: OrderLineItemInput[]
+): Promise<CreateDraftOrderResult> {
+  const vendor = await prisma.vendor.findFirst({ where: { id: vendorId, userId } });
+  if (!vendor) throw new Error('vendor_not_found');
+
+  const merged = mergeItems(items);
+  const idempotencyKey = randomUUID();
+
+  const order = await withAudit(
+    async (tx) => {
+      const newOrder = await tx.order.create({
+        data: { userId, vendorId, idempotencyKey, status: 'DRAFT' },
+      });
+      await tx.orderItem.createMany({
+        data: merged.map((item) => ({
+          orderId: newOrder.id,
+          compoundId: item.compoundId,
+          form: item.form,
+          vialSizeMg: item.vialSizeMg,
+          quantity: item.quantity,
+          productId: item.productId ?? null,
+          unitPrice: item.unitPrice ?? null,
+          unitCurrency: item.unitCurrency ?? null,
+        })),
+      });
+      return newOrder;
+    },
+    (result) => ({
+      actorUserId: userId,
+      category: 'Order' as const,
+      action: 'ORDER_DRAFTED' as const,
+      resourceId: result.id,
+      resourceType: 'Order',
+    })
+  );
+
+  return { orderId: order.id };
+}
+
+export async function sendOrder(
+  userId: string,
+  orderId: string,
+  force = false
+): Promise<SendOrderResult> {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, userId },
+    include: {
+      vendor: true,
+      items: {
+        include: { compound: { select: { name: true } } },
+      },
+    },
+  });
+  if (!order) throw new Error('order_not_found');
+  if (order.status !== 'DRAFT') throw new Error('invalid_order_transition');
+
+  const itemsForMessage = (order as unknown as {
+    vendor: { name: string; preferredCurrency: string; messageTemplate: string | null };
+    items: Array<{ compoundName?: string; compoundId: string; form: string; vialSizeMg: { toString(): string }; quantity: number; compound?: { name: string } }>;
+  }).items.map((i) => ({
+    compoundName: i.compound?.name ?? i.compoundId,
+    form: i.form,
+    vialSizeMg: i.vialSizeMg,
+    quantity: i.quantity,
+  }));
+
+  const vendor = (order as unknown as { vendor: { id: string; name: string; preferredCurrency: string; messageTemplate: string | null; telegramUsername: string } }).vendor;
+  const messageText = composeMessage(vendor, itemsForMessage);
+
+  // 60-second duplicate-send check
+  const cutoff = new Date(Date.now() - 60_000);
+  const duplicate = await prisma.order.findFirst({
+    where: {
+      userId,
+      vendorId: order.vendorId,
+      messageText,
+      sentAt: { gte: cutoff },
+      id: { not: orderId },
+    },
+  });
+
+  if (duplicate && !force) {
+    await withAudit(
+      async () => { /* audit-only — no DB mutation */ },
+      {
+        actorUserId: userId,
+        category: 'Order' as const,
+        action: 'DUPLICATE_SEND_BLOCKED' as const,
+        resourceId: orderId,
+        resourceType: 'Order',
+        metadata: { duplicateOrderId: duplicate.id },
+      }
+    );
+    throw new Error('possible_duplicate_send');
+  }
+
+  // Attempt Telegram send
+  let sendMethod: SendMethod = 'MANUAL_FALLBACK';
+  let telegramMessageId: string | undefined;
+
+  try {
+    const sessionString = await getDecryptedSession(userId);
+    if (sessionString) {
+      const result = await sendTelegramMessage(sessionString, vendor.telegramUsername, messageText);
+      telegramMessageId = result.messageId;
+      sendMethod = 'AUTOMATED';
+    }
+  } catch {
+    // Fall through to manual fallback
+  }
+
+  await withAudit(
+    async (tx) => {
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: 'SENT',
+          sendMethod,
+          messageText,
+          telegramMessageId: telegramMessageId ?? null,
+          sentAt: new Date(),
+        },
+      });
+    },
+    {
+      actorUserId: userId,
+      category: 'Order' as const,
+      action: 'ORDER_SENT' as const,
+      resourceId: orderId,
+      resourceType: 'Order',
+      newValues: { sendMethod, telegramMessageId: telegramMessageId ?? null } as { sendMethod: string; telegramMessageId: string | null },
+    }
+  );
+
+  if (sendMethod === 'MANUAL_FALLBACK') {
+    return {
+      sendMethod,
+      fallbackText: messageText,
+      fallbackDeepLink: buildFallbackDeepLink(vendor.telegramUsername),
+    };
+  }
+  return { sendMethod, telegramMessageId };
+}

@@ -1,3 +1,18 @@
+export type OrderStatus = 'DRAFT' | 'SENT' | 'CONFIRMED' | 'PAYMENT_SENT' | 'RECEIVED' | 'CANCELLED' | 'STALE';
+export type SendMethod = 'AUTOMATED' | 'MANUAL_FALLBACK';
+export type ItemForm = 'LYOPHILIZED_POWDER' | 'SOLUTION';
+
+export interface OrderLineItemInput {
+  compoundId: string;
+  compoundName: string;
+  form: ItemForm;
+  vialSizeMg: string;
+  quantity: number;
+  productId?: string;
+  unitPrice?: string;
+  unitCurrency?: string;
+}
+
 export type VendorStatus = 'ACTIVE' | 'DISABLED';
 
 export const VENDOR_CURRENCIES = ['USDT', 'BTC', 'ETH', 'USD', 'Other'] as const;
