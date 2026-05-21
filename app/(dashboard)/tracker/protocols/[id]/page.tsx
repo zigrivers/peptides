@@ -2,9 +2,11 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getProtocolById } from '@/lib/tracker/application/ProtocolService';
+import { getTodaysDoseLog } from '@/lib/tracker/application/DoseLogService';
 import { findCompoundById } from '@/lib/reference/infrastructure/CompoundRepo';
 import { formatSchedule } from '@/lib/tracker/domain/formatters';
 import { ProtocolActions } from './_components/ProtocolActions';
+import { DoseLogActions } from './_components/DoseLogActions';
 
 export default async function ProtocolDetailPage({
   params,
@@ -18,7 +20,13 @@ export default async function ProtocolDetailPage({
   const protocol = await getProtocolById(id, session.user.id);
   if (!protocol) notFound();
 
-  const compound = await findCompoundById(protocol.compoundId);
+  const [compound, todaysDoseLog] = await Promise.all([
+    findCompoundById(protocol.compoundId),
+    protocol.status === 'ACTIVE' ? getTodaysDoseLog(session.user.id, id) : Promise.resolve(null),
+  ]);
+
+  const nowUTC = new Date();
+  const todayISO = `${nowUTC.getUTCFullYear()}-${String(nowUTC.getUTCMonth() + 1).padStart(2, '0')}-${String(nowUTC.getUTCDate()).padStart(2, '0')}`;
 
   const statusColors: Record<string, string> = {
     ACTIVE: 'text-green-700 bg-green-50',
@@ -80,6 +88,18 @@ export default async function ProtocolDetailPage({
           >
             Edit protocol →
           </Link>
+        </div>
+      )}
+
+      {protocol.status === 'ACTIVE' && (
+        <div className="mt-6 border-t pt-6">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">Today&apos;s dose</h2>
+          <DoseLogActions
+            protocolId={protocol.id}
+            scheduledDate={todayISO}
+            amount={protocol.dose}
+            existingStatus={todaysDoseLog?.status as 'LOGGED' | 'SKIPPED' | undefined}
+          />
         </div>
       )}
 
