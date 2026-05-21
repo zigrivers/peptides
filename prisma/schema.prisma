@@ -50,10 +50,12 @@ model User {
   telegramSession TelegramSession?
   
   passwordResets PasswordResetToken[]
+  emailChangeRequests EmailChangeRequest[]
   deletionRequest AccountDeletionRequest?
   exportRequests DataExportRequest[]
   reminderPrefs  ReminderPreference?
   pushSubscriptions PushSubscription[]
+  vendors        Vendor[]
 
   @@index([managedBy])
 }
@@ -66,7 +68,7 @@ model Account {
   providerAccountId  String
   refresh_token      String?  @db.Text
   access_token       String?  @db.Text
-  expires_at         Integer?
+  expires_at         Int?
   token_type         String?
   scope              String?
   id_token           String?  @db.Text
@@ -78,11 +80,17 @@ model Account {
 }
 
 model Session {
-  id           String   @id @default(uuid())
-  sessionToken String   @unique
-  userId       String
+  id           String    @id @default(uuid())
+  sessionToken String    @unique
+  userId      String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSeenAt   DateTime  @default(now())
+  ipAddress    String?
+  userAgent    String?
+  revokedAt    DateTime?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
 }
 
 model VerificationToken {
@@ -133,6 +141,22 @@ model DataExportRequest {
   createdAt   DateTime @default(now())
 }
 
+model EmailChangeRequest {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newEmail        String
+  tokenHash       String    @unique
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime  // createdAt + 24h
+  verifiedAt      DateTime?
+  appliedAt       DateTime?
+  revertibleUntil DateTime? // appliedAt + 48h
+  status          String    @default("PENDING") // PENDING, VERIFIED, APPLIED, REVERTED, EXPIRED, CANCELLED
+
+  @@index([userId, status])
+}
+
 // --- Reference Domain ---
 
 model Compound {
@@ -149,6 +173,7 @@ model Compound {
   products            VendorProduct[]
   protocols           Protocol[]
   vials               Vial[]
+  orderItems          OrderItem[]
 
   @@index([status])
 }
@@ -238,13 +263,27 @@ model OutcomeLog {
   id              String    @id @default(uuid())
   userId          String
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date            DateTime
-  rating          Int
+  scheduledDate   DateTime  @db.Date
+  loggedAt        DateTime  @default(now())
+  overallRating   Int       // 1-5 (CHECK constraint enforced at the application layer)
   tags            String[]
-  notes           String?
+  note            String?   @db.Text
   createdAt       DateTime  @default(now())
 
-  @@index([userId, date])
+  protocolRatings ProtocolRating[]
+
+  @@unique([userId, scheduledDate])
+  @@index([userId, scheduledDate])
+}
+
+model ProtocolRating {
+  id            String     @id @default(uuid())
+  outcomeLogId  String
+  outcomeLog    OutcomeLog @relation(fields: [outcomeLogId], references: [id], onDelete: Cascade)
+  protocolId    String
+  rating        Int        // 1-5
+
+  @@index([protocolId])
 }
 
 // --- Reconstitution Domain ---
@@ -273,12 +312,20 @@ model Vial {
 
 model Vendor {
   id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   name              String
   telegramUsername  String
+  messageTemplate   String?   @db.Text
+  preferredCurrency String    @default("USDT")
   status            String    @default("ACTIVE")
-  
+  createdAt         DateTime  @default(now())
+
   products          VendorProduct[]
   orders            Order[]
+
+  @@unique([userId, telegramUsername])
+  @@index([userId, status])
 }
 
 model VendorProduct {
@@ -303,13 +350,18 @@ model Order {
   vendorId            String
   vendor              Vendor    @relation(fields: [vendorId], references: [id])
   status              String    @default("DRAFT")
+  sendMethod          String?   // "AUTOMATED" | "MANUAL_FALLBACK", set at transition into SENT
   paymentConfirmation Json?     // PaymentConfirmation object
   telegramMessageId   String?
   messageText         String?   @db.Text
   idempotencyKey      String    @unique
   sentAt              DateTime?
+  staleFlaggedAt      DateTime?
+  cancelledAt         DateTime?
+  cancelledByUserId   String?
+  receivedAt          DateTime?
   createdAt           DateTime  @default(now())
-  
+
   items               OrderItem[]
 
   @@index([userId, status])
@@ -317,14 +369,22 @@ model Order {
 }
 
 model OrderItem {
-  id          String    @id @default(uuid())
-  orderId     String
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId   String
-  product     VendorProduct @relation(fields: [productId], references: [id])
-  quantity    Int
-  
-  vials       Vial[]
+  id            String    @id @default(uuid())
+  orderId       String
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId     String?   // nullable: catalog product may be archived later
+  product       VendorProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  compoundId    String
+  compound      Compound  @relation(fields: [compoundId], references: [id])
+  form          String    // "LYOPHILIZED_POWDER" | "SOLUTION"
+  vialSizeMg    Decimal   @db.Decimal(10, 3)
+  quantity      Int
+  unitPrice     Decimal?  @db.Decimal(10, 2)
+  unitCurrency  String?
+
+  vials         Vial[]
+
+  @@unique([orderId, compoundId, form, vialSizeMg])
 }
 
 model TelegramSession {
@@ -339,13 +399,16 @@ model TelegramSession {
 // --- Notification Domain ---
 
 model ReminderPreference {
-  id            String   @id @default(uuid())
-  userId        String   @unique
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reminderTime  String   // e.g. "07:00"
-  timezone      String
-  channel       String   // PUSH, EMAIL, BOTH
-  enabled       Boolean  @default(true)
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminderTime         String   // user-local "HH:MM" (24h)
+  timezone             String   // IANA zone, e.g. "America/Denver"
+  channel              String   // "PUSH" | "EMAIL" | "BOTH"
+  enabled              Boolean  @default(true)
+  pushPermissionState  String   @default("NOT_PROMPTED") // "GRANTED" | "DENIED" | "NOT_PROMPTED"
+  emailFallbackEnabled Boolean  @default(true)
+  updatedAt            DateTime @updatedAt
 }
 
 model PushSubscription {
@@ -360,11 +423,15 @@ model PushSubscription {
 
 // --- Audit Domain ---
 
+// NOTE: actorUserId and subjectUserId are intentionally NOT modeled as FKs to
+// User.id. They are historical references that must survive user deletion
+// (per ADR-009 + docs/domain-models/audit.md). The audit query layer uses a
+// LEFT JOIN to auth_users and renders "[deleted user]" when the join misses.
 model AuditEvent {
   id            String    @id @default(uuid())
   timestamp     DateTime  @default(now())
-  actorUserId   String
-  subjectUserId String?
+  actorUserId   String    // historical reference — no FK constraint
+  subjectUserId String?   // historical reference — no FK constraint
   category      String
   action        String
   resourceId    String
@@ -372,8 +439,9 @@ model AuditEvent {
   metadata      Json?
   oldValues     Json?
   newValues     Json?
-  
+
   @@index([timestamp])
   @@index([actorUserId])
   @@index([subjectUserId])
+  @@index([category, timestamp])
 }

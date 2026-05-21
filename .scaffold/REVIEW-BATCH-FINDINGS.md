@@ -13,7 +13,7 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 | 4 | review-domain-modeling | ✅ done | 12 (5×P1, 4×P2, 3×P3) | 12 | 0 |
 | 5 | review-adrs | ✅ done | 10 (1×P0 regression, 3×P1, 3×P2, 3×P3) | 8 fully + 2 partially | 2 partial (N9, N10) |
 | 6 | review-architecture | ✅ done | 6 (4×P1, 2×P2) | 6 | 0 |
-| 7 | review-database | pending | | | |
+| 7 | review-database | ✅ done | 10 (2×P0, 6×P1, 2×P2) | 10 | 0 |
 | 8 | review-api | pending | | | |
 | 9 | review-ux | pending | | | |
 | 10 | review-testing | pending | | | |
@@ -308,4 +308,59 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 **Files modified:**
 - `docs/system-architecture.md` (+~116 lines, partial rewrite of §2.1, §6, §7, §8)
 - `docs/reviews/review-architecture.md` (+~60 lines)
+
+---
+
+### Step 7: review-database (2 P0s repaired + 8 new findings fixed)
+
+**Artifacts**: `docs/database-schema.md` (295 → ~380 lines, full rewrite) + `prisma/schema.prisma` (substantial changes)
+**Review log**: `docs/reviews/review-database.md`
+**Mode**: update / re-review
+**Gate result**: **Full Pass** (upgraded from INITIAL)
+
+**Two critical issues repaired:**
+
+1. **P0 schema compile-blocker**: `prisma/schema.prisma:69` had `expires_at Integer?` — not a valid Prisma scalar type. The schema would fail `prisma generate`. Fixed to `Int?`.
+2. **P0 doc drift**: `docs/database-schema.md` still showed the pre-F001-fix schema even though the actual `schema.prisma` had been updated by the prior review. Reviewers and implementers were seeing two contradicting schemas. Doc fully rewritten to mirror the actual schema with explicit "Source of truth" header pointing at `schema.prisma`.
+
+**Findings raised (10 total):**
+
+| # | Sev | Finding |
+|---|-----|---------|
+| N1 | P0 | `expires_at Integer?` — invalid Prisma type, schema doesn't compile |
+| N2 | P0 | docs/database-schema.md documented the stale pre-fix schema |
+| N3 | P1 | Missing `EmailChangeRequest` model (step-4 domain addition for US-AUT-07) |
+| N4 | P1 | `Session` missing extension cols `lastSeenAt`, `revokedAt`, `ipAddress`, `userAgent` per ADR-004 step-5 |
+| N5 | P1 | `OrderItem` was degenerate (only quantity); missing compoundId, form, vialSizeMg, unitPrice, currency per step-4 |
+| N6 | P1 | `Order` missing `sendMethod`, `staleFlaggedAt`, `cancelledAt`, `cancelledByUserId`, `receivedAt` |
+| N7 | P1 | `Vendor` missing `userId`, `messageTemplate`, `preferredCurrency`, `createdAt` |
+| N8 | P1 | `OutcomeLog` mismatched domain (field name `date` vs `scheduledDate`, missing constraints + ProtocolRating) |
+| N9 | P2 | `ReminderPreference` missing `pushPermissionState`, `emailFallbackEnabled` per step-4 + ADR-007 step-5 |
+| N10 | P2 | §2 silent on AuditEvent historical-reference policy (ADR-009 step-5) |
+
+**All 10 fixed.** Highlights:
+
+1. **N1** — `Integer?` → `Int?`. **Why critical:** the schema literally would not compile; this single character bug blocked every implementer.
+2. **N2** — Full doc rewrite with "Source of truth: prisma/schema.prisma" header. **Why critical:** docs that contradict the code are worse than missing docs; downstream agents would have implemented to the doc and broken production.
+3. **N5/N6/N7** — Replaced the degenerate Order/OrderItem/Vendor models with the full step-4 domain shape. Added the `@@unique([orderId, compoundId, form, vialSizeMg])` index that implements the PRD §5.4.3 duplicate-merge invariant at the DB level (not just application-level). **Why:** without proper line items, every order is just a quantity number — vendors get incoherent messages, inventory updates can't link to specific compounds.
+4. **N8** — Renamed OutcomeLog fields to match domain; added the unique-per-day constraint and ProtocolRating sub-entity. **Why:** field-name drift between schema and domain leads to silent persistence failures during implementation.
+5. **N9** — Expanded ReminderPreference with `pushPermissionState` (matches ADR-007 step-5 Web Push subscription policy). **Why:** without this field the reminder UI can't distinguish "user hasn't been asked" from "user denied permission" and would re-prompt obnoxiously.
+6. **N10** — Added explicit comment to `AuditEvent` in schema.prisma documenting the no-FK rule + §2.3 Referential Integrity Exceptions section in the doc. **Why:** the no-FK policy is easy to break with a "helpful" Prisma migration that adds the constraint.
+
+**Also added:**
+
+- `User.vendors` and `User.emailChangeRequests` back-references.
+- `Compound.orderItems` back-reference.
+- `@@index([userId, revokedAt])` on Session for active-session enumeration on password change.
+- `@@index([userId, status])` on EmailChangeRequest for the settings page lookup.
+- `@@index([category, timestamp])` on AuditEvent for category-scoped audit pages.
+- Migration safety checklist in §4.1 (binding: no Decimal downgrade without ADR; no AuditEvent column drop without retention exemption).
+- Cross-references section (§7) linking to domain models, ADRs, and PRD sections.
+
+**Regressions:** None introduced. The 9 prior-pass P0/P1 fixes (F-001..F-009) remain in place; this re-review caught that they were never reflected in the doc.
+
+**Files modified:**
+- `prisma/schema.prisma` (+~70 lines net: EmailChangeRequest, Session ext fields, OrderItem rewrite, Vendor expansion, OutcomeLog rename+constraints, ProtocolRating new, ReminderPreference fields, AuditEvent comment + index)
+- `docs/database-schema.md` (full rewrite, 295 → ~380 lines)
+- `docs/reviews/review-database.md` (+~60 lines)
 

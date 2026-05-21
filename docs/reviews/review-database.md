@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-20  
 **Methodology:** deep | Depth: 5/5  
-**Status:** INITIAL  
+**Status:** RE-REVIEWED 2026-05-20 — 1 P0 compile-blocker repaired, 1 P0 doc-drift repaired, 8 new findings fixed; Full Pass  
 **Models:** Claude (local) + Codex
 
 ---
@@ -110,3 +110,41 @@
 | F-007   | P1       | RESOLVED | Added composite unique constraint `[userId, protocolId, scheduledDate]` to `DoseLog`. |
 | F-008   | P1       | RESOLVED | Switched all mg, mL, and price fields to `Decimal`. |
 | F-009   | P1       | RESOLVED | Added all application-level indexes directly to Prisma models. |
+
+---
+
+## Re-Review Pass — 2026-05-20 (auto-fix batch)
+
+**Reviewer**: Claude (Opus 4.7). Depth 5/strict. Re-review accounts for new requirements from batch steps 2-6 (PRD, stories, domain models, ADRs, architecture).
+
+### Critical findings repaired
+
+**Doc drift (P0)**: `docs/database-schema.md` documented the PRE-fix schema (Float, plain `managedBy` string, no `OutcomeLog`, no Auth.js adapter models) even though `prisma/schema.prisma` had been brought to spec by the prior review's F-001..F-009 resolutions. Reviewers and implementers were seeing two contradicting schemas — the doc was misleading. Doc fully rewritten to mirror the actual schema with explicit "Source of truth" header pointing at `prisma/schema.prisma`.
+
+**Prisma compile blocker (P0)**: `prisma/schema.prisma:69` had `expires_at  Integer?` — not a valid Prisma scalar type. The schema would fail `prisma generate` immediately. Fixed to `Int?`.
+
+### New findings + fixes
+
+| # | Severity | Finding | Fix |
+|---|----------|---------|-----|
+| N1 | **P0** | `prisma/schema.prisma:69` `expires_at Integer?` — invalid Prisma type; schema does not compile. | Changed to `Int?`. |
+| N2 | **P0** | `docs/database-schema.md` documented the pre-F001-fix schema; reviewers see two contradicting schemas. | Fully rewrote the doc to mirror the current `prisma/schema.prisma`, with "Source of truth" header and abridged DSL excerpts (full file is canonical). |
+| N3 | P1 | Missing `EmailChangeRequest` model (step-4 domain addition for US-AUT-07). | Added `EmailChangeRequest` model with 24h verify expiry + 48h revertibleUntil; added `User.emailChangeRequests` back-reference. |
+| N4 | P1 | `Session` model missing extension cols `lastSeenAt`, `revokedAt`, `ipAddress`, `userAgent` per ADR-004 step-5 update. | Added all four extension columns + `@@index([userId, revokedAt])` for active-session enumeration on password change. |
+| N5 | P1 | `OrderItem` was degenerate (only `quantity`); missing `compoundId`, `form`, `vialSizeMg`, `unitPrice`, `currency` per step-4 domain `OrderLineItem` + PRD §5.4.3. | Rewrote `OrderItem` with all required fields. `productId` made nullable (catalog product may be archived); added direct `compoundId` FK so line items survive product archive. Added `@@unique([orderId, compoundId, form, vialSizeMg])` enforcing the PRD-required duplicate-merge invariant. Added `Compound.orderItems` back-reference. |
+| N6 | P1 | `Order` missing `sendMethod`, `staleFlaggedAt`, `cancelledAt`, `cancelledByUserId`, `receivedAt` per step-4 PRD/domain. | Added all five fields. `sendMethod` is `AUTOMATED \| MANUAL_FALLBACK` (set at transition into SENT, immutable afterward — invariant enforced at the application layer). |
+| N7 | P1 | `Vendor` missing `userId`, `messageTemplate`, `preferredCurrency`, `createdAt` per step-4 domain. | Added all four fields. Added `User.vendors` back-reference and `@@unique([userId, telegramUsername])` enforcing "one vendor per Telegram handle per user". |
+| N8 | P1 | `OutcomeLog` mismatched domain: field name `date` vs domain's `scheduledDate`; missing `loggedAt`, `overallRating`, the unique-per-day constraint, `ProtocolRating` collection. | Renamed `date` → `scheduledDate` (`@db.Date`). Added `loggedAt` (timestamp) separate from `scheduledDate`. Renamed `rating` → `overallRating`. Added `@@unique([userId, scheduledDate])`. Added new `ProtocolRating` model with FK back to OutcomeLog. |
+| N9 | P2 | `ReminderPreference` thin: missing `pushPermissionState`, `emailFallbackEnabled`, `updatedAt` per step-4 domain (ADR-007 step-5 required permission-state tracking). | Added all three fields. `pushPermissionState` default is `NOT_PROMPTED`. |
+| N10 | P2 | §2 Normalization silent on AuditEvent.actorUserId historical-reference policy (ADR-009 step-5). | Added explicit comment to `AuditEvent` in `schema.prisma` and §2.3 Referential Integrity Exceptions section in the doc. Also added `@@index([category, timestamp])` for category-scoped audit pages. |
+
+### Regressions detected (re-review)
+
+None introduced by these fixes. The schema now compiles AND the doc matches the implementation.
+
+### Gate result (re-review)
+
+- **Gate**: **Full Pass** (upgraded from INITIAL)
+- **2 P0 issues repaired** (compile blocker + doc drift)
+- **All P1/P2 from re-review fixed**
+- **Re-trigger conditions**: any new domain entity (must land in both `schema.prisma` AND `docs/database-schema.md`), any change to safety-math fields requires re-checking `@db.Decimal(...)` precision.
