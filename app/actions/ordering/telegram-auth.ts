@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
+import { createRateLimiter } from '@/lib/shared/rateLimiter';
 import {
   initiateTelegramLink,
   completeTelegramLink,
@@ -12,6 +13,7 @@ import {
 export type TelegramAuthError =
   | 'unauthorized'
   | 'validation_error'
+  | 'rate_limited'
   | 'mtproto_connection_error'
   | 'invalid_code'
   | 'system_error';
@@ -27,11 +29,17 @@ const CompleteSchema = z.object({
   code: z.string().min(4).max(8),
 });
 
+// 3 initiate requests per user per hour — prevents abuse of Telegram's SendCode API.
+const initiateLimiter = createRateLimiter(3, 60 * 60 * 1000);
+
 export async function initiateTelegramLinkAction(
   rawInput: unknown
 ): Promise<TelegramAuthResult<{ phoneCodeHash: string }>> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
+
+  if (!initiateLimiter.check(session.user.id))
+    return { ok: false, error: 'rate_limited', message: 'Too many requests. Try again in an hour.' };
 
   const parsed = PhoneSchema.safeParse(rawInput);
   if (!parsed.success)
