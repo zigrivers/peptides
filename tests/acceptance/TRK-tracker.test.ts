@@ -70,6 +70,8 @@ const { generateScheduleDates, isScheduledOn } = await import(
 );
 const { logDose } = await import('@/lib/tracker/application/DoseLogService');
 const { batchLogDoses, getDueTodayForBatch } = await import('@/lib/tracker/application/BatchLogService');
+const { getSitesForRoute, suggestNextSite, getSitesMeta } = await import('@/lib/tracker/domain/SiteRotation');
+const { getSiteSuggestion } = await import('@/lib/tracker/application/SiteRotationService');
 
 const actorUserId = 'user-1';
 const compoundId = 'compound-bpc157';
@@ -692,6 +694,7 @@ describe('US-TRK-03: Individual Dose Logging', () => {
       scheduledDate,
       amount,
       status: 'LOGGED',
+      injectionSite,
     });
 
     expect(result.warnings).toHaveLength(1);
@@ -710,6 +713,7 @@ describe('US-TRK-03: Individual Dose Logging', () => {
       scheduledDate,
       amount,
       status: 'LOGGED',
+      injectionSite,
     });
 
     expect(result.doseLog.id).toBe('log-1');
@@ -735,6 +739,7 @@ describe('US-TRK-03: Individual Dose Logging', () => {
       scheduledDate,
       amount,
       status: 'LOGGED',
+      injectionSite,
     });
 
     expect(result.doseLog.status).toBe('LOGGED');
@@ -756,6 +761,62 @@ describe('US-TRK-03: Individual Dose Logging', () => {
         status: 'LOGGED',
       })
     ).rejects.toThrow(/dose_log_too_late/i);
+  });
+
+  it('Negative: rejects injectionSite for a non-injection route (Oral)', async () => {
+    const oralProtocol = { ...baseProtocolRow, administrationRoute: 'Oral' };
+    mockProtocolFindFirst.mockResolvedValue(oralProtocol);
+
+    await expect(
+      logDose({
+        actorUserId: logActorUserId,
+        protocolId: logProtocolId,
+        scheduledDate,
+        amount,
+        status: 'LOGGED',
+        injectionSite: { bodyPart: 'thigh', side: 'left' },
+      })
+    ).rejects.toThrow(/invalid_injection_site/i);
+  });
+
+  it('Regression: injectionSite is stripped when creating a SKIPPED log', async () => {
+    const skippedWithSiteRow = {
+      ...baseDoseLogRow,
+      status: 'SKIPPED',
+      injectionSite: null, // site must not be persisted
+    };
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
+    mockDoseLogCreate.mockResolvedValueOnce(skippedWithSiteRow);
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await logDose({
+      actorUserId: logActorUserId,
+      protocolId: logProtocolId,
+      scheduledDate,
+      amount,
+      status: 'SKIPPED',
+      injectionSite: { bodyPart: 'thigh', side: 'left' }, // should be ignored by service
+    });
+
+    // Service must strip the site — returned log has no injection site
+    expect(result.doseLog.status).toBe('SKIPPED');
+    expect(result.doseLog.injectionSite).toBeNull();
+  });
+
+  it('Negative: rejects injectionSite that is out-of-route (deltoid on SubQ)', async () => {
+    mockProtocolFindFirst.mockResolvedValue(baseProtocolRow); // administrationRoute: 'SubQ'
+
+    await expect(
+      logDose({
+        actorUserId: logActorUserId,
+        protocolId: logProtocolId,
+        scheduledDate,
+        amount,
+        status: 'LOGGED',
+        injectionSite: { bodyPart: 'deltoid', side: 'left' }, // IM-only site
+      })
+    ).rejects.toThrow(/invalid_injection_site/i);
   });
 });
 
@@ -961,6 +1022,189 @@ describe('US-TRK-05: Batch Log', () => {
 
   // AC-3 (offline sync) deferred to Task 2.6
   it.todo('AC-3: queues batch log while offline');
+});
+
+/**
+ * Story: US-TRK-04 — Injection Site Rotation
+ * Pure domain functions — no mocking required.
+ */
+describe('US-TRK-04: Injection Site Rotation', () => {
+  const leftAbdomen = { bodyPart: 'abdomen', side: 'left' as const };
+  const rightAbdomen = { bodyPart: 'abdomen', side: 'right' as const };
+  const leftThigh = { bodyPart: 'thigh', side: 'left' as const };
+  const rightThigh = { bodyPart: 'thigh', side: 'right' as const };
+  const leftDeltoid = { bodyPart: 'deltoid', side: 'left' as const };
+  const rightDeltoid = { bodyPart: 'deltoid', side: 'right' as const };
+  const leftVG = { bodyPart: 'ventrogluteal', side: 'left' as const };
+  const rightVG = { bodyPart: 'ventrogluteal', side: 'right' as const };
+
+  describe('getSitesForRoute', () => {
+    it('AC-4: SubQ route returns abdomen + thigh sites', () => {
+      const sites = getSitesForRoute('SubQ');
+      expect(sites.some((s) => s.bodyPart === 'abdomen')).toBe(true);
+      expect(sites.some((s) => s.bodyPart === 'thigh')).toBe(true);
+      expect(sites.every((s) => s.bodyPart !== 'deltoid')).toBe(true);
+    });
+
+    it('AC-4: IM route returns thigh + deltoid + ventrogluteal sites', () => {
+      const sites = getSitesForRoute('IM');
+      expect(sites.some((s) => s.bodyPart === 'thigh')).toBe(true);
+      expect(sites.some((s) => s.bodyPart === 'deltoid')).toBe(true);
+      expect(sites.some((s) => s.bodyPart === 'ventrogluteal')).toBe(true);
+    });
+
+    it('AC-4: non-injection routes (Oral, Nasal) return empty array', () => {
+      expect(getSitesForRoute('Oral')).toHaveLength(0);
+      expect(getSitesForRoute('Nasal')).toHaveLength(0);
+    });
+
+    it('AC-3: SubQ returns exactly 4 sites (left/right abdomen + left/right thigh)', () => {
+      expect(getSitesForRoute('SubQ')).toHaveLength(4);
+    });
+
+    it('AC-3: IM returns exactly 6 sites', () => {
+      expect(getSitesForRoute('IM')).toHaveLength(6);
+    });
+  });
+
+  describe('suggestNextSite', () => {
+    it('AC-1: suggests the site after the last used site in round-robin order', () => {
+      const validSites = [leftAbdomen, rightAbdomen, leftThigh, rightThigh];
+      const suggestion = suggestNextSite([leftAbdomen], validSites);
+      expect(suggestion).toEqual(rightAbdomen);
+    });
+
+    it('AC-1: wraps around to the first site after the last in the list', () => {
+      const validSites = [leftAbdomen, rightAbdomen, leftThigh, rightThigh];
+      const suggestion = suggestNextSite([rightThigh], validSites);
+      expect(suggestion).toEqual(leftAbdomen);
+    });
+
+    it('AC-5: returns null when there is no history (first dose)', () => {
+      const validSites = [leftAbdomen, rightAbdomen, leftThigh, rightThigh];
+      expect(suggestNextSite([], validSites)).toBeNull();
+    });
+
+    it('AC-5: returns null when validSites is empty', () => {
+      expect(suggestNextSite([leftAbdomen], [])).toBeNull();
+    });
+
+    it('AC-4: skips out-of-route history and uses the most-recent valid site', () => {
+      // History: leftDeltoid (IM only), then leftAbdomen (SubQ)
+      const history = [leftDeltoid, leftAbdomen];
+      const subqSites = [leftAbdomen, rightAbdomen, leftThigh, rightThigh];
+      // Last valid SubQ site is leftAbdomen → next is rightAbdomen
+      expect(suggestNextSite(history, subqSites)).toEqual(rightAbdomen);
+    });
+  });
+
+  describe('getSitesMeta', () => {
+    const now = new Date(Date.UTC(2026, 4, 21)); // 2026-05-21
+
+    it('AC-6: never-used sites have null lastUsed and isRested=true', () => {
+      const meta = getSitesMeta([], [leftAbdomen], now);
+      expect(meta[0].lastUsed).toBeNull();
+      expect(meta[0].daysSinceLastUse).toBeNull();
+      expect(meta[0].isRested).toBe(true);
+    });
+
+    it('AC-6: site used today has daysSinceLastUse=0 and isRested=false', () => {
+      const logs = [{ injectionSite: leftAbdomen, loggedAt: now }];
+      const meta = getSitesMeta(logs, [leftAbdomen], now);
+      expect(meta[0].daysSinceLastUse).toBe(0);
+      expect(meta[0].isRested).toBe(false);
+    });
+
+    it('AC-6: site used 6 days ago is NOT rested (< 7 days)', () => {
+      const sixDaysAgo = new Date(Date.UTC(2026, 4, 15));
+      const logs = [{ injectionSite: leftAbdomen, loggedAt: sixDaysAgo }];
+      const meta = getSitesMeta(logs, [leftAbdomen], now);
+      expect(meta[0].daysSinceLastUse).toBe(6);
+      expect(meta[0].isRested).toBe(false);
+    });
+
+    it('AC-6: site used 7 days ago is tagged rested', () => {
+      const sevenDaysAgo = new Date(Date.UTC(2026, 4, 14));
+      const logs = [{ injectionSite: leftAbdomen, loggedAt: sevenDaysAgo }];
+      const meta = getSitesMeta(logs, [leftAbdomen], now);
+      expect(meta[0].daysSinceLastUse).toBe(7);
+      expect(meta[0].isRested).toBe(true);
+    });
+
+    it('AC-2: returns meta for all valid sites including unused ones', () => {
+      const logs = [{ injectionSite: leftAbdomen, loggedAt: now }];
+      const validSites = [leftAbdomen, rightAbdomen];
+      const meta = getSitesMeta(logs, validSites, now);
+      expect(meta).toHaveLength(2);
+      const rightMeta = meta.find((m) => m.site.side === 'right')!;
+      expect(rightMeta.lastUsed).toBeNull();
+    });
+  });
+
+  describe('getSiteSuggestion (service)', () => {
+    const siteActorUserId = 'user-site';
+    const siteProtocolId = 'proto-site-1';
+
+    const siteProtocolRow = {
+      id: siteProtocolId,
+      userId: siteActorUserId,
+      compoundId: 'compound-bpc157',
+      cycleId: null,
+      dose: { amount: '250', unit: 'mcg' },
+      schedule: { frequency: 'Daily' },
+      administrationRoute: 'SubQ',
+      status: 'ACTIVE',
+      startDate: new Date(Date.UTC(2026, 4, 1)),
+      endDate: null,
+      notes: null,
+    };
+
+    it('AC-5: returns null suggestion when no history exists', async () => {
+      mockProtocolFindFirst.mockResolvedValue(siteProtocolRow);
+      mockDoseLogFindMany.mockResolvedValue([]); // no prior logs
+
+      const result = await getSiteSuggestion(siteActorUserId, siteProtocolId);
+
+      expect(result.suggestion).toBeNull();
+      expect(result.validSites.length).toBeGreaterThan(0); // valid sites still returned
+    });
+
+    it('AC-1: returns round-robin suggestion based on recent compound history', async () => {
+      mockProtocolFindFirst.mockResolvedValue(siteProtocolRow);
+      mockDoseLogFindMany.mockResolvedValue([
+        {
+          id: 'log-1',
+          protocolId: siteProtocolId,
+          userId: siteActorUserId,
+          injectionSite: leftAbdomen,
+          loggedAt: new Date(Date.UTC(2026, 4, 20)),
+          scheduledDate: new Date(Date.UTC(2026, 4, 20)),
+          status: 'LOGGED',
+          isBatchLog: false,
+          idempotencyKey: 'k',
+          amount: { amount: '250', unit: 'mcg' },
+          note: null,
+          vialId: null,
+          loggedByUserId: null,
+        },
+      ]);
+
+      const result = await getSiteSuggestion(siteActorUserId, siteProtocolId);
+
+      expect(result.suggestion).toEqual(rightAbdomen); // next after leftAbdomen in SubQ rotation
+    });
+
+    it('AC-4: returns empty validSites for non-injection routes', async () => {
+      const oralProtocol = { ...siteProtocolRow, administrationRoute: 'Oral' };
+      mockProtocolFindFirst.mockResolvedValue(oralProtocol);
+      mockDoseLogFindMany.mockResolvedValue([]);
+
+      const result = await getSiteSuggestion(siteActorUserId, siteProtocolId);
+
+      expect(result.validSites).toHaveLength(0);
+      expect(result.suggestion).toBeNull();
+    });
+  });
 });
 
 /**

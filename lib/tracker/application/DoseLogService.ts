@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
-import type { LogDoseInput, LogDoseResult, SafetyWarning, DoseLog } from '../domain/types';
+import type { LogDoseInput, LogDoseResult, SafetyWarning, DoseLog, InjectionSite } from '../domain/types';
 import {
   createDoseLog,
   updateDoseLog,
@@ -12,6 +12,7 @@ import {
 } from '../infrastructure/DoseLogRepo';
 import { findProtocolByIdForActor } from '../infrastructure/ProtocolRepo';
 import { getManagedUserIds } from './ProtocolService';
+import { getSitesForRoute, sitesEqual } from '../domain/SiteRotation';
 
 function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date): string {
   const dateStr = scheduledDate.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -57,6 +58,24 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
   // Dose log is stored under the protocol owner's userId.
   const subjectUserId = protocol.userId;
 
+  // Validate injectionSite against the protocol's administration route.
+  const validSitesForRoute = getSitesForRoute(protocol.administrationRoute);
+  if (input.injectionSite) {
+    if (validSitesForRoute.length === 0) {
+      throw new Error(`invalid_injection_site: route ${protocol.administrationRoute} does not use injection sites`);
+    }
+    if (!validSitesForRoute.some((v) => sitesEqual(v, input.injectionSite!))) {
+      throw new Error(
+        `invalid_injection_site: ${input.injectionSite.side} ${input.injectionSite.bodyPart} is not valid for route ${protocol.administrationRoute}`
+      );
+    }
+  }
+  // Require a site for injectable routes when the caller opts in (individual logging flow only).
+  // Batch logging does not call logDose and is unaffected.
+  if (input.requireInjectionSite && input.status === 'LOGGED' && validSitesForRoute.length > 0 && !input.injectionSite) {
+    throw new Error(`injection_site_required: injection site is required for route ${protocol.administrationRoute}`);
+  }
+
   // Validate vialId ownership before any writes.
   if (input.vialId) {
     const valid = await validateVialOwnership(prisma, input.vialId, subjectUserId, protocol.compoundId);
@@ -79,14 +98,24 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
   }
 
   if (existing) {
-    if (existing.status === input.status) {
+    // True idempotent: same status AND injection site unchanged → nothing to do.
+    const injectionSiteChanged =
+      input.status === 'LOGGED' &&
+      input.injectionSite !== undefined &&
+      (existing.injectionSite === null ||
+        !sitesEqual(input.injectionSite, existing.injectionSite as InjectionSite));
+
+    // Also update when a SKIPPED log somehow has a stale non-null site (defensive).
+    const siteNeedsClearing = input.status === 'SKIPPED' && existing.injectionSite !== null;
+
+    if (existing.status === input.status && !injectionSiteChanged && !siteNeedsClearing) {
       return { doseLog: existing, warnings };
     }
-    // Same-calendar-day edit: update the existing log to the new status.
+    // Same-calendar-day edit: update status and/or injection site.
     const updated = await prisma.$transaction(async (tx) => {
       const log = await updateDoseLog(tx, existing.id, subjectUserId, {
         status: input.status,
-        // Clear site and vial when switching to SKIPPED; preserve or override when LOGGED.
+        // Explicitly null for SKIPPED; preserve or override for LOGGED.
         injectionSite: input.status === 'SKIPPED' ? null : (input.injectionSite ?? existing.injectionSite),
         note: input.note ?? existing.note,
         vialId: input.status === 'SKIPPED' ? null : (input.vialId ?? existing.vialId),
@@ -99,8 +128,8 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
           action: input.status === 'SKIPPED' ? 'DOSE_SKIPPED' : 'DOSE_LOGGED',
           resourceId: log.id,
           resourceType: 'DoseLog',
-          oldValues: { status: existing.status },
-          newValues: { status: input.status },
+          oldValues: { status: existing.status, injectionSite: existing.injectionSite ?? null },
+          newValues: { status: input.status, injectionSite: log.injectionSite ?? null },
         },
       });
       return log;
@@ -120,7 +149,7 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
         scheduledDate: toUTCDay(input.scheduledDate),
         amount,
         status: input.status,
-        injectionSite: input.injectionSite,
+        injectionSite: input.status === 'LOGGED' ? input.injectionSite : undefined,
         note: input.note,
         vialId: input.vialId,
         loggedByUserId: input.actorUserId,

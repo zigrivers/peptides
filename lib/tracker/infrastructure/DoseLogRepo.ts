@@ -127,6 +127,8 @@ export async function updateDoseLog(
   if (updates.amount !== undefined) data.amount = updates.amount as Prisma.InputJsonValue;
   if (updates.status !== undefined) data.status = updates.status;
   if (updates.injectionSite !== undefined) {
+    // null → Prisma.JsonNull (JSON null stored in the column, not SQL NULL/DbNull),
+    // consistent with the { not: Prisma.JsonNull } filter in findRecentLogsWithSitesForCompound.
     data.injectionSite = updates.injectionSite ? (updates.injectionSite as Prisma.InputJsonValue) : Prisma.JsonNull;
   }
   if (updates.note !== undefined) data.note = updates.note;
@@ -155,6 +157,26 @@ export async function countActiveVialsForCompound(
       remainingMg: { gt: 0 },
     },
   });
+}
+
+export async function findRecentLogsWithSitesForCompound(
+  client: PrismaClient_,
+  userId: string,
+  compoundId: string,
+  limit: number
+): Promise<DoseLog[]> {
+  const rows = await client.doseLog.findMany({
+    where: {
+      userId,
+      status: 'LOGGED',
+      protocol: { compoundId },
+      // Filter JSON-null sites (we always write Prisma.JsonNull — never DbNull — for missing sites).
+      injectionSite: { not: Prisma.JsonNull },
+    },
+    orderBy: [{ scheduledDate: 'desc' }, { loggedAt: 'desc' }],
+    take: limit,
+  });
+  return rows.map((r) => mapDoseLog(r as RawDoseLog));
 }
 
 export async function validateVialOwnership(

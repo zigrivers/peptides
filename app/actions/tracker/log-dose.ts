@@ -13,7 +13,6 @@ const InjectionSiteSchema = z.object({
 
 const InputSchema = z.object({
   protocolId: z.string().min(1),
-  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   amount: z.object({
     amount: z.string(),
     unit: z.enum(['mcg', 'mg', 'IU', 'mL']),
@@ -39,20 +38,13 @@ export async function logDoseAction(input: unknown): Promise<LogDoseActionResult
     return { ok: false, error: 'invalid_input', message: parsed.error.issues[0]?.message ?? 'Invalid input.' };
   }
 
-  const { protocolId, scheduledDate: scheduledDateStr, amount, status, injectionSite, note, vialId } = parsed.data;
+  const { protocolId, amount, status, injectionSite, note, vialId } = parsed.data;
   const actorUserId = session.user.id;
 
-  const [, y, m, d] = /^(\d{4})-(\d{2})-(\d{2})$/.exec(scheduledDateStr)!.map(Number);
-  const scheduledDate = new Date(Date.UTC(y, m - 1, d));
-  // Verify JS did not normalize an impossible date (e.g. 2026-02-31 → 2026-03-03)
-  if (
-    isNaN(scheduledDate.getTime()) ||
-    scheduledDate.getUTCFullYear() !== y ||
-    scheduledDate.getUTCMonth() + 1 !== m ||
-    scheduledDate.getUTCDate() !== d
-  ) {
-    return { ok: false, error: 'invalid_date', message: 'scheduledDate is not a valid calendar date.' };
-  }
+  // Compute today's date on the server at action-invocation time so it is always current
+  // regardless of client clock drift or tabs left open past midnight.
+  const now = new Date();
+  const scheduledDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
   try {
     const result = await logDose({
@@ -64,6 +56,7 @@ export async function logDoseAction(input: unknown): Promise<LogDoseActionResult
       injectionSite,
       note,
       vialId,
+      requireInjectionSite: true,
     });
 
     revalidatePath(`/tracker/protocols/${protocolId}`);
@@ -75,6 +68,12 @@ export async function logDoseAction(input: unknown): Promise<LogDoseActionResult
     const msg = err instanceof Error ? err.message : 'Unknown error';
     if (/dose_log_too_late|future/i.test(msg)) {
       return { ok: false, error: 'dose_log_too_late', message: 'Cannot log a dose for a future date.' };
+    }
+    if (/invalid_injection_site/i.test(msg)) {
+      return { ok: false, error: 'invalid_injection_site', message: 'Invalid injection site for this protocol route.' };
+    }
+    if (/injection_site_required/i.test(msg)) {
+      return { ok: false, error: 'injection_site_required', message: 'Please select an injection site before logging.' };
     }
     if (/protocol not found/i.test(msg)) {
       return { ok: false, error: 'protocol_not_found', message: msg };
