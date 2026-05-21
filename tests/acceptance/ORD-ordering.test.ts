@@ -11,10 +11,12 @@ const mockPrismaVendorProductUpdate = vi.fn();
 const mockPrismaTelegramSessionUpsert = vi.fn();
 const mockPrismaTelegramSessionFindUnique = vi.fn();
 const mockPrismaTelegramSessionDelete = vi.fn();
+const mockPrismaTelegramSessionDeleteMany = vi.fn();
 const mockPrismaAuditEventCreate = vi.fn();
 
 const mockStartPhoneAuth = vi.fn();
 const mockCompletePhoneAuth = vi.fn();
+const mockCompletePhoneAuthWithPassword = vi.fn();
 const mockLogoutSession = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
@@ -35,6 +37,7 @@ vi.mock('@/lib/shared/prisma', () => ({
       upsert: mockPrismaTelegramSessionUpsert,
       findUnique: mockPrismaTelegramSessionFindUnique,
       delete: mockPrismaTelegramSessionDelete,
+      deleteMany: mockPrismaTelegramSessionDeleteMany,
     },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
@@ -65,6 +68,7 @@ vi.mock('@/lib/shared/prisma', () => ({
 vi.mock('@/lib/ordering/infrastructure/MTProtoClient', () => ({
   startPhoneAuth: mockStartPhoneAuth,
   completePhoneAuth: mockCompletePhoneAuth,
+  completePhoneAuthWithPassword: mockCompletePhoneAuthWithPassword,
   logoutSession: mockLogoutSession,
 }));
 
@@ -266,7 +270,7 @@ describe('US-ORD-01: Configure Telegram MTProto', () => {
   it('AC-1: completes auth, encrypts session, and persists to DB via repo', async () => {
     const { completeTelegramLink } = await import('@/lib/ordering/application/TelegramAuthService');
 
-    mockCompletePhoneAuth.mockResolvedValueOnce({ sessionString: 'raw-session-string' });
+    mockCompletePhoneAuth.mockResolvedValueOnce({ type: 'success', sessionString: 'raw-session-string' });
     mockPrismaTelegramSessionUpsert.mockResolvedValueOnce({ id: 'ts-1', userId: 'user-1' });
 
     await completeTelegramLink('user-1', '+15551234567', 'hash-abc', '12345', 'tmp-sess');
@@ -284,7 +288,7 @@ describe('US-ORD-01: Configure Telegram MTProto', () => {
     const { completeTelegramLink } = await import('@/lib/ordering/application/TelegramAuthService');
     const { decryptSession } = await import('@/lib/ordering/application/SessionManager');
 
-    mockCompletePhoneAuth.mockResolvedValueOnce({ sessionString: 'plaintext-session' });
+    mockCompletePhoneAuth.mockResolvedValueOnce({ type: 'success', sessionString: 'plaintext-session' });
     mockPrismaTelegramSessionUpsert.mockResolvedValueOnce({ id: 'ts-1', userId: 'user-1' });
 
     await completeTelegramLink('user-1', '+15551234567', 'hash-abc', '99999', 'tmp-sess');
@@ -297,7 +301,7 @@ describe('US-ORD-01: Configure Telegram MTProto', () => {
   it('AC-2: audit event TELEGRAM_SESSION_LINKED is written on successful link', async () => {
     const { completeTelegramLink } = await import('@/lib/ordering/application/TelegramAuthService');
 
-    mockCompletePhoneAuth.mockResolvedValueOnce({ sessionString: 'session' });
+    mockCompletePhoneAuth.mockResolvedValueOnce({ type: 'success', sessionString: 'session' });
     mockPrismaTelegramSessionUpsert.mockResolvedValueOnce({ id: 'ts-1', userId: 'user-1' });
 
     await completeTelegramLink('user-1', '+15551234567', 'hash-abc', '11111', 'tmp-sess');
@@ -306,6 +310,39 @@ describe('US-ORD-01: Configure Telegram MTProto', () => {
     const auditCall = mockPrismaAuditEventCreate.mock.calls[0][0];
     expect(auditCall.data.action).toBe('TELEGRAM_SESSION_LINKED');
     expect(auditCall.data.actorUserId).toBe('user-1');
+  });
+
+  it('AC-3: returns passwordRequired=true and preserved tempSession when Telegram requires 2FA', async () => {
+    const { completeTelegramLink } = await import('@/lib/ordering/application/TelegramAuthService');
+
+    mockCompletePhoneAuth.mockResolvedValueOnce({ type: 'password_required', tempSession: 'session-with-authkey' });
+
+    const result = await completeTelegramLink('user-1', '+15551234567', 'hash-abc', '12345', 'tmp-sess');
+
+    expect(result.passwordRequired).toBe(true);
+    if (result.passwordRequired) {
+      expect(result.tempSession).toBe('session-with-authkey');
+    }
+    // No DB write should happen until the password is also verified.
+    expect(mockPrismaTelegramSessionUpsert).not.toHaveBeenCalled();
+  });
+
+  it('AC-3: completeTelegramLinkWithPassword encrypts session and writes audit event', async () => {
+    const { completeTelegramLinkWithPassword } = await import('@/lib/ordering/application/TelegramAuthService');
+    const { decryptSession } = await import('@/lib/ordering/application/SessionManager');
+
+    mockCompletePhoneAuthWithPassword.mockResolvedValueOnce({ sessionString: '2fa-session' });
+    mockPrismaTelegramSessionUpsert.mockResolvedValueOnce({ id: 'ts-1', userId: 'user-1' });
+
+    await completeTelegramLinkWithPassword('user-1', 'my-password', 'session-with-authkey');
+
+    expect(mockPrismaTelegramSessionUpsert).toHaveBeenCalledOnce();
+    const upsertCall = mockPrismaTelegramSessionUpsert.mock.calls[0][0];
+    expect(upsertCall.create.sessionString).not.toBe('2fa-session');
+    expect(decryptSession(upsertCall.create.sessionString as string)).toBe('2fa-session');
+    expect(mockPrismaAuditEventCreate).toHaveBeenCalledOnce();
+    const auditCall = mockPrismaAuditEventCreate.mock.calls[0][0];
+    expect(auditCall.data.action).toBe('TELEGRAM_SESSION_LINKED');
   });
 
   it('AC-2: getSessionStatus returns linked=true when session row exists', async () => {

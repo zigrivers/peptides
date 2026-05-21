@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   initiateTelegramLinkAction,
   completeTelegramLinkAction,
+  completeTelegramLinkWithPasswordAction,
   unlinkTelegramAction,
 } from '@/app/actions/ordering/telegram-auth';
 
@@ -12,7 +13,7 @@ interface Props {
   linked: boolean;
 }
 
-type Step = 'idle' | 'phone' | 'code';
+type Step = 'idle' | 'phone' | 'code' | 'password';
 
 export function TelegramSetupForm({ linked }: Props) {
   const router = useRouter();
@@ -21,6 +22,7 @@ export function TelegramSetupForm({ linked }: Props) {
   const [phoneCodeHash, setPhoneCodeHash] = useState('');
   const [tempSession, setTempSession] = useState('');
   const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +46,24 @@ export function TelegramSetupForm({ linked }: Props) {
     setPending(true);
     setError(null);
     const result = await completeTelegramLinkAction({ phone, phoneCodeHash, code, tempSession });
+    setPending(false);
+    if (!result.ok) {
+      if (result.error === 'password_required' && result.tempSession) {
+        setTempSession(result.tempSession);
+        setStep('password');
+        return;
+      }
+      setError(result.message ?? result.error);
+      return;
+    }
+    router.refresh();
+  }
+
+  async function handlePasswordSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setPending(true);
+    setError(null);
+    const result = await completeTelegramLinkWithPasswordAction({ password, tempSession });
     setPending(false);
     if (!result.ok) {
       setError(result.message ?? result.error);
@@ -136,15 +156,49 @@ export function TelegramSetupForm({ linked }: Props) {
     );
   }
 
+  if (step === 'code') {
+    return (
+      <form onSubmit={handleCodeSubmit} className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+        <p className="text-sm font-medium text-gray-900">Enter the code sent to {phone}</p>
+        <input
+          type="text"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="12345"
+          inputMode="numeric"
+          required
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+        />
+        {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={pending}
+            className="rounded bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {pending ? 'Verifying…' : 'Verify Code'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setStep('phone'); setCode(''); setError(null); }}
+            className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            Back
+          </button>
+        </div>
+      </form>
+    );
+  }
+
   return (
-    <form onSubmit={handleCodeSubmit} className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-      <p className="text-sm font-medium text-gray-900">Enter the code sent to {phone}</p>
+    <form onSubmit={handlePasswordSubmit} className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+      <p className="text-sm font-medium text-gray-900">Two-step verification required</p>
+      <p className="text-xs text-gray-500">Enter your Telegram 2FA password.</p>
       <input
-        type="text"
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        placeholder="12345"
-        inputMode="numeric"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="2FA password"
         required
         className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
       />
@@ -155,11 +209,11 @@ export function TelegramSetupForm({ linked }: Props) {
           disabled={pending}
           className="rounded bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
         >
-          {pending ? 'Verifying…' : 'Verify Code'}
+          {pending ? 'Verifying…' : 'Confirm Password'}
         </button>
         <button
           type="button"
-          onClick={() => { setStep('phone'); setCode(''); setError(null); }}
+          onClick={() => { setStep('code'); setPassword(''); setError(null); }}
           className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
         >
           Back

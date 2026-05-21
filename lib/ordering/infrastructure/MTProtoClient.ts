@@ -47,7 +47,7 @@ export async function completePhoneAuth(
   phoneCodeHash: string,
   code: string,
   tempSession: string
-): Promise<{ sessionString: string }> {
+): Promise<{ type: 'success'; sessionString: string } | { type: 'password_required'; tempSession: string }> {
   const client = makeClient(tempSession);
   await client.connect();
   try {
@@ -56,6 +56,37 @@ export async function completePhoneAuth(
     await client.invoke(
       new Api.auth.SignIn({ phoneNumber: phone, phoneCodeHash, phoneCode: code })
     );
+    const sessionString = client.session.save() as unknown as string;
+    return { type: 'success', sessionString };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('SESSION_PASSWORD_NEEDED')) {
+      // Preserve the current session (which contains the auth_key) for the password step.
+      const updatedSession = client.session.save() as unknown as string;
+      return { type: 'password_required', tempSession: updatedSession };
+    }
+    throw err;
+  } finally {
+    await client.disconnect();
+  }
+}
+
+// Called when Telegram requires a 2FA password after the SMS code step.
+// Uses SRP (Secure Remote Password) to verify without sending the password in plaintext.
+export async function completePhoneAuthWithPassword(
+  password: string,
+  tempSession: string
+): Promise<{ sessionString: string }> {
+  const client = makeClient(tempSession);
+  await client.connect();
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { Api } = await import('telegram') as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { computeCheck } = await import('telegram/Password') as any;
+    const passwordInfo = await client.invoke(new Api.account.GetPassword());
+    const check = await computeCheck(passwordInfo, password);
+    await client.invoke(new Api.auth.CheckPassword({ password: check }));
     const sessionString = client.session.save() as unknown as string;
     return { sessionString };
   } finally {

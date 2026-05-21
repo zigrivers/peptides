@@ -28,5 +28,6 @@ export async function getSession(userId: string): Promise<{ sessionString: strin
 
 export async function deactivateSession(userId: string, tx?: PrismaTx): Promise<void> {
   const client = tx ?? prisma;
-  await client.telegramSession.delete({ where: { userId } });
+  // deleteMany avoids P2025 if the session was already removed (e.g. concurrent tab/race).
+  await client.telegramSession.deleteMany({ where: { userId } });
 }

@@ -1,6 +1,6 @@
 import { withAudit } from '@/lib/audit/application/withAudit';
 import { encryptSession, decryptSession } from './SessionManager';
-import { startPhoneAuth, completePhoneAuth, logoutSession } from '@/lib/ordering/infrastructure/MTProtoClient';
+import { startPhoneAuth, completePhoneAuth, completePhoneAuthWithPassword, logoutSession } from '@/lib/ordering/infrastructure/MTProtoClient';
 import { saveSession, getSession, deactivateSession } from '@/lib/ordering/infrastructure/TelegramSessionRepo';
 
 export async function initiateTelegramLink(phone: string): Promise<{ phoneCodeHash: string; tempSession: string }> {
@@ -13,8 +13,36 @@ export async function completeTelegramLink(
   phoneCodeHash: string,
   code: string,
   tempSession: string
+): Promise<{ passwordRequired: false } | { passwordRequired: true; tempSession: string }> {
+  const result = await completePhoneAuth(phone, phoneCodeHash, code, tempSession);
+
+  if (result.type === 'password_required') {
+    return { passwordRequired: true, tempSession: result.tempSession };
+  }
+
+  const encrypted = encryptSession(result.sessionString);
+  await withAudit(
+    async (tx) => {
+      await saveSession(userId, encrypted, undefined, tx);
+    },
+    {
+      actorUserId: userId,
+      category: 'Security' as const,
+      action: 'TELEGRAM_SESSION_LINKED' as const,
+      resourceId: userId,
+      resourceType: 'TelegramSession',
+    }
+  );
+
+  return { passwordRequired: false };
+}
+
+export async function completeTelegramLinkWithPassword(
+  userId: string,
+  password: string,
+  tempSession: string
 ): Promise<void> {
-  const { sessionString } = await completePhoneAuth(phone, phoneCodeHash, code, tempSession);
+  const { sessionString } = await completePhoneAuthWithPassword(password, tempSession);
   const encrypted = encryptSession(sessionString);
 
   await withAudit(
