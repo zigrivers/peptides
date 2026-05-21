@@ -13,7 +13,7 @@ const mockPrismaTelegramSessionFindUnique = vi.fn();
 const mockPrismaTelegramSessionDelete = vi.fn();
 const mockPrismaTelegramSessionDeleteMany = vi.fn();
 const mockPrismaAuditEventCreate = vi.fn();
-const mockPrismaCompoundCount = vi.fn();
+const mockFindCompoundsByIds = vi.fn();
 const mockPrismaOrderCreate = vi.fn();
 const mockPrismaOrderFindFirst = vi.fn();
 const mockPrismaOrderFindMany = vi.fn();
@@ -45,9 +45,6 @@ vi.mock('@/lib/shared/prisma', () => ({
       findUnique: mockPrismaTelegramSessionFindUnique,
       delete: mockPrismaTelegramSessionDelete,
       deleteMany: mockPrismaTelegramSessionDeleteMany,
-    },
-    compound: {
-      count: mockPrismaCompoundCount,
     },
     order: {
       create: mockPrismaOrderCreate,
@@ -90,6 +87,10 @@ vi.mock('@/lib/shared/prisma', () => ({
       return fn(tx);
     }),
   },
+}));
+
+vi.mock('@/lib/reference/infrastructure/CompoundRepo', () => ({
+  findCompoundsByIds: mockFindCompoundsByIds,
 }));
 
 vi.mock('@/lib/ordering/infrastructure/MTProtoClient', () => ({
@@ -437,7 +438,7 @@ describe('US-ORD-02: Build Order', () => {
       messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
     });
     mockPrismaOrderFindFirst.mockResolvedValueOnce(null); // idempotency check — no existing order
-    mockPrismaCompoundCount.mockResolvedValueOnce(2); // 2 unique compound IDs
+    mockFindCompoundsByIds.mockResolvedValueOnce({ 'cmp-1': 'BPC-157', 'cmp-2': 'TB-500' });
     mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-1', createdAt: new Date() });
     mockPrismaOrderItemCreateMany.mockResolvedValueOnce({ count: 2 });
 
@@ -462,7 +463,7 @@ describe('US-ORD-02: Build Order', () => {
       messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
     });
     mockPrismaOrderFindFirst.mockResolvedValueOnce(null); // idempotency check — no existing order
-    mockPrismaCompoundCount.mockResolvedValueOnce(1); // 1 unique compound ID
+    mockFindCompoundsByIds.mockResolvedValueOnce({ 'cmp-1': 'BPC-157' });
     mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-2', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-2', createdAt: new Date() });
     mockPrismaOrderItemCreateMany.mockResolvedValueOnce({ count: 1 });
 
@@ -485,7 +486,7 @@ describe('US-ORD-02: Build Order', () => {
       messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
     });
     mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
-    mockPrismaCompoundCount.mockResolvedValueOnce(1);
+    mockFindCompoundsByIds.mockResolvedValueOnce({ 'cmp-1': 'BPC-157' });
     mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-3', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-3', createdAt: new Date() });
     mockPrismaOrderItemCreateMany.mockResolvedValueOnce({ count: 1 });
 
@@ -565,7 +566,7 @@ describe('US-ORD-02: Build Order', () => {
       messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
     });
     mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
-    mockPrismaCompoundCount.mockResolvedValueOnce(0); // compound does not exist
+    mockFindCompoundsByIds.mockResolvedValueOnce({}); // compound does not exist
 
     await expect(createDraftOrder('user-1', 'vendor-1', [
       { compoundId: 'bad-id', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1 },
@@ -581,7 +582,7 @@ describe('US-ORD-02: Build Order', () => {
       messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
     });
     mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
-    mockPrismaCompoundCount.mockResolvedValueOnce(1);
+    mockFindCompoundsByIds.mockResolvedValueOnce({ 'cmp-1': 'BPC-157' });
     mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-1', createdAt: new Date() });
     // Product exists but its compoundId doesn't match the line item's compoundId
     mockPrismaVendorProductFindMany.mockResolvedValueOnce([{ id: 'prod-1', compoundId: 'different-compound' }]);
@@ -601,7 +602,7 @@ describe('US-ORD-02: Build Order', () => {
     mockPrismaOrderFindFirst
       .mockResolvedValueOnce(null) // idempotency pre-check misses (race)
       .mockResolvedValueOnce({ id: 'order-winner', userId: 'user-1', status: 'DRAFT' }); // re-read after P2002
-    mockPrismaCompoundCount.mockResolvedValueOnce(1);
+    mockFindCompoundsByIds.mockResolvedValueOnce({ 'cmp-1': 'BPC-157' });
 
     const p2002 = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
     mockPrismaOrderCreate.mockRejectedValueOnce(p2002);

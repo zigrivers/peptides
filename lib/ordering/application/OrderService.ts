@@ -6,6 +6,7 @@ import { withAudit } from '@/lib/audit/application/withAudit';
 import type { OrderLineItemInput, SendMethod } from '@/lib/ordering/domain/types';
 import { sendTelegramMessage } from '@/lib/ordering/infrastructure/MTProtoClient';
 import { getDecryptedSession, buildFallbackDeepLink } from './TelegramAuthService';
+import { findCompoundsByIds } from '@/lib/reference/infrastructure/CompoundRepo';
 
 type OrderWithDetails = Prisma.OrderGetPayload<{
   include: {
@@ -79,7 +80,7 @@ export async function createDraftOrder(
   const vendor = await prisma.vendor.findFirst({ where: { id: vendorId, userId, status: 'ACTIVE' } });
   if (!vendor) throw new Error('vendor_not_found');
 
-  const existing = await prisma.order.findFirst({ where: { userId, idempotencyKey } });
+  const existing = await prisma.order.findFirst({ where: { userId, vendorId, idempotencyKey } });
   if (existing) return { orderId: existing.id };
 
   if (items.some((i) => i.quantity <= 0)) throw new Error('invalid_quantity');
@@ -87,10 +88,8 @@ export async function createDraftOrder(
   if (merged.length === 0) throw new Error('order_items_required');
 
   const uniqueCompoundIds = [...new Set(merged.map((i) => i.compoundId))];
-  const validCompoundCount = await prisma.compound.count({
-    where: { id: { in: uniqueCompoundIds } },
-  });
-  if (validCompoundCount !== uniqueCompoundIds.length) throw new Error('compound_not_found');
+  const foundCompounds = await findCompoundsByIds(uniqueCompoundIds);
+  if (Object.keys(foundCompounds).length !== uniqueCompoundIds.length) throw new Error('compound_not_found');
 
   try {
     const order = await withAudit(
@@ -141,7 +140,7 @@ export async function createDraftOrder(
     // constraint), one will succeed and the other will get a P2002 unique-key violation.
     // Re-read the winner and return it rather than surfacing an internal error.
     if (err instanceof Error && 'code' in err && (err as { code: string }).code === 'P2002') {
-      const winner = await prisma.order.findFirst({ where: { userId, idempotencyKey } });
+      const winner = await prisma.order.findFirst({ where: { userId, vendorId, idempotencyKey } });
       if (winner) return { orderId: winner.id };
     }
     throw err;
