@@ -238,4 +238,44 @@ describe('US-AUT-05 / US-TRK-03: Sync API (/api/sync)', () => {
       scheduledDate: expect.any(Date),
     }));
   });
+
+  it('AC-3: returns 400 on malformed JSON body', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: 'user-1' } } as never);
+
+    const { POST } = await import('@/app/api/sync/route');
+    const req = new Request('http://localhost/api/sync', {
+      method: 'POST',
+      body: 'not-json',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    expect(mockLogDose).not.toHaveBeenCalled();
+  });
+
+  it('AC-3: returns per-entry error for invalid scheduledDate without calling logDose', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: 'user-1' } } as never);
+
+    const { POST } = await import('@/app/api/sync/route');
+    const req = new Request('http://localhost/api/sync', {
+      method: 'POST',
+      body: JSON.stringify({
+        entries: [{
+          id: 'queue-bad',
+          protocolId: 'proto-1',
+          scheduledDate: '2026-13-45',
+          amount: { amount: '250', unit: 'mcg' },
+          status: 'LOGGED',
+        }],
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.results[0]).toMatchObject({ id: 'queue-bad', ok: false });
+    expect(mockLogDose).not.toHaveBeenCalled();
+  });
 });
