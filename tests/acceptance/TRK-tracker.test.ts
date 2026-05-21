@@ -45,7 +45,7 @@ vi.mock('@/lib/shared/prisma', () => ({
         },
         auditEvent: { create: mockAuditCreate },
         user: { findMany: mockUserFindMany },
-        doseLog: { create: mockDoseLogCreate, update: mockDoseLogUpdate },
+        doseLog: { create: mockDoseLogCreate, updateMany: mockDoseLogUpdate, findFirst: mockDoseLogFindFirst },
       };
       return fn(tx);
     }),
@@ -674,10 +674,13 @@ describe('US-TRK-03: Individual Dose Logging', () => {
   it('same-day edit: updates existing log when status changes', async () => {
     const existingSkippedRow = { ...baseDoseLogRow, status: 'SKIPPED' };
     const updatedLoggedRow = { ...baseDoseLogRow, status: 'LOGGED' };
-    mockDoseLogFindFirst.mockResolvedValue(existingSkippedRow);
+    // First findFirst: idempotency lookup; second findFirst: re-read after updateMany
+    mockDoseLogFindFirst
+      .mockResolvedValueOnce(existingSkippedRow)
+      .mockResolvedValueOnce(updatedLoggedRow);
     mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
     mockVialCount.mockResolvedValue(1);
-    mockDoseLogUpdate.mockResolvedValue(updatedLoggedRow);
+    mockDoseLogUpdate.mockResolvedValue({ count: 1 }); // updateMany returns {count}
     mockAuditCreate.mockResolvedValue({});
 
     const result = await logDose({

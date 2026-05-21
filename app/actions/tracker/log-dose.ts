@@ -13,7 +13,6 @@ type LogDoseActionInput = {
   injectionSite?: InjectionSite;
   note?: string;
   vialId?: string;
-  idempotencyKey?: string;
 };
 
 type LogDoseActionResult =
@@ -54,7 +53,6 @@ export async function logDoseAction(input: LogDoseActionInput): Promise<LogDoseA
       injectionSite: input.injectionSite,
       note: input.note,
       vialId: input.vialId,
-      idempotencyKey: input.idempotencyKey,
     });
 
     revalidatePath(`/tracker/protocols/${input.protocolId}`);

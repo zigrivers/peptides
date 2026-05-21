@@ -91,7 +91,6 @@ export type LogDoseInput = {
   injectionSite?: InjectionSite;
   note?: string;
   vialId?: string;
-  idempotencyKey?: string;
 };
 
 export type LogDoseResult = {

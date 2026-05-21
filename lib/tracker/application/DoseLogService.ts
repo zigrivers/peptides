@@ -37,7 +37,7 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
     throw new Error('dose_log_too_late: Cannot log a dose for a future date');
   }
 
-  const idempotencyKey = input.idempotencyKey ?? buildIdempotencyKey(
+  const idempotencyKey = buildIdempotencyKey(
     input.actorUserId,
     input.protocolId,
     input.scheduledDate
@@ -65,7 +65,7 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
     }
     // Same-calendar-day edit: update the existing log to the new status.
     const updated = await prisma.$transaction(async (tx) => {
-      const log = await updateDoseLog(tx, existing.id, {
+      const log = await updateDoseLog(tx, existing.id, input.actorUserId, {
         status: input.status,
         injectionSite: input.injectionSite ?? existing.injectionSite,
         note: input.note ?? existing.note,

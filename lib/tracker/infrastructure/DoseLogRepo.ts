@@ -95,6 +95,7 @@ export async function findDoseLogForDate(
 export async function updateDoseLog(
   tx: Prisma.TransactionClient,
   id: string,
+  userId: string,
   updates: Partial<{
     amount: DoseAmount;
     status: DoseLogStatus;
@@ -112,10 +113,11 @@ export async function updateDoseLog(
   if (updates.note !== undefined) data.note = updates.note;
   if (updates.vialId !== undefined) data.vialId = updates.vialId;
 
-  const raw = await tx.doseLog.update({
-    where: { id },
-    data,
-  });
+  // updateMany allows non-unique fields (userId) in the where clause for ownership enforcement.
+  const result = await tx.doseLog.updateMany({ where: { id, userId }, data });
+  if (result.count === 0) throw new Error(`DoseLog not found or unauthorized: ${id}`);
+  const raw = await tx.doseLog.findFirst({ where: { id, userId } });
+  if (!raw) throw new Error(`DoseLog not found after update: ${id}`);
   return mapDoseLog(raw as RawDoseLog);
 }
 
