@@ -24,7 +24,7 @@ export const InviteRepo = {
   },
 
   async findByTokenHash(tokenHash: string) {
-    return prisma.invite.findFirst({ where: { tokenHash } });
+    return prisma.invite.findUnique({ where: { tokenHash } });
   },
 
   async findById(id: string, powerUserId: string) {

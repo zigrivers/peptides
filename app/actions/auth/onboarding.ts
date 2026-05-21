@@ -1,8 +1,16 @@
 'use server';
 
+import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { advanceOnboardingStep, dismissOnboarding, getOnboardingState } from '@/lib/auth/application/onboarding';
-import type { PowerUserStep, ManagedUserStep } from '@/lib/auth/application/onboarding';
+
+const POWER_USER_STEPS = ['browse_catalog', 'create_protocol', 'telegram_setup', 'completed'] as const;
+const MANAGED_USER_STEPS = ['view_schedule', 'log_first_dose', 'completed'] as const;
+
+const NextStepSchema = z.union([
+  z.enum(POWER_USER_STEPS),
+  z.enum(MANAGED_USER_STEPS),
+]);
 
 export type OnboardingActionResult = { ok: true } | { ok: false; error: string };
 
@@ -12,13 +20,15 @@ export async function getOnboardingStateAction() {
   return getOnboardingState(session.user.id);
 }
 
-export async function advanceOnboardingAction(
-  nextStep: PowerUserStep | ManagedUserStep
-): Promise<OnboardingActionResult> {
+export async function advanceOnboardingAction(nextStep: unknown): Promise<OnboardingActionResult> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
+
+  const parsed = NextStepSchema.safeParse(nextStep);
+  if (!parsed.success) return { ok: false, error: 'validation_error' };
+
   try {
-    await advanceOnboardingStep(session.user.id, nextStep);
+    await advanceOnboardingStep(session.user.id, parsed.data);
     return { ok: true };
   } catch (err) {
     console.error('[advanceOnboardingAction] error:', err);

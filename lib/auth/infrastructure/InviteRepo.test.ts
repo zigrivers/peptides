@@ -33,10 +33,14 @@ describe('InviteRepo', () => {
   });
 
   describe('findByTokenHash', () => {
-    it('queries by tokenHash', async () => {
-      mockFindFirst.mockResolvedValue(null);
+    it('queries by tokenHash using findUnique (tokenHash is unique)', async () => {
+      const mockFindUnique = vi.fn().mockResolvedValue(null);
+      // Access prisma via the vi.mock scope
+      const { prisma: p } = await import('@/lib/shared/prisma');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (p.invite as any).findUnique = mockFindUnique;
       await InviteRepo.findByTokenHash('testhash');
-      expect(mockFindFirst).toHaveBeenCalledWith(
+      expect(mockFindUnique).toHaveBeenCalledWith(
         expect.objectContaining({ where: { tokenHash: 'testhash' } })
       );
     });
