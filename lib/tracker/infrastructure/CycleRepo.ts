@@ -50,10 +50,16 @@ export async function findCycleById(
 
 export async function findActiveCycleForUser(
   client: PrismaClient_,
-  userId: string
+  userId: string,
+  today: Date
 ): Promise<Cycle | null> {
   const raw = await client.cycle.findFirst({
-    where: { userId, status: 'ACTIVE' },
+    where: {
+      userId,
+      status: 'ACTIVE',
+      startDate: { lte: today },
+      OR: [{ endDate: null }, { endDate: { gte: today } }],
+    },
     orderBy: { startDate: 'desc' },
   });
   return raw ? mapCycle(raw as RawCycle) : null;

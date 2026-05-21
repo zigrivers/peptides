@@ -15,6 +15,7 @@ const mockVialFindFirst = vi.fn();
 const mockCycleCreate = vi.fn();
 const mockCycleFindFirst = vi.fn();
 const mockCycleFindMany = vi.fn();
+const mockCycleUpdateMany = vi.fn();
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 vi.mock('@/lib/shared/prisma', () => ({
@@ -59,7 +60,7 @@ vi.mock('@/lib/shared/prisma', () => ({
         auditEvent: { create: mockAuditCreate },
         user: { findMany: mockUserFindMany },
         doseLog: { create: mockDoseLogCreate, updateMany: mockDoseLogUpdate, findFirst: mockDoseLogFindFirst },
-        cycle: { create: mockCycleCreate, findFirst: mockCycleFindFirst, findMany: mockCycleFindMany },
+        cycle: { create: mockCycleCreate, findFirst: mockCycleFindFirst, findMany: mockCycleFindMany, updateMany: mockCycleUpdateMany },
       };
       return fn(tx);
     }),
@@ -634,6 +635,8 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
     it('clones all active cycle protocols to new start date and emits CycleRestarted', async () => {
       mockCycleFindFirst.mockResolvedValue(cycleRow);
       mockProtocolFindMany.mockResolvedValue([protocolInCycle]);
+      mockProtocolUpdateMany.mockResolvedValue({ count: 1 });
+      mockCycleUpdateMany.mockResolvedValue({ count: 1 });
       mockCycleCreate.mockResolvedValue(newCycleRow);
       mockProtocolCreate.mockResolvedValue(clonedProtocolRow);
       mockAuditCreate.mockResolvedValue({});
@@ -643,6 +646,14 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
       expect(result.newCycle.startDate).toEqual(newStartDate);
       expect(result.clonedProtocols).toHaveLength(1);
       expect(mockProtocolCreate).toHaveBeenCalledTimes(1);
+      // Old protocols are completed before cloning.
+      expect(mockProtocolUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'COMPLETED' } })
+      );
+      // Old cycle is completed within the same transaction.
+      expect(mockCycleUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'COMPLETED' } })
+      );
       expect(mockAuditCreate).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ action: 'CYCLE_RESTARTED' }) })
       );

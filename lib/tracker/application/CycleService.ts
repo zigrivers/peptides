@@ -11,7 +11,8 @@ function computeWeekNumber(startDate: Date, today: Date): number {
   const startUTC = toUTCDay(startDate);
   const todayUTC = toUTCDay(today);
   const elapsedMs = todayUTC.getTime() - startUTC.getTime();
-  const elapsedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
+  // Clamp to 0 so future-dated cycles (shouldn't be shown, but defensive) never return negative weeks.
+  const elapsedDays = Math.max(0, Math.floor(elapsedMs / (1000 * 60 * 60 * 24)));
   return Math.floor(elapsedDays / 7) + 1;
 }
 
@@ -55,11 +56,15 @@ export async function getCyclesForUser(userId: string): Promise<Cycle[]> {
   return findCyclesForUser(prisma, userId);
 }
 
+export async function getCycleById(userId: string, cycleId: string): Promise<Cycle | null> {
+  return findCycleById(prisma, cycleId, userId);
+}
+
 export async function getCurrentWeekInfo(userId: string): Promise<CycleWeekInfo | null> {
-  const cycle = await findActiveCycleForUser(prisma, userId);
+  const today = new Date();
+  const cycle = await findActiveCycleForUser(prisma, userId, today);
   if (!cycle) return null;
 
-  const today = new Date();
   const weekNumber = computeWeekNumber(cycle.startDate, today);
   const totalWeeks = cycle.endDate ? computeTotalWeeks(cycle.startDate, cycle.endDate) : null;
 
@@ -71,9 +76,19 @@ export async function restartCycle(input: RestartCycleInput): Promise<{ newCycle
     const oldCycle = await findCycleById(tx, input.cycleId, input.actorUserId);
     if (!oldCycle) throw new Error(`Cycle not found: ${input.cycleId}`);
 
-    // Find active protocols associated with the old cycle.
+    // Snapshot active protocols before completing them.
     const protocols = await tx.protocol.findMany({
       where: { cycleId: input.cycleId, userId: input.actorUserId, status: 'ACTIVE' },
+    });
+
+    // Complete old protocols and old cycle within the same transaction to prevent duplicates.
+    await tx.protocol.updateMany({
+      where: { cycleId: input.cycleId, userId: input.actorUserId, status: 'ACTIVE' },
+      data: { status: 'COMPLETED' },
+    });
+    await tx.cycle.updateMany({
+      where: { id: input.cycleId, userId: input.actorUserId },
+      data: { status: 'COMPLETED' },
     });
 
     // Create the new cycle with the same name and new start date.
@@ -83,7 +98,7 @@ export async function restartCycle(input: RestartCycleInput): Promise<{ newCycle
       startDate: input.newStartDate,
     });
 
-    // Clone each protocol to the new cycle.
+    // Clone each protocol from the snapshot to the new cycle.
     const clonedProtocols: { id: string }[] = [];
     for (const p of protocols) {
       const clone = await tx.protocol.create({

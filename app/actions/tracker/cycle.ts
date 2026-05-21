@@ -35,6 +35,9 @@ export async function createCycleAction(input: unknown): Promise<CreateResult> {
   const { name, startDate: startDateStr, endDate: endDateStr } = parsed.data;
   const startDate = parseUTCDate(startDateStr);
   const endDate = endDateStr ? parseUTCDate(endDateStr) : undefined;
+  if (endDate && endDate <= startDate) {
+    return { ok: false, error: 'invalid_input', message: 'End date must be after start date.' };
+  }
 
   try {
     const cycle = await createCycle({ actorUserId: session.user.id, name, startDate, endDate });

@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
-import { getCyclesForUser, getCurrentWeekInfo } from '@/lib/tracker/application/CycleService';
+import { getCycleById, getCurrentWeekInfo } from '@/lib/tracker/application/CycleService';
 import { RestartCycleButton } from './_components/RestartCycleButton';
 
 export default async function CycleDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -9,12 +9,11 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
   if (!session?.user?.id) redirect('/login');
 
   const { id } = await params;
-  const [cycles, weekInfo] = await Promise.all([
-    getCyclesForUser(session.user.id),
+  const [cycle, weekInfo] = await Promise.all([
+    getCycleById(session.user.id, id),
     getCurrentWeekInfo(session.user.id),
   ]);
 
-  const cycle = cycles.find((c) => c.id === id);
   if (!cycle) notFound();
 
   const isCurrentCycle = weekInfo?.cycleId === cycle.id;
