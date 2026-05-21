@@ -9,6 +9,7 @@ const DOMAIN_ERRORS = new Set([
   'token_not_found',
   'token_expired',
   'token_already_used',
+  'email_already_in_use',
 ]);
 
 export type VerifyEmailChangeError =
@@ -16,6 +17,7 @@ export type VerifyEmailChangeError =
   | 'token_not_found'
   | 'token_expired'
   | 'token_already_used'
+  | 'email_already_in_use'
   | 'system_error';
 
 export type VerifyEmailChangeResult =

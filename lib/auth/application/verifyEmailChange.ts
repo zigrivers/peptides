@@ -20,22 +20,19 @@ export async function verifyEmailChange(input: VerifyEmailChangeInput): Promise<
 
   EmailChangeToken.validateForVerify(record);
 
-  const applied = await withAudit(
+  await withAudit(
     async (tx) => {
       const ok = await EmailChangeRepo.applyById(tx, record.id, record.userId, record.newEmail);
       if (!ok) throw new Error('token_already_used');
-      return record.userId;
     },
-    (userId: string) => ({
-      actorUserId: userId,
+    {
+      actorUserId: record.userId,
       category: 'Auth' as const,
       action: 'EMAIL_CHANGE_APPLIED' as const,
-      resourceId: userId,
+      resourceId: record.userId,
       resourceType: 'User',
-    })
+    }
   );
-
-  void applied;
 
   // Send old-email notification with revert link after the response boundary (AC-4)
   after(async () => {

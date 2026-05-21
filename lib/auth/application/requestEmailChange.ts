@@ -34,9 +34,9 @@ export async function requestEmailChange(input: RequestEmailChangeInput): Promis
     throw new Error('email_same_as_current');
   }
 
-  // Conflict check — AC-3: same error regardless of whether the address exists
-  const existing = await prisma.user.findUnique({
-    where: { email: newEmail },
+  // Conflict check — AC-3: case-insensitive; same error regardless of ownership
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: newEmail, mode: 'insensitive' } },
     select: { id: true },
   });
   if (existing) throw new Error('email_already_in_use');
@@ -44,7 +44,14 @@ export async function requestEmailChange(input: RequestEmailChangeInput): Promis
   const oldEmail = user.email;
 
   const rawToken = await withAudit(
-    (tx) => EmailChangeRepo.create(tx, userId, oldEmail, newEmail),
+    async (tx) => {
+      // Cancel any existing PENDING tokens so there is at most one in flight per user
+      await tx.emailChangeRequest.updateMany({
+        where: { userId, status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      });
+      return EmailChangeRepo.create(tx, userId, oldEmail, newEmail);
+    },
     {
       actorUserId: userId,
       category: 'Auth',

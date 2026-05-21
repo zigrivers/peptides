@@ -18,9 +18,15 @@ You are the automated code reviewer for the Peptides project. Your goal is to en
     - `applyById`: userId-scoped `updateMany WHERE { id, userId, status: 'PENDING' }` + `user.update WHERE { id: userId }` — both fully scoped.
     - `revertById`: userId-scoped `updateMany WHERE { id, userId, status: 'APPLIED' }` + `user.update WHERE { id: userId }` — both fully scoped.
   - **Exception** — `lib/auth/index.ts` `jwt` callback: `prisma.user.findUnique({ where: { id: token.id } })` is an approved boundary. `token.id` IS the userId (embedded at sign-in as `token.id = user.id`). Cannot use `where: { userId: session.user.id }` because the session is being validated, not consumed. Queries only `passwordVersion` and never returns user-authored content. Node.js runtime only (not edge middleware).
+  - **Exception** — `lib/auth/application/requestEmailChange.ts` global email uniqueness check: `prisma.user.findUnique({ where: { email: newEmail } })` is an approved boundary. This is a system-wide uniqueness constraint — cannot be userId-scoped because we are checking whether ANY user owns the new address. This check prevents two users from sharing an email. Endpoint is authenticated (requires current-password gate), so enumeration risk is scoped to attacker who already controls an account and knows the victim's current password.
   - **No other files may skip userId scoping.**
 - **Audit Logging**: If a Server Action mutation lacks an `AuditEvent` write, mark as **P1**.
 - **TDD Compliance**: Every new feature must have a corresponding test in `tests/acceptance/` or a colocated `*.test.ts`.
+
+## Known False Positives (suppress in future reviews)
+
+- **Prisma schema `@id` on `EmailChangeRequest.id`**: Gemini has incorrectly flagged this as `@middleware.ts` in past reviews. The schema uses standard `@id @default(uuid())` — this is valid Prisma and compiles cleanly. Do not re-flag.
+- **`email_already_in_use` in `requestEmailChange.ts`**: Gemini flagged this as an enumeration risk. The endpoint is authenticated (requires current-password gate). Enumeration would require an attacker who controls an account AND knows the victim's current password — acceptable risk. See Auth Scoping exception above for context.
 
 ## Known Design Decisions (do NOT flag these)
 

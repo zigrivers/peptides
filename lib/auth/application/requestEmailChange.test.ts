@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import bcrypt from 'bcryptjs';
 
 const mockFindUnique = vi.fn();
+const mockFindFirst = vi.fn();
+const mockEmailUpdateMany = vi.fn();
 const mockWithAudit = vi.fn();
 const mockCreate = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
@@ -9,7 +11,9 @@ const mockSend = vi.fn();
 
 vi.mock('next/server', () => ({ unstable_after: mockAfter }));
 vi.mock('@/lib/shared/prisma', () => ({
-  prisma: { user: { findUnique: mockFindUnique } },
+  prisma: {
+    user: { findUnique: mockFindUnique, findFirst: mockFindFirst },
+  },
 }));
 vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }));
 vi.mock('@/lib/auth/infrastructure/EmailChangeRepo', () => ({
@@ -29,11 +33,16 @@ const validUser = {
   passwordHash: CURRENT_HASH,
 };
 
+// tx passed to withAudit mutation — must have emailChangeRequest.updateMany
+const fakeTx = { emailChangeRequest: { updateMany: mockEmailUpdateMany } };
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockFindUnique.mockResolvedValue(validUser);
+  mockFindFirst.mockResolvedValue(null); // no conflict by default
+  mockEmailUpdateMany.mockResolvedValue({ count: 0 });
   mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>) =>
-    mutation({})
+    mutation(fakeTx)
   );
   mockCreate.mockResolvedValue('raw-token-64hex');
 });
@@ -59,21 +68,23 @@ describe('requestEmailChange', () => {
   });
 
   it('throws email_already_in_use when another user has that email', async () => {
-    // First call returns user record; second call (conflict check) returns existing user
-    mockFindUnique
-      .mockResolvedValueOnce(validUser)
-      .mockResolvedValueOnce({ id: 'other-user' });
+    mockFindFirst.mockResolvedValue({ id: 'other-user' });
     await expect(
       requestEmailChange({ userId: 'u1', currentPassword: 'ValidPass123', newEmail: 'taken@e.com' })
     ).rejects.toThrow('email_already_in_use');
   });
 
-  it('creates a token via withAudit and calls after() for email delivery', async () => {
-    // Conflict check: no existing user for new email
-    mockFindUnique
-      .mockResolvedValueOnce(validUser)
-      .mockResolvedValueOnce(null);
+  it('cancels existing PENDING tokens before creating a new one', async () => {
+    await requestEmailChange({ userId: 'u1', currentPassword: 'ValidPass123', newEmail: 'new@e.com' });
+    expect(mockEmailUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: 'u1', status: 'PENDING' }),
+        data: { status: 'CANCELLED' },
+      })
+    );
+  });
 
+  it('creates a token via withAudit and calls after() for email delivery', async () => {
     await requestEmailChange({ userId: 'u1', currentPassword: 'ValidPass123', newEmail: 'new@e.com' });
 
     expect(mockWithAudit).toHaveBeenCalled();
@@ -81,9 +92,6 @@ describe('requestEmailChange', () => {
   });
 
   it('sends verification email inside the after() callback', async () => {
-    mockFindUnique
-      .mockResolvedValueOnce(validUser)
-      .mockResolvedValueOnce(null);
     mockSend.mockResolvedValue({});
 
     let deferredTask: (() => Promise<void>) | undefined;

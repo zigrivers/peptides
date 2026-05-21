@@ -1,5 +1,18 @@
 import { EmailChangeToken } from '@/lib/auth/domain/EmailChangeToken';
+import { prisma } from '@/lib/shared/prisma';
 import type { Prisma } from '@prisma/client';
+
+// Prisma unique-constraint violation code
+const PRISMA_UNIQUE_VIOLATION = 'P2002';
+
+function isPrismaError(err: unknown, code: string): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code: string }).code === code
+  );
+}
 
 export const EmailChangeRepo = {
   async create(
@@ -33,7 +46,6 @@ export const EmailChangeRepo = {
     revertibleUntil: Date | null;
     verifiedAt: Date | null;
   } | null> {
-    const { prisma } = await import('@/lib/shared/prisma');
     const hash = EmailChangeToken.hash(rawToken);
     return prisma.emailChangeRequest.findUnique({
       where: { tokenHash: hash },
@@ -61,22 +73,27 @@ export const EmailChangeRepo = {
     const now = new Date();
     const revertibleUntil = EmailChangeToken.revertExpiry(now);
 
-    const [{ count }] = await Promise.all([
-      tx.emailChangeRequest.updateMany({
-        where: { id, userId, status: 'PENDING' },
-        data: {
-          status: 'APPLIED',
-          verifiedAt: now,
-          appliedAt: now,
-          revertibleUntil,
-        },
-      }),
-      tx.user.update({
+    const { count } = await tx.emailChangeRequest.updateMany({
+      where: { id, userId, status: 'PENDING' },
+      data: {
+        status: 'APPLIED',
+        verifiedAt: now,
+        appliedAt: now,
+        revertibleUntil,
+      },
+    });
+    if (count !== 1) return false;
+
+    try {
+      await tx.user.update({
         where: { id: userId },
         data: { email: newEmail },
-      }),
-    ]);
-    return count === 1;
+      });
+    } catch (err) {
+      if (isPrismaError(err, PRISMA_UNIQUE_VIOLATION)) throw new Error('email_already_in_use');
+      throw err;
+    }
+    return true;
   },
 
   // Atomically marks the request REVERTED and restores the user's email.
@@ -86,16 +103,21 @@ export const EmailChangeRepo = {
     userId: string,
     oldEmail: string
   ): Promise<boolean> {
-    const [{ count }] = await Promise.all([
-      tx.emailChangeRequest.updateMany({
-        where: { id, userId, status: 'APPLIED' },
-        data: { status: 'REVERTED' },
-      }),
-      tx.user.update({
+    const { count } = await tx.emailChangeRequest.updateMany({
+      where: { id, userId, status: 'APPLIED' },
+      data: { status: 'REVERTED' },
+    });
+    if (count !== 1) return false;
+
+    try {
+      await tx.user.update({
         where: { id: userId },
         data: { email: oldEmail },
-      }),
-    ]);
-    return count === 1;
+      });
+    } catch (err) {
+      if (isPrismaError(err, PRISMA_UNIQUE_VIOLATION)) throw new Error('email_already_in_use');
+      throw err;
+    }
+    return true;
   },
 };

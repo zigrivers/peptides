@@ -78,10 +78,19 @@ describe('EmailChangeRepo.applyById', () => {
     );
   });
 
-  it('returns false when count === 0 (concurrent consumption)', async () => {
+  it('returns false and skips user.update when count === 0 (concurrent consumption)', async () => {
     mockUpdateMany.mockResolvedValue({ count: 0 });
-    mockUserUpdate.mockResolvedValue({});
     expect(await EmailChangeRepo.applyById(fakeTx, 'req-1', 'user-1', 'new@e.com')).toBe(false);
+    expect(mockUserUpdate).not.toHaveBeenCalled();
+  });
+
+  it('throws email_already_in_use on Prisma P2002 unique violation', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+    const prismaError = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+    mockUserUpdate.mockRejectedValue(prismaError);
+    await expect(
+      EmailChangeRepo.applyById(fakeTx, 'req-1', 'user-1', 'taken@e.com')
+    ).rejects.toThrow('email_already_in_use');
   });
 });
 
@@ -102,9 +111,18 @@ describe('EmailChangeRepo.revertById', () => {
     );
   });
 
-  it('returns false when count === 0', async () => {
+  it('returns false and skips user.update when count === 0', async () => {
     mockUpdateMany.mockResolvedValue({ count: 0 });
-    mockUserUpdate.mockResolvedValue({});
     expect(await EmailChangeRepo.revertById(fakeTx, 'req-1', 'user-1', 'old@e.com')).toBe(false);
+    expect(mockUserUpdate).not.toHaveBeenCalled();
+  });
+
+  it('throws email_already_in_use on Prisma P2002 unique violation during revert', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+    const prismaError = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+    mockUserUpdate.mockRejectedValue(prismaError);
+    await expect(
+      EmailChangeRepo.revertById(fakeTx, 'req-1', 'user-1', 'old@e.com')
+    ).rejects.toThrow('email_already_in_use');
   });
 });
