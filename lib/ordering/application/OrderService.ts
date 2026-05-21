@@ -83,6 +83,13 @@ export async function createDraftOrder(
   if (existing) return { orderId: existing.id };
 
   const merged = mergeItems(items);
+  if (merged.length === 0) throw new Error('order_items_required');
+
+  const uniqueCompoundIds = [...new Set(merged.map((i) => i.compoundId))];
+  const validCompoundCount = await prisma.compound.count({
+    where: { id: { in: uniqueCompoundIds } },
+  });
+  if (validCompoundCount !== uniqueCompoundIds.length) throw new Error('compound_not_found');
 
   try {
     const order = await withAudit(
@@ -222,6 +229,9 @@ export async function sendOrder(
       const result = await sendTelegramMessage(sessionString, order.vendor.telegramUsername, messageText);
       telegramMessageId = result.messageId;
       sendMethod = 'AUTOMATED';
+      // Log provides a recovery trail: if the DB finalize below fails, this confirms
+      // the message was delivered and the ORDER_SEND_ATTEMPTED audit has sentAt set.
+      console.info('[OrderService] Telegram send succeeded', { orderId, messageId: telegramMessageId });
     }
   } catch (err) {
     console.error('[OrderService] Telegram send failed, falling back to manual:', err);
@@ -232,14 +242,14 @@ export async function sendOrder(
   await withAudit(
     async (tx) => {
       const { count } = await tx.order.updateMany({
-        where: { id: orderId, userId },
+        where: { id: orderId, userId, status: 'DRAFT' },
         data: {
           status: 'SENT',
           sendMethod,
           telegramMessageId: telegramMessageId ?? null,
         },
       });
-      if (count === 0) throw new Error('order_not_found');
+      if (count === 0) throw new Error('invalid_order_transition');
     },
     () => ({
       actorUserId: userId,

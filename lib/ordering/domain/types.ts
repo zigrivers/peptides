@@ -4,7 +4,7 @@ export type ItemForm = 'LYOPHILIZED_POWDER' | 'SOLUTION';
 
 export interface OrderLineItemInput {
   compoundId: string;
-  compoundName: string;
+  compoundName?: string;
   form: ItemForm;
   vialSizeMg: string;
   quantity: number;

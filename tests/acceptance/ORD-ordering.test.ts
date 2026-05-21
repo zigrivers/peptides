@@ -13,6 +13,7 @@ const mockPrismaTelegramSessionFindUnique = vi.fn();
 const mockPrismaTelegramSessionDelete = vi.fn();
 const mockPrismaTelegramSessionDeleteMany = vi.fn();
 const mockPrismaAuditEventCreate = vi.fn();
+const mockPrismaCompoundCount = vi.fn();
 const mockPrismaOrderCreate = vi.fn();
 const mockPrismaOrderFindFirst = vi.fn();
 const mockPrismaOrderFindMany = vi.fn();
@@ -44,6 +45,9 @@ vi.mock('@/lib/shared/prisma', () => ({
       findUnique: mockPrismaTelegramSessionFindUnique,
       delete: mockPrismaTelegramSessionDelete,
       deleteMany: mockPrismaTelegramSessionDeleteMany,
+    },
+    compound: {
+      count: mockPrismaCompoundCount,
     },
     order: {
       create: mockPrismaOrderCreate,
@@ -433,6 +437,7 @@ describe('US-ORD-02: Build Order', () => {
       messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
     });
     mockPrismaOrderFindFirst.mockResolvedValueOnce(null); // idempotency check — no existing order
+    mockPrismaCompoundCount.mockResolvedValueOnce(2); // 2 unique compound IDs
     mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-1', createdAt: new Date() });
     mockPrismaOrderItemCreateMany.mockResolvedValueOnce({ count: 2 });
 
@@ -457,6 +462,7 @@ describe('US-ORD-02: Build Order', () => {
       messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
     });
     mockPrismaOrderFindFirst.mockResolvedValueOnce(null); // idempotency check — no existing order
+    mockPrismaCompoundCount.mockResolvedValueOnce(1); // 1 unique compound ID
     mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-2', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-2', createdAt: new Date() });
     mockPrismaOrderItemCreateMany.mockResolvedValueOnce({ count: 1 });
 
@@ -479,6 +485,7 @@ describe('US-ORD-02: Build Order', () => {
       messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
     });
     mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+    mockPrismaCompoundCount.mockResolvedValueOnce(1);
     mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-3', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-3', createdAt: new Date() });
     mockPrismaOrderItemCreateMany.mockResolvedValueOnce({ count: 1 });
 
@@ -521,6 +528,35 @@ describe('US-ORD-02: Build Order', () => {
     expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
   });
 
+  it('AC-1: createDraftOrder throws order_items_required when items array is empty', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+
+    await expect(createDraftOrder('user-1', 'vendor-1', [])).rejects.toThrow('order_items_required');
+    expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
+  });
+
+  it('AC-1: createDraftOrder throws compound_not_found when compoundId does not exist', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+    mockPrismaCompoundCount.mockResolvedValueOnce(0); // compound does not exist
+
+    await expect(createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'bad-id', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1 },
+    ])).rejects.toThrow('compound_not_found');
+    expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
+  });
+
   it('AC-1: createDraftOrder recovers from P2002 race on idempotencyKey unique constraint', async () => {
     const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
 
@@ -531,6 +567,7 @@ describe('US-ORD-02: Build Order', () => {
     mockPrismaOrderFindFirst
       .mockResolvedValueOnce(null) // idempotency pre-check misses (race)
       .mockResolvedValueOnce({ id: 'order-winner', userId: 'user-1', status: 'DRAFT' }); // re-read after P2002
+    mockPrismaCompoundCount.mockResolvedValueOnce(1);
 
     const p2002 = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
     mockPrismaOrderCreate.mockRejectedValueOnce(p2002);
