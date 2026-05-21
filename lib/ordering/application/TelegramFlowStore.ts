@@ -15,8 +15,8 @@ const store = new Map<string, FlowEntry>();
 export function createFlow(userId: string, tempSession: string): string {
   const flowId = randomUUID();
   store.set(flowId, { userId, tempSession, expiresAt: Date.now() + FLOW_TTL_MS });
-  // Self-evict when TTL expires so abandoned flows don't leak memory indefinitely.
-  // .unref() prevents this timer from keeping the Node.js event loop alive on shutdown.
+  // Self-evict on TTL expiry — .unref() is required so the timer does not pin the
+  // Node.js event loop after all other work is done (important for test teardown).
   setTimeout(() => store.delete(flowId), FLOW_TTL_MS).unref();
   return flowId;
 }
