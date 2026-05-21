@@ -1,10 +1,17 @@
 import { randomUUID } from 'crypto';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import type { OrderLineItemInput, SendMethod } from '@/lib/ordering/domain/types';
 import { sendTelegramMessage } from '@/lib/ordering/infrastructure/MTProtoClient';
-import { getDecryptedSession } from './TelegramAuthService';
-import { buildFallbackDeepLink } from './TelegramAuthService';
+import { getDecryptedSession, buildFallbackDeepLink } from './TelegramAuthService';
+
+type OrderWithDetails = Prisma.OrderGetPayload<{
+  include: {
+    vendor: true;
+    items: { include: { compound: { select: { name: true } } } };
+  };
+}>;
 
 export interface CreateDraftOrderResult {
   orderId: string;
@@ -36,7 +43,10 @@ function composeMessage(
   items: Array<{ compoundName: string; form: string; vialSizeMg: { toString(): string }; quantity: number }>
 ): string {
   const itemLines = items
-    .map((i) => `- ${i.quantity}x ${i.compoundName} ${i.vialSizeMg.toString()}mg (${i.form === 'LYOPHILIZED_POWDER' ? 'lyophilized' : 'solution'})`)
+    .map(
+      (i) =>
+        `- ${i.quantity}x ${i.compoundName} ${i.vialSizeMg.toString()}mg (${i.form === 'LYOPHILIZED_POWDER' ? 'lyophilized' : 'solution'})`
+    )
     .join('\n');
 
   if (vendor.messageTemplate) {
@@ -51,13 +61,13 @@ function composeMessage(
 export async function createDraftOrder(
   userId: string,
   vendorId: string,
-  items: OrderLineItemInput[]
+  items: OrderLineItemInput[],
+  idempotencyKey = randomUUID()
 ): Promise<CreateDraftOrderResult> {
   const vendor = await prisma.vendor.findFirst({ where: { id: vendorId, userId } });
   if (!vendor) throw new Error('vendor_not_found');
 
   const merged = mergeItems(items);
-  const idempotencyKey = randomUUID();
 
   const order = await withAudit(
     async (tx) => {
@@ -95,30 +105,24 @@ export async function sendOrder(
   orderId: string,
   force = false
 ): Promise<SendOrderResult> {
-  const order = await prisma.order.findFirst({
+  const order: OrderWithDetails | null = await prisma.order.findFirst({
     where: { id: orderId, userId },
     include: {
       vendor: true,
-      items: {
-        include: { compound: { select: { name: true } } },
-      },
+      items: { include: { compound: { select: { name: true } } } },
     },
   });
   if (!order) throw new Error('order_not_found');
   if (order.status !== 'DRAFT') throw new Error('invalid_order_transition');
 
-  const itemsForMessage = (order as unknown as {
-    vendor: { name: string; preferredCurrency: string; messageTemplate: string | null };
-    items: Array<{ compoundName?: string; compoundId: string; form: string; vialSizeMg: { toString(): string }; quantity: number; compound?: { name: string } }>;
-  }).items.map((i) => ({
+  const itemsForMessage = order.items.map((i) => ({
     compoundName: i.compound?.name ?? i.compoundId,
     form: i.form,
     vialSizeMg: i.vialSizeMg,
     quantity: i.quantity,
   }));
 
-  const vendor = (order as unknown as { vendor: { id: string; name: string; preferredCurrency: string; messageTemplate: string | null; telegramUsername: string } }).vendor;
-  const messageText = composeMessage(vendor, itemsForMessage);
+  const messageText = composeMessage(order.vendor, itemsForMessage);
 
   // 60-second duplicate-send check
   const cutoff = new Date(Date.now() - 60_000);
@@ -147,6 +151,16 @@ export async function sendOrder(
     throw new Error('possible_duplicate_send');
   }
 
+  // Reserve the send slot before external I/O — if the process crashes after a successful
+  // Telegram send but before the final DB update, the next retry will find sentAt set and
+  // the 60-second duplicate check will block a second send.
+  const sentAt = new Date();
+  const { count: reserveCount } = await prisma.order.updateMany({
+    where: { id: orderId, userId, status: 'DRAFT' },
+    data: { messageText, sentAt },
+  });
+  if (reserveCount === 0) throw new Error('order_not_found_or_not_draft');
+
   // Attempt Telegram send
   let sendMethod: SendMethod = 'MANUAL_FALLBACK';
   let telegramMessageId: string | undefined;
@@ -154,7 +168,7 @@ export async function sendOrder(
   try {
     const sessionString = await getDecryptedSession(userId);
     if (sessionString) {
-      const result = await sendTelegramMessage(sessionString, vendor.telegramUsername, messageText);
+      const result = await sendTelegramMessage(sessionString, order.vendor.telegramUsername, messageText);
       telegramMessageId = result.messageId;
       sendMethod = 'AUTOMATED';
     }
@@ -164,16 +178,15 @@ export async function sendOrder(
 
   await withAudit(
     async (tx) => {
-      await tx.order.update({
-        where: { id: orderId },
+      const { count } = await tx.order.updateMany({
+        where: { id: orderId, userId },
         data: {
           status: 'SENT',
           sendMethod,
-          messageText,
           telegramMessageId: telegramMessageId ?? null,
-          sentAt: new Date(),
         },
       });
+      if (count === 0) throw new Error('order_not_found');
     },
     {
       actorUserId: userId,
@@ -181,7 +194,7 @@ export async function sendOrder(
       action: 'ORDER_SENT' as const,
       resourceId: orderId,
       resourceType: 'Order',
-      newValues: { sendMethod, telegramMessageId: telegramMessageId ?? null } as { sendMethod: string; telegramMessageId: string | null },
+      newValues: { sendMethod, telegramMessageId: telegramMessageId ?? null },
     }
   );
 
@@ -189,7 +202,7 @@ export async function sendOrder(
     return {
       sendMethod,
       fallbackText: messageText,
-      fallbackDeepLink: buildFallbackDeepLink(vendor.telegramUsername),
+      fallbackDeepLink: buildFallbackDeepLink(order.vendor.telegramUsername),
     };
   }
   return { sendMethod, telegramMessageId };

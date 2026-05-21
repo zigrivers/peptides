@@ -16,7 +16,7 @@ const mockPrismaAuditEventCreate = vi.fn();
 const mockPrismaOrderCreate = vi.fn();
 const mockPrismaOrderFindFirst = vi.fn();
 const mockPrismaOrderFindMany = vi.fn();
-const mockPrismaOrderUpdate = vi.fn();
+const mockPrismaOrderUpdateMany = vi.fn();
 const mockPrismaOrderItemCreateMany = vi.fn();
 
 const mockStartPhoneAuth = vi.fn();
@@ -49,7 +49,7 @@ vi.mock('@/lib/shared/prisma', () => ({
       create: mockPrismaOrderCreate,
       findFirst: mockPrismaOrderFindFirst,
       findMany: mockPrismaOrderFindMany,
-      update: mockPrismaOrderUpdate,
+      updateMany: mockPrismaOrderUpdateMany,
     },
     orderItem: {
       createMany: mockPrismaOrderItemCreateMany,
@@ -75,7 +75,7 @@ vi.mock('@/lib/shared/prisma', () => ({
         order: {
           create: mockPrismaOrderCreate,
           findFirst: mockPrismaOrderFindFirst,
-          update: mockPrismaOrderUpdate,
+          updateMany: mockPrismaOrderUpdateMany,
         },
         orderItem: {
           createMany: mockPrismaOrderItemCreateMany,
@@ -511,7 +511,9 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
 
     mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce({ sessionString: encryptedSession, isActive: true, userId: 'user-1' });
     mockSendTelegramMessage.mockResolvedValueOnce({ messageId: 'tg-msg-123' });
-    mockPrismaOrderUpdate.mockResolvedValueOnce({ id: 'order-1', status: 'SENT', sendMethod: 'AUTOMATED' });
+    mockPrismaOrderUpdateMany
+      .mockResolvedValueOnce({ count: 1 }) // pre-send reserve
+      .mockResolvedValueOnce({ count: 1 }); // finalize inside withAudit tx
 
     const result = await sendOrder('user-1', 'order-1');
 
@@ -536,7 +538,9 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
       .mockResolvedValueOnce(orderWithDetails)
       .mockResolvedValueOnce(null);
     mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce(null);
-    mockPrismaOrderUpdate.mockResolvedValueOnce({ id: 'order-1', status: 'SENT', sendMethod: 'MANUAL_FALLBACK' });
+    mockPrismaOrderUpdateMany
+      .mockResolvedValueOnce({ count: 1 }) // pre-send reserve
+      .mockResolvedValueOnce({ count: 1 }); // finalize inside withAudit tx
 
     const result = await sendOrder('user-1', 'order-1');
 
@@ -562,14 +566,19 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
       .mockResolvedValueOnce(orderWithDetails)
       .mockResolvedValueOnce(null);
     mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce(null);
-    mockPrismaOrderUpdate.mockResolvedValueOnce({ id: 'order-1', status: 'SENT', sendMethod: 'MANUAL_FALLBACK' });
+    mockPrismaOrderUpdateMany
+      .mockResolvedValueOnce({ count: 1 }) // pre-send reserve
+      .mockResolvedValueOnce({ count: 1 }); // finalize inside withAudit tx
 
     await sendOrder('user-1', 'order-1');
 
-    const updateCall = mockPrismaOrderUpdate.mock.calls[0][0];
-    expect(updateCall.data.messageText).toBeTruthy();
-    expect(updateCall.data.status).toBe('SENT');
-    expect(updateCall.data.sentAt).toBeInstanceOf(Date);
+    // First updateMany call = pre-send slot reservation (messageText + sentAt)
+    const reserveCall = mockPrismaOrderUpdateMany.mock.calls[0][0];
+    expect(reserveCall.data.messageText).toBeTruthy();
+    expect(reserveCall.data.sentAt).toBeInstanceOf(Date);
+    // Second updateMany call = finalize (status + sendMethod)
+    const finalizeCall = mockPrismaOrderUpdateMany.mock.calls[1][0];
+    expect(finalizeCall.data.status).toBe('SENT');
   });
 
   it('AC-3: sendOrder blocks duplicate send within 60 seconds without force', async () => {
@@ -612,7 +621,9 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
       .mockResolvedValueOnce(orderWithDetails)
       .mockResolvedValueOnce(recentDuplicate); // duplicate found, but force=true
     mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce(null);
-    mockPrismaOrderUpdate.mockResolvedValueOnce({ id: 'order-1', status: 'SENT', sendMethod: 'MANUAL_FALLBACK' });
+    mockPrismaOrderUpdateMany
+      .mockResolvedValueOnce({ count: 1 }) // pre-send reserve
+      .mockResolvedValueOnce({ count: 1 }); // finalize inside withAudit tx
 
     const result = await sendOrder('user-1', 'order-1', true);
     expect(result.sendMethod).toBe('MANUAL_FALLBACK');
