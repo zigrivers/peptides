@@ -1,8 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { dismissOnboardingAction } from '@/app/actions/auth/onboarding';
 import type { OnboardingState, PowerUserStep, ManagedUserStep } from '@/lib/auth/application/onboarding';
 
 const POWER_USER_STEPS: { key: PowerUserStep; label: string }[] = [
@@ -28,12 +26,13 @@ interface GettingStartedChecklistProps {
   userRole: 'POWER_USER' | 'MANAGED_USER';
 }
 
+// The checklist persists on the dashboard until all steps are completed,
+// per UX spec §2.3: "Getting Started checklist persists on dashboard until 100% complete".
+// It is intentionally not dismissible — only completing all steps hides it.
 export function GettingStartedChecklist({ state, userRole }: GettingStartedChecklistProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [hidden, setHidden] = useState(false);
 
-  if (state.step === 'completed' || hidden) return null;
+  if (state.step === 'completed') return null;
 
   const steps = userRole === 'POWER_USER' ? POWER_USER_STEPS : MANAGED_USER_STEPS;
   const stepOrder = userRole === 'POWER_USER' ? STEP_ORDER_PU : STEP_ORDER_MU;
@@ -50,34 +49,13 @@ export function GettingStartedChecklist({ state, userRole }: GettingStartedCheck
     router.push('/onboarding');
   };
 
-  const handleDismiss = () => {
-    startTransition(async () => {
-      const result = await dismissOnboardingAction();
-      if (result.ok) {
-        setHidden(true);
-        router.refresh();
-      }
-    });
-  };
-
   return (
     <section aria-label="Getting Started" className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-900">Getting Started</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {completedCount} of {totalSteps} steps completed
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={handleDismiss}
-          disabled={isPending}
-          aria-label="Dismiss Getting Started checklist"
-          className="text-gray-400 hover:text-gray-600 text-xs disabled:opacity-50"
-        >
-          ✕
-        </button>
+      <div className="mb-4">
+        <h2 className="text-sm font-semibold text-gray-900">Getting Started</h2>
+        <p className="text-xs text-gray-500 mt-0.5">
+          {completedCount} of {totalSteps} steps completed
+        </p>
       </div>
 
       {/* Progress bar */}
