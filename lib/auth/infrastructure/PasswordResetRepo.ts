@@ -9,11 +9,17 @@ type TxClient = Prisma.TransactionClient;
  *
  * The project rule "every DB query must include where: { userId }" exists to prevent
  * cross-user data leakage. Queries here are legitimately pre-auth:
- * - `create`: scoped to userId (known at call site from the AuthRepository email lookup).
- * - `findByRawToken` (used in confirmPasswordReset for error disambiguation): looks up by
- *   tokenHash — a cryptographically random SHA-256 value. An attacker cannot enumerate or
- *   forge a token; there is no cross-user leakage risk because the only result fields used
- *   are `used`, `expiresAt`, and `userId` — no user-authored data is returned.
+ *
+ * - `create`: scoped to userId (derived from a prior AuthRepository email lookup).
+ * - `findByRawToken`: looks up by cryptographically random SHA-256 token hash.
+ *   An attacker cannot enumerate or forge a token; the only fields read are
+ *   `used`, `expiresAt`, and `userId` — no user-authored content.
+ * - `claimToken`: atomically marks the token used (updateMany with tokenHash predicate)
+ *   and returns the userId. The tokenHash predicate is functionally equivalent to userId
+ *   scoping — a 256-bit random hash cannot be guessed; only the legitimate user who
+ *   received the email link can provide it. Falls back to findByRawToken for error
+ *   disambiguation when count === 0.
+ * - `markUsed`: includes userId in the predicate (defense-in-depth).
  *
  * See CLAUDE.md Identity Scoping and AGENTS.md for the documented exception.
  */
@@ -28,6 +34,28 @@ export const PasswordResetRepo = {
   async findByRawToken(rawToken: string) {
     const tokenHash = PasswordResetToken.hash(rawToken);
     return prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+  },
+
+  /**
+   * Atomically claims a token (single-use enforcement) and returns the userId.
+   * Throws 'token_not_found', 'token_already_used', or 'token_expired' on failure.
+   * All DB operations are pre-auth and covered by the PasswordResetRepo exemption.
+   */
+  async claimToken(tx: TxClient, tokenHash: string): Promise<string> {
+    const { count } = await tx.passwordResetToken.updateMany({
+      where: { tokenHash, used: false, expiresAt: { gt: new Date() } },
+      data: { used: true },
+    });
+
+    if (count === 0) {
+      const record = await tx.passwordResetToken.findUnique({ where: { tokenHash } });
+      if (!record) throw new Error('token_not_found');
+      if (record.used) throw new Error('token_already_used');
+      throw new Error('token_expired');
+    }
+
+    const record = (await tx.passwordResetToken.findUnique({ where: { tokenHash } }))!;
+    return record.userId;
   },
 
   /** Defense-in-depth: includes userId so a compromised id cannot mark another user's token. */

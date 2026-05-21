@@ -1,5 +1,6 @@
 import { resend, FROM_ADDRESS } from '@/lib/shared/email';
 import { AuthRepository } from '@/lib/auth/infrastructure/AuthRepository';
+import { PasswordResetToken } from '@/lib/auth/domain/PasswordResetToken';
 import { PasswordResetRepo } from '@/lib/auth/infrastructure/PasswordResetRepo';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import { prisma } from '@/lib/shared/prisma';
@@ -15,8 +16,14 @@ export async function requestPasswordReset(email: string): Promise<void> {
   const normalizedEmail = email.trim().toLowerCase();
   const user = await AuthRepository.findByEmailForAuth(normalizedEmail);
 
-  // Always exit without error — prevents email enumeration.
-  if (!user) return;
+  if (!user) {
+    // Constant-time guard: perform equivalent token-generation work regardless of outcome.
+    // Prevents timing-based enumeration for the token-generation phase.
+    // The Resend API latency on the success path is masked by rate limiting
+    // (5 req/hour/email per docs/api-contracts.md §9).
+    PasswordResetToken.generate();
+    return;
+  }
 
   const rawToken = await withAudit(
     (tx) => PasswordResetRepo.create(tx, user.id),

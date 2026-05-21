@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PasswordResetToken } from '@/lib/auth/domain/PasswordResetToken';
 
-// Stub the prisma singleton before importing the repo (avoids real DB connection).
 const mockCreate = vi.fn();
 const mockFindUnique = vi.fn();
 const mockUpdateMany = vi.fn();
@@ -34,14 +33,10 @@ describe('PasswordResetRepo.create', () => {
     const rawToken = await PasswordResetRepo.create(fakeTx, 'user-1');
 
     expect(rawToken).toMatch(/^[0-9a-f]{64}$/);
-
     const call = mockCreate.mock.calls[0][0];
     expect(call.data.userId).toBe('user-1');
-    // Stored hash must NOT equal the raw token.
     expect(call.data.tokenHash).not.toBe(rawToken);
-    // Stored hash must equal what PasswordResetToken.hash() produces.
     expect(call.data.tokenHash).toBe(PasswordResetToken.hash(rawToken));
-    // Expiry is ~1 hour from now.
     expect(call.data.expiresAt.getTime()).toBeGreaterThan(Date.now() + 3_590_000);
   });
 });
@@ -54,6 +49,38 @@ describe('PasswordResetRepo.findByRawToken', () => {
     expect(mockFindUnique).toHaveBeenCalledWith({
       where: { tokenHash: PasswordResetToken.hash(raw) },
     });
+  });
+});
+
+describe('PasswordResetRepo.claimToken', () => {
+  const TOKEN_HASH = 'a'.repeat(64);
+
+  it('returns userId when updateMany count=1', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+    mockFindUnique.mockResolvedValue({ id: 'rec-1', userId: 'user-1' });
+    const userId = await PasswordResetRepo.claimToken(fakeTx, TOKEN_HASH);
+    expect(userId).toBe('user-1');
+    expect(mockUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ tokenHash: TOKEN_HASH, used: false }) })
+    );
+  });
+
+  it('throws token_not_found when count=0 and record is null', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+    mockFindUnique.mockResolvedValue(null);
+    await expect(PasswordResetRepo.claimToken(fakeTx, TOKEN_HASH)).rejects.toThrow('token_not_found');
+  });
+
+  it('throws token_already_used when count=0 and record.used=true', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+    mockFindUnique.mockResolvedValue({ used: true, expiresAt: new Date(Date.now() + 3_600_000) });
+    await expect(PasswordResetRepo.claimToken(fakeTx, TOKEN_HASH)).rejects.toThrow('token_already_used');
+  });
+
+  it('throws token_expired when count=0 and record.used=false (expired)', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+    mockFindUnique.mockResolvedValue({ used: false, expiresAt: new Date(Date.now() - 1000) });
+    await expect(PasswordResetRepo.claimToken(fakeTx, TOKEN_HASH)).rejects.toThrow('token_expired');
   });
 });
 

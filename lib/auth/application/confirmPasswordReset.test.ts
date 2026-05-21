@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockUpdateMany = vi.fn();
-const mockFindUnique = vi.fn();
+const mockClaimToken = vi.fn();
 const mockUserUpdate = vi.fn();
 const mockPasswordHashCreate = vi.fn();
 const mockWithAudit = vi.fn();
 
+vi.mock('@/lib/auth/infrastructure/PasswordResetRepo', () => ({
+  PasswordResetRepo: { claimToken: mockClaimToken },
+}));
 vi.mock('@/lib/auth/domain/PasswordHash', () => ({
   PasswordHash: {
     create: mockPasswordHashCreate,
@@ -18,19 +20,10 @@ vi.mock('@/lib/audit/application/withAudit', () => ({
 
 const { confirmPasswordReset } = await import('./confirmPasswordReset');
 
-const TOKEN_HASH = 'a'.repeat(64);
-
-// Helper: simulates withAudit executing the mutation fn with a fake tx.
-const fakeTx = {
-  passwordResetToken: { updateMany: mockUpdateMany, findUnique: mockFindUnique },
-  user: { update: mockUserUpdate },
-};
+const fakeTx = { user: { update: mockUserUpdate } } as unknown as import('@prisma/client').Prisma.TransactionClient;
 
 function setupWithAudit() {
-  mockWithAudit.mockImplementation(async (mutation, _buildAudit) => {
-    const result = await mutation(fakeTx);
-    return result;
-  });
+  mockWithAudit.mockImplementation(async (mutation, _buildAudit) => mutation(fakeTx));
 }
 
 beforeEach(() => {
@@ -41,31 +34,22 @@ beforeEach(() => {
 });
 
 describe('confirmPasswordReset', () => {
-  it('throws token_not_found when updateMany count=0 and no record exists', async () => {
-    mockUpdateMany.mockResolvedValue({ count: 0 });
-    mockFindUnique.mockResolvedValue(null);
+  it('throws token_not_found when claimToken throws token_not_found', async () => {
+    mockClaimToken.mockRejectedValue(new Error('token_not_found'));
     await expect(
       confirmPasswordReset({ rawToken: 'no-such-token', newPassword: 'ValidPassword123' })
     ).rejects.toThrow('token_not_found');
   });
 
-  it('throws token_already_used when updateMany count=0 and record.used is true', async () => {
-    mockUpdateMany.mockResolvedValue({ count: 0 });
-    mockFindUnique.mockResolvedValue({
-      id: 'rec-1', userId: 'user-1', tokenHash: TOKEN_HASH,
-      expiresAt: new Date(Date.now() + 3_600_000), used: true,
-    });
+  it('throws token_already_used when claimToken throws token_already_used', async () => {
+    mockClaimToken.mockRejectedValue(new Error('token_already_used'));
     await expect(
       confirmPasswordReset({ rawToken: 'used-token', newPassword: 'ValidPassword123' })
     ).rejects.toThrow('token_already_used');
   });
 
-  it('throws token_expired when updateMany count=0 and record.expiresAt is in the past', async () => {
-    mockUpdateMany.mockResolvedValue({ count: 0 });
-    mockFindUnique.mockResolvedValue({
-      id: 'rec-1', userId: 'user-1', tokenHash: TOKEN_HASH,
-      expiresAt: new Date(Date.now() - 1000), used: false,
-    });
+  it('throws token_expired when claimToken throws token_expired', async () => {
+    mockClaimToken.mockRejectedValue(new Error('token_expired'));
     await expect(
       confirmPasswordReset({ rawToken: 'expired-token', newPassword: 'ValidPassword123' })
     ).rejects.toThrow('token_expired');
@@ -78,35 +62,20 @@ describe('confirmPasswordReset', () => {
     ).rejects.toThrow('password_too_short');
   });
 
-  it('resolves and calls withAudit with PASSWORD_RESET_COMPLETED for valid input', async () => {
-    mockUpdateMany.mockResolvedValue({ count: 1 });
-    mockFindUnique.mockResolvedValue({
-      id: 'rec-1', userId: 'user-1', tokenHash: TOKEN_HASH,
-      expiresAt: new Date(Date.now() + 3_600_000), used: true,
-    });
-
+  it('resolves and updates user password when token is valid', async () => {
+    mockClaimToken.mockResolvedValue('user-1');
     await confirmPasswordReset({ rawToken: 'valid-token', newPassword: 'ValidPassword123' });
-
-    expect(mockWithAudit).toHaveBeenCalledWith(
-      expect.any(Function),
-      expect.any(Function)
-    );
     expect(mockUserUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'user-1' } })
     );
   });
 
   it('audit factory returns PASSWORD_RESET_COMPLETED with correct actorUserId', async () => {
+    mockClaimToken.mockResolvedValue('user-1');
     let capturedFactory: ((userId: string) => unknown) | null = null;
     mockWithAudit.mockImplementation(async (mutation, buildAudit) => {
       capturedFactory = buildAudit;
-      mockUpdateMany.mockResolvedValue({ count: 1 });
-      mockFindUnique.mockResolvedValue({
-        id: 'rec-1', userId: 'user-1', tokenHash: TOKEN_HASH,
-        expiresAt: new Date(Date.now() + 3_600_000), used: true,
-      });
-      const result = await mutation(fakeTx);
-      return result;
+      return mutation(fakeTx);
     });
 
     await confirmPasswordReset({ rawToken: 'valid-token', newPassword: 'ValidPassword123' });
