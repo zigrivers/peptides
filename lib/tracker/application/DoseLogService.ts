@@ -12,6 +12,7 @@ import {
 } from '../infrastructure/DoseLogRepo';
 import { findProtocolByIdForActor } from '../infrastructure/ProtocolRepo';
 import { getManagedUserIds } from './ProtocolService';
+import { getSitesForRoute, sitesEqual } from '../domain/SiteRotation';
 
 function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date): string {
   const dateStr = scheduledDate.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -56,6 +57,19 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
 
   // Dose log is stored under the protocol owner's userId.
   const subjectUserId = protocol.userId;
+
+  // Validate injectionSite against the protocol's administration route.
+  if (input.injectionSite) {
+    const validSites = getSitesForRoute(protocol.administrationRoute);
+    if (validSites.length === 0) {
+      throw new Error(`invalid_injection_site: route ${protocol.administrationRoute} does not use injection sites`);
+    }
+    if (!validSites.some((v) => sitesEqual(v, input.injectionSite!))) {
+      throw new Error(
+        `invalid_injection_site: ${input.injectionSite.side} ${input.injectionSite.bodyPart} is not valid for route ${protocol.administrationRoute}`
+      );
+    }
+  }
 
   // Validate vialId ownership before any writes.
   if (input.vialId) {

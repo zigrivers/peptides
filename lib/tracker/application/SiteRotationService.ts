@@ -28,7 +28,7 @@ export async function getSiteSuggestion(
     prisma,
     protocol.userId,
     protocol.compoundId,
-    7
+    Math.max(validSites.length * 4, 30)
   );
 
   const recentSites = recentLogs

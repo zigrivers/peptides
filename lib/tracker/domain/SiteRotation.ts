@@ -67,7 +67,11 @@ export function getSitesMeta(
     const lastUsed = lastLog?.loggedAt ?? null;
     const daysSinceLastUse =
       lastUsed !== null
-        ? Math.floor((asOf.getTime() - lastUsed.getTime()) / (1000 * 60 * 60 * 24))
+        ? Math.floor(
+            (Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate()) -
+              Date.UTC(lastUsed.getUTCFullYear(), lastUsed.getUTCMonth(), lastUsed.getUTCDate())) /
+              (1000 * 60 * 60 * 24)
+          )
         : null;
 
     return {

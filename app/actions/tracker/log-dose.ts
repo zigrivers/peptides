@@ -76,6 +76,9 @@ export async function logDoseAction(input: unknown): Promise<LogDoseActionResult
     if (/dose_log_too_late|future/i.test(msg)) {
       return { ok: false, error: 'dose_log_too_late', message: 'Cannot log a dose for a future date.' };
     }
+    if (/invalid_injection_site/i.test(msg)) {
+      return { ok: false, error: 'invalid_injection_site', message: 'Invalid injection site for this protocol route.' };
+    }
     if (/protocol not found/i.test(msg)) {
       return { ok: false, error: 'protocol_not_found', message: msg };
     }

@@ -30,9 +30,7 @@ function todayUTCISO(): string {
 
 function formatSiteLabel(site: InjectionSite): string {
   const side = site.side.charAt(0).toUpperCase() + site.side.slice(1);
-  const part = site.bodyPart === 'ventrogluteal'
-    ? 'Ventrogluteal'
-    : site.bodyPart.charAt(0).toUpperCase() + site.bodyPart.slice(1);
+  const part = site.bodyPart.charAt(0).toUpperCase() + site.bodyPart.slice(1);
   return `${side} ${part}`;
 }
 

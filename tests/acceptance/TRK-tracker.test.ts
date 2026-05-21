@@ -759,6 +759,37 @@ describe('US-TRK-03: Individual Dose Logging', () => {
       })
     ).rejects.toThrow(/dose_log_too_late/i);
   });
+
+  it('Negative: rejects injectionSite for a non-injection route (Oral)', async () => {
+    const oralProtocol = { ...baseProtocolRow, administrationRoute: 'Oral' };
+    mockProtocolFindFirst.mockResolvedValue(oralProtocol);
+
+    await expect(
+      logDose({
+        actorUserId: logActorUserId,
+        protocolId: logProtocolId,
+        scheduledDate,
+        amount,
+        status: 'LOGGED',
+        injectionSite: { bodyPart: 'thigh', side: 'left' },
+      })
+    ).rejects.toThrow(/invalid_injection_site/i);
+  });
+
+  it('Negative: rejects injectionSite that is out-of-route (deltoid on SubQ)', async () => {
+    mockProtocolFindFirst.mockResolvedValue(baseProtocolRow); // administrationRoute: 'SubQ'
+
+    await expect(
+      logDose({
+        actorUserId: logActorUserId,
+        protocolId: logProtocolId,
+        scheduledDate,
+        amount,
+        status: 'LOGGED',
+        injectionSite: { bodyPart: 'deltoid', side: 'left' }, // IM-only site
+      })
+    ).rejects.toThrow(/invalid_injection_site/i);
+  });
 });
 
 /**
