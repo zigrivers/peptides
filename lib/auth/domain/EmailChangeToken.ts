@@ -3,7 +3,9 @@ import crypto from 'crypto';
 export interface EmailChangeRecord {
   id: string;
   userId: string;
+  oldEmail: string;
   newEmail: string;
+  createdAt: Date;
   expiresAt: Date;
   status: string;
   verifiedAt: Date | null;
@@ -46,6 +48,9 @@ export const EmailChangeToken = {
     if (record.status === 'REVERTED') {
       throw new Error('token_already_used');
     }
+    // Intentionally returns token_not_found (not token_expired) for PENDING/CANCELLED/EXPIRED:
+    // the revert link is sent to the OLD address owner; leaking that the token exists but
+    // is in a different terminal state would not help a legitimate user and could help an attacker.
     if (record.status !== 'APPLIED') {
       throw new Error('token_not_found');
     }

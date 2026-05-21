@@ -111,7 +111,6 @@ CREATE TABLE "DataExportRequest" (
 CREATE TABLE "EmailChangeRequest" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "oldEmail" TEXT NOT NULL,
     "newEmail" TEXT NOT NULL,
     "tokenHash" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

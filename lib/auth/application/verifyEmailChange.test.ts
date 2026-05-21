@@ -16,6 +16,7 @@ vi.mock('@/lib/shared/email', () => ({
   resend: { emails: { send: mockSend } },
   FROM_ADDRESS: 'noreply@peptides.app',
 }));
+// verifyEmailChange no longer uses prisma directly; updateMany is called via withAudit mock
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: { emailChangeRequest: { updateMany: mockEmailUpdateMany } },
 }));
@@ -90,8 +91,11 @@ describe('verifyEmailChange', () => {
     expect(mockApplyById).toHaveBeenCalledWith(fakeTx, 'req-1', 'user-1', 'new@e.com');
   });
 
-  it('cancels token on email_already_in_use so user must request a fresh token', async () => {
-    mockWithAudit.mockRejectedValue(new Error('email_already_in_use'));
+  it('cancels token via withAudit on email_already_in_use so user must request a fresh token', async () => {
+    const fakeCancelTx = { emailChangeRequest: { updateMany: mockEmailUpdateMany } };
+    mockWithAudit
+      .mockRejectedValueOnce(new Error('email_already_in_use'))
+      .mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>) => mutation(fakeCancelTx));
     await expect(verifyEmailChange({ rawToken: 'valid-token' })).rejects.toThrow('email_already_in_use');
     expect(mockEmailUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({

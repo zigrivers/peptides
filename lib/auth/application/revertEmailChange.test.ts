@@ -76,16 +76,21 @@ describe('revertEmailChange', () => {
     expect(mockRevertById).toHaveBeenCalledWith(fakeTx, 'req-1', 'user-1', 'old@e.com', fakeCreatedAt);
   });
 
-  it('audit factory returns EMAIL_CHANGE_REVERTED with correct actorUserId', async () => {
-    let capturedFactory: ((userId: string) => unknown) | null = null;
-    mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: (userId: string) => unknown) => {
-      capturedFactory = buildAudit;
+  it('audit object has EMAIL_CHANGE_REVERTED with correct actorUserId', async () => {
+    let capturedAudit: unknown = null;
+    mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+      capturedAudit = buildAudit;
       return mutation({});
     });
     await revertEmailChange({ rawToken: 'valid-token' });
-    expect(capturedFactory!('user-1')).toMatchObject({
+    expect(capturedAudit).toMatchObject({
       action: 'EMAIL_CHANGE_REVERTED',
       actorUserId: 'user-1',
     });
+  });
+
+  it('propagates email_already_in_use from revertById (P2002 race: oldEmail reclaimed during window)', async () => {
+    mockRevertById.mockRejectedValue(new Error('email_already_in_use'));
+    await expect(revertEmailChange({ rawToken: 'valid-token' })).rejects.toThrow('email_already_in_use');
   });
 });

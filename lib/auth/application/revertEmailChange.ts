@@ -21,14 +21,13 @@ export async function revertEmailChange(input: RevertEmailChangeInput): Promise<
     async (tx) => {
       const ok = await EmailChangeRepo.revertById(tx, record.id, record.userId, record.oldEmail, record.createdAt);
       if (!ok) throw new Error('token_already_used');
-      return record.userId;
     },
-    (userId: string) => ({
-      actorUserId: userId,
+    {
+      actorUserId: record.userId,
       category: 'Auth' as const,
       action: 'EMAIL_CHANGE_REVERTED' as const,
-      resourceId: userId,
+      resourceId: record.userId,
       resourceType: 'User',
-    })
+    }
   );
 }
