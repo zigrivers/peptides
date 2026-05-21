@@ -170,6 +170,7 @@ model EmailChangeRequest {
 model Compound {
   id                  String    @id @default(uuid())
   name                String    @unique
+  slug                String    @unique
   iupacName           String?
   synonyms            String[]
   mechanismOfAction   String?

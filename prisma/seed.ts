@@ -2,6 +2,14 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+function nameToSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]/g, '')
+    .replace(/-+/g, '-');
+}
+
 async function main() {
   const compounds = [
     {
@@ -197,10 +205,11 @@ async function main() {
   ];
 
   for (const { profile, ...compoundData } of compounds) {
+    const dataWithSlug = { ...compoundData, slug: nameToSlug(compoundData.name) };
     const compound = await prisma.compound.upsert({
       where: { name: compoundData.name },
-      update: compoundData,
-      create: compoundData,
+      update: dataWithSlug,
+      create: dataWithSlug,
     });
 
     if (profile) {

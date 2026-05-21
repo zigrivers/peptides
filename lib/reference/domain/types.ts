@@ -26,6 +26,7 @@ export type CompoundProfile = {
 export type Compound = {
   id: string;
   name: string;
+  slug: string;
   iupacName: string | null;
   synonyms: string[];
   mechanismOfAction: string | null;

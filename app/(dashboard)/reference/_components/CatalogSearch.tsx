@@ -1,22 +1,28 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
+
+const DEBOUNCE_MS = 350;
 
 export function CatalogSearch() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      const q = e.target.value.trim();
-      if (q) {
-        params.set('q', q);
-      } else {
-        params.delete('q');
-      }
-      router.push(`/reference?${params.toString()}`);
+      const value = e.target.value;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (value.trim()) {
+          params.set('q', value.trim());
+        } else {
+          params.delete('q');
+        }
+        router.push(`/reference?${params.toString()}`);
+      }, DEBOUNCE_MS);
     },
     [router, searchParams]
   );
@@ -58,6 +64,7 @@ export function CatalogSearch() {
         <option value="longevity">Longevity</option>
         <option value="cognitive">Cognitive</option>
         <option value="skin">Skin</option>
+        <option value="metabolic">Metabolic</option>
       </select>
     </div>
   );

@@ -15,6 +15,7 @@ vi.mock('@/lib/shared/prisma', () => ({
 const bpc157 = {
   id: 'c-1',
   name: 'BPC-157',
+  slug: 'bpc-157',
   iupacName: 'L-Valyl-L-prolyl-L-prolyl-L-alanyl-glycyl-L-glutaminyl-L-arginyl-L-leucyl-L-phenylalanyl-L-alpha-glutamyl-L-leucyl-L-leucyl-L-tyrosyl-L-leucyl-L-valyl-L-leucyl-L-seryl-L-glutamine',
   synonyms: ['Pentadecapeptide BPC-157'],
   mechanismOfAction: 'Activates growth hormone receptor signalling and promotes angiogenesis.',
@@ -39,6 +40,7 @@ const bpc157 = {
 const archivedCompound = {
   id: 'c-2',
   name: 'OldPeptide',
+  slug: 'oldpeptide',
   iupacName: null,
   synonyms: [],
   mechanismOfAction: null,
@@ -52,6 +54,7 @@ const archivedCompound = {
 const noProfileCompound = {
   id: 'c-3',
   name: 'NewPeptide',
+  slug: 'newpeptide',
   iupacName: null,
   synonyms: [],
   mechanismOfAction: null,

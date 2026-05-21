@@ -6,18 +6,13 @@ import { searchCompounds, listCompounds } from '@/lib/reference/application/Comp
 import { CatalogSearch } from './_components/CatalogSearch';
 import type { Compound } from '@/lib/reference/domain/types';
 
-function nameToSlug(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, '-');
-}
-
 function CompoundCard({ compound }: { compound: Compound }) {
-  const slug = nameToSlug(compound.name);
   const isArchived = compound.status === 'ARCHIVED';
 
   return (
     <li>
       <Link
-        href={`/reference/${slug}`}
+        href={`/reference/${compound.slug}`}
         className="block rounded-lg border border-gray-200 p-4 hover:border-indigo-400 hover:shadow-sm transition-all"
       >
         <div className="flex items-start justify-between gap-2">
