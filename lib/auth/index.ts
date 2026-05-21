@@ -6,8 +6,10 @@ import { prisma } from '@/lib/shared/prisma';
 import { authConfig } from './auth.config';
 import { PasswordHash } from './domain/PasswordHash';
 
-// Constant-time guard: bcrypt.compare when no user found prevents timing enumeration.
-const DUMMY_HASH = '$2b$12$invalidhashfortimingconstancyx00000000000000000000000u';
+// Pre-computed bcrypt hash (cost 12) used for constant-time response when no user is found.
+// Prevents timing-based user enumeration: bcryptjs short-circuits on an obviously invalid
+// hash, so using a real 60-char hash ensures comparable work to a real verify() call.
+const DUMMY_HASH = '$2b$12$uBubSQ6J8844KtMFcKvLsuIqchm3gaZe0Jt3VEbqY7KWYKvZWKvgG';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -22,11 +24,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (typeof credentials?.email !== 'string' || typeof credentials?.password !== 'string') {
           return null;
         }
+        // Identity Scoping exception: this is the authentication query that establishes
+        // WHO the user is, so no userId scope exists yet. All other data queries must
+        // include `where: { userId: session.user.id }` per the project identity-scoping rule.
         const user = await prisma.user.findUnique({
           where: { email: credentials.email.toLowerCase() },
           select: { id: true, email: true, passwordHash: true, role: true, status: true },
         });
         if (!user?.passwordHash || user.status !== 'ACTIVE') {
+          // Constant-time guard: prevents timing-based user enumeration.
           await bcrypt.compare(credentials.password, DUMMY_HASH);
           return null;
         }

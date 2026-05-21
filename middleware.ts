@@ -18,7 +18,12 @@ function isPublicPath(pathname: string): boolean {
 export default auth((req: NextRequest & { auth: { user?: { id?: string } } | null }) => {
   const { pathname } = req.nextUrl;
 
-  if (!req.auth && !isPublicPath(pathname)) {
+  // Check both that a session exists AND that it carries a valid user.id.
+  // Sessions without user.id occur when the JWT is missing required claims
+  // (the session callback returns the base session in that case rather than throwing).
+  const isAuthenticated = req.auth?.user?.id;
+
+  if (!isAuthenticated && !isPublicPath(pathname)) {
     // API routes: return 401 JSON — don't redirect browsers to /login
     if (pathname.startsWith('/api/')) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), {
@@ -40,5 +45,8 @@ export default auth((req: NextRequest & { auth: { user?: { id?: string } } | nul
 });
 
 export const config = {
-  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico).*)'],
+  // Exclude NextAuth internal routes (/api/auth and its children), Next.js
+  // static assets, and favicon. The (?:/|$) boundary prevents /api/authz
+  // or /api/authorization from being incorrectly excluded.
+  matcher: ['/((?!api/auth(?:/|$)|_next/static|_next/image|favicon.ico).*)'],
 };

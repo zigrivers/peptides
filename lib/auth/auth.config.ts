@@ -42,8 +42,10 @@ export const authConfig = {
     },
     session({ session, token }) {
       if (!token.id || !token.role) {
-        // Token is missing required claims — treat as an invalid session.
-        throw new Error('Session token is missing required claims');
+        // Token predates required claims or is malformed — return base session
+        // without id/role augmentation. Middleware denies access when user.id
+        // is absent (checked via req.auth?.user?.id), avoiding a 500 error.
+        return session;
       }
       return {
         ...session,
