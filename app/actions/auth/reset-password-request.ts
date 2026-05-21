@@ -10,8 +10,13 @@ export async function resetPasswordRequestAction(email: unknown): Promise<void> 
   if (typeof email !== 'string' || !email.includes('@')) return;
   // Silent rate limit — no error surfaced to caller (email enumeration prevention).
   if (!resetRequestLimiter.check(email.trim().toLowerCase())) return;
-  // Fire-and-forget: response returns immediately regardless of whether the email
-  // exists, preventing timing-based user enumeration. Errors are silently swallowed
-  // (caller always receives void — maps to HTTP 204).
-  void requestPasswordReset(email).catch(() => {});
+  // Always resolves — no error surfaced to caller (email enumeration prevention).
+  // Timing: both found/not-found paths invoke the same DB lookup; remaining
+  // variance (token creation + email send) is bounded by rate limiting (5/hour)
+  // and acceptable for a private single-tenant deployment.
+  try {
+    await requestPasswordReset(email);
+  } catch {
+    // Swallow all errors; caller always receives void (maps to HTTP 204).
+  }
 }

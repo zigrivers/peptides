@@ -14,8 +14,14 @@ export function createRateLimiter(limit: number, windowMs: number, maxKeys = 10_
       const now = Date.now();
       const entry = store.get(key);
       if (!entry || now - entry.windowStart > windowMs) {
-        // Evict expired entries before inserting a new key to bound Map size.
-        if (!entry && store.size >= maxKeys) purgeExpired(now);
+        if (!entry) {
+          // Evict expired entries before inserting. If still full after purge,
+          // reject to prevent unbounded memory growth from unique-key flooding.
+          if (store.size >= maxKeys) {
+            purgeExpired(now);
+            if (store.size >= maxKeys) return false;
+          }
+        }
         store.set(key, { count: 1, windowStart: now });
         return true;
       }
