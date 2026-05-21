@@ -197,7 +197,8 @@ describe('US-REC-02: Record Reconstitution', () => {
 
     mockPrismaCompoundProfileFindFirst.mockResolvedValueOnce(null);
 
-    const expectedExpiry = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    // Auto-computed expiry is normalized to UTC midnight (now date + 14 days)
+    const expectedExpiry = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 14));
     mockPrismaVialCreate.mockResolvedValueOnce({
       id: 'vial-2', userId: 'user-1', compoundId: 'compound-1',
       totalMg: new Decimal('5'), bacWaterMl: new Decimal('2'),
@@ -224,7 +225,7 @@ describe('US-REC-02: Record Reconstitution', () => {
     vi.useRealTimers();
   });
 
-  it('AC-2: getVialsForUser returns vials with LOW_INVENTORY flag when remainingMg < 5 doses', async () => {
+  it('AC-2: getVialsForUser returns vials with LOW_INVENTORY flag when remainingMg < 20% of total', async () => {
     const { getVialsForUser } = await import('@/lib/reconstitution/application/VialService');
 
     mockPrismaVialFindMany.mockResolvedValueOnce([

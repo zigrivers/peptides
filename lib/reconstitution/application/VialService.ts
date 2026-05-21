@@ -38,7 +38,10 @@ export async function saveVial(input: SaveVialInput): Promise<VialWithBadges> {
 
   const shelfLifeDays =
     (await getReconstitutedShelfLifeDays(input.compoundId)) ?? DEFAULT_SHELF_LIFE_DAYS;
-  const expiresAt = input.expiresAt ?? new Date(now.getTime() + shelfLifeDays * 24 * 60 * 60 * 1000);
+  // Normalize to UTC midnight so auto-computed dates are consistent with user-supplied dates (which are also UTC midnight).
+  const expiresAt =
+    input.expiresAt ??
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays));
 
   const vial = await withAudit(
     (tx) =>

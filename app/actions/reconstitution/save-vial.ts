@@ -24,7 +24,8 @@ export async function saveVialAction(data: {
 
   const parsed = schema.safeParse(data);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.flatten().fieldErrors.totalMg?.[0] ?? 'Invalid input' };
+    const firstError = Object.values(parsed.error.flatten().fieldErrors)[0]?.[0];
+    return { ok: false, error: firstError ?? 'Invalid input' };
   }
 
   try {
