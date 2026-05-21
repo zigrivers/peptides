@@ -36,7 +36,7 @@ export function CreateProtocolForm({ compounds, managedUsers, currentUserId, cyc
 
   function handleSubjectChange(newSubjectId: string) {
     setSubjectUserId(newSubjectId);
-    if (newSubjectId !== currentUserId) setCycleId('');
+    setCycleId(''); // different subjects have different cycles — always reset
   }
   const [notes, setNotes] = useState('');
 

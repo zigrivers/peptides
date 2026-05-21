@@ -679,7 +679,7 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
 
     it('throws if cycle not found', async () => {
       mockCycleFindFirst.mockResolvedValue(null);
-      await expect(restartCycle({ actorUserId, cycleId: 'nonexistent', newStartDate })).rejects.toThrow(/not found/i);
+      await expect(restartCycle({ actorUserId, cycleId: 'nonexistent', newStartDate })).rejects.toThrow(/cycle_not_found/i);
     });
 
     it('clones COMPLETED protocols and skips completion step when restarting a COMPLETED cycle', async () => {
@@ -700,18 +700,20 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
       expect(mockCycleUpdateMany).not.toHaveBeenCalled();
     });
 
-    it('preserves cycle duration and protocol endDate offset on restart', async () => {
-      const protocolWithEndDate = {
+    it('preserves cycle duration and protocol start/end date offsets on restart', async () => {
+      const protocolWithDates = {
         ...protocolInCycle,
-        endDate: new Date(Date.UTC(2026, 4, 15)), // 14 days into the old cycle
+        startDate: new Date(Date.UTC(2026, 4, 8)),  // 7 days into old cycle
+        endDate: new Date(Date.UTC(2026, 4, 15)),   // 14 days into old cycle
       };
       const durationMs = cycleRow.endDate!.getTime() - cycleRow.startDate.getTime();
       const expectedCycleEndDate = new Date(newStartDate.getTime() + durationMs);
       const startOffsetMs = newStartDate.getTime() - cycleRow.startDate.getTime();
-      const expectedProtoEndDate = new Date(protocolWithEndDate.endDate!.getTime() + startOffsetMs);
+      const expectedProtoStartDate = new Date(protocolWithDates.startDate.getTime() + startOffsetMs);
+      const expectedProtoEndDate = new Date(protocolWithDates.endDate!.getTime() + startOffsetMs);
 
       mockCycleFindFirst.mockResolvedValue(cycleRow);
-      mockProtocolFindMany.mockResolvedValue([protocolWithEndDate]);
+      mockProtocolFindMany.mockResolvedValue([protocolWithDates]);
       mockProtocolUpdateMany.mockResolvedValue({ count: 1 });
       mockCycleUpdateMany.mockResolvedValue({ count: 1 });
       mockCycleCreate.mockResolvedValue(newCycleRow);
@@ -724,7 +726,7 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
         expect.objectContaining({ data: expect.objectContaining({ endDate: expectedCycleEndDate }) })
       );
       expect(mockProtocolCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ endDate: expectedProtoEndDate }) })
+        expect.objectContaining({ data: expect.objectContaining({ startDate: expectedProtoStartDate, endDate: expectedProtoEndDate }) })
       );
     });
   });

@@ -74,7 +74,7 @@ export async function getCurrentWeekInfo(userId: string): Promise<CycleWeekInfo 
 export async function restartCycle(input: RestartCycleInput): Promise<{ newCycle: Cycle; clonedProtocols: { id: string }[] }> {
   return prisma.$transaction(async (tx) => {
     const oldCycle = await findCycleById(tx, input.cycleId, input.actorUserId);
-    if (!oldCycle) throw new Error(`Cycle not found: ${input.cycleId}`);
+    if (!oldCycle) throw new Error(`cycle_not_found: ${input.cycleId}`);
 
     // Preserve the original cycle's planned duration in the new cycle.
     const durationMs = oldCycle.endDate
@@ -117,9 +117,10 @@ export async function restartCycle(input: RestartCycleInput): Promise<{ newCycle
       endDate: newCycleEndDate,
     });
 
-    // Clone each protocol, shifting endDate by the same offset as the start date.
+    // Clone each protocol, shifting both start and end dates by the same offset.
     const clonedProtocols: { id: string }[] = [];
     for (const p of protocols) {
+      const protoStartDate = new Date((p.startDate as Date).getTime() + startOffsetMs);
       const protoEndDate = p.endDate ? new Date((p.endDate as Date).getTime() + startOffsetMs) : null;
       const clone = await tx.protocol.create({
         data: {
@@ -129,7 +130,7 @@ export async function restartCycle(input: RestartCycleInput): Promise<{ newCycle
           dose: p.dose as Prisma.InputJsonValue,
           schedule: p.schedule as Prisma.InputJsonValue,
           administrationRoute: p.administrationRoute,
-          startDate: input.newStartDate,
+          startDate: protoStartDate,
           endDate: protoEndDate,
           notes: p.notes,
           status: 'ACTIVE',

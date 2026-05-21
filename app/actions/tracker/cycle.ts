@@ -75,7 +75,7 @@ export async function restartCycleAction(input: unknown): Promise<RestartResult>
   } catch (err) {
     const msg = err instanceof Error ? err.message : '';
     console.error('[restartCycleAction] internal error:', err);
-    if (/not found/i.test(msg)) return { ok: false, error: 'not_found', message: 'Cycle not found.' };
+    if (msg.startsWith('cycle_not_found')) return { ok: false, error: 'not_found', message: 'Cycle not found.' };
     return { ok: false, error: 'unknown', message: 'Could not restart cycle. Please try again.' };
   }
 }
