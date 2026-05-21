@@ -8,14 +8,14 @@ export interface AdherenceResult {
 
 // scheduledDate is stored at UTC midnight by convention (see lessons.md, 2026-05-21).
 // All calendar-date boundaries use UTC midnight to align with stored values.
-function utcMidnightDaysAgo(days: number): Date {
-  const d = new Date();
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - days));
+function utcMidnightDaysAgo(days: number, now: Date): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - days));
 }
 
 export async function getSevenDayRatingAverage(userId: string): Promise<number | null> {
-  const since = utcMidnightDaysAgo(6); // today + 6 preceding days = 7 days inclusive
-  const tomorrow = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 1));
+  const now = new Date();
+  const since = utcMidnightDaysAgo(6, now); // today + 6 preceding days = 7 days inclusive
+  const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
 
   const logs = await prisma.outcomeLog.findMany({
     where: {
@@ -31,10 +31,11 @@ export async function getSevenDayRatingAverage(userId: string): Promise<number |
 }
 
 export async function getSevenDayAdherence(userId: string): Promise<AdherenceResult> {
-  const since = utcMidnightDaysAgo(6); // today + 6 preceding days = 7 days inclusive
-  const tomorrow = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 1));
+  const now = new Date();
+  const since = utcMidnightDaysAgo(6, now); // today + 6 preceding days = 7 days inclusive
+  const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
   // todayMidnight separates past PENDING (missed) from today's not-yet-acted-on PENDING
-  const todayMidnight = utcMidnightDaysAgo(0);
+  const todayMidnight = utcMidnightDaysAgo(0, now);
 
   const logs = await prisma.doseLog.findMany({
     where: {
@@ -55,8 +56,9 @@ export async function getSevenDayAdherence(userId: string): Promise<AdherenceRes
 }
 
 export async function hasDoseTodayForUser(userId: string): Promise<boolean> {
-  const todayMidnight = utcMidnightDaysAgo(0);
-  const tomorrow = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 1));
+  const now = new Date();
+  const todayMidnight = utcMidnightDaysAgo(0, now);
+  const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
   const log = await prisma.doseLog.findFirst({
     where: {
       userId,

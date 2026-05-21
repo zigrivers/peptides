@@ -5,6 +5,7 @@ import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
 import { getCurrentWeekInfo } from '@/lib/tracker/application/CycleService';
 import { getSevenDayRatingAverage, getSevenDayAdherence, hasDoseTodayForUser } from '@/lib/tracker/application/OutcomeLogService';
 import { getVialsForUser, serializeVial } from '@/lib/reconstitution/application/VialService';
+import { utcMidnightToday } from '@/lib/shared/date';
 import { GettingStartedChecklist } from './_components/GettingStartedChecklist';
 import { StackOverview } from './_components/StackOverview';
 
@@ -28,8 +29,7 @@ export default async function DashboardPage() {
   const showChecklist = onboardingState !== null && onboardingState.step !== 'completed';
   const hasActiveProtocols = protocols.some((p) => p.status === 'ACTIVE');
 
-  const nowUtcMidnight = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
-  const serializedVials = vials.map((v) => serializeVial(v, nowUtcMidnight));
+  const serializedVials = vials.map((v) => serializeVial(v, utcMidnightToday()));
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8">

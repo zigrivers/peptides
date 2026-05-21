@@ -25,7 +25,7 @@ interface Props {
 }
 
 function RatingStars({ rating }: { rating: number }) {
-  const rounded = Math.round(rating);
+  const rounded = Math.floor(rating);
   return (
     <span aria-label={`${rating.toFixed(1)} out of 5 stars`} role="img">
       {[1, 2, 3, 4, 5].map((n) => (
@@ -68,6 +68,8 @@ function StaleAnnouncer({ fetchedAt }: { fetchedAt: string }) {
   );
 }
 
+// AC-8 (inline Confirm/Skip card for managed users) is deferred to a follow-on story.
+// This view is the approved interim: cycle info + link to /tracker.
 function ManagedUserActiveView({ weekInfo, fetchedAt }: { weekInfo: CycleWeekInfo | null; fetchedAt: string }) {
   return (
     <div className="space-y-4">

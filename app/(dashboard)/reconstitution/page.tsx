@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { listCompounds } from '@/lib/reference/infrastructure/CompoundRepo';
 import { getVialsForUser, serializeVial } from '@/lib/reconstitution/application/VialService';
+import { utcMidnightToday } from '@/lib/shared/date';
 import { ReconstitutionCalculatorForm } from './_components/ReconstitutionCalculatorForm';
 import { VialInventory } from './_components/VialInventory';
 
@@ -22,8 +23,7 @@ export default async function ReconstitutionPage() {
     profile: c.profile,
   }));
 
-  const nowUtcMidnight = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
-  const serializedVials = vials.map((v) => serializeVial(v, nowUtcMidnight));
+  const serializedVials = vials.map((v) => serializeVial(v, utcMidnightToday()));
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 space-y-10">
