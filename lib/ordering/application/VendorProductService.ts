@@ -74,18 +74,22 @@ export async function listVendorProducts(userId: string, vendorId: string): Prom
 export async function updateVendorProduct(input: UpdateVendorProductInput): Promise<VendorProduct> {
   return withAudit(
     async (tx) => {
-      const existing = await tx.vendorProduct.findFirst({
-        where: { id: input.productId, vendor: { userId: input.userId } },
-      });
-      if (!existing) throw new Error('product_not_found');
-
       const data: Record<string, unknown> = {};
       if (input.name !== undefined) data.name = input.name;
       if (input.priceUsd !== undefined) data.priceUsd = new Decimal(input.priceUsd);
       if (input.inStock !== undefined) data.inStock = input.inStock;
 
-      // updateMany does not support relation filters — use the verified ID from the scoped findFirst above
-      const row = await tx.vendorProduct.update({ where: { id: existing.id }, data });
+      // Prisma v5 supports relation filters in updateMany — required to keep userId in the mutation predicate
+      const { count } = await tx.vendorProduct.updateMany({
+        where: { id: input.productId, vendor: { userId: input.userId } },
+        data,
+      });
+      if (count === 0) throw new Error('product_not_found');
+
+      const row = await tx.vendorProduct.findFirst({
+        where: { id: input.productId, vendor: { userId: input.userId } },
+      });
+      if (!row) throw new Error('product_not_found');
       return toVendorProduct(row);
     },
     (result) => ({
@@ -101,12 +105,12 @@ export async function updateVendorProduct(input: UpdateVendorProductInput): Prom
 export async function archiveVendorProduct(userId: string, productId: string): Promise<void> {
   await withAudit(
     async (tx) => {
-      const existing = await tx.vendorProduct.findFirst({
+      // Prisma v5 supports relation filters in updateMany — required to keep userId in the mutation predicate
+      const { count } = await tx.vendorProduct.updateMany({
         where: { id: productId, vendor: { userId } },
+        data: { inStock: false },
       });
-      if (!existing) throw new Error('product_not_found');
-      // updateMany does not support relation filters — use the verified ID from the scoped findFirst above
-      await tx.vendorProduct.update({ where: { id: existing.id }, data: { inStock: false } });
+      if (count === 0) throw new Error('product_not_found');
     },
     {
       actorUserId: userId,

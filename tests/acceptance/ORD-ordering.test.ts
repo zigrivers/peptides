@@ -8,6 +8,7 @@ const mockPrismaVendorProductCreate = vi.fn();
 const mockPrismaVendorProductFindMany = vi.fn();
 const mockPrismaVendorProductFindFirst = vi.fn();
 const mockPrismaVendorProductUpdate = vi.fn();
+const mockPrismaVendorProductUpdateMany = vi.fn();
 const mockPrismaAuditEventCreate = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
@@ -23,6 +24,7 @@ vi.mock('@/lib/shared/prisma', () => ({
       findMany: mockPrismaVendorProductFindMany,
       findFirst: mockPrismaVendorProductFindFirst,
       update: mockPrismaVendorProductUpdate,
+      updateMany: mockPrismaVendorProductUpdateMany,
     },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
@@ -35,6 +37,7 @@ vi.mock('@/lib/shared/prisma', () => ({
           create: mockPrismaVendorProductCreate,
           findFirst: mockPrismaVendorProductFindFirst,
           update: mockPrismaVendorProductUpdate,
+          updateMany: mockPrismaVendorProductUpdateMany,
         },
         auditEvent: { create: mockPrismaAuditEventCreate },
       };
@@ -185,29 +188,23 @@ describe('US-ORD-06: Manage Vendor Catalog', () => {
   });
 
   describe('VendorProductService - archiveProduct', () => {
-    it('AC-2: sets inStock=false via scoped findFirst + update; does not delete (preserves OrderItem links)', async () => {
+    it('AC-2: sets inStock=false via userId-scoped updateMany; does not delete (preserves OrderItem links)', async () => {
       const { archiveVendorProduct } = await import('@/lib/ordering/application/VendorProductService');
 
-      mockPrismaVendorProductFindFirst.mockResolvedValueOnce({
-        id: 'prod-1', vendorId: 'vendor-1', compoundId: 'c-1',
-        name: 'BPC-157 5mg', priceUsd: '45.00', inStock: true,
-      });
-      mockPrismaVendorProductUpdate.mockResolvedValueOnce({ id: 'prod-1', inStock: false });
+      mockPrismaVendorProductUpdateMany.mockResolvedValueOnce({ count: 1 });
 
       await archiveVendorProduct('user-1', 'prod-1');
 
-      const findCall = mockPrismaVendorProductFindFirst.mock.calls[0][0];
-      expect(findCall.where.id).toBe('prod-1');
-      expect(findCall.where.vendor.userId).toBe('user-1');
-      const updateCall = mockPrismaVendorProductUpdate.mock.calls[0][0];
+      const updateCall = mockPrismaVendorProductUpdateMany.mock.calls[0][0];
       expect(updateCall.data.inStock).toBe(false);
+      expect(updateCall.where.vendor.userId).toBe('user-1');
       expect(updateCall.where.id).toBe('prod-1');
     });
 
     it('AC-2: throws not_found if product does not belong to user\'s vendor', async () => {
       const { archiveVendorProduct } = await import('@/lib/ordering/application/VendorProductService');
 
-      mockPrismaVendorProductFindFirst.mockResolvedValueOnce(null);
+      mockPrismaVendorProductUpdateMany.mockResolvedValueOnce({ count: 0 });
 
       await expect(archiveVendorProduct('user-1', 'prod-other')).rejects.toThrow('product_not_found');
     });
