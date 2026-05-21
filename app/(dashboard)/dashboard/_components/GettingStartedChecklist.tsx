@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { dismissOnboardingAction } from '@/app/actions/auth/onboarding';
 import type { OnboardingState, PowerUserStep, ManagedUserStep } from '@/lib/auth/application/onboarding';
@@ -16,8 +16,12 @@ const MANAGED_USER_STEPS: { key: ManagedUserStep; label: string }[] = [
   { key: 'log_first_dose', label: 'Log Your First Dose' },
 ];
 
-const STEP_ORDER_PU: PowerUserStep[] = ['browse_catalog', 'create_protocol', 'telegram_setup', 'completed'];
-const STEP_ORDER_MU: ManagedUserStep[] = ['view_schedule', 'log_first_dose', 'completed'];
+const STEP_ORDER_PU: (PowerUserStep | ManagedUserStep)[] = [
+  'browse_catalog', 'create_protocol', 'telegram_setup', 'completed',
+];
+const STEP_ORDER_MU: (PowerUserStep | ManagedUserStep)[] = [
+  'view_schedule', 'log_first_dose', 'completed',
+];
 
 interface GettingStartedChecklistProps {
   state: OnboardingState;
@@ -27,17 +31,18 @@ interface GettingStartedChecklistProps {
 export function GettingStartedChecklist({ state, userRole }: GettingStartedChecklistProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [hidden, setHidden] = useState(false);
 
-  if (state.step === 'completed') return null;
+  if (state.step === 'completed' || hidden) return null;
 
   const steps = userRole === 'POWER_USER' ? POWER_USER_STEPS : MANAGED_USER_STEPS;
-  const stepOrder = userRole === 'POWER_USER' ? STEP_ORDER_PU : (STEP_ORDER_MU as (PowerUserStep | ManagedUserStep)[]);
-  const currentStepIndex = stepOrder.indexOf(state.step as PowerUserStep & ManagedUserStep);
+  const stepOrder = userRole === 'POWER_USER' ? STEP_ORDER_PU : STEP_ORDER_MU;
+  const currentStepIndex = stepOrder.indexOf(state.step as PowerUserStep | ManagedUserStep);
   const completedCount = Math.max(0, currentStepIndex);
   const totalSteps = steps.length;
 
   const isStepDone = (key: string) => {
-    const keyIndex = stepOrder.indexOf(key as PowerUserStep & ManagedUserStep);
+    const keyIndex = stepOrder.indexOf(key as PowerUserStep | ManagedUserStep);
     return keyIndex < currentStepIndex;
   };
 
@@ -47,7 +52,11 @@ export function GettingStartedChecklist({ state, userRole }: GettingStartedCheck
 
   const handleDismiss = () => {
     startTransition(async () => {
-      await dismissOnboardingAction();
+      const result = await dismissOnboardingAction();
+      if (result.ok) {
+        setHidden(true);
+        router.refresh();
+      }
     });
   };
 
@@ -60,24 +69,22 @@ export function GettingStartedChecklist({ state, userRole }: GettingStartedCheck
             {completedCount} of {totalSteps} steps completed
           </p>
         </div>
-        {!state.dismissed && (
-          <button
-            type="button"
-            onClick={handleDismiss}
-            disabled={isPending}
-            aria-label="Dismiss Getting Started checklist"
-            className="text-gray-400 hover:text-gray-600 text-xs disabled:opacity-50"
-          >
-            ✕
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={handleDismiss}
+          disabled={isPending}
+          aria-label="Dismiss Getting Started checklist"
+          className="text-gray-400 hover:text-gray-600 text-xs disabled:opacity-50"
+        >
+          ✕
+        </button>
       </div>
 
       {/* Progress bar */}
       <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4" aria-hidden="true">
         <div
           className="bg-indigo-600 h-1.5 rounded-full transition-all"
-          style={{ width: `${(completedCount / totalSteps) * 100}%` }}
+          style={{ width: `${totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0}%` }}
         />
       </div>
 

@@ -9,8 +9,10 @@ export default async function OnboardingPage() {
 
   const state = await getOnboardingState(session.user.id);
 
-  // Already completed — go to dashboard.
-  if (!state || state.step === 'completed' || state.dismissed) {
+  // Only redirect when the wizard is fully completed.
+  // dismissed=true means the wizard was skipped but not finished;
+  // users can return via the dashboard checklist "Continue Setup" link.
+  if (!state || state.step === 'completed') {
     redirect('/dashboard');
   }
 
