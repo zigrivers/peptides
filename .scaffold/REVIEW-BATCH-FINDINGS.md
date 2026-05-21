@@ -24,7 +24,7 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 | 15 | implementation-plan-review | ✅ done | 12 (1×P0, 8×P1, 2×P2, 1×P3) | 12 | 0 |
 | 16 | cross-phase-consistency | ✅ done | 3 (1×regression, 1×P2, 1×P3) | 3 | 0 |
 | 17 | decision-completeness | ✅ done | 3 (1×P1, 1×P2 ack, 1×P3 ack) | 1 + 2 acknowledged | 2 acknowledged |
-| 18 | critical-path-walkthrough | pending | | | |
+| 18 | critical-path-walkthrough | ✅ done | 3 (1×P2 doc missing, 2×P3 ack) | 1 + 2 acknowledged | 2 acknowledged |
 | 19 | dependency-graph-validation | pending | | | |
 | 20 | implementability-dry-run | pending | | | |
 | 21 | scope-creep-check | pending | | | |
