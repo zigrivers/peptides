@@ -6,7 +6,7 @@ import { logDose } from '@/lib/tracker/application/DoseLogService';
 const syncEntrySchema = z.object({
   id: z.string(),
   protocolId: z.string(),
-  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  scheduledDate: z.string().date(),
   amount: z.object({
     amount: z.string(),
     unit: z.enum(['mcg', 'mg', 'IU', 'mL']),
@@ -24,7 +24,14 @@ export async function POST(req: Request): Promise<NextResponse> {
   }
 
   const actorUserId = session.user.id;
-  const body = await req.json() as { entries?: unknown };
+
+  let body: { entries?: unknown };
+  try {
+    body = await req.json() as { entries?: unknown };
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
   const { entries } = body;
 
   if (!Array.isArray(entries)) {
@@ -36,7 +43,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       const parsed = syncEntrySchema.safeParse(raw);
       if (!parsed.success) {
         const id = raw && typeof raw === 'object' && 'id' in raw ? String((raw as Record<string, unknown>).id) : 'unknown';
-        return { id, ok: false, error: 'Invalid entry format' };
+        return { id, ok: false, error: JSON.stringify(parsed.error.flatten().fieldErrors) };
       }
       const entry: SyncEntry = parsed.data;
       try {
@@ -47,10 +54,10 @@ export async function POST(req: Request): Promise<NextResponse> {
           amount: entry.amount,
           status: entry.status,
         });
-        return { id: String(entry.id), ok: true };
+        return { id: entry.id, ok: true };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'sync_error';
-        return { id: String(entry.id), ok: false, error: message };
+        return { id: entry.id, ok: false, error: message };
       }
     })
   );
