@@ -8,8 +8,9 @@ import type { NextRequest } from 'next/server';
 // a lightweight edge-compatible revocation store.
 const { auth } = NextAuth(authConfig);
 
-// Exact-prefix matching: /login matches /login and /login/* but NOT /loginAdmin
-const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
+// Exact-prefix matching: /login matches /login and /login/* but NOT /loginAdmin.
+// '/' is public so middleware does not intercept it; app/page.tsx redirects based on auth.
+const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password', '/reset-password'];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));

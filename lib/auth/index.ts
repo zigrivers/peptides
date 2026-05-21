@@ -13,8 +13,9 @@ import { AuthRepository } from './infrastructure/AuthRepository';
 const DUMMY_HASH = '$2b$12$uBubSQ6J8844KtMFcKvLsuIqchm3gaZe0Jt3VEbqY7KWYKvZWKvgG';
 
 // Server-side user status is re-checked at most once per this interval (ms).
-// Deactivated users are denied within this window. Edge-middleware revocation
-// (via Upstash KV) is handled in Task 1.4.
+// Known limitation: a user deactivated immediately after login may continue accessing
+// protected routes for up to STATUS_RECHECK_MS (15 min) on server-side auth calls.
+// Edge-middleware revocation (via Upstash KV — Task 1.4) will close this gap entirely.
 const STATUS_RECHECK_MS = 15 * 60 * 1000;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
