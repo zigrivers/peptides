@@ -97,6 +97,7 @@ export default async function ProtocolDetailPage({
             protocolId={protocol.id}
             amount={protocol.dose}
             existingStatus={todaysDoseLog?.status as 'LOGGED' | 'SKIPPED' | undefined}
+            existingInjectionSite={todaysDoseLog?.injectionSite ?? null}
             siteData={siteData ?? undefined}
           />
         </div>
