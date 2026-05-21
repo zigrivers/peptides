@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
 import { getDueTodayForBatch } from '@/lib/tracker/application/BatchLogService';
-import { findCompoundById } from '@/lib/reference/infrastructure/CompoundRepo';
+import { findCompoundsByIds } from '@/lib/reference/infrastructure/CompoundRepo';
 import type { Protocol } from '@/lib/tracker/domain/types';
 import { formatSchedule } from '@/lib/tracker/domain/formatters';
 import { BatchLogReview } from './_components/BatchLogReview';
@@ -33,15 +33,13 @@ export default async function TrackerPage() {
     getDueTodayForBatch(userId),
   ]);
 
-  // Resolve compound names for batch review display
+  // Resolve compound names for batch review display — single bulk query
   const compoundIds = [...new Set(dueToday.map((i) => i.protocol.compoundId))];
-  const compoundEntries = await Promise.all(
-    compoundIds.map(async (id) => {
-      const c = await findCompoundById(id);
-      return [id, c?.name ?? id] as [string, string];
-    })
+  const compoundNamesRaw = await findCompoundsByIds(compoundIds);
+  // Fall back to the compound ID string if not found (e.g., seed data gap)
+  const compoundNames: Record<string, string> = Object.fromEntries(
+    compoundIds.map((id) => [id, compoundNamesRaw[id] ?? id])
   );
-  const compoundNames = Object.fromEntries(compoundEntries);
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">

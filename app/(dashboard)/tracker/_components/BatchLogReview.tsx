@@ -15,12 +15,21 @@ type ItemState = 'pending' | 'logged' | 'skipped' | 'failed';
 export function BatchLogReview({ items, compoundNames }: Props) {
   const [isPending, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(items.filter((i) => i.isAvailable && !i.existingLog).map((i) => i.protocol.id))
+    () =>
+      new Set(
+        items
+          .filter((i) => i.isAvailable && (!i.existingLog || i.existingLog.status === 'SKIPPED'))
+          .map((i) => i.protocol.id)
+      )
   );
   const [itemStates, setItemStates] = useState<Record<string, ItemState>>(() => {
     const s: Record<string, ItemState> = {};
     items.forEach((i) => {
-      s[i.protocol.id] = i.existingLog ? 'logged' : 'pending';
+      s[i.protocol.id] = !i.existingLog
+        ? 'pending'
+        : i.existingLog.status === 'LOGGED'
+          ? 'logged'
+          : 'skipped';
     });
     return s;
   });
@@ -133,6 +142,9 @@ export function BatchLogReview({ items, compoundNames }: Props) {
                   <p className="text-sm text-gray-900">
                     {compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId} — {item.protocol.dose.amount} {item.protocol.dose.unit}
                   </p>
+                  {state === 'skipped' && item.isAvailable && (
+                    <p className="text-xs text-yellow-700 mt-0.5">Previously skipped — log now?</p>
+                  )}
                   {!item.isAvailable && (
                     <p className="text-xs text-yellow-700 mt-0.5">No vials available — cannot batch-log</p>
                   )}

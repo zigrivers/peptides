@@ -926,6 +926,26 @@ describe('US-TRK-05: Batch Log', () => {
     expect((result.results[0] as { ok: false; error: string }).error).toMatch(/no_dose_scheduled/i);
   });
 
+  it('SKIPPED→LOGGED: batchLogDoses converts an existing SKIPPED log to LOGGED', async () => {
+    const skippedLog = { ...makeLogRow(proto1Id, 'log-skipped'), status: 'SKIPPED' };
+    mockProtocolFindFirst.mockResolvedValue(makeProtocolRow(proto1Id));
+    mockDoseLogFindFirst.mockResolvedValue(skippedLog); // idempotency check returns SKIPPED
+    mockVialCount.mockResolvedValue(2); // vials required even for SKIPPED→LOGGED
+    mockDoseLogUpdate.mockResolvedValue({ ...skippedLog, status: 'LOGGED' });
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results[0].ok).toBe(true);
+    expect(mockDoseLogCreate).not.toHaveBeenCalled(); // updateMany, not create
+    expect(mockDoseLogUpdate).toHaveBeenCalled();
+    expect(mockVialCount).toHaveBeenCalled(); // vial check enforced for SKIPPED→LOGGED
+  });
+
   // AC-3 (offline sync) deferred to Task 2.6
   it.todo('AC-3: queues batch log while offline');
 });

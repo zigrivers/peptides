@@ -101,6 +101,15 @@ export async function findCompoundById(id: string): Promise<{ name: string; slug
   });
 }
 
+export async function findCompoundsByIds(ids: string[]): Promise<Record<string, string>> {
+  if (ids.length === 0) return {};
+  const rows = await prisma.compound.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true },
+  });
+  return Object.fromEntries(rows.map((r) => [r.id, r.name]));
+}
+
 export async function listCompounds(opts?: { includeArchived?: boolean }): Promise<Compound[]> {
   const where: Prisma.CompoundWhereInput = {};
 

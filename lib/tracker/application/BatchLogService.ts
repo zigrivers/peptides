@@ -13,6 +13,7 @@ import {
   findDoseLogForDate,
   countActiveVialsForCompound,
   createDoseLog,
+  updateDoseLog,
 } from '../infrastructure/DoseLogRepo';
 import { getManagedUserIds } from './ProtocolService';
 import { isScheduledOn } from '../domain/ScheduleGenerator';
@@ -34,9 +35,10 @@ export async function getDueTodayForBatch(actorUserId: string): Promise<BatchDue
   const todayUTC = toUTCDay(now);
 
   const allProtocols = await listProtocolsForUser(prisma, actorUserId);
-  // Only include ACTIVE protocols that have a dose scheduled for today.
+  // Explicit ownership filter in addition to listProtocolsForUser's WHERE clause.
   const dueProtocols = allProtocols.filter(
     (p) =>
+      p.userId === actorUserId &&
       p.status === 'ACTIVE' &&
       isScheduledOn(p.schedule, p.startDate, p.endDate, todayUTC)
   );
@@ -80,18 +82,40 @@ async function logOneInBatch(
   const idempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, scheduledDate);
   const existing = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, subjectUserId);
 
-  if (existing) {
+  // Already LOGGED → idempotent early return; no vial check needed.
+  if (existing?.status === 'LOGGED') {
     return { doseLog: existing, warnings: [] };
   }
 
   // Block batch log when no vials available — do not create a LOGGED dose without inventory.
   const vialCount = await countActiveVialsForCompound(prisma, subjectUserId, protocol.compoundId);
-  const warnings: SafetyWarning[] = [];
   if (vialCount === 0) {
     throw new Error('insufficient_inventory: No reconstituted vials available for this compound');
   }
 
+  const warnings: SafetyWarning[] = [];
   const amount = protocol.dose;
+
+  // SKIPPED → LOGGED same-day edit via updateDoseLog
+  if (existing?.status === 'SKIPPED') {
+    const updated = await prisma.$transaction(async (tx) => {
+      const log = await updateDoseLog(tx, existing.id, subjectUserId, { status: 'LOGGED' });
+      await tx.auditEvent.create({
+        data: {
+          actorUserId,
+          subjectUserId,
+          category: 'Protocol',
+          action: 'DOSE_LOGGED',
+          resourceId: log.id,
+          resourceType: 'DoseLog',
+          oldValues: { status: 'SKIPPED' },
+          newValues: { status: 'LOGGED', isBatchLog: true },
+        },
+      });
+      return log;
+    });
+    return { doseLog: updated, warnings };
+  }
 
   try {
     const doseLog = await prisma.$transaction(async (tx) => {
