@@ -92,8 +92,8 @@
 
 | Feature | Why deferred |
 |---------|-------------|
-| AI Telegram response parser | Requires persistent Telegram read + AI parsing; v1 handles vendor reply manually. **v2 stub:** reads vendor's reply message from Telegram chat history, extracts confirmed total + wallet address + line items, pre-fills the payment confirmation screen. Requires: message-read MTProto scope, AI extraction layer (LLM or regex), idempotent order-update endpoint. |
-| Automated PubMed watch | Background AI job + notification system; not needed for personal-tool phase. **v2 stub:** user subscribes to compounds; background job queries PubMed API weekly for new papers mentioning subscribed compounds; sends email digest with titles, abstracts, and DOI links. Requires: PubMed API integration, background job runner, email digest template, notification preferences UI. |
+| AI Telegram response parser | Requires persistent Telegram read + AI parsing; v1 handles vendor reply manually. **v2 stub:** reads vendor's reply message from Telegram chat history, extracts confirmed total + wallet address + line items, pre-fills the payment confirmation screen. Requires: message-read MTProto scope, AI extraction layer (LLM or regex), idempotent order-update endpoint. Provider strategy and prompt-injection defenses are defined in **ADR-010**. |
+| Automated PubMed watch | Background AI job + notification system; not needed for personal-tool phase. **v2 stub:** user subscribes to compounds; background job queries PubMed API weekly for new papers mentioning subscribed compounds; sends email digest with titles, abstracts, and DOI links. Requires: PubMed API integration, background job runner, email digest template, notification preferences UI. Uses the Vercel AI SDK + Anthropic Claude (Haiku 4.5) per **ADR-010**. |
 | Lab data import + protocol correlation | High technical complexity; validates after core tracking is proven |
 | TRT/anabolic compound profiles | Same toolchain; v2 adds compound-type profiles and protocol templates |
 | Multi-vendor ordering | Single vendor first to validate the ordering flow |

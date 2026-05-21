@@ -202,7 +202,7 @@ What this product is NOT — and the traps to avoid:
 ### Year 1 success (depth-5 horizon: 12 months)
 - **Personal adoption locked in.** The Power User uses it daily. Spreadsheet is decommissioned.
 - **Family/friend adoption: 3-10 users.** Each has at least one active protocol configured by the Power User. They check in for their daily dose.
-- **Ordering loop closed end-to-end.** At least 20 successful orders placed through the app in v1 *guided-manual* mode (app composes the Telegram message and assembles the payment checklist; the user clicks send and pays). Full Telegram-bot automation is a v2 target — not required to hit the Year 1 metric.
+- **Ordering loop closed end-to-end.** At least 20 successful orders placed through the app. The PRD (`docs/plan.md` §5.4) supersedes the vision-level guided-manual framing with a v1 decision: **v1 ships full MTProto automation (the app's server sends the order message via the user's Telegram account)** with mandatory manual-fallback UX visible on every order screen. The 20-order Year 1 target can be hit in either mode, since `sendMethod` (Automated | ManualFallback) is captured per order — the metric counts successful orders regardless of send path.
 - **Reference depth: 30-50 peptides** with primary citations, dosing ranges, mechanism notes.
 
 ### Year 3 aspirations (if pursued past personal-tool stage)
