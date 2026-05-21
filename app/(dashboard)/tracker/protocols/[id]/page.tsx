@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { getProtocolById } from '@/lib/tracker/application/ProtocolService';
 import { getTodaysDoseLog } from '@/lib/tracker/application/DoseLogService';
 import { getSiteSuggestion } from '@/lib/tracker/application/SiteRotationService';
+import { getSitesForRoute } from '@/lib/tracker/domain/SiteRotation';
 import { findCompoundById } from '@/lib/reference/infrastructure/CompoundRepo';
 import { formatSchedule } from '@/lib/tracker/domain/formatters';
 import { ProtocolActions } from './_components/ProtocolActions';
@@ -21,10 +22,22 @@ export default async function ProtocolDetailPage({
   const protocol = await getProtocolById(id, session.user.id);
   if (!protocol) notFound();
 
+  // Compute today's date on the server so the client doesn't rely on its own clock.
+  const now = new Date();
+  const todayISO = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+
   const [compound, todaysDoseLog, siteData] = await Promise.all([
     findCompoundById(protocol.compoundId),
     protocol.status === 'ACTIVE' ? getTodaysDoseLog(session.user.id, id) : Promise.resolve(null),
-    protocol.status === 'ACTIVE' ? getSiteSuggestion(session.user.id, id).catch(() => null) : Promise.resolve(null),
+    protocol.status === 'ACTIVE'
+      ? getSiteSuggestion(session.user.id, id).catch(() => {
+          // History lookup failed; fall back to route-valid sites with no suggestion so the
+          // picker remains available for injectable protocols.
+          const validSites = getSitesForRoute(protocol.administrationRoute);
+          if (validSites.length === 0) return null;
+          return { suggestion: null, validSites, siteMeta: [], recentSites: [] };
+        })
+      : Promise.resolve(null),
   ]);
 
   const statusColors: Record<string, string> = {
@@ -96,6 +109,7 @@ export default async function ProtocolDetailPage({
           <DoseLogActions
             protocolId={protocol.id}
             amount={protocol.dose}
+            todayISO={todayISO}
             existingStatus={todaysDoseLog?.status as 'LOGGED' | 'SKIPPED' | undefined}
             existingInjectionSite={todaysDoseLog?.injectionSite ?? null}
             siteData={siteData ?? undefined}

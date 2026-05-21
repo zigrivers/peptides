@@ -16,19 +16,11 @@ type SiteData = {
 type Props = {
   protocolId: string;
   amount: DoseAmount;
+  todayISO: string;
   existingStatus?: 'LOGGED' | 'SKIPPED';
   existingInjectionSite?: InjectionSite | null;
   siteData?: SiteData;
 };
-
-// Compute today's UTC date at call time so it stays fresh even if the tab is left open past midnight.
-function todayUTCISO(): string {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
-  const d = String(now.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 
 function formatSiteLabel(site: InjectionSite): string {
   const side = site.side.charAt(0).toUpperCase() + site.side.slice(1);
@@ -105,7 +97,7 @@ function SitePicker({
   );
 }
 
-export function DoseLogActions({ protocolId, amount, existingStatus, existingInjectionSite, siteData }: Props) {
+export function DoseLogActions({ protocolId, amount, todayISO, existingStatus, existingInjectionSite, siteData }: Props) {
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<'LOGGED' | 'SKIPPED' | null>(existingStatus ?? null);
   // For existing LOGGED entries, initialize to the recorded site; fall back to suggestion for new logs.
@@ -125,7 +117,7 @@ export function DoseLogActions({ protocolId, amount, existingStatus, existingInj
       setError('Please select an injection site.');
       return;
     }
-    const scheduledDate = todayUTCISO();
+    const scheduledDate = todayISO;
     startTransition(async () => {
       const result = await logDoseAction({
         protocolId,

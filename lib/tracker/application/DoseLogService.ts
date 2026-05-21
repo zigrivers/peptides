@@ -104,14 +104,17 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
       (existing.injectionSite === null ||
         !sitesEqual(input.injectionSite, existing.injectionSite as InjectionSite));
 
-    if (existing.status === input.status && !injectionSiteChanged) {
+    // Also update when a SKIPPED log somehow has a stale non-null site (defensive).
+    const siteNeedsClearing = input.status === 'SKIPPED' && existing.injectionSite !== null;
+
+    if (existing.status === input.status && !injectionSiteChanged && !siteNeedsClearing) {
       return { doseLog: existing, warnings };
     }
     // Same-calendar-day edit: update status and/or injection site.
     const updated = await prisma.$transaction(async (tx) => {
       const log = await updateDoseLog(tx, existing.id, subjectUserId, {
         status: input.status,
-        // Clear site and vial when switching to SKIPPED; preserve or override when LOGGED.
+        // Explicitly null for SKIPPED; preserve or override for LOGGED.
         injectionSite: input.status === 'SKIPPED' ? null : (input.injectionSite ?? existing.injectionSite),
         note: input.note ?? existing.note,
         vialId: input.status === 'SKIPPED' ? null : (input.vialId ?? existing.vialId),
@@ -124,8 +127,8 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
           action: input.status === 'SKIPPED' ? 'DOSE_SKIPPED' : 'DOSE_LOGGED',
           resourceId: log.id,
           resourceType: 'DoseLog',
-          oldValues: { status: existing.status },
-          newValues: { status: input.status },
+          oldValues: { status: existing.status, injectionSite: existing.injectionSite ?? null },
+          newValues: { status: input.status, injectionSite: log.injectionSite ?? null },
         },
       });
       return log;
