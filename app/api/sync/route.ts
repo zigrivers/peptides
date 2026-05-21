@@ -1,15 +1,20 @@
+import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { logDose } from '@/lib/tracker/application/DoseLogService';
 
-type SyncEntry = {
-  id: string;
-  protocolId: string;
-  scheduledDate: string;
-  amount: { amount: string; unit: 'mcg' | 'mg' | 'IU' | 'mL' };
-  status: 'LOGGED' | 'SKIPPED';
-};
+const syncEntrySchema = z.object({
+  id: z.string(),
+  protocolId: z.string(),
+  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  amount: z.object({
+    amount: z.string(),
+    unit: z.enum(['mcg', 'mg', 'IU', 'mL']),
+  }),
+  status: z.enum(['LOGGED', 'SKIPPED']),
+});
 
+type SyncEntry = z.infer<typeof syncEntrySchema>;
 type EntryResult = { id: string; ok: true } | { id: string; ok: false; error: string };
 
 export async function POST(req: Request): Promise<NextResponse> {
@@ -27,11 +32,13 @@ export async function POST(req: Request): Promise<NextResponse> {
   }
 
   const results: EntryResult[] = await Promise.all(
-    (entries as unknown[]).map(async (raw): Promise<EntryResult> => {
-      if (!raw || typeof raw !== 'object' || !('id' in raw)) {
-        return { id: String((raw as Record<string, unknown>)?.id ?? 'unknown'), ok: false, error: 'Invalid entry format' };
+    entries.map(async (raw): Promise<EntryResult> => {
+      const parsed = syncEntrySchema.safeParse(raw);
+      if (!parsed.success) {
+        const id = raw && typeof raw === 'object' && 'id' in raw ? String((raw as Record<string, unknown>).id) : 'unknown';
+        return { id, ok: false, error: 'Invalid entry format' };
       }
-      const entry = raw as SyncEntry;
+      const entry: SyncEntry = parsed.data;
       try {
         await logDose({
           actorUserId,
@@ -40,10 +47,10 @@ export async function POST(req: Request): Promise<NextResponse> {
           amount: entry.amount,
           status: entry.status,
         });
-        return { id: entry.id, ok: true };
+        return { id: String(entry.id), ok: true };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'sync_error';
-        return { id: entry.id, ok: false, error: message };
+        return { id: String(entry.id), ok: false, error: message };
       }
     })
   );
