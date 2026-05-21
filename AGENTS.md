@@ -9,8 +9,8 @@ You are the automated code reviewer for the Peptides project. Your goal is to en
     - `findByEmailForAuth`: Pre-authentication email lookup; cannot be scoped by userId because this IS the query that establishes the userId. Approved boundary — selects only `id`, `email`, `passwordHash`, `role`, `status`.
   - **Exception** — ALL methods in `lib/auth/infrastructure/PasswordResetRepo.ts` are explicitly exempt (pre-auth boundary — see inline JSDoc for the security justification):
     - `create`: Scoped to userId (derived from a prior AuthRepository lookup).
-    - `findByRawToken`: Pre-auth lookup by SHA-256 token hash — unforgeable; returns only `used`, `expiresAt`, `userId`.
-    - `claimToken`: Atomically marks the token used via `updateMany` with a tokenHash predicate. The 256-bit random hash is functionally equivalent to userId scoping — only the holder of the email link can provide it. Fallback `findUnique` is used for error disambiguation only.
+    - `findByRawToken`: Pre-auth lookup by SHA-256 token hash — unforgeable; returns only `id`, `userId`, `used`, `expiresAt`.
+    - `claimById`: userId-scoped `updateMany WHERE { id, userId, used: false }` — fully scoped. Called inside the transaction after `findByRawToken` supplies the id + userId.
     - `markUsed`: Includes userId in the predicate (defense-in-depth).
     - No other files may skip userId scoping.
 - **Audit Logging**: If a Server Action mutation lacks an `AuditEvent` write, mark as **P1**.

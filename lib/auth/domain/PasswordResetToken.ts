@@ -3,7 +3,6 @@ import crypto from 'crypto';
 export interface PasswordResetTokenRecord {
   id: string;
   userId: string;
-  tokenHash: string;
   expiresAt: Date;
   used: boolean;
 }

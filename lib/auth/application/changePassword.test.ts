@@ -23,7 +23,9 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockFindUnique.mockImplementation(() => Promise.resolve({ passwordHash: CURRENT_HASH }));
+  mockFindUnique.mockImplementation(() =>
+    Promise.resolve({ passwordHash: CURRENT_HASH, passwordVersion: 1 })
+  );
   mockWithAudit.mockImplementation(async (mutation, _audit) =>
     mutation({ user: { update: mockUpdate } })
   );
@@ -45,8 +47,6 @@ describe('changePassword', () => {
   });
 
   it('AC field-leak: throws current_password_invalid even when new password is too short', async () => {
-    // Wrong current password + short new password → must throw current_password_invalid,
-    // not password_too_short (security §3.2 field-leak prevention).
     await expect(
       changePassword({ userId: 'u1', currentPassword: 'WrongPassword!', newPassword: 'short' })
     ).rejects.toThrow('current_password_invalid');
@@ -64,16 +64,29 @@ describe('changePassword', () => {
     ).rejects.toThrow('password_same_as_current');
   });
 
-  it('resolves with otherSessionsRevoked: 0 and calls withAudit on success', async () => {
+  it('resolves with otherSessionsRevoked: 1 and increments passwordVersion', async () => {
     const result = await changePassword({
       userId: 'u1',
       currentPassword: 'CurrentPass123',
       newPassword: 'BrandNewPass789',
     });
-    expect(result.otherSessionsRevoked).toBe(0);
+    expect(result.otherSessionsRevoked).toBe(1);
     expect(mockWithAudit).toHaveBeenCalledWith(
       expect.any(Function),
       expect.objectContaining({ action: 'PASSWORD_CHANGED', actorUserId: 'u1' })
+    );
+  });
+
+  it('increments passwordVersion in the DB update', async () => {
+    await changePassword({
+      userId: 'u1',
+      currentPassword: 'CurrentPass123',
+      newPassword: 'BrandNewPass789',
+    });
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ passwordVersion: { increment: 1 } }),
+      })
     );
   });
 });
