@@ -10,6 +10,7 @@ export interface ReconstitutionResult {
   concentrationMgPerMl: Decimal;
   concentrationMcgPerMl: Decimal;
   injectionVolMl: Decimal;
+  /** Units on a U-100 insulin syringe (1 unit = 0.01mL; 100 units = 1mL). */
   syringeUnitsPerDose: Decimal;
 }
 
@@ -21,7 +22,7 @@ export interface ReconstitutionResult {
  *   concentrationMgPerMl  = totalMg / bacWaterMl
  *   concentrationMcgPerMl = concentrationMgPerMl × 1000
  *   injectionVolMl        = targetDoseMcg / concentrationMcgPerMl
- *   syringeUnitsPerDose   = injectionVolMl × 100  (1 unit = 0.01mL on a 100-unit syringe)
+ *   syringeUnitsPerDose   = injectionVolMl × 100  (U-100 insulin syringe: 1 unit = 0.01mL)
  *
  * Invariant verified by property-based test: concentrationMcgPerMl × injectionVolMl = targetDoseMcg
  */

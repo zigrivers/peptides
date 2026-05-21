@@ -70,6 +70,21 @@ describe('WarningPolicy.evaluate', () => {
     });
   });
 
+  describe('EXCEEDS_VIAL_CAPACITY', () => {
+    it('triggers when injectionVolMl > bacWaterMl (physically impossible draw)', () => {
+      // e.g., 500mL target injection from a vial with only 2mL BAC water
+      expect(evaluate('3', '2', '100')).toContain('EXCEEDS_VIAL_CAPACITY');
+    });
+
+    it('does NOT trigger when injectionVolMl equals bacWaterMl (boundary)', () => {
+      expect(evaluate('2', '2', '100')).not.toContain('EXCEEDS_VIAL_CAPACITY');
+    });
+
+    it('does NOT trigger when injectionVolMl is safely below bacWaterMl', () => {
+      expect(evaluate('0.1', '2', '100')).not.toContain('EXCEEDS_VIAL_CAPACITY');
+    });
+  });
+
   describe('multiple warnings', () => {
     it('can trigger HIGH_VOLUME and LOW_BAC_VOLUME simultaneously', () => {
       const warnings = evaluate('1.6', '0.4', '100');

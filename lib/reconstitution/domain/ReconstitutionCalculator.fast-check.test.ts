@@ -8,11 +8,11 @@ import { ReconstitutionCalculator } from './ReconstitutionCalculator';
  * "The reconstitution calculator MUST have at least one property test that asserts
  *  concentration × injectionVolume === totalDose across randomized inputs."
  *
- * Using fc.double with Math.fround-converted bounds (fast-check 4.x requires 32-bit
- * float boundaries for fc.float; fc.double accepts standard doubles).
+ * Inputs use raw double precision from fast-check to maximise the search space.
+ * Comparison is bounded at 8 decimal places to absorb accumulated rounding from
+ * Decimal.js division when input values have repeating decimal expansions.
  */
 describe('ReconstitutionCalculator — property-based tests', () => {
-  // Positive-range double arbitraries with reasonable domain bounds
   const positiveMg = fc.double({ min: 0.001, max: 100, noNaN: true, noDefaultInfinity: true });
   const positiveVol = fc.double({ min: 0.001, max: 10, noNaN: true, noDefaultInfinity: true });
   const positiveDose = fc.double({ min: 0.001, max: 10000, noNaN: true, noDefaultInfinity: true });
@@ -20,15 +20,18 @@ describe('ReconstitutionCalculator — property-based tests', () => {
   it('concentrationMcgPerMl × injectionVolMl = targetDoseMcg for all valid inputs', () => {
     fc.assert(
       fc.property(positiveMg, positiveVol, positiveDose, (totalMgRaw, bacWaterMlRaw, targetDoseMcgRaw) => {
-        const totalMg = new Decimal(totalMgRaw.toFixed(6));
-        const bacWaterMl = new Decimal(bacWaterMlRaw.toFixed(6));
-        const targetDoseMcg = new Decimal(targetDoseMcgRaw.toFixed(6));
+        const totalMg = new Decimal(totalMgRaw);
+        const bacWaterMl = new Decimal(bacWaterMlRaw);
+        const targetDoseMcg = new Decimal(targetDoseMcgRaw);
 
         const result = ReconstitutionCalculator.calculate({ totalMg, bacWaterMl, targetDoseMcg });
 
-        // Core identity: concentration × volume = dose
+        // concentrationMcgPerMl = totalMg × 1000 / bacWaterMl
+        // injectionVolMl        = targetDoseMcg / concentrationMcgPerMl
+        // → concentration × volume = targetDoseMcg (mathematical identity)
         const reconstructed = result.concentrationMcgPerMl.times(result.injectionVolMl);
-        expect(reconstructed.toDecimalPlaces(4).eq(targetDoseMcg.toDecimalPlaces(4))).toBe(true);
+        // 8 d.p. tolerance absorbs rounding from repeating-decimal intermediates
+        expect(reconstructed.toDecimalPlaces(8).eq(targetDoseMcg.toDecimalPlaces(8))).toBe(true);
       }),
       { numRuns: 500 }
     );
@@ -38,14 +41,14 @@ describe('ReconstitutionCalculator — property-based tests', () => {
     fc.assert(
       fc.property(positiveMg, positiveVol, positiveDose, (totalMgRaw, bacWaterMlRaw, targetDoseMcgRaw) => {
         const result = ReconstitutionCalculator.calculate({
-          totalMg: new Decimal(totalMgRaw.toFixed(6)),
-          bacWaterMl: new Decimal(bacWaterMlRaw.toFixed(6)),
-          targetDoseMcg: new Decimal(targetDoseMcgRaw.toFixed(6)),
+          totalMg: new Decimal(totalMgRaw),
+          bacWaterMl: new Decimal(bacWaterMlRaw),
+          targetDoseMcg: new Decimal(targetDoseMcgRaw),
         });
 
         const expectedUnits = result.injectionVolMl.times(100);
         expect(
-          result.syringeUnitsPerDose.toDecimalPlaces(6).eq(expectedUnits.toDecimalPlaces(6))
+          result.syringeUnitsPerDose.toDecimalPlaces(10).eq(expectedUnits.toDecimalPlaces(10))
         ).toBe(true);
       }),
       { numRuns: 500 }

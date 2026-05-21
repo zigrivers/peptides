@@ -76,6 +76,17 @@ describe('US-REC-01: Calculate Reconstitution', () => {
     expect(typed).toHaveLength(0);
   });
 
+  it('AC-3d: triggers EXCEEDS_VIAL_CAPACITY warning when injection volume exceeds BAC water volume', () => {
+    const warnings = WarningPolicy.evaluate({
+      injectionVolMl: new Decimal('3'),
+      bacWaterMl: new Decimal('2'),
+      targetDoseMcg: new Decimal('250'),
+      profileHighMcg: undefined,
+    });
+
+    expect(warnings.includes('EXCEEDS_VIAL_CAPACITY')).toBe(true);
+  });
+
   it('Negative: rejects zero BAC water volume', () => {
     expect(() =>
       ReconstitutionCalculator.calculate({

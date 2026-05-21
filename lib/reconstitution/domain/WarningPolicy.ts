@@ -1,6 +1,10 @@
 import Decimal from 'decimal.js';
 
-export type WarningType = 'HIGH_VOLUME' | 'LOW_BAC_VOLUME' | 'ABOVE_REFERENCE_RANGE';
+export type WarningType =
+  | 'HIGH_VOLUME'
+  | 'LOW_BAC_VOLUME'
+  | 'ABOVE_REFERENCE_RANGE'
+  | 'EXCEEDS_VIAL_CAPACITY';
 
 const HIGH_VOLUME_THRESHOLD_ML = new Decimal('1.5');
 const LOW_BAC_THRESHOLD_ML = new Decimal('0.5');
@@ -30,6 +34,11 @@ export const WarningPolicy = {
 
     if (input.profileHighMcg !== undefined && input.targetDoseMcg.gt(input.profileHighMcg)) {
       warnings.push('ABOVE_REFERENCE_RANGE');
+    }
+
+    // Physical impossibility: cannot draw more volume than was added as BAC water.
+    if (input.injectionVolMl.gt(input.bacWaterMl)) {
+      warnings.push('EXCEEDS_VIAL_CAPACITY');
     }
 
     return warnings;
