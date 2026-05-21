@@ -10,7 +10,7 @@ const mockDoseLogCreate = vi.fn();
 const mockDoseLogFindFirst = vi.fn();
 const mockDoseLogUpdate = vi.fn();
 const mockVialCount = vi.fn();
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
@@ -546,6 +546,11 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
  * Story: US-TRK-03 — Individual Dose Logging
  */
 describe('US-TRK-03: Individual Dose Logging', () => {
+  // Freeze time so "today" and "tomorrow" remain stable regardless of when tests run.
+  const FROZEN_NOW = new Date(Date.UTC(2026, 4, 21)); // 2026-05-21
+  beforeEach(() => { vi.setSystemTime(FROZEN_NOW); });
+  afterAll(() => { vi.useRealTimers(); });
+
   const logActorUserId = 'user-1';
   const logProtocolId = 'proto-1';
   const logCompoundId = 'compound-bpc157';

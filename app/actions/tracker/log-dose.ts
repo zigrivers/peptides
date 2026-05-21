@@ -1,37 +1,48 @@
 'use server';
 
+import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { logDose } from '@/lib/tracker/application/DoseLogService';
-import type { DoseLog, SafetyWarning, DoseAmount, DoseLogStatus, InjectionSite } from '@/lib/tracker/domain/types';
+import type { DoseLog, SafetyWarning } from '@/lib/tracker/domain/types';
 
-type LogDoseActionInput = {
-  protocolId: string;
-  scheduledDate: string; // ISO date string YYYY-MM-DD
-  amount: DoseAmount;
-  status: DoseLogStatus;
-  injectionSite?: InjectionSite;
-  note?: string;
-  vialId?: string;
-};
+const InjectionSiteSchema = z.object({
+  bodyPart: z.string().min(1),
+  side: z.enum(['left', 'right']),
+});
+
+const InputSchema = z.object({
+  protocolId: z.string().min(1),
+  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  amount: z.object({
+    amount: z.string(),
+    unit: z.enum(['mcg', 'mg', 'IU', 'mL']),
+  }),
+  status: z.enum(['LOGGED', 'SKIPPED']),
+  injectionSite: InjectionSiteSchema.optional(),
+  note: z.string().max(1000).optional(),
+  vialId: z.string().optional(),
+});
 
 type LogDoseActionResult =
   | { ok: true; doseLog: DoseLog; warnings: SafetyWarning[] }
   | { ok: false; error: string; message: string };
 
-export async function logDoseAction(input: LogDoseActionInput): Promise<LogDoseActionResult> {
+export async function logDoseAction(input: unknown): Promise<LogDoseActionResult> {
   const session = await auth();
   if (!session?.user?.id) {
     return { ok: false, error: 'unauthorized', message: 'You must be signed in.' };
   }
 
+  const parsed = InputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: 'invalid_input', message: parsed.error.issues[0]?.message ?? 'Invalid input.' };
+  }
+
+  const { protocolId, scheduledDate: scheduledDateStr, amount, status, injectionSite, note, vialId } = parsed.data;
   const actorUserId = session.user.id;
 
-  const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.scheduledDate);
-  if (!dateParts) {
-    return { ok: false, error: 'invalid_date', message: 'scheduledDate must be a valid YYYY-MM-DD date.' };
-  }
-  const [, y, m, d] = dateParts.map(Number);
+  const [, y, m, d] = /^(\d{4})-(\d{2})-(\d{2})$/.exec(scheduledDateStr)!.map(Number);
   const scheduledDate = new Date(Date.UTC(y, m - 1, d));
   // Verify JS did not normalize an impossible date (e.g. 2026-02-31 → 2026-03-03)
   if (
@@ -46,16 +57,16 @@ export async function logDoseAction(input: LogDoseActionInput): Promise<LogDoseA
   try {
     const result = await logDose({
       actorUserId,
-      protocolId: input.protocolId,
+      protocolId,
       scheduledDate,
-      amount: input.amount,
-      status: input.status,
-      injectionSite: input.injectionSite,
-      note: input.note,
-      vialId: input.vialId,
+      amount,
+      status,
+      injectionSite,
+      note,
+      vialId,
     });
 
-    revalidatePath(`/tracker/protocols/${input.protocolId}`);
+    revalidatePath(`/tracker/protocols/${protocolId}`);
     revalidatePath('/tracker');
     revalidatePath('/dashboard');
 
@@ -67,6 +78,9 @@ export async function logDoseAction(input: LogDoseActionInput): Promise<LogDoseA
     }
     if (/protocol not found/i.test(msg)) {
       return { ok: false, error: 'protocol_not_found', message: msg };
+    }
+    if (/protocol is not active/i.test(msg)) {
+      return { ok: false, error: 'protocol_not_active', message: msg };
     }
     return { ok: false, error: 'unknown', message: msg };
   }

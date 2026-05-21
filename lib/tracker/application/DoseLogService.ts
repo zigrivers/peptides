@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 import type { LogDoseInput, LogDoseResult, SafetyWarning, DoseLog } from '../domain/types';
@@ -9,6 +10,7 @@ import {
   countActiveVialsForCompound,
 } from '../infrastructure/DoseLogRepo';
 import { findProtocolByIdForActor } from '../infrastructure/ProtocolRepo';
+import { getManagedUserIds } from './ProtocolService';
 
 function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date): string {
   const dateStr = scheduledDate.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -45,11 +47,15 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
     input.scheduledDate
   );
 
+  const managedIds = await getManagedUserIds(input.actorUserId);
   const existing = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, input.actorUserId);
 
-  const protocol = await findProtocolByIdForActor(prisma, input.protocolId, input.actorUserId, []);
+  const protocol = await findProtocolByIdForActor(prisma, input.protocolId, input.actorUserId, managedIds);
   if (!protocol) {
     throw new Error(`Protocol not found: ${input.protocolId}`);
+  }
+  if (protocol.status !== 'ACTIVE') {
+    throw new Error(`Protocol is not active: ${input.protocolId}`);
   }
 
   // Always check inventory; warnings apply to both new logs and same-day edits to LOGGED.
@@ -61,22 +67,26 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
     }
   }
 
+  // doseLog.userId is the protocol owner (the subject), not necessarily the actor.
+  const subjectUserId = protocol.userId;
+
   if (existing) {
     if (existing.status === input.status) {
       return { doseLog: existing, warnings };
     }
     // Same-calendar-day edit: update the existing log to the new status.
     const updated = await prisma.$transaction(async (tx) => {
-      const log = await updateDoseLog(tx, existing.id, input.actorUserId, {
+      const log = await updateDoseLog(tx, existing.id, subjectUserId, {
         status: input.status,
-        injectionSite: input.injectionSite ?? existing.injectionSite,
+        // Clear site and vial when switching to SKIPPED; preserve or override when LOGGED.
+        injectionSite: input.status === 'SKIPPED' ? null : (input.injectionSite ?? existing.injectionSite),
         note: input.note ?? existing.note,
-        vialId: input.vialId ?? existing.vialId,
+        vialId: input.status === 'SKIPPED' ? null : (input.vialId ?? existing.vialId),
       });
       await tx.auditEvent.create({
         data: {
           actorUserId: input.actorUserId,
-          subjectUserId: input.actorUserId,
+          subjectUserId,
           category: 'Protocol',
           action: input.status === 'SKIPPED' ? 'DOSE_SKIPPED' : 'DOSE_LOGGED',
           resourceId: log.id,
@@ -93,39 +103,48 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
   // Use the protocol's scheduled dose amount as the authoritative amount.
   const amount = protocol.dose;
 
-  const doseLog = await prisma.$transaction(async (tx) => {
-    const log = await createDoseLog(tx, {
-      protocolId: input.protocolId,
-      userId: input.actorUserId,
-      idempotencyKey,
-      scheduledDate: toUTCDay(input.scheduledDate),
-      amount,
-      status: input.status,
-      injectionSite: input.injectionSite,
-      note: input.note,
-      vialId: input.vialId,
-      loggedByUserId: input.actorUserId,
-    });
+  try {
+    const doseLog = await prisma.$transaction(async (tx) => {
+      const log = await createDoseLog(tx, {
+        protocolId: input.protocolId,
+        userId: subjectUserId,
+        idempotencyKey,
+        scheduledDate: toUTCDay(input.scheduledDate),
+        amount,
+        status: input.status,
+        injectionSite: input.injectionSite,
+        note: input.note,
+        vialId: input.vialId,
+        loggedByUserId: input.actorUserId,
+      });
 
-    await tx.auditEvent.create({
-      data: {
-        actorUserId: input.actorUserId,
-        subjectUserId: input.actorUserId,
-        category: 'Protocol',
-        action: input.status === 'SKIPPED' ? 'DOSE_SKIPPED' : 'DOSE_LOGGED',
-        resourceId: log.id,
-        resourceType: 'DoseLog',
-        newValues: {
-          protocolId: input.protocolId,
-          scheduledDate: log.scheduledDate.toISOString(),
-          status: input.status,
-          amount: amount as unknown as JsonValue,
+      await tx.auditEvent.create({
+        data: {
+          actorUserId: input.actorUserId,
+          subjectUserId,
+          category: 'Protocol',
+          action: input.status === 'SKIPPED' ? 'DOSE_SKIPPED' : 'DOSE_LOGGED',
+          resourceId: log.id,
+          resourceType: 'DoseLog',
+          newValues: {
+            protocolId: input.protocolId,
+            scheduledDate: log.scheduledDate.toISOString(),
+            status: input.status,
+            amount: amount as unknown as JsonValue,
+          },
         },
-      },
+      });
+
+      return log;
     });
 
-    return log;
-  });
-
-  return { doseLog, warnings };
+    return { doseLog, warnings };
+  } catch (err) {
+    // Concurrent create hit the @@unique([userId, protocolId, scheduledDate]) constraint.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      const winner = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, subjectUserId);
+      if (winner) return { doseLog: winner, warnings };
+    }
+    throw err;
+  }
 }
