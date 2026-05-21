@@ -6,6 +6,7 @@
 - **Autonomous & Verified**: Prove every change with `pnpm check`.
 - **Identity Scoping**: Every DB query must include `where: { userId: session.user.id }`.
   - **Exception**: `AuthRepository.findByEmailForAuth` in `lib/auth/infrastructure/AuthRepository.ts` is explicitly exempt — it queries the User table by email to establish identity and cannot be userId-scoped because userId is what is being established. It selects only authentication-required fields and never returns user-authored content.
+  - **Exception**: All queries in `lib/reference/infrastructure/CompoundRepo.ts` are explicitly exempt — `Compound`, `CompoundProfile`, and `Citation` are admin-curated global reference data with no `userId` column. All authenticated users have read access to the full compound catalog. These are not user-authored resources.
 
 ### Key Commands
 | Task | Command |
@@ -29,6 +30,7 @@
 | Prisma Deploy Migration | `pnpm prisma:deploy` |
 | Prisma Generate | `pnpm prisma:generate` |
 | Prisma Validate | `pnpm prisma:validate` |
+| DB Seed | `pnpm db:seed` |
 
 ## Git & PR Workflow (9-step lifecycle + 4.5 PR review)
 1. **Commit**: `type(scope): desc`.

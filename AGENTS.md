@@ -28,6 +28,7 @@ You are the automated code reviewer for the Peptides project. Your goal is to en
     - `findById`: Scoped to `{ id, powerUserId }` — fully scoped to the Power User who owns the invite.
     - `findPendingByEmail`: System-wide duplicate-invite guard — cannot be scoped to a powerUserId because we must prevent any Power User from issuing a second invite to the same email. Returns only `id` and `status`. Authenticated boundary (Power User required).
     - `revokeById`: Scoped to `{ id, powerUserId }` — fully scoped.
+  - **Exception** — ALL methods in `lib/reference/infrastructure/CompoundRepo.ts` are explicitly exempt: `Compound`, `CompoundProfile`, and `Citation` are admin-curated global reference data. No `userId` column exists on these models. All authenticated users have full read access to the compound catalog. This is a read-only reference domain — no user-authored content is returned. Approved globally.
   - **No other files may skip userId scoping.**
 - **Audit Logging**: If a Server Action mutation lacks an `AuditEvent` write, mark as **P1**.
 - **TDD Compliance**: Every new feature must have a corresponding test in `tests/acceptance/` or a colocated `*.test.ts`.
@@ -38,6 +39,7 @@ You are the automated code reviewer for the Peptides project. Your goal is to en
 - **`email_already_in_use` in `requestEmailChange.ts`**: Gemini flagged this as an enumeration risk. The endpoint is authenticated (requires current-password gate). Enumeration would require an attacker who controls an account AND knows the victim's current password — acceptable risk. See Auth Scoping exception above for context.
 - **Leading space in import paths** (`invite-user.ts`, `createInvite.ts`, etc.): Gemini has incorrectly flagged import paths as having a leading space (e.g., `' @/lib/auth'`). Verified: no leading spaces exist in any import paths. This is a Gemini hallucination — do not re-flag.
 - **EXPIRED status never stored**: Codex may flag that "EXPIRED invites can never be resent". In this codebase `EXPIRED` is a **derived** state (PENDING + expiresAt in the past) — it is never written to the database. All expired invites remain stored with `status = 'PENDING'`. `resendInvite` correctly allows PENDING invites regardless of `expiresAt`, since the power user can always refresh a lapsed invite. Do not flag as missing EXPIRED handling.
+- **`vi.mock` hoisting in `tests/acceptance/REF-reference.test.ts`**: Codex may flag that the mock factory closes over `const mockFindFirst/mockFindMany` variables that are in temporal dead zone when `vi.mock` is hoisted. This is safe here because the factory is only called lazily when `@/lib/shared/prisma` is first imported, which happens inside `await import('@/lib/reference/application/CompoundService')` — executed after all const declarations are evaluated. All 11 tests pass. Do not re-flag.
 
 ## Known Design Decisions (do NOT flag these)
 

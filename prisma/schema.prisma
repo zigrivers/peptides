@@ -170,13 +170,15 @@ model EmailChangeRequest {
 model Compound {
   id                  String    @id @default(uuid())
   name                String    @unique
+  slug                String    @unique
   iupacName           String?
   synonyms            String[]
   mechanismOfAction   String?
   administrationRoutes String[]
   status              String    @default("PUBLISHED")
+  tags                String[]  @default([]) // e.g. ["healing","weight-loss","longevity"]
   archivedAt          DateTime?
-  
+
   profile             CompoundProfile?
   products            VendorProduct[]
   protocols           Protocol[]
