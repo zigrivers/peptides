@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { advanceOnboardingStep, dismissOnboarding, getOnboardingState } from '@/lib/auth/application/onboarding';
 
@@ -33,6 +34,9 @@ export async function advanceOnboardingAction(nextStep: unknown): Promise<Onboar
 
   try {
     await advanceOnboardingStep(session.user.id, parsed.data);
+    // Invalidate the dashboard RSC cache so the checklist disappears immediately
+    // when the user is redirected back after completing onboarding.
+    revalidatePath('/dashboard');
     return { ok: true };
   } catch (err) {
     console.error('[advanceOnboardingAction] error:', err);
