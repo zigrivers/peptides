@@ -43,9 +43,9 @@ describe('US-AUT-03: User Registration and Login', () => {
   });
 
   it('AC-2: uses httpOnly session cookies with 30-day rolling expiry', () => {
-    // Strategy: 'database' means session token is stored server-side;
-    // only a short-lived httpOnly cookie is sent to the client.
-    expect(authConfig.session.strategy).toBe('database');
+    // Strategy: 'jwt' — signed JWT stored in an httpOnly cookie (no DB per request).
+    // Credentials provider requires jwt strategy in Auth.js v5 beta.
+    expect(authConfig.session.strategy).toBe('jwt');
     expect(authConfig.session.maxAge).toBe(30 * 24 * 60 * 60);
     expect(authConfig.cookies?.sessionToken?.options?.httpOnly).toBe(true);
     expect(authConfig.cookies?.sessionToken?.options?.sameSite).toBe('strict');
