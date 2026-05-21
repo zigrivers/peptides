@@ -12,6 +12,7 @@ declare module 'next-auth' {
 
   interface User {
     role?: string;
+    passwordVersion?: number;
   }
 }
 
@@ -19,5 +20,7 @@ declare module 'next-auth/jwt' {
   interface JWT {
     id?: string;
     role?: string | null;
+    /** Incremented on password change to invalidate stale JWT sessions (Task 1.4). */
+    passwordVersion?: number;
   }
 }

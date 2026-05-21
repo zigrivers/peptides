@@ -33,18 +33,29 @@ export const authConfig = {
   },
   callbacks: {
     jwt({ token, user }) {
-      // Only runs on sign-in; subsequent requests return the existing token.
+      // Only runs on sign-in in this edge config; subsequent requests return the
+      // existing token unchanged (no Prisma available in edge runtime).
+      //
+      // Password-version revocation is a two-layer model:
+      // Layer 1 (edge middleware, here): verifies token signature + required claims.
+      //   Stale JWTs pass through until Layer 2 updates the cookie.
+      // Layer 2 (node runtime, lib/auth/index.ts): on every auth() call, compares
+      //   token.passwordVersion against DB. On mismatch, strips id/role/passwordVersion
+      //   and writes an updated cookie — subsequent middleware requests then see
+      //   a token without id and redirect to login.
+      // Net effect: revocation propagates within one server-component render.
       if (user) {
         token.id = user.id;
         token.role = user.role ?? null;
+        token.passwordVersion = (user as { passwordVersion?: number }).passwordVersion ?? 1;
       }
       return token;
     },
     session({ session, token }) {
       if (!token.id || !token.role) {
-        // Token predates required claims or is malformed — return base session
-        // without id/role augmentation. Middleware denies access when user.id
-        // is absent (checked via req.auth?.user?.id).
+        // Token predates required claims, is malformed, or was revoked by Layer 2
+        // (id/role stripped on passwordVersion mismatch). Return base session without
+        // id/role — middleware treats req.auth?.user?.id as absent → redirects to login.
         return session;
       }
       return {

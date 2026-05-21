@@ -23,7 +23,7 @@ export const AuthRepository = {
   async findByEmailForAuth(email: string) {
     return prisma.user.findFirst({
       where: { email: { equals: email, mode: 'insensitive' } },
-      select: { id: true, email: true, passwordHash: true, role: true, status: true },
+      select: { id: true, email: true, passwordHash: true, passwordVersion: true, role: true, status: true },
     });
   },
 };

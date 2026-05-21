@@ -38,12 +38,48 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ph = PasswordHash.fromHash(user.passwordHash);
         const valid = await ph.verify(credentials.password);
         if (!valid) return null;
-        return { id: user.id, email: user.email, role: user.role };
+        return { id: user.id, email: user.email, role: user.role, passwordVersion: user.passwordVersion };
       },
     }),
   ],
-  // Note: jwt and session callbacks are inherited from authConfig (no server-side override).
-  // Token-based session revocation (Task 1.4) will be implemented via an edge-compatible
-  // KV store (Upstash) to avoid per-request DB calls that cannot persist tokens in
-  // Server Components.
+  callbacks: {
+    // Re-use the edge-safe session callback from authConfig unchanged.
+    session: authConfig.callbacks!.session!,
+
+    // Override the jwt callback to add passwordVersion-based session revocation.
+    // This runs in the Node.js runtime (not the edge middleware which uses authConfig directly).
+    async jwt({ token, user }) {
+      if (user) {
+        // Sign-in: embed identity claims and passwordVersion.
+        token.id = user.id;
+        token.role = user.role ?? null;
+        token.passwordVersion = user.passwordVersion ?? 1;
+        return token;
+      }
+
+      // Subsequent requests: validate that passwordVersion in the JWT still matches
+      // the DB. A mismatch, missing claim, or deleted user revokes this session by
+      // removing id/role so the session callback returns a session without user.id,
+      // which middleware treats as unauthenticated.
+      if (token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { passwordVersion: true },
+        });
+        const shouldRevoke =
+          !dbUser ||
+          typeof token.passwordVersion !== 'number' ||
+          dbUser.passwordVersion !== token.passwordVersion;
+        if (shouldRevoke) {
+          const stripped = { ...token };
+          delete stripped.id;
+          delete stripped.role;
+          delete stripped.passwordVersion;
+          return stripped;
+        }
+      }
+
+      return token;
+    },
+  },
 });

@@ -24,6 +24,7 @@ model User {
   emailVerified DateTime?
   image         String?
   passwordHash  String?
+  passwordVersion Int     @default(1)
   role          UserRole  @default(POWER_USER)
   status        String    @default("ACTIVE")
   createdAt     DateTime  @default(now())
