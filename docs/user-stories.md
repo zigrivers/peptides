@@ -38,6 +38,8 @@
 - **AC 2 (Citations):** Every researched benefit must include a clickable PubMed/DOI link.
 - **AC 3 (Dosing):** Dosing ranges are displayed for low, typical, and high categories with protocol context.
 - **AC 4 (Stacking):** If "Stacking Notes" exist, they are displayed prominently (e.g., "Commonly stacked with TB-500").
+- **AC 5 (Placeholder):** If a compound is in the QSC catalog but the profile is not yet complete, I see a "Profile in progress" placeholder with the compound name and basic sourcing info instead of a 404.
+- **AC 6 (Archived):** If a compound has been soft-deleted from the catalog but is still referenced by a protocol or dose log, the compound name is shown as "[Name] (archived)" with no active profile link, preserving FK integrity.
 
 **Domain Events:** `CompoundProfileViewed`
 
@@ -68,6 +70,7 @@
 - **AC 2 (Assignment):** I can assign the protocol to myself or any of my managed users.
 - **AC 3 (Validation):** Saving is blocked if compound or dose amount is missing.
 - **AC 4 (Audit):** Every creation or modification of a protocol is recorded in the audit log.
+- **AC 5 (Frequencies):** I can configure protocol frequency as one of: daily, every other day (EOD), specific days of the week (e.g., Mon/Wed/Fri), or a custom interval in days. The generated schedule respects the chosen frequency.
 
 **Domain Events:** `ProtocolCreated`, `ProtocolUpdated`
 
@@ -111,6 +114,9 @@
 **Acceptance Criteria:**
 - **AC 1 (Suggestion):** The app suggests the next site in a round-robin rotation (e.g., Left Abdomen -> Right Abdomen) based on the history for that specific compound.
 - **AC 2 (Visual):** I can see the last 7 sites used for the compound during the logging flow.
+- **AC 3 (Selectable sites):** The available sites are: left abdomen, right abdomen, left thigh, right thigh, left deltoid, right deltoid, ventrogluteal L, ventrogluteal R. I can always override the suggestion before confirming.
+- **AC 4 (Route awareness):** Sites are filtered by the compound's administration route (subcutaneous, intramuscular, etc.) — only valid sites for the active route are offered.
+- **AC 5 (First dose):** When there is no prior history for a compound, no suggestion is shown and all valid sites are available as user choice.
 
 **Domain Events:** `InjectionSiteSuggested`
 
@@ -179,8 +185,10 @@
 - **AC 1 (Config):** I can set a daily reminder time (e.g., 7:00 AM).
 - **AC 2 (Push):** If I have the PWA installed, I receive a browser push notification at the set time.
 - **AC 3 (Email):** If push is unavailable, the app sends an email reminder.
+- **AC 4 (Push denied):** If I deny notification permission, the app surfaces a banner ("Enable notifications for dose reminders") with a link to browser settings and silently falls back to email delivery.
+- **AC 5 (Email failure):** If email delivery fails, the failure is recorded in the application log but does not produce a user-facing error and is not retried (silent fail-soft is intentional for reminders).
 
-**Domain Events:** `ReminderSent`
+**Domain Events:** `ReminderSent`, `ReminderDeliveryFailed`
 
 ---
 
@@ -281,8 +289,10 @@
 **Acceptance Criteria:**
 - **AC 1 (Gate):** I must enter the wallet address and amount from the vendor's reply.
 - **AC 2 (Verification):** The "Mark Payment Sent" button is only enabled after I view a summary screen showing the address and amount together.
+- **AC 3 (Duplicate send idempotency):** If I attempt to re-send an identical order message to the same vendor within 60 seconds of the previous send (e.g., via double-click or network retry), the app shows a "Possible duplicate — send again?" confirmation before proceeding.
+- **AC 4 (Stale wallet warning):** When entering the wallet address, the app shows the wallet address from my most recent order to the same vendor for comparison, but requires me to verify the current address from the vendor's Telegram reply before "Mark Payment Sent" is enabled.
 
-**Domain Events:** `OrderPaymentConfirmed`
+**Domain Events:** `OrderPaymentConfirmed`, `DuplicateSendBlocked`
 
 ---
 
@@ -296,6 +306,22 @@
 - **AC 2 (History):** The order status updates to "Received" with a timestamp.
 
 **Domain Events:** `OrderReceived`
+
+---
+
+### US-ORD-09: Await Vendor Reply
+**As a** Power User,  
+**I want to** see clear "waiting for vendor confirmation" state after I send an order,  
+**so that** I know the order is in flight and know where to go to read the vendor's reply.
+
+**Acceptance Criteria:**
+- **AC 1 (State):** After a successful Telegram send, the order detail screen shows the status "Sent — waiting for vendor confirmation" with the timestamp of the send.
+- **AC 2 (Deep-link):** The screen surfaces a "Open vendor chat in Telegram" deep-link so I can read the reply directly in Telegram.
+- **AC 3 (Manual capture):** A "Capture vendor reply" action lets me proceed to US-ORD-04 (Payment Confirmation Safety Gate) where I enter the confirmed total, currency, and wallet address from the vendor's message.
+
+**Domain Events:** `OrderAwaitingVendorReply`
+
+---
 
 ---
 
@@ -330,10 +356,12 @@
 **so that** I can identify stale orders or missing shipments.
 
 **Acceptance Criteria:**
-- **AC 1 (States):** Orders transition through: Draft -> Sent -> Confirmed -> Payment Sent -> Received.
-- **AC 2 (Stale):** If an order remains in "Sent" for 14 days, it is automatically flagged as "Stale".
+- **AC 1 (States):** Orders transition through: Draft -> Sent -> Confirmed -> Payment Sent -> Received (terminal). Cancelled is a separate terminal state reachable from any non-terminal status.
+- **AC 2 (Stale):** If an order remains in "Sent" for 14 days, it is automatically flagged as "Stale" with a banner prompting the user to check Telegram and either update the status or cancel the order.
+- **AC 3 (Cancel):** I can cancel any order in Draft, Sent, Confirmed, or Stale status from Order History. Cancelled orders remain in history with status, timestamp, and the actor's identity recorded in the audit log.
+- **AC 4 (Forward-only):** Non-cancel status transitions are forward-only — an order in "Payment Sent" cannot move back to "Sent" without being cancelled and re-issued.
 
-**Domain Events:** `OrderStatusChanged`
+**Domain Events:** `OrderStatusChanged`, `OrderCancelled`, `OrderMarkedStale`
 
 ---
 
@@ -347,8 +375,11 @@
 **Acceptance Criteria:**
 - **AC 1 (Invite):** I can enter a name and email to send an invite link (valid for 72 hours).
 - **AC 2 (Access):** Managed users see a simplified dashboard with only their own schedule and reference info.
+- **AC 3 (Invite states):** The admin panel shows the invite status per user row: **Active** | **Invited (expires MM/DD)** | **Invite Expired** | **Deactivated**.
+- **AC 4 (Resend invite):** From any "Invited" or "Invite Expired" row, I can resend the invite. Resending generates a new link and immediately invalidates the prior one. Resending to a user who has already accepted is not available — I use password reset instead.
+- **AC 5 (Duplicate-invite guard):** Attempting to invite an email that already has an account shows "This email already has an account." Attempting to invite an email with a pending invite shows "An invite is already pending for this email. Resend or cancel it first."
 
-**Domain Events:** `ManagedUserInvited`
+**Domain Events:** `ManagedUserInvited`, `ManagedUserInviteResent`
 
 ---
 
@@ -372,8 +403,26 @@
 **Acceptance Criteria:**
 - **AC 1 (Management):** I can deactivate a managed user account, which revokes their access but preserves their data.
 - **AC 2 (Password Reset):** I can trigger a password reset email for any managed user.
+- **AC 3 (Active-protocols warning):** When I attempt to deactivate a managed user with active protocols, the app shows a warning "This user has N active protocols. Deactivating their account will prevent them from logging doses. Continue?" and only proceeds on confirmation.
+- **AC 4 (Mid-day deactivation behavior):** When I deactivate a protocol mid-day, the managed user's dashboard refreshes on next render (or polling tick) to remove the affected dose from "today's doses." Doses for that protocol already logged earlier today are preserved. If the managed user is mid-log when the deactivation lands, the in-flight log submission is accepted (last-writer-wins) and recorded against the now-deactivated protocol's history.
 
-**Domain Events:** `ManagedUserDeactivated`, `PasswordResetTriggered`
+**Domain Events:** `ManagedUserDeactivated`, `PasswordResetTriggered`, `ProtocolDeactivated`
+
+---
+
+### US-ADM-04: Delete Managed User
+**As a** Power User,  
+**I want to** permanently delete a managed user's account with their data exported first,  
+**so that** I can wind down their participation while honoring their right to a copy of their own data.
+
+**Acceptance Criteria:**
+- **AC 1 (Export first):** Initiating delete generates a full JSON export of the managed user's data (protocols, dose logs, vial records, outcome logs) and delivers it to me (the admin) by email before any deletion executes.
+- **AC 2 (Double-confirm):** Deletion requires explicit acknowledgment of an irreversible-warning modal, and a 48-hour delay between confirmation and execution (or immediate execution with a second explicit confirmation).
+- **AC 3 (Audit):** The deletion event is recorded in the audit log with my actor identity, the target user's identity, and a timestamp.
+- **AC 4 (FK preservation):** Any references in the audit log to the deleted user's actions are preserved as historical records; only the user account and their tracker/order data are removed.
+- **AC 5 (Super-admin guard):** I cannot delete my own super-admin account while any managed users are active — they must be deactivated or deleted first.
+
+**Domain Events:** `ManagedUserDeletionRequested`, `ManagedUserDeleted`
 
 ---
 
@@ -398,10 +447,12 @@
 **so that** I maintain full control over my sensitive health-adjacent information.
 
 **Acceptance Criteria:**
-- **AC 1 (Export):** I can request a full JSON export at any time. CSV export is provided for dose logs and orders.
-- **AC 2 (Deletion):** After confirmation, all data is permanently wiped from the system after a 48-hour delay.
+- **AC 1 (Export):** I can request a full JSON export at any time. CSV export is provided for dose logs and orders. Exports < 10MB download immediately; exports ≥ 10MB are generated asynchronously and delivered by email within 5 minutes.
+- **AC 2 (Deletion default):** After confirmation, all data is permanently wiped from the system after a 48-hour delay. During the 48-hour window the user can cancel the deletion by logging in.
+- **AC 3 (Immediate deletion):** As an alternative to the 48-hour delay, the user can elect immediate deletion via a second double-acknowledgment modal ("I understand this is irreversible and I want to delete now").
+- **AC 4 (Telegram session):** Account deletion revokes any stored Telegram MTProto session; the session is not included in the data export.
 
-**Domain Events:** `AccountDeletionRequested`, `DataExportGenerated`
+**Domain Events:** `AccountDeletionRequested`, `AccountDeletionCancelled`, `DataExportGenerated`
 
 ---
 
@@ -444,6 +495,38 @@
 
 ---
 
+### US-AUT-06: Change Own Password
+**As a** logged-in user,  
+**I want to** change my password from account settings,  
+**so that** I can rotate credentials without going through the password-reset email flow.
+
+**Acceptance Criteria:**
+- **AC 1 (Current-password gate):** Changing my password requires re-entering my current password before the new password is accepted; failure shows "Current password is incorrect" without distinguishing it from a wrong new password.
+- **AC 2 (Strength rule):** The new password must satisfy the registration rule (minimum 12 characters); no maximum, no complexity requirements.
+- **AC 3 (Same-as-current rejection):** The new password cannot be identical to the current password.
+- **AC 4 (Session invalidation):** A successful password change invalidates all sessions other than the current one; my next visit on another device requires me to log in again.
+- **AC 5 (Audit):** The password-change event is recorded in the audit log (no password values are logged — only the event, actor, and timestamp).
+
+**Domain Events:** `PasswordChanged`, `OtherSessionsInvalidated`
+
+---
+
+### US-AUT-07: Change Own Email
+**As a** logged-in user,  
+**I want to** change the email address on my account,  
+**so that** my login + notification emails follow me if I change provider.
+
+**Acceptance Criteria:**
+- **AC 1 (Current-password gate):** Changing my email requires re-entering my current password.
+- **AC 2 (Verify-new-email gate):** A verification email is sent to the proposed new address; the email change does not take effect until the user clicks the verification link. The verification link expires in 24 hours.
+- **AC 3 (Conflict check):** If the new email already has an account, I see "This email is already in use" without indicating whether the owner is myself.
+- **AC 4 (Old-email notice):** Once the change takes effect, a notification email is sent to the *previous* email address ("Your email on Project Peptides was changed to <new>") with a link to revert within 48 hours if it was unauthorized.
+- **AC 5 (Audit):** The email-change event (request, verify, complete) is recorded in the audit log.
+
+**Domain Events:** `EmailChangeRequested`, `EmailChangeVerified`, `EmailChangeReverted`
+
+---
+
 ## US Splitting Rationale
 - **Pillar Splitting:** Stories are split by the four pillars (Reference, Tracker, Reconstitution, Ordering) to allow incremental delivery of value.
 - **Admin vs User:** Managed user functionality is split from super admin functionality.
@@ -451,7 +534,10 @@
 
 ## Dependency Graph (High Level)
 - `US-AUT-03` (Registration) -> Foundation for all other stories.
+- `US-AUT-06` (Change Password), `US-AUT-07` (Change Email) -> depend on `US-AUT-03`
 - `US-TRK-01` (Create Protocol) -> depends on `US-REF-01` (View Compound)
 - `US-REC-02` (Record Reconstitution) -> depends on `US-REC-01` (Calculate)
 - `US-ORD-03` (Send Order) -> depends on `US-ORD-01` (Telegram MTProto)
+- `US-ORD-09` (Await Vendor Reply) -> depends on `US-ORD-03`; precedes `US-ORD-04`
 - `US-ADM-01` (Managed User) -> depends on `US-AUT-03` (Auth)
+- `US-ADM-04` (Delete Managed User) -> depends on `US-ADM-01` and `US-AUT-02` (data-export flow shared)

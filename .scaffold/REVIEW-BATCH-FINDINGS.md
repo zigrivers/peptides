@@ -9,7 +9,7 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 |---|------|--------|----------|-------|----------|
 | 1 | review-vision | ✅ done | 6 (1×P1, 2×P2, 3×P3) | 6 | 1 retained (1.1) |
 | 2 | review-prd | ✅ done | 3 (3×P2) | 3 | 1 retained (4.2) |
-| 3 | review-user-stories | pending | | | |
+| 3 | review-user-stories | ✅ done | 13 (4×P1, 5×P2, 4×P3) | 13 | 0 |
 | 4 | review-domain-modeling | pending | | | |
 | 5 | review-adrs | pending | | | |
 | 6 | review-architecture | pending | | | |
@@ -105,4 +105,57 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 **Files modified:**
 - `docs/plan.md` (+18 lines, -3 lines)
 - `docs/reviews/pre-review-prd.md` (+50 lines)
+
+---
+
+### Step 3: review-user-stories (multi-model context, single-channel re-review)
+
+**Artifact**: `docs/user-stories.md` (457 → ~600 lines after fixes)
+**Review log**: `docs/reviews/pre-review-user-stories.md`
+**Mode**: update / re-review (prior multi-model artifacts in `docs/reviews/user-stories/` used as input context)
+**Gate result**: **Full Pass** (upgraded from initial Conditional Pass)
+
+**Findings raised (13 total):**
+
+| # | Severity | Finding (one-line) |
+|---|----------|--------------------|
+| N1 | P1 | Missing: user changes own password (PRD §5.6) |
+| N2 | P1 | Missing: user changes own email (PRD §5.6) |
+| N3 | P1 | Missing: Power User deletes managed user account with data export (PRD §5.5) |
+| N4 | P1 | US-ORD-07 state machine missing Cancelled terminal state + Cancel action (PRD §5.4.4) |
+| N5 | P2 | US-ADM-01 missing Resend invite AC (PRD §5.5) |
+| N6 | P2 | US-TRK-01 missing EOD/specific-days/custom-interval frequencies (PRD §5.2.1) |
+| N7 | P2 | US-TRK-09 missing push-denied + email-failure edge cases (PRD §5.2.7) |
+| N8 | P2 | US-ORD-04 missing 60-sec duplicate-send idempotency (PRD §5.4.3) |
+| N9 | P2 | Admin-initiated mid-day deactivation behavior not covered (PRD §5.2.1 step-2 addition) |
+| N10 | P3 | US-TRK-04 missing full site list + route-respect + first-dose ACs (PRD §5.2.3) |
+| N11 | P3 | US-REF-01 missing "Profile in progress" + archived-compound ACs (PRD §5.1) |
+| N12 | P3 | US-AUT-02 missing 48h delay / immediate option / session revoke detail (PRD §5.7) |
+| N13 | P3 | Gap between Send and Payment — "awaiting vendor reply" state had no story (PRD §5.4.4 step 1) |
+
+**Findings fixed (13) — high-level summary:**
+
+1. **N1 — US-AUT-06 added (Change Own Password)**. 5 ACs including the non-obvious "all other sessions invalidated" rule. **Why:** change-password is foundational auth that was simply missing; session-invalidation is the security-critical AC that's easy to forget.
+2. **N2 — US-AUT-07 added (Change Own Email)**. 5 ACs including verify-new-email gate and the **old-email revert-within-48h notification**. **Why:** email change is an account-takeover vector — the old-email notification prevents silent compromise.
+3. **N3 — US-ADM-04 added (Delete Managed User)**. 5 ACs including export-first-to-admin and FK preservation in audit log. **Why:** the prior stories stopped at deactivation; the export-first AC protects the managed user's data rights even at delete time.
+4. **N4 — US-ORD-07 expanded**. Added Cancelled terminal state, Cancel-from-any-non-terminal action, Stale auto-flag banner, forward-only transition rule. **Why:** the happy path was covered but failure paths (vendor never replies → user wants to cancel) were not — this is a frequent real-world case.
+5. **N5 — US-ADM-01 expanded**. 4-state invite model + resend semantics (invalidates prior link) + duplicate-invite guards. **Why:** resend is a guaranteed need; "invalidates the prior link" is the security-critical detail.
+6. **N6 — US-TRK-01 + AC 5**. Lists 4 supported frequencies. **Why:** without this AC, implementers may ship "daily only" and have to retrofit.
+7. **N7 — US-TRK-09 + ACs 4-5**. Push-denied banner-and-fallback; email failure logged-not-retried. **Why:** reminders are best-effort; silent fail-soft prevents noisy retry loops.
+8. **N8 — US-ORD-04 + ACs 3-4**. 60-second duplicate-send confirmation; stale-wallet warning showing prior address. **Why:** both target the highest-cost error mode in the system (wrong-wallet crypto sends).
+9. **N9 — US-ADM-03 + AC 4**. Mid-day deactivation behavior on managed user's dashboard; in-flight log handling. **Why:** mirrors the PRD update from step 2; prevents phantom "today's dose" entries on managed user screens.
+10. **N10 — US-TRK-04 + ACs 3-5**. Full 8-site list, route-aware filtering, first-dose behavior. **Why:** matches PRD §5.2.3 verbatim; prevents ad-hoc smaller site lists.
+11. **N11 — US-REF-01 + ACs 5-6**. Profile-in-progress placeholder; archived-compound display. **Why:** silent failures on these paths would corrupt dose-log displays.
+12. **N12 — US-AUT-02 expanded**. 48h delay default with in-window cancel, immediate option via second confirm, Telegram session revocation, sync/async export thresholds. **Why:** the 48h window is an important user safety net; session-revoke prevents post-deletion replay.
+13. **N13 — US-ORD-09 added (Await Vendor Reply)**. 3 ACs covering the in-between state, vendor chat deep-link, capture-vendor-reply action bridging to US-ORD-04. **Why:** the gap between Send and Payment was where the user reads vendor's message; without a named state the implementation could collapse it confusingly.
+
+**Story count change:** 26 → 30 (added US-AUT-06, US-AUT-07, US-ADM-04, US-ORD-09).
+
+**Intentionally retained / declined:** None.
+
+**Regressions from prior review:** None.
+
+**Files modified:**
+- `docs/user-stories.md` (+~155 lines, -8 lines)
+- `docs/reviews/pre-review-user-stories.md` (+~120 lines)
 
