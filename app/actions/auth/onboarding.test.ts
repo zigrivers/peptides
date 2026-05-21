@@ -4,7 +4,9 @@ const mockAuth = vi.fn();
 const mockAdvanceOnboardingStep = vi.fn();
 const mockDismissOnboarding = vi.fn();
 const mockGetOnboardingState = vi.fn();
+const mockRevalidatePath = vi.fn();
 
+vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock('@/lib/auth', () => ({ auth: mockAuth }));
 vi.mock('@/lib/auth/application/onboarding', () => ({
   advanceOnboardingStep: mockAdvanceOnboardingStep,
