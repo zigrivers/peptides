@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-20  
 **Methodology:** deep | Depth: 5/5  
-**Status:** INITIAL  
+**Status:** RE-REVIEWED 2026-05-20 — repaired 9 PENDING resolution-log entries + fixed 7 new findings; Full Pass  
 **Models:** Claude (local) + Codex
 
 ---
@@ -101,12 +101,59 @@
 ## Resolution Log
 | Finding | Severity | Status | Resolution |
 |---------|----------|--------|------------|
-| F-001   | P1       | PENDING | Will update Section 1 with per-module targets. |
-| F-002   | P1       | PENDING | Will add Invariant Coverage Matrix. |
-| F-003   | P1       | PENDING | Will add Timezone scenario to Tracker tests. |
-| F-004   | P1       | PENDING | Will add PWA Sync testing pattern. |
-| F-005   | P1       | PENDING | Will switch commands to `pnpm`. |
-| F-006   | P2       | PENDING | Will expand mocking strategy. |
-| F-007   | P1       | PENDING | Will formalize Audit assertions. |
-| F-008   | P2       | PENDING | Will update cleanup strategy. |
-| F-009   | P1       | PENDING | Will add build/validate gates. |
+| F-001   | P1       | RESOLVED | Will update Section 1 with per-module targets. |
+| F-002   | P1       | RESOLVED | Will add Invariant Coverage Matrix. |
+| F-003   | P1       | RESOLVED | Will add Timezone scenario to Tracker tests. |
+| F-004   | P1       | RESOLVED | Will add PWA Sync testing pattern. |
+| F-005   | P1       | RESOLVED | Will switch commands to `pnpm`. |
+| F-006   | P2       | RESOLVED | Will expand mocking strategy. |
+| F-007   | P1       | RESOLVED | Will formalize Audit assertions. |
+| F-008   | P2       | RESOLVED | Will update cleanup strategy. |
+| F-009   | P1       | RESOLVED | Will add build/validate gates. |
+
+> Note: the original Resolution Log marked all 9 of F-001..F-009 as "PENDING" with "Will…" prose. In fact, the doc had been substantively updated since — only F-007 (audit assertions) was genuinely incomplete. This re-review verifies the state of each prior-pass item and repairs the resolution-log regression.
+
+---
+
+## Re-Review Pass — 2026-05-20 (auto-fix batch)
+
+**Reviewer**: Claude (Opus 4.7). Depth 5/strict.
+
+### Resolution-log regression repaired
+
+The prior review's Resolution Log marked all 9 prior-pass findings as `PENDING`. Verifying against the actual doc state:
+- F-001 (per-module 100% targets): ✓ already in §1
+- F-002 (Invariant Coverage Matrix): ✓ already in §6 (now §8)
+- F-003 (Timezone-aware tests): ✓ already in §7.1 (now §9.1)
+- F-004 (PWA Sync test pattern): ✓ already in §7.2 (now §9.2)
+- F-005 (pnpm commands): ✓ already in §3
+- F-006 (R2 + Web Push mocking): ✓ already in §5 (now §6)
+- F-007 (Audit assertions): **PARTIALLY** — example present but no shared helper or failure-injection pattern. **Now fully resolved in §3.2 with `expectAuditEvent(...)` helper definition + audit-failure-injection test pattern.**
+- F-008 (cleanup strategy): ✓ already in §4 (now §5)
+- F-009 (build/validate gates): ✓ already in §3 (now §4)
+
+All 9 are now genuinely RESOLVED.
+
+### New findings + fixes
+
+| # | Severity | Finding | Fix |
+|---|----------|---------|-----|
+| N1 | P1 (regression repair) | Resolution log was out of sync with doc state — 8 items were already resolved but marked PENDING; 1 (F-007) was partial. | Updated resolution log; completed F-007 via shared `expectAuditEvent` helper + failure-injection pattern. |
+| N2 | P1 | Doc structure bug: §2 used for both "Testing Layer Selection" and "Testing Patterns". | Fully renumbered: §1 Pyramid → §2 Layer Selection → §3 Testing Patterns → §4 Quality Gates → §5 Test Data → §6 Mocking → §7 Eval Testing → §8 Invariant Matrix → §9 Specialized Patterns → §10 Cross-References. |
+| N3 | P1 | Missing test patterns for new step-2/3/4 flows (password change session invalidation, email change verify+revert, account deletion 48h, managed user deletion export-first, order cancel, reminder dispatch). | Added §9.3-§9.8 covering all six flows with explicit assertion checklists. |
+| N4 | P2 | Test pyramid lacked Eval layer despite `tests/evals/` existing in the project. | Added Evals to the pyramid table (§1) and full Eval Testing section (§7) including: real provider calls, gold-standard fixtures, LLM-as-judge scorer with rubric, threshold rules, "never disable without comment" rule. |
+| N5 | P2 | Mocking strategy missing AI provider (Anthropic + Gemini per ADR-010). | Added AI providers row to §6 with the explicit rule: "AI is mocked everywhere EXCEPT in `tests/evals/`. Integration tests assert prompts + parsing; evals assert response quality." |
+| N6 | P2 | No property-based testing pattern for reconstitution math. | Added property-based testing requirement to §3.1: reconstitution calculator MUST have at least one `fast-check` property test asserting `concentration × injectionVolume === totalDose`. Listed in §8 matrix. |
+| N7 | P2 | Invariant Coverage Matrix sparse (5 rows) — missing step-4 domain invariants. | Expanded matrix from 5 → 19 rows covering: 4 new auth-lifecycle invariants (PasswordResetToken 1h, EmailChangeRequest 24h/48h, Session 30d, password-change-revokes-sessions), 4 new tracker invariants (one-OutcomeLog-per-day, deactivated-no-new-logs, OrderLineItem merge, 60s duplicate-send), 3 new ordering invariants (state forward-only, sendMethod immutable, payment safety gate), 1 audit (actorUserId historical reference), 1 reconstitution (property-based math identity). |
+| N8 | P2 (consistency) | §3.3 E2E didn't mention mobile viewport requirement despite PRD §8.6 mandating mobile-first dose logging. | Added explicit "mobile viewports" rule: every PWA test runs on chromium desktop AND webkit iPhone 14 viewport. |
+
+### Regressions detected (re-review)
+
+None introduced.
+
+### Gate result (re-review)
+
+- **Gate**: **Full Pass** (upgraded from INITIAL)
+- **Resolution-log regression repaired** (9 PENDING → RESOLVED, with F-007 actually completed)
+- **All 7 new findings fixed**
+- **Re-trigger conditions**: any new safety-critical module added to `lib/` (must add to 100%-coverage glob), any new domain invariant in `docs/domain-models/` (must add to §8 matrix), any new AI prompt (must have a corresponding eval).
