@@ -4,14 +4,14 @@ import { PasswordResetToken } from '@/lib/auth/domain/PasswordResetToken';
 // Stub the prisma singleton before importing the repo (avoids real DB connection).
 const mockCreate = vi.fn();
 const mockFindUnique = vi.fn();
-const mockUpdate = vi.fn();
+const mockUpdateMany = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
     passwordResetToken: {
       create: mockCreate,
       findUnique: mockFindUnique,
-      update: mockUpdate,
+      updateMany: mockUpdateMany,
     },
   },
 }));
@@ -22,7 +22,7 @@ const fakeTx = {
   passwordResetToken: {
     create: mockCreate,
     findUnique: mockFindUnique,
-    update: mockUpdate,
+    updateMany: mockUpdateMany,
   },
 } as unknown as import('@prisma/client').Prisma.TransactionClient;
 
@@ -58,11 +58,11 @@ describe('PasswordResetRepo.findByRawToken', () => {
 });
 
 describe('PasswordResetRepo.markUsed', () => {
-  it('sets used = true on the record by id', async () => {
-    mockUpdate.mockResolvedValue({});
-    await PasswordResetRepo.markUsed(fakeTx, 'record-id');
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: 'record-id' },
+  it('sets used = true on the record by id and userId (defense-in-depth scoping)', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+    await PasswordResetRepo.markUsed(fakeTx, 'record-id', 'user-1');
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'record-id', userId: 'user-1' },
       data: { used: true },
     });
   });

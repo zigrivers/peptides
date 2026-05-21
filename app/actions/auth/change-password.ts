@@ -10,6 +10,13 @@ export type ChangePasswordError =
   | 'password_too_long'
   | 'password_same_as_current';
 
+const ALLOWED_ERRORS = new Set<ChangePasswordError>([
+  'current_password_invalid',
+  'password_too_short',
+  'password_too_long',
+  'password_same_as_current',
+]);
+
 export type ChangePasswordResult =
   | { ok: true; otherSessionsRevoked: number }
   | { ok: false; error: ChangePasswordError };
@@ -31,7 +38,10 @@ export async function changePasswordAction(
     });
     return { ok: true, otherSessionsRevoked: result.otherSessionsRevoked };
   } catch (err) {
-    const code = err instanceof Error ? err.message : 'current_password_invalid';
-    return { ok: false, error: code as ChangePasswordError };
+    const code = err instanceof Error ? err.message : '';
+    const safeError: ChangePasswordError = ALLOWED_ERRORS.has(code as ChangePasswordError)
+      ? (code as ChangePasswordError)
+      : 'current_password_invalid';
+    return { ok: false, error: safeError };
   }
 }
