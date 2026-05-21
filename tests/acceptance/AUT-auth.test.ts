@@ -1,4 +1,6 @@
-import { describe, it } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { PasswordHash } from '@/lib/auth/domain/PasswordHash';
+import { authConfig } from '@/lib/auth/auth.config';
 
 /**
  * Story: US-AUT-01 - Onboarding Path
@@ -28,15 +30,25 @@ describe('US-AUT-02: Deletion and Export', () => {
 
 /**
  * Story: US-AUT-03 - User Registration and Login
+ * AC-1: 12-char minimum password
+ * AC-2: httpOnly rolling-expiry session cookies
  */
 describe('US-AUT-03: User Registration and Login', () => {
-  it('requires 12-character minimum password', async () => {
-    // const result = await register({ email: 'test@example.com', password: 'short' });
-    // expect(result.error).toBe('password_too_short');
+  it('AC-1: requires 12-character minimum password', async () => {
+    await expect(PasswordHash.create('short')).rejects.toThrow('password_too_short');
+    await expect(PasswordHash.create('11character')).rejects.toThrow('password_too_short');
+    // Exactly 12 chars: accepted
+    const hash = await PasswordHash.create('exactly12chr');
+    expect(hash.toString()).toMatch(/^\$2[ab]\$/);
   });
 
-  it('uses secure httpOnly cookies with rolling expiry', () => {
-    // expect(authConfig.session.strategy).toBe('jwt');
+  it('AC-2: uses httpOnly session cookies with 30-day rolling expiry', () => {
+    // Strategy: 'database' means session token is stored server-side;
+    // only a short-lived httpOnly cookie is sent to the client.
+    expect(authConfig.session.strategy).toBe('database');
+    expect(authConfig.session.maxAge).toBe(30 * 24 * 60 * 60);
+    expect(authConfig.cookies?.sessionToken?.options?.httpOnly).toBe(true);
+    expect(authConfig.cookies?.sessionToken?.options?.sameSite).toBe('strict');
   });
 });
 
