@@ -53,3 +53,47 @@ export type UpdateProtocolInput = {
   endDate?: Date | null;
   notes?: string | null;
 };
+
+export type InjectionSite = {
+  bodyPart: string;
+  side: 'left' | 'right';
+};
+
+export type DoseLogStatus = 'LOGGED' | 'SKIPPED';
+
+export type DoseLog = {
+  id: string;
+  protocolId: string;
+  userId: string;
+  vialId: string | null;
+  idempotencyKey: string;
+  loggedAt: Date;
+  scheduledDate: Date;
+  amount: DoseAmount;
+  status: DoseLogStatus;
+  injectionSite: InjectionSite | null;
+  isBatchLog: boolean;
+  note: string | null;
+  loggedByUserId: string | null;
+};
+
+export type SafetyWarning = {
+  code: 'insufficient_inventory' | 'vial_expiry_warning' | 'dose_above_high_range';
+  message: string;
+};
+
+export type LogDoseInput = {
+  actorUserId: string;
+  protocolId: string;
+  scheduledDate: Date;
+  amount: DoseAmount;
+  status: DoseLogStatus;
+  injectionSite?: InjectionSite;
+  note?: string;
+  vialId?: string;
+};
+
+export type LogDoseResult = {
+  doseLog: DoseLog;
+  warnings: SafetyWarning[];
+};

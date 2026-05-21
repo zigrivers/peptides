@@ -6,7 +6,12 @@ const mockProtocolFindMany = vi.fn();
 const mockAuditCreate = vi.fn();
 const mockUserFindUnique = vi.fn();
 const mockUserFindMany = vi.fn();
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+const mockDoseLogCreate = vi.fn();
+const mockDoseLogFindFirst = vi.fn();
+const mockDoseLogUpdate = vi.fn();
+const mockVialCount = vi.fn();
+const mockVialFindFirst = vi.fn();
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
@@ -23,6 +28,15 @@ vi.mock('@/lib/shared/prisma', () => ({
       findUnique: mockUserFindUnique,
       findMany: mockUserFindMany,
     },
+    doseLog: {
+      create: mockDoseLogCreate,
+      findFirst: mockDoseLogFindFirst,
+      update: mockDoseLogUpdate,
+    },
+    vial: {
+      count: mockVialCount,
+      findFirst: mockVialFindFirst,
+    },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
         protocol: {
@@ -33,6 +47,7 @@ vi.mock('@/lib/shared/prisma', () => ({
         },
         auditEvent: { create: mockAuditCreate },
         user: { findMany: mockUserFindMany },
+        doseLog: { create: mockDoseLogCreate, updateMany: mockDoseLogUpdate, findFirst: mockDoseLogFindFirst },
       };
       return fn(tx);
     }),
@@ -51,6 +66,7 @@ const { createProtocol, updateProtocol, pauseProtocol, resumeProtocol, cloneProt
 const { generateScheduleDates } = await import(
   '@/lib/tracker/domain/ScheduleGenerator'
 );
+const { logDose } = await import('@/lib/tracker/application/DoseLogService');
 
 const actorUserId = 'user-1';
 const compoundId = 'compound-bpc157';
@@ -532,11 +548,176 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
  * Story: US-TRK-03 — Individual Dose Logging
  */
 describe('US-TRK-03: Individual Dose Logging', () => {
-  it.todo('AC-1: records dose with timestamp and site');
-  it.todo('AC-2: records explicit skip event');
+  // Freeze time so "today" and "tomorrow" remain stable regardless of when tests run.
+  const FROZEN_NOW = new Date(Date.UTC(2026, 4, 21)); // 2026-05-21
+  beforeEach(() => { vi.setSystemTime(FROZEN_NOW); });
+  afterAll(() => { vi.useRealTimers(); });
+
+  const logActorUserId = 'user-1';
+  const logProtocolId = 'proto-1';
+  const logCompoundId = 'compound-bpc157';
+  const scheduledDate = new Date(Date.UTC(2026, 4, 21)); // 2026-05-21 (today)
+  const amount = { amount: '1.5', unit: 'mg' as const };
+  const injectionSite = { bodyPart: 'thigh', side: 'left' as const };
+
+  const baseProtocolRow = {
+    id: logProtocolId,
+    userId: logActorUserId,
+    compoundId: logCompoundId,
+    cycleId: null,
+    dose: amount,
+    schedule: { frequency: 'Daily' },
+    administrationRoute: 'SubQ',
+    status: 'ACTIVE',
+    startDate: new Date(Date.UTC(2026, 4, 1)),
+    endDate: null,
+    notes: null,
+  };
+
+  const baseDoseLogRow = {
+    id: 'log-1',
+    protocolId: logProtocolId,
+    userId: logActorUserId,
+    vialId: null,
+    idempotencyKey: `${logActorUserId}:${logProtocolId}:2026-05-21`,
+    loggedAt: new Date(),
+    scheduledDate,
+    amount,
+    status: 'LOGGED',
+    injectionSite,
+    isBatchLog: false,
+    note: null,
+    loggedByUserId: logActorUserId,
+  };
+
+  it('AC-1: records dose with LOGGED status and returns doseLog', async () => {
+    mockDoseLogFindFirst.mockResolvedValue(null); // no existing log
+    mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
+    mockVialCount.mockResolvedValue(1); // vial available
+    mockDoseLogCreate.mockResolvedValue(baseDoseLogRow);
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await logDose({
+      actorUserId: logActorUserId,
+      protocolId: logProtocolId,
+      scheduledDate,
+      amount,
+      status: 'LOGGED',
+      injectionSite,
+    });
+
+    expect(result.doseLog.status).toBe('LOGGED');
+    expect(result.doseLog.protocolId).toBe(logProtocolId);
+    expect(result.warnings).toHaveLength(0);
+    expect(mockDoseLogCreate).toHaveBeenCalledOnce();
+    expect(mockAuditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'DOSE_LOGGED' }) })
+    );
+  });
+
+  it('AC-2: records explicit skip event with SKIPPED status', async () => {
+    const skippedRow = { ...baseDoseLogRow, status: 'SKIPPED', idempotencyKey: `${logActorUserId}:${logProtocolId}:2026-05-21` };
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
+    // vialCount is not called for SKIPPED status
+    mockDoseLogCreate.mockResolvedValue(skippedRow);
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await logDose({
+      actorUserId: logActorUserId,
+      protocolId: logProtocolId,
+      scheduledDate,
+      amount,
+      status: 'SKIPPED',
+    });
+
+    expect(result.doseLog.status).toBe('SKIPPED');
+    expect(mockAuditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'DOSE_SKIPPED' }) })
+    );
+  });
+
+  // AC-3 deferred to Task 2.6 — requires IndexedDB offline queue (PWA Sync)
   it.todo('AC-3: queues dose log while offline');
-  it.todo('AC-4: shows warning if vial inventory is empty');
-  it.todo('Negative: rejects future dose logging');
+
+  it('AC-4: shows insufficient_inventory warning when no vials available', async () => {
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
+    mockVialCount.mockResolvedValue(0); // no vials
+    mockDoseLogCreate.mockResolvedValue(baseDoseLogRow);
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await logDose({
+      actorUserId: logActorUserId,
+      protocolId: logProtocolId,
+      scheduledDate,
+      amount,
+      status: 'LOGGED',
+    });
+
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0].code).toBe('insufficient_inventory');
+  });
+
+  it('idempotency: returns existing log on duplicate key with same status', async () => {
+    const existingLog = { ...baseDoseLogRow };
+    mockDoseLogFindFirst.mockResolvedValue(existingLog);
+    mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
+    mockVialCount.mockResolvedValue(1);
+
+    const result = await logDose({
+      actorUserId: logActorUserId,
+      protocolId: logProtocolId,
+      scheduledDate,
+      amount,
+      status: 'LOGGED',
+    });
+
+    expect(result.doseLog.id).toBe('log-1');
+    expect(mockDoseLogCreate).not.toHaveBeenCalled();
+    expect(mockDoseLogUpdate).not.toHaveBeenCalled();
+  });
+
+  it('same-day edit: updates existing log when status changes', async () => {
+    const existingSkippedRow = { ...baseDoseLogRow, status: 'SKIPPED' };
+    const updatedLoggedRow = { ...baseDoseLogRow, status: 'LOGGED' };
+    // First findFirst: idempotency lookup; second findFirst: re-read after updateMany
+    mockDoseLogFindFirst
+      .mockResolvedValueOnce(existingSkippedRow)
+      .mockResolvedValueOnce(updatedLoggedRow);
+    mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
+    mockVialCount.mockResolvedValue(1);
+    mockDoseLogUpdate.mockResolvedValue({ count: 1 }); // updateMany returns {count}
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await logDose({
+      actorUserId: logActorUserId,
+      protocolId: logProtocolId,
+      scheduledDate,
+      amount,
+      status: 'LOGGED',
+    });
+
+    expect(result.doseLog.status).toBe('LOGGED');
+    expect(mockDoseLogCreate).not.toHaveBeenCalled();
+    expect(mockDoseLogUpdate).toHaveBeenCalledOnce();
+    expect(mockAuditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'DOSE_LOGGED' }) })
+    );
+  });
+
+  it('Negative: rejects future dose logging', async () => {
+    const futureDate = new Date(Date.UTC(2026, 4, 22)); // tomorrow
+    await expect(
+      logDose({
+        actorUserId: logActorUserId,
+        protocolId: logProtocolId,
+        scheduledDate: futureDate,
+        amount,
+        status: 'LOGGED',
+      })
+    ).rejects.toThrow(/dose_log_too_late/i);
+  });
 });
 
 /**
