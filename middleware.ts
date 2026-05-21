@@ -49,6 +49,6 @@ export const config = {
   // and common public files (favicon, robots, manifest, PWA icons).
   // The (?:/|$) boundary on api/auth prevents /api/authz from being excluded.
   matcher: [
-    '/((?!api/auth(?:/|$)|_next/static|_next/image|favicon\\.ico|robots\\.txt|manifest\\.json|sitemap\\.xml|icons/)..*)',
+    '/((?!api/auth(?:/|$)|_next/static|_next/image|favicon\\.ico|robots\\.txt|manifest\\.json|sitemap\\.xml|icons/).*)',
   ],
 };

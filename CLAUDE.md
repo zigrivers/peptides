@@ -5,6 +5,7 @@
 - **TDD Always**: Write pending test skeletons in `tests/acceptance/` first.
 - **Autonomous & Verified**: Prove every change with `pnpm check`.
 - **Identity Scoping**: Every DB query must include `where: { userId: session.user.id }`.
+  - **Exception**: Authentication queries in `lib/auth/` that look up a user *by email to establish identity* are exempt — they ARE the mechanism by which userId is obtained and cannot be self-referentially scoped. All such exempt queries must live in `lib/auth/` and return only fields needed for authentication.
 
 ### Key Commands
 | Task | Command |
