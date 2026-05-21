@@ -32,9 +32,13 @@ jobs:
 
       - name: Schema validate
         run: pnpm prisma:validate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
       - name: Build
         run: pnpm build
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
       - name: Test (Unit & Integration)
         run: pnpm test
