@@ -6,6 +6,7 @@ import { listVendorProducts } from '@/lib/ordering/application/VendorProductServ
 import { listCompounds } from '@/lib/reference/infrastructure/CompoundRepo';
 import { AddProductForm } from './_components/AddProductForm';
 import { ProductList } from './_components/ProductList';
+import { VendorStatusBadge } from '../_components/VendorStatusBadge';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -18,7 +19,7 @@ export default async function VendorDetailPage({ params }: Props) {
   const { id } = await params;
   const [vendor, products, compounds] = await Promise.all([
     getVendorById(session.user.id, id),
-    listVendorProducts(session.user.id, id).catch(() => []),
+    listVendorProducts(session.user.id, id),
     listCompounds(),
   ]);
 
@@ -37,15 +38,9 @@ export default async function VendorDetailPage({ params }: Props) {
             <h1 className="text-2xl font-semibold text-gray-900">{vendor.name}</h1>
             <p className="text-sm text-gray-500 mt-0.5">@{vendor.telegramUsername} · {vendor.preferredCurrency}</p>
           </div>
-          <span
-            className={`text-xs rounded-full px-2 py-0.5 font-medium mt-1 ${
-              vendor.status === 'ACTIVE'
-                ? 'bg-green-50 text-green-700'
-                : 'bg-gray-100 text-gray-500'
-            }`}
-          >
-            {vendor.status === 'ACTIVE' ? 'Active' : 'Disabled'}
-          </span>
+          <div className="mt-1">
+            <VendorStatusBadge status={vendor.status} />
+          </div>
         </div>
       </div>
 

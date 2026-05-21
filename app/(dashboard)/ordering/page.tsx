@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { listVendorsForUser } from '@/lib/ordering/application/VendorService';
+import { VendorStatusBadge } from './_components/VendorStatusBadge';
 
 export default async function OrderingPage() {
   const session = await auth();
@@ -41,15 +42,7 @@ export default async function OrderingPage() {
                     <p className="font-medium text-gray-900 text-sm">{v.name}</p>
                     <p className="text-xs text-gray-500 mt-0.5">@{v.telegramUsername} · {v.preferredCurrency}</p>
                   </div>
-                  <span
-                    className={`text-xs rounded-full px-2 py-0.5 font-medium ${
-                      v.status === 'ACTIVE'
-                        ? 'bg-green-50 text-green-700'
-                        : 'bg-gray-100 text-gray-500'
-                    }`}
-                  >
-                    {v.status === 'ACTIVE' ? 'Active' : 'Disabled'}
-                  </span>
+                  <VendorStatusBadge status={v.status} />
                 </div>
               </Link>
             </li>

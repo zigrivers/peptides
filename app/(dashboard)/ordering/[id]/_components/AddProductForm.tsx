@@ -38,6 +38,7 @@ export function AddProductForm({ vendorId, compounds }: Props) {
     }
 
     form.reset();
+    setPending(false);
     setOpen(false);
     router.refresh();
   }

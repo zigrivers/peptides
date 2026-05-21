@@ -1,5 +1,7 @@
 import Decimal from 'decimal.js';
+import type { VendorProduct as PrismaVendorProduct } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
+import { withAudit } from '@/lib/audit/application/withAudit';
 import type { VendorProduct } from '@/lib/ordering/domain/types';
 
 export interface CreateVendorProductInput {
@@ -19,16 +21,7 @@ export interface UpdateVendorProductInput {
   inStock?: boolean;
 }
 
-type ProductRow = {
-  id: string;
-  vendorId: string;
-  compoundId: string;
-  name: string;
-  priceUsd: Decimal;
-  inStock: boolean;
-};
-
-function toVendorProduct(row: ProductRow): VendorProduct {
+function toVendorProduct(row: PrismaVendorProduct): VendorProduct {
   return {
     id: row.id,
     vendorId: row.vendorId,
@@ -40,70 +33,93 @@ function toVendorProduct(row: ProductRow): VendorProduct {
 }
 
 export async function createVendorProduct(input: CreateVendorProductInput): Promise<VendorProduct> {
-  const vendor = await prisma.vendor.findFirst({
-    where: { id: input.vendorId, userId: input.userId },
-    select: { id: true },
-  });
-  if (!vendor) throw new Error('vendor_not_found');
+  return withAudit(
+    async (tx) => {
+      const vendor = await tx.vendor.findFirst({
+        where: { id: input.vendorId, userId: input.userId },
+        select: { id: true },
+      });
+      if (!vendor) throw new Error('vendor_not_found');
 
-  const row = await prisma.vendorProduct.create({
-    data: {
-      vendorId: input.vendorId,
-      compoundId: input.compoundId,
-      name: input.name,
-      priceUsd: new Decimal(input.priceUsd),
-      inStock: input.inStock,
+      const row = await tx.vendorProduct.create({
+        data: {
+          vendorId: input.vendorId,
+          compoundId: input.compoundId,
+          name: input.name,
+          priceUsd: new Decimal(input.priceUsd),
+          inStock: input.inStock,
+        },
+      });
+      return toVendorProduct(row);
     },
-  });
-  return toVendorProduct(row as unknown as ProductRow);
+    (result) => ({
+      actorUserId: input.userId,
+      category: 'Order' as const,
+      action: 'VENDOR_PRODUCT_ADDED' as const,
+      resourceId: result.id,
+      resourceType: 'VendorProduct',
+      newValues: { vendorId: input.vendorId, name: input.name } as { vendorId: string; name: string },
+    })
+  );
 }
 
 export async function listVendorProducts(userId: string, vendorId: string): Promise<VendorProduct[]> {
-  const vendor = await prisma.vendor.findFirst({
-    where: { id: vendorId, userId },
-    select: { id: true },
-  });
-  if (!vendor) throw new Error('vendor_not_found');
-
   const rows = await prisma.vendorProduct.findMany({
-    where: { vendorId },
+    where: { vendorId, vendor: { userId } },
     orderBy: { name: 'asc' },
   });
-  return rows.map((r) => toVendorProduct(r as unknown as ProductRow));
+  return rows.map((r) => toVendorProduct(r));
 }
 
 export async function updateVendorProduct(input: UpdateVendorProductInput): Promise<VendorProduct> {
-  const existing = await prisma.vendorProduct.findFirst({
-    where: { id: input.productId },
-    include: { vendor: { select: { userId: true } } },
-  });
-  if (!existing || (existing as unknown as { vendor: { userId: string } }).vendor.userId !== input.userId) {
-    throw new Error('product_not_found');
-  }
+  return withAudit(
+    async (tx) => {
+      const existing = await tx.vendorProduct.findFirst({
+        where: { id: input.productId, vendor: { userId: input.userId } },
+      });
+      if (!existing) throw new Error('product_not_found');
 
-  const data: Record<string, unknown> = {};
-  if (input.name !== undefined) data.name = input.name;
-  if (input.priceUsd !== undefined) data.priceUsd = new Decimal(input.priceUsd);
-  if (input.inStock !== undefined) data.inStock = input.inStock;
+      const data: Record<string, unknown> = {};
+      if (input.name !== undefined) data.name = input.name;
+      if (input.priceUsd !== undefined) data.priceUsd = new Decimal(input.priceUsd);
+      if (input.inStock !== undefined) data.inStock = input.inStock;
 
-  const row = await prisma.vendorProduct.update({
-    where: { id: input.productId },
-    data,
-  });
-  return toVendorProduct(row as unknown as ProductRow);
+      const { count } = await tx.vendorProduct.updateMany({
+        where: { id: input.productId, vendor: { userId: input.userId } },
+        data,
+      });
+      if (count === 0) throw new Error('product_not_found');
+
+      const row = await tx.vendorProduct.findFirst({
+        where: { id: input.productId, vendor: { userId: input.userId } },
+      });
+      return toVendorProduct(row!);
+    },
+    (result) => ({
+      actorUserId: input.userId,
+      category: 'Order' as const,
+      action: 'VENDOR_PRODUCT_UPDATED' as const,
+      resourceId: result.id,
+      resourceType: 'VendorProduct',
+    })
+  );
 }
 
 export async function archiveVendorProduct(userId: string, productId: string): Promise<void> {
-  const existing = await prisma.vendorProduct.findFirst({
-    where: { id: productId },
-    include: { vendor: { select: { userId: true } } },
-  });
-  if (!existing || (existing as unknown as { vendor: { userId: string } }).vendor.userId !== userId) {
-    throw new Error('product_not_found');
-  }
-
-  await prisma.vendorProduct.update({
-    where: { id: productId },
-    data: { inStock: false },
-  });
+  await withAudit(
+    async (tx) => {
+      const { count } = await tx.vendorProduct.updateMany({
+        where: { id: productId, vendor: { userId } },
+        data: { inStock: false },
+      });
+      if (count === 0) throw new Error('product_not_found');
+    },
+    {
+      actorUserId: userId,
+      category: 'Order' as const,
+      action: 'VENDOR_PRODUCT_ARCHIVED' as const,
+      resourceId: productId,
+      resourceType: 'VendorProduct',
+    }
+  );
 }
