@@ -64,13 +64,13 @@ describe('changePassword', () => {
     ).rejects.toThrow('password_same_as_current');
   });
 
-  it('resolves with otherSessionsRevoked: 1 and increments passwordVersion', async () => {
+  it('resolves with allSessionsRevoked: true and increments passwordVersion', async () => {
     const result = await changePassword({
       userId: 'u1',
       currentPassword: 'CurrentPass123',
       newPassword: 'BrandNewPass789',
     });
-    expect(result.otherSessionsRevoked).toBe(1);
+    expect(result.allSessionsRevoked).toBe(true);
     expect(mockWithAudit).toHaveBeenCalledWith(
       expect.any(Function),
       expect.objectContaining({ action: 'PASSWORD_CHANGED', actorUserId: 'u1' })

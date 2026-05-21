@@ -38,7 +38,8 @@ export async function requestPasswordReset(email: string): Promise<void> {
   );
 
   // Email sent outside the transaction (F-005).
-  const appUrl = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? '';
+  const appUrl = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL;
+  if (!appUrl) throw new Error('APP_URL_NOT_CONFIGURED');
   const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
 
   await resend.emails.send({

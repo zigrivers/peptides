@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 
 const mockFindByEmail = vi.fn();
 const mockCreate = vi.fn();
@@ -22,6 +22,9 @@ vi.mock('@/lib/shared/prisma', () => ({ prisma: {} }));
 
 const { requestPasswordReset } = await import('./requestPasswordReset');
 
+const originalEnv = process.env;
+beforeAll(() => { process.env = { ...originalEnv, NEXTAUTH_URL: 'https://app.example.com' }; });
+afterAll(() => { process.env = originalEnv; });
 beforeEach(() => { vi.clearAllMocks(); });
 
 describe('requestPasswordReset', () => {

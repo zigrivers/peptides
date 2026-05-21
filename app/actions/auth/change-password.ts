@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { auth } from '@/lib/auth';
+import { auth, signOut } from '@/lib/auth';
 import { changePassword } from '@/lib/auth/application/changePassword';
 
 export type ChangePasswordError =
@@ -25,7 +25,7 @@ const DOMAIN_ERRORS = new Set<ChangePasswordError>([
 ]);
 
 export type ChangePasswordResult =
-  | { ok: true; otherSessionsRevoked: number }
+  | { ok: true }
   | { ok: false; error: ChangePasswordError };
 
 export async function changePasswordAction(
@@ -41,12 +41,15 @@ export async function changePasswordAction(
   }
 
   try {
-    const result = await changePassword({
+    await changePassword({
       userId: session.user.id,
       currentPassword: parsed.data.currentPassword,
       newPassword: parsed.data.newPassword,
     });
-    return { ok: true, otherSessionsRevoked: result.otherSessionsRevoked };
+    // passwordVersion increment revokes ALL sessions including current.
+    // Sign out explicitly so the user re-authenticates with the new credentials.
+    await signOut({ redirect: false });
+    return { ok: true };
   } catch (err) {
     const code = err instanceof Error ? err.message : '';
     if (DOMAIN_ERRORS.has(code as ChangePasswordError)) {

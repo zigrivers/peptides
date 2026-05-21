@@ -9,8 +9,12 @@ export interface ChangePasswordInput {
 }
 
 export interface ChangePasswordResult {
-  /** Number of other sessions invalidated by the passwordVersion increment. */
-  otherSessionsRevoked: number;
+  /**
+   * True when passwordVersion increment invalidated all existing sessions,
+   * including the current one. The caller must explicitly sign the user out
+   * so they re-authenticate with the new credentials.
+   */
+  allSessionsRevoked: true;
 }
 
 /**
@@ -68,9 +72,7 @@ export async function changePassword(input: ChangePasswordInput): Promise<Change
     }
   );
 
-  // passwordVersion increment invalidates all sessions holding the old version.
-  // The jwt callback in lib/auth/index.ts detects the mismatch on next request.
-  // We cannot count "other sessions" precisely with JWT strategy (no server-side session store),
-  // so we return 1 to signal that revocation is in effect.
-  return { otherSessionsRevoked: 1 };
+  // passwordVersion increment invalidates ALL sessions (including the current one).
+  // The caller must sign the user out so they re-authenticate with the new credentials.
+  return { allSessionsRevoked: true };
 }
