@@ -42,10 +42,11 @@ export async function requestPasswordReset(email: string): Promise<void> {
   if (!appUrl) throw new Error('APP_URL_NOT_CONFIGURED');
   const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
 
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: user.email,
     subject: 'Reset your password',
     html: `<p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`,
   });
+  if (error) throw new Error(`EMAIL_SEND_FAILED: ${error.message}`);
 }

@@ -16,7 +16,8 @@ export async function resetPasswordRequestAction(email: unknown): Promise<void> 
   // and acceptable for a private single-tenant deployment.
   try {
     await requestPasswordReset(email);
-  } catch {
-    // Swallow all errors; caller always receives void (maps to HTTP 204).
+  } catch (err) {
+    // Log for observability; never surface to caller (email enumeration prevention).
+    console.error('[resetPasswordRequest] internal error:', err);
   }
 }

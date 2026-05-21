@@ -55,13 +55,18 @@ export async function changePassword(input: ChangePasswordInput): Promise<Change
 
   await withAudit(
     async (tx) => {
-      await tx.user.update({
-        where: { id: userId },
+      // Optimistic concurrency: include the fetched hash in the WHERE predicate so a
+      // concurrent password reset or change that ran between our fetch and this update
+      // causes count === 0, preventing a stale request from silently overwriting the
+      // newer password.
+      const { count } = await tx.user.updateMany({
+        where: { id: userId, passwordHash: user.passwordHash },
         data: {
           passwordHash: newHash.toString(),
           passwordVersion: { increment: 1 },
         },
       });
+      if (count === 0) throw new Error('concurrent_password_change');
     },
     {
       actorUserId: userId,

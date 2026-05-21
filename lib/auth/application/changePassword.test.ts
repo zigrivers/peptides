@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import bcrypt from 'bcryptjs';
 
 const mockFindUnique = vi.fn();
-const mockUpdate = vi.fn();
+const mockUpdateMany = vi.fn();
 const mockWithAudit = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
-    user: { findUnique: mockFindUnique, update: mockUpdate },
+    user: { findUnique: mockFindUnique, updateMany: mockUpdateMany },
   },
 }));
 vi.mock('@/lib/audit/application/withAudit', () => ({
@@ -27,9 +27,9 @@ beforeEach(() => {
     Promise.resolve({ passwordHash: CURRENT_HASH, passwordVersion: 1 })
   );
   mockWithAudit.mockImplementation(async (mutation, _audit) =>
-    mutation({ user: { update: mockUpdate } })
+    mutation({ user: { updateMany: mockUpdateMany } })
   );
-  mockUpdate.mockResolvedValue({});
+  mockUpdateMany.mockResolvedValue({ count: 1 });
 });
 
 describe('changePassword', () => {
@@ -64,6 +64,13 @@ describe('changePassword', () => {
     ).rejects.toThrow('password_same_as_current');
   });
 
+  it('throws concurrent_password_change when optimistic lock fails (count === 0)', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+    await expect(
+      changePassword({ userId: 'u1', currentPassword: 'CurrentPass123', newPassword: 'BrandNewPass789' })
+    ).rejects.toThrow('concurrent_password_change');
+  });
+
   it('resolves with allSessionsRevoked: true and increments passwordVersion', async () => {
     const result = await changePassword({
       userId: 'u1',
@@ -77,14 +84,15 @@ describe('changePassword', () => {
     );
   });
 
-  it('increments passwordVersion in the DB update', async () => {
+  it('uses optimistic concurrency — updateMany includes current passwordHash in WHERE', async () => {
     await changePassword({
       userId: 'u1',
       currentPassword: 'CurrentPass123',
       newPassword: 'BrandNewPass789',
     });
-    expect(mockUpdate).toHaveBeenCalledWith(
+    expect(mockUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: expect.objectContaining({ id: 'u1', passwordHash: CURRENT_HASH }),
         data: expect.objectContaining({ passwordVersion: { increment: 1 } }),
       })
     );
