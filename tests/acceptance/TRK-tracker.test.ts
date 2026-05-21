@@ -776,6 +776,31 @@ describe('US-TRK-03: Individual Dose Logging', () => {
     ).rejects.toThrow(/invalid_injection_site/i);
   });
 
+  it('Regression: injectionSite is stripped when creating a SKIPPED log', async () => {
+    const skippedWithSiteRow = {
+      ...baseDoseLogRow,
+      status: 'SKIPPED',
+      injectionSite: null, // site must not be persisted
+    };
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
+    mockDoseLogCreate.mockResolvedValue(skippedWithSiteRow);
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await logDose({
+      actorUserId: logActorUserId,
+      protocolId: logProtocolId,
+      scheduledDate,
+      amount,
+      status: 'SKIPPED',
+      injectionSite: { bodyPart: 'thigh', side: 'left' }, // should be ignored by service
+    });
+
+    // Service must strip the site — returned log has no injection site
+    expect(result.doseLog.status).toBe('SKIPPED');
+    expect(result.doseLog.injectionSite).toBeNull();
+  });
+
   it('Negative: rejects injectionSite that is out-of-route (deltoid on SubQ)', async () => {
     mockProtocolFindFirst.mockResolvedValue(baseProtocolRow); // administrationRoute: 'SubQ'
 

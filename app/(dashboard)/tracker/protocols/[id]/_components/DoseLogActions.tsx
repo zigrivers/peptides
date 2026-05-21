@@ -85,7 +85,7 @@ function SitePicker({
                 )}
               </span>
               <span className="text-gray-400 mt-0.5">{daysLabel}</span>
-              {meta?.isRested && meta.lastUsed === null ? null : meta?.isRested ? (
+              {meta?.isRested ? (
                 <span className="mt-0.5 rounded-full bg-green-100 text-green-700 px-1 py-0.5 text-[10px] font-medium">
                   Rested
                 </span>

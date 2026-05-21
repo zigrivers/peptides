@@ -163,20 +163,18 @@ export async function findRecentLogsWithSitesForCompound(
   compoundId: string,
   limit: number
 ): Promise<DoseLog[]> {
-  // Fetch more than limit to account for logs without an injection site
   const rows = await client.doseLog.findMany({
     where: {
       userId,
       status: 'LOGGED',
       protocol: { compoundId },
+      // Exclude JSON-null sites so the limit applies only to logs that have an actual site.
+      injectionSite: { not: Prisma.JsonNull },
     },
     orderBy: [{ scheduledDate: 'desc' }, { loggedAt: 'desc' }],
-    take: limit * 3,
+    take: limit,
   });
-  return rows
-    .filter((r) => r.injectionSite !== null)
-    .slice(0, limit)
-    .map((r) => mapDoseLog(r as RawDoseLog));
+  return rows.map((r) => mapDoseLog(r as RawDoseLog));
 }
 
 export async function validateVialOwnership(

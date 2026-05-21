@@ -141,7 +141,7 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
         scheduledDate: toUTCDay(input.scheduledDate),
         amount,
         status: input.status,
-        injectionSite: input.injectionSite,
+        injectionSite: input.status === 'LOGGED' ? input.injectionSite : undefined,
         note: input.note,
         vialId: input.vialId,
         loggedByUserId: input.actorUserId,
