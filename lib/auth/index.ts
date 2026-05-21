@@ -12,6 +12,11 @@ import { AuthRepository } from './infrastructure/AuthRepository';
 // hash, so using a real 60-char hash ensures comparable work to a real verify() call.
 const DUMMY_HASH = '$2b$12$uBubSQ6J8844KtMFcKvLsuIqchm3gaZe0Jt3VEbqY7KWYKvZWKvgG';
 
+// Server-side user status is re-checked at most once per this interval (ms).
+// Deactivated users are denied within this window. Edge-middleware revocation
+// (via Upstash KV) is handled in Task 1.4.
+const STATUS_RECHECK_MS = 15 * 60 * 1000;
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   ...authConfig,
@@ -40,4 +45,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  callbacks: {
+    // Mirror the edge-safe session callback from authConfig (checks token.deactivated).
+    session: authConfig.callbacks.session,
+
+    // Override jwt to add server-side status revalidation that edge middleware cannot do.
+    // Runs in Node.js context only (lib/auth/index.ts); middleware uses authConfig.callbacks.jwt.
+    async jwt({ token, user, trigger }) {
+      // Sign-in: embed identity claims and record initial status check timestamp.
+      if (user) {
+        token.id = user.id;
+        token.role = user.role ?? null;
+        token.statusCheckedAt = Date.now();
+        return token;
+      }
+
+      // Periodic status recheck: only when a normal request fires the callback
+      // (trigger undefined) and the recheck interval has elapsed.
+      const needsCheck =
+        !trigger &&
+        !!token.id &&
+        (!token.statusCheckedAt || Date.now() - token.statusCheckedAt > STATUS_RECHECK_MS);
+
+      if (needsCheck) {
+        const currentUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { status: true },
+        });
+        token.statusCheckedAt = Date.now();
+        if (!currentUser || currentUser.status !== 'ACTIVE') {
+          token.deactivated = true;
+        }
+      }
+
+      return token;
+    },
+  },
 });
