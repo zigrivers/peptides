@@ -22,6 +22,8 @@ export default async function ReconstitutionPage() {
     profile: c.profile,
   }));
 
+  const nowUtcMidnight = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
+
   // Serialize Decimal and Date to plain strings before crossing the server/client boundary
   const serializedVials: SerializedVial[] = vials.map((v) => ({
     id: v.id,
@@ -31,6 +33,7 @@ export default async function ReconstitutionPage() {
     remainingMg: v.remainingMg.toFixed(3),
     status: v.status,
     expiresAt: v.expiresAt ? v.expiresAt.toISOString() : null,
+    daysUntilExpiry: v.expiresAt ? Math.ceil((v.expiresAt.getTime() - nowUtcMidnight.getTime()) / 86400_000) : null,
     badges: v.badges,
   }));
 

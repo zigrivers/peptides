@@ -28,16 +28,24 @@ export default async function DashboardPage() {
   const showChecklist = onboardingState !== null && onboardingState.step !== 'completed';
   const hasActiveProtocols = protocols.some((p) => p.status === 'ACTIVE');
 
-  const serializedVials: SerializedVial[] = vials.map((v) => ({
-    id: v.id,
-    compoundName: v.compoundName,
-    totalMg: v.totalMg.toFixed(3),
-    bacWaterMl: v.bacWaterMl ? v.bacWaterMl.toFixed(3) : null,
-    remainingMg: v.remainingMg.toFixed(3),
-    status: v.status,
-    expiresAt: v.expiresAt ? v.expiresAt.toISOString() : null,
-    badges: v.badges,
-  }));
+  const nowUtcMidnight = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
+
+  const serializedVials: SerializedVial[] = vials.map((v) => {
+    const daysUntilExpiry = v.expiresAt
+      ? Math.ceil((v.expiresAt.getTime() - nowUtcMidnight.getTime()) / 86400_000)
+      : null;
+    return {
+      id: v.id,
+      compoundName: v.compoundName,
+      totalMg: v.totalMg.toFixed(3),
+      bacWaterMl: v.bacWaterMl ? v.bacWaterMl.toFixed(3) : null,
+      remainingMg: v.remainingMg.toFixed(3),
+      status: v.status,
+      expiresAt: v.expiresAt ? v.expiresAt.toISOString() : null,
+      daysUntilExpiry,
+      badges: v.badges,
+    };
+  });
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8">

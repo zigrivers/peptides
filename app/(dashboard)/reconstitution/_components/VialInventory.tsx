@@ -10,6 +10,7 @@ export interface SerializedVial {
   remainingMg: string;
   status: string;
   expiresAt: string | null;
+  daysUntilExpiry: number | null;
   badges: VialBadge[];
 }
 

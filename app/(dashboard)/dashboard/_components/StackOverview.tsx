@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { CycleWeekInfo } from '@/lib/tracker/domain/types';
 import type { AdherenceResult } from '@/lib/tracker/application/OutcomeLogService';
@@ -31,8 +32,15 @@ function RatingStars({ rating }: { rating: number }) {
 }
 
 function StaleIndicator({ fetchedAt }: { fetchedAt: string }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const fetchedDate = new Date(fetchedAt);
-  const minutesAgo = Math.floor((Date.now() - fetchedDate.getTime()) / 60_000);
+  const minutesAgo = Math.floor((now - fetchedDate.getTime()) / 60_000);
   if (minutesAgo < 30) return null;
   return (
     <p
@@ -90,9 +98,8 @@ function EmptyState({ userRole }: { userRole: 'POWER_USER' | 'MANAGED_USER' }) {
 
 export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActiveProtocols, userRole, fetchedAt }: Props) {
   const lowSupplyVials = vials.filter((v) => {
-    if (!v.expiresAt) return false;
-    const daysUntil = (new Date(v.expiresAt).getTime() - Date.now()) / 86400_000;
-    return daysUntil < LOW_SUPPLY_DAYS;
+    if (v.badges.some((b) => b === 'LOW_INVENTORY' || b === 'EXPIRED')) return true;
+    return v.daysUntilExpiry !== null && v.daysUntilExpiry < LOW_SUPPLY_DAYS;
   });
 
   if (!hasActiveProtocols) {
@@ -122,22 +129,25 @@ export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActive
           {lowSupplyVials.length > 0 ? (
             <ul className="space-y-1" aria-label="Low-supply vials">
               {lowSupplyVials.map((v) => {
-                const daysUntil = v.expiresAt
-                  ? Math.ceil((new Date(v.expiresAt).getTime() - Date.now()) / 86400_000)
-                  : null;
-                const isPast = daysUntil !== null && daysUntil <= 0;
+                const daysUntil = v.daysUntilExpiry;
+                const isExpired = v.badges.includes('EXPIRED') || (daysUntil !== null && daysUntil <= 0);
+                const isLowInventory = v.badges.includes('LOW_INVENTORY');
+                const label = isExpired ? 'Expired' : isLowInventory && daysUntil === null ? 'Low inventory' : `${daysUntil}d left`;
+                const ariaLabel = isExpired ? 'Expired' : isLowInventory ? 'Low inventory warning' : 'Low supply warning';
+                const style = isExpired
+                  ? 'bg-red-50 border-red-200 text-red-700'
+                  : isLowInventory
+                  ? 'bg-orange-50 border-orange-200 text-orange-700'
+                  : 'bg-amber-50 border-amber-200 text-amber-700';
+                const icon = isExpired ? '✕' : '⚠';
                 return (
                   <li key={v.id} className="flex items-center gap-2 text-sm">
                     <span
-                      aria-label={isPast ? 'Expired' : 'Low supply warning'}
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 border text-xs font-medium ${
-                        isPast
-                          ? 'bg-red-50 border-red-200 text-red-700'
-                          : 'bg-amber-50 border-amber-200 text-amber-700'
-                      }`}
+                      aria-label={ariaLabel}
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 border text-xs font-medium ${style}`}
                     >
-                      <span aria-hidden="true">{isPast ? '✕' : '⚠'}</span>
-                      {isPast ? 'Expired' : `${daysUntil}d left`}
+                      <span aria-hidden="true">{icon}</span>
+                      {label}
                     </span>
                     <span className="text-gray-700">{v.compoundName}</span>
                   </li>
