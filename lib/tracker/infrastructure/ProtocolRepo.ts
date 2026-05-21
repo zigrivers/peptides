@@ -122,12 +122,18 @@ export async function transitionProtocolStatus(
   tx: Prisma.TransactionClient,
   protocolId: string,
   ownerId: string,
-  newStatus: ProtocolStatus
+  newStatus: ProtocolStatus,
+  fromStatus: ProtocolStatus
 ): Promise<Protocol> {
-  const raw = await tx.protocol.update({
-    where: { id: protocolId, userId: ownerId },
+  const result = await tx.protocol.updateMany({
+    where: { id: protocolId, userId: ownerId, status: fromStatus },
     data: { status: newStatus },
   });
+  if (result.count === 0) {
+    throw new Error(`Protocol status changed concurrently; expected ${fromStatus}`);
+  }
+  const raw = await tx.protocol.findFirst({ where: { id: protocolId, userId: ownerId } });
+  if (!raw) throw new Error(`Protocol not found after transition: ${protocolId}`);
   return mapProtocol(raw);
 }
 

@@ -1,3 +1,4 @@
+import { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
@@ -13,9 +14,10 @@ import type { Protocol, CreateProtocolInput, UpdateProtocolInput } from '../doma
 
 type LifecycleInput = { actorUserId: string; protocolId: string };
 type CloneInput = LifecycleInput & { newStartDate: Date };
+type AnyClient = Prisma.TransactionClient | PrismaClient;
 
-async function getManagedUserIds(actorUserId: string): Promise<string[]> {
-  const users = await prisma.user.findMany({
+async function getManagedUserIds(actorUserId: string, client: AnyClient = prisma): Promise<string[]> {
+  const users = await client.user.findMany({
     where: { managedBy: actorUserId, status: 'ACTIVE' },
     select: { id: true },
   });
@@ -135,11 +137,11 @@ export async function updateProtocol(input: UpdateProtocolInput): Promise<Protoc
 }
 
 async function requireProtocolForActor(
-  tx: Parameters<typeof findProtocolByIdForActor>[0],
+  tx: Prisma.TransactionClient,
   protocolId: string,
   actorUserId: string
 ): Promise<Protocol> {
-  const managedIds = await getManagedUserIds(actorUserId);
+  const managedIds = await getManagedUserIds(actorUserId, tx);
   const protocol = await findProtocolByIdForActor(tx, protocolId, actorUserId, managedIds);
   if (!protocol) throw new Error(`Protocol not found: ${protocolId}`);
   return protocol;
@@ -153,7 +155,7 @@ export async function pauseProtocol(input: LifecycleInput): Promise<Protocol> {
       throw new Error(`Cannot pause a ${protocol.status.toLowerCase()} protocol`);
     }
 
-    const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'PAUSED');
+    const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'PAUSED', protocol.status);
 
     await tx.auditEvent.create({
       data: {
@@ -177,7 +179,7 @@ export async function resumeProtocol(input: LifecycleInput): Promise<Protocol> {
     const protocol = await requireProtocolForActor(tx, input.protocolId, input.actorUserId);
     if (protocol.status !== 'PAUSED') throw new Error('Protocol is not paused');
 
-    const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'ACTIVE');
+    const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'ACTIVE', 'PAUSED');
 
     await tx.auditEvent.create({
       data: {
@@ -238,7 +240,7 @@ export async function deactivateProtocol(input: LifecycleInput): Promise<Protoco
       throw new Error('Cannot deactivate a completed protocol');
     }
 
-    const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'DEACTIVATED');
+    const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'DEACTIVATED', protocol.status);
 
     await tx.auditEvent.create({
       data: {

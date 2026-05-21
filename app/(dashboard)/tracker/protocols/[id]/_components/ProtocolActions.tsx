@@ -40,8 +40,9 @@ export function ProtocolActions({ protocol }: Props) {
           if (navigateTo) {
             const path = typeof navigateTo === 'function' ? navigateTo(result.protocolId) : navigateTo;
             router.push(path);
+          } else {
+            router.refresh();
           }
-          router.refresh();
         } else {
           setError(result.message ?? result.error ?? 'Unknown error');
         }

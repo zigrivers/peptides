@@ -1,5 +1,6 @@
 const mockProtocolCreate = vi.fn();
 const mockProtocolUpdate = vi.fn();
+const mockProtocolUpdateMany = vi.fn();
 const mockProtocolFindFirst = vi.fn();
 const mockProtocolFindMany = vi.fn();
 const mockAuditCreate = vi.fn();
@@ -27,9 +28,11 @@ vi.mock('@/lib/shared/prisma', () => ({
         protocol: {
           create: mockProtocolCreate,
           update: mockProtocolUpdate,
+          updateMany: mockProtocolUpdateMany,
           findFirst: mockProtocolFindFirst,
         },
         auditEvent: { create: mockAuditCreate },
+        user: { findMany: mockUserFindMany },
       };
       return fn(tx);
     }),
@@ -390,8 +393,8 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
 
   describe('pauseProtocol', () => {
     it('AC-1: sets status to PAUSED and emits PROTOCOL_PAUSED audit event', async () => {
-      mockProtocolFindFirst.mockResolvedValue(activeProtocolRow);
-      mockProtocolUpdate.mockResolvedValue(pausedProtocolRow);
+      mockProtocolFindFirst.mockResolvedValueOnce(activeProtocolRow).mockResolvedValueOnce(pausedProtocolRow);
+      mockProtocolUpdateMany.mockResolvedValue({ count: 1 });
       mockAuditCreate.mockResolvedValue({});
 
       const result = await pauseProtocol({ actorUserId, protocolId });
@@ -418,12 +421,27 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
       mockProtocolFindFirst.mockResolvedValue({ ...activeProtocolRow, status: 'COMPLETED' });
       await expect(pauseProtocol({ actorUserId, protocolId })).rejects.toThrow(/completed/i);
     });
+
+    it('actor can pause a managed user protocol (F-002 regression)', async () => {
+      const managedUserId = 'user-managed';
+      const managedProtocolRow = { ...activeProtocolRow, userId: managedUserId };
+      const managedPausedRow = { ...managedProtocolRow, status: 'PAUSED' };
+      mockUserFindMany.mockResolvedValue([{ id: managedUserId }]);
+      mockProtocolFindFirst.mockResolvedValueOnce(managedProtocolRow).mockResolvedValueOnce(managedPausedRow);
+      mockProtocolUpdateMany.mockResolvedValue({ count: 1 });
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await pauseProtocol({ actorUserId, protocolId });
+
+      expect(result.status).toBe('PAUSED');
+      expect(result.userId).toBe(managedUserId);
+    });
   });
 
   describe('resumeProtocol', () => {
     it('AC-2: sets status to ACTIVE and emits PROTOCOL_RESUMED audit event', async () => {
-      mockProtocolFindFirst.mockResolvedValue(pausedProtocolRow);
-      mockProtocolUpdate.mockResolvedValue(activeProtocolRow);
+      mockProtocolFindFirst.mockResolvedValueOnce(pausedProtocolRow).mockResolvedValueOnce(activeProtocolRow);
+      mockProtocolUpdateMany.mockResolvedValue({ count: 1 });
       mockAuditCreate.mockResolvedValue({});
 
       const result = await resumeProtocol({ actorUserId, protocolId });
@@ -480,8 +498,8 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
 
   describe('deactivateProtocol', () => {
     it('sets status to DEACTIVATED and emits PROTOCOL_DEACTIVATED audit event', async () => {
-      mockProtocolFindFirst.mockResolvedValue(activeProtocolRow);
-      mockProtocolUpdate.mockResolvedValue({ ...activeProtocolRow, status: 'DEACTIVATED' });
+      mockProtocolFindFirst.mockResolvedValueOnce(activeProtocolRow).mockResolvedValueOnce({ ...activeProtocolRow, status: 'DEACTIVATED' });
+      mockProtocolUpdateMany.mockResolvedValue({ count: 1 });
       mockAuditCreate.mockResolvedValue({});
 
       const result = await deactivateProtocol({ actorUserId, protocolId });

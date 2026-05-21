@@ -3,17 +3,8 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getProtocolById } from '@/lib/tracker/application/ProtocolService';
 import { findCompoundById } from '@/lib/reference/infrastructure/CompoundRepo';
-import type { Schedule } from '@/lib/tracker/domain/types';
+import { formatSchedule } from '@/lib/tracker/domain/formatters';
 import { ProtocolActions } from './_components/ProtocolActions';
-
-function formatSchedule(schedule: Schedule): string {
-  switch (schedule.frequency) {
-    case 'Daily': return 'Daily';
-    case 'EOD': return 'Every other day';
-    case 'SpecificDaysOfWeek': return schedule.daysOfWeek.join(', ');
-    case 'CustomInterval': return `Every ${schedule.intervalDays} days`;
-  }
-}
 
 export default async function ProtocolDetailPage({
   params,

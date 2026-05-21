@@ -3,17 +3,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
 import type { Protocol } from '@/lib/tracker/domain/types';
-
-function formatSchedule(schedule: Protocol['schedule']): string {
-  switch (schedule.frequency) {
-    case 'Daily': return 'Daily';
-    case 'EOD': return 'Every other day';
-    case 'SpecificDaysOfWeek':
-      return schedule.daysOfWeek.join(', ');
-    case 'CustomInterval':
-      return `Every ${schedule.intervalDays} days`;
-  }
-}
+import { formatSchedule } from '@/lib/tracker/domain/formatters';
 
 function statusBadge(status: Protocol['status']) {
   const styles: Record<Protocol['status'], string> = {
