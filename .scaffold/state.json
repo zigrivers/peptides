@@ -395,7 +395,7 @@
       "artifacts_verified": true
     },
     "innovate-user-stories": {
-      "status": "pending",
+      "status": "completed",
       "source": "pipeline",
       "produces": [
         "docs/user-stories-innovation.md",
@@ -403,7 +403,12 @@
         "docs/reviews/user-stories-innovation/review-summary.md",
         "docs/reviews/user-stories-innovation/codex-review.json",
         "docs/reviews/user-stories-innovation/gemini-review.json"
-      ]
+      ],
+      "at": "2026-05-21T02:36:17.739Z",
+      "completed_at": "2026-05-21T02:36:17.739Z",
+      "completed_by": "user",
+      "depth": 3,
+      "artifacts_verified": true
     },
     "review-prd": {
       "status": "completed",
@@ -762,7 +767,6 @@
     }
   },
   "next_eligible": [
-    "innovate-user-stories",
     "single-agent-start",
     "single-agent-resume",
     "multi-agent-start",
@@ -771,6 +775,6 @@
     "new-enhancement"
   ],
   "extra-steps": [],
-  "save_counter": 131,
+  "save_counter": 133,
   "next_eligible_hash": "b0f96612b7489b4407a2f088950aeae539aca5bb924eab64281c9be389457d2e"
 }

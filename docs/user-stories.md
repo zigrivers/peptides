@@ -1,9 +1,11 @@
+<!-- scaffold:innovate-user-stories v1 2026-05-20 -->
 # User Stories
 
-**Status:** Draft  
-**Date:** 2026-05-20  
-**PRD source:** `docs/plan.md`  
+**Status:** Draft (innovate-user-stories applied)
+**Date:** 2026-05-20
+**PRD source:** `docs/plan.md`
 **Methodology:** deep | Depth: 5/5
+**Innovation findings:** `docs/user-stories-innovation.md`
 
 ---
 
@@ -40,6 +42,7 @@
 - **AC 4 (Stacking):** If "Stacking Notes" exist, they are displayed prominently (e.g., "Commonly stacked with TB-500").
 - **AC 5 (Placeholder):** If a compound is in the QSC catalog but the profile is not yet complete, I see a "Profile in progress" placeholder with the compound name and basic sourcing info instead of a 404.
 - **AC 6 (Archived):** If a compound has been soft-deleted from the catalog but is still referenced by a protocol or dose log, the compound name is shown as "[Name] (archived)" with no active profile link, preserving FK integrity.
+- **AC 7 (Persona disclosure — A6):** Given a Delegated Participant views a compound profile, when the page renders, then dosing range and administration route sections are expanded by default while mechanism, IUPAC name, and citations are collapsed behind a `Show more` control. Power Users see all sections expanded.
 
 **Domain Events:** `CompoundProfileViewed`
 
@@ -53,6 +56,7 @@
 **Acceptance Criteria:**
 - **AC 1 (Search):** Given I am in the catalog, when I type "sema", then "Semaglutide" appears in the filtered results.
 - **AC 2 (Categories):** When I select the "Healing" category, only peptides tagged with healing/recovery (e.g., BPC-157, TB-500) are shown.
+- **AC 3 (Recently viewed — A10):** Given the user has viewed at least one compound profile, when they enter the catalog screen, then a `Recently viewed` row showing their last 5 distinct compounds is rendered above the search and filter controls.
 
 **Domain Events:** `CatalogSearched`, `CatalogFiltered`
 
@@ -71,6 +75,11 @@
 - **AC 3 (Validation):** Saving is blocked if compound or dose amount is missing.
 - **AC 4 (Audit):** Every creation or modification of a protocol is recorded in the audit log.
 - **AC 5 (Frequencies):** I can configure protocol frequency as one of: daily, every other day (EOD), specific days of the week (e.g., Mon/Wed/Fri), or a custom interval in days. The generated schedule respects the chosen frequency.
+- **AC 6 (Numeric input UX — A8, canonical for all dose/volume fields):** Given a dose-amount or BAC-volume input is rendered, when the user focuses it on a mobile device, then the decimal numeric keypad is presented (`inputmode='decimal'`) and the field has an accessible label describing the unit (mcg / mg / IU / mL). This pattern applies to every dose or volume input across US-TRK-01, US-TRK-03, and US-REC-01.
+- **AC 7 (Smart protocol defaults — A16):** Given the user has a prior protocol for the selected compound, when they create a new protocol with that compound, then the dose amount, unit, frequency, and administration route are pre-filled from the user's most recent protocol for the same compound; fields remain editable before save.
+- **AC 8 (Live syringe hint — A19):** Given the user has at least one active reconstituted vial for the selected compound, when they enter a dose amount in the protocol form, then the equivalent value in 100-unit insulin syringe units is shown as helper text below the input.
+- **AC 9 (Assignee context — A20):** Given the user opens the assign-to control on a protocol form, when a managed user is selected, then a small list of that user's currently active protocols is rendered inline under the selection (e.g., `Also on: BPC-157, TB-500`).
+- **AC 10 (Schedule preview — P9):** Given the user has selected a compound, dose, frequency, and start date, when they review the protocol form before saving, then the next 7 generated dose dates and the assignee are rendered as a preview list, with inline warnings for invalid interval, missing start date, or inactive assignee.
 
 **Domain Events:** `ProtocolCreated`, `ProtocolUpdated`
 
@@ -101,6 +110,9 @@
 - **AC 2 (Skip):** I can explicitly tap "Skip" on a dose, which records it as a "skip" event (distinct from "not logged").
 - **AC 3 (Offline):** Given I am offline, when I log a dose, then the log is queued in the app and synced to the server once I am back online.
 - **AC 4 (Inventory):** If I try to log a dose for a compound with 0 vials remaining, a prominent warning is shown.
+- **AC 5 (Undo — A4):** Given the user has just confirmed a dose, when the confirmation completes, then a toast with an `Undo` action appears for 5 seconds. Tapping `Undo` before dismissal removes the dose log entry and records an audit event with reason `"reverted within grace window"`.
+- **AC 6 (Deviation guard — A18):** Given the user is logging a dose with a manually edited amount that deviates more than 50% from the scheduled protocol amount, when they attempt to confirm, then a confirmation dialog asks them to verify the amount before the log is written (the dialog cannot be auto-dismissed).
+- **AC 7 (Local duplicate-tap protection — P6):** Given the user has tapped confirm on a scheduled dose (online or offline), when the row transitions to `queued` state immediately on tap, then a subsequent confirm tap on the same scheduled dose from the same device is rejected as a duplicate before any sync occurs. Idempotency is keyed to `(protocolId, scheduledDate, deviceId)`.
 
 **Domain Events:** `DoseLogged`, `DoseSkipped`, `DoseSyncCompleted`
 
@@ -117,6 +129,7 @@
 - **AC 3 (Selectable sites):** The available sites are: left abdomen, right abdomen, left thigh, right thigh, left deltoid, right deltoid, ventrogluteal L, ventrogluteal R. I can always override the suggestion before confirming.
 - **AC 4 (Route awareness):** Sites are filtered by the compound's administration route (subcutaneous, intramuscular, etc.) — only valid sites for the active route are offered.
 - **AC 5 (First dose):** When there is no prior history for a compound, no suggestion is shown and all valid sites are available as user choice.
+- **AC 6 (Rest indicator — A7):** Given a dose is being logged with site rotation available, when the site picker is shown, then each candidate site displays `last used N days ago` (or `never` if unused), and sites unused ≥ 7 days are tagged `rested`. The list is available as structured text for screen readers (see US-ANL-01 AC 7).
 
 **Domain Events:** `InjectionSiteSuggested`
 
@@ -131,6 +144,9 @@
 - **AC 1 (Batch Action):** Given I have 3 doses due today, when I tap "Log All Scheduled", then all 3 are marked as logged at their protocol amounts.
 - **AC 2 (Review):** Before final confirmation, I see a list of what will be logged and can deselect or skip individual doses.
 - **AC 3 (Offline):** Batch logs are queued while offline and synced upon reconnection.
+- **AC 4 (Inline edit — A5):** Given the batch review list is shown with N pending doses, when the user taps a dose amount, then an inline numeric input opens defaulted to the protocol amount and accepts any positive Decimal value, recorded as `actual dose` on confirm.
+- **AC 5 (Confirmation feedback — A14):** Given a batch dose confirmation succeeds, when the operation completes, then a short haptic pulse fires (where the Vibration API is supported) and each logged dose row plays a checkmark animation before collapsing into a `Today: N/N complete` summary card.
+- **AC 6 (Safe preselection — P5):** Given the user opens the batch review list, when it is rendered, then any dose flagged as unavailable (zero vial inventory, no valid site for the active route, or missing protocol data) is shown unchecked with an inline warning. Unavailable doses cannot be batch-confirmed; the user must explicitly skip them or resolve the underlying issue via the per-row action.
 
 **Domain Events:** `DoseBatchLogged`
 
@@ -144,6 +160,7 @@
 **Acceptance Criteria:**
 - **AC 1 (Rating):** I can log an overall wellbeing rating (1-5) and select tags like "Energy" or "Pain".
 - **AC 2 (Notes):** I can add a free-text note (max 1000 chars) to the daily log.
+- **AC 3 (Tag presets — A11):** Given a user has logged outcome entries with tags in the past 14 days, when they open the outcome-logging UI, then their 3 most-frequent tags from that period are shown as one-tap presets above the full tag selector.
 
 **Domain Events:** `OutcomeLogged`
 
@@ -187,6 +204,7 @@
 - **AC 3 (Email):** If push is unavailable, the app sends an email reminder.
 - **AC 4 (Push denied):** If I deny notification permission, the app surfaces a banner ("Enable notifications for dose reminders") with a link to browser settings and silently falls back to email delivery.
 - **AC 5 (Email failure):** If email delivery fails, the failure is recorded in the application log but does not produce a user-facing error and is not retried (silent fail-soft is intentional for reminders).
+- **AC 6 (Visible reminder — A15):** Given the user has a daily reminder time configured, when they view the dashboard, then `Next reminder: HH:MM` is displayed and tapping the indicator opens the reminder time editor inline.
 
 **Domain Events:** `ReminderSent`, `ReminderDeliveryFailed`
 
@@ -203,6 +221,11 @@
 - **AC 1 (Summary):** Dashboard shows current week number and completion status for the active cycle.
 - **AC 2 (Inventory):** Compounds with low vial inventory (< 14 days) are highlighted with a warning badge.
 - **AC 3 (Ratings):** A 7-day average of my wellbeing ratings is displayed alongside adherence metrics.
+- **AC 4 (Badge accessibility — A9, canonical):** Given any warning or status badge is rendered (low inventory, expiring vial, dose-above-range, large-volume warning, stale-data badge, etc.), when it is displayed, then the badge combines a color, an icon, and a text label. No warning is conveyed by color alone (WCAG 1.4.1).
+- **AC 5 (Stale-data badge — A13):** Given the user is offline or the displayed data was fetched more than 30 minutes ago, when inventory, adherence, or dashboard tiles are rendered, then each tile shows a `Last refreshed HH:MM` indicator.
+- **AC 6 (First-login empty state — A21):** Given a user has no active protocols and no dose logs, when they land on the dashboard, then a `Get started` card is shown. Power Users see actions for `Browse Catalog`, `Create Protocol`, and `Log First Dose`. Delegated Participants see the message `No dose scheduled today — your administrator will configure your protocol`. The card hides once the user has at least one active protocol.
+- **AC 7 (Accessible text equivalents — P10, canonical):** Given any visual element on the dashboard, site rotation flow, or analytics chart represents data, when the element is rendered, then a screen-reader-accessible structured text equivalent exists. Site rotation history is exposed as a list (`Left abdomen — 3 uses, last 2 days ago`). The correlation timeline (US-TRK-07) is focusable and announces a data table containing the same dates, dose events, and outcome ratings. Warning badges announce status text via `aria-live` polite regions.
+- **AC 8 (Delegated single-dose card — P8):** Given a Delegated Participant has exactly one dose due today, when they open the dashboard, then the dose is rendered as a single dominant card with `Confirm` and `Skip` as the only primary actions. No protocol creation, ordering, or configuration controls are shown.
 
 **Domain Events:** `DashboardViewed`
 
@@ -220,6 +243,10 @@
 - **AC 2 (Syringe Units):** Given a target dose of 250mcg, the app shows "10 units" on a 100-unit insulin syringe.
 - **AC 3 (Guardrails):** A yellow warning is shown if: (a) dose exceeds the reference profile high range, (b) injection volume > 1.5mL, or (c) BAC water volume < 0.5mL.
 - **AC 4 (Context):** The calculator displays my last logged dose for this compound to provide safety context.
+- **AC 5 ("Use last" chip — A1, opt-in fill):** Given the user has previously reconstituted this compound, when they open the calculator with this compound selected, then an inert chip labeled `Use last: <volume>mL — <date>` is shown adjacent to the BAC water field. Tapping the chip populates the field with the prior value; the chip does NOT auto-fill the field on render.
+- **AC 6 (Read-back summary — A3):** Given the calculator inputs are valid, when the user is about to record the reconstitution, then a single-sentence plain-English summary line is rendered above the Record button restating vial size, BAC volume, resulting concentration, and units-per-target-dose (e.g., `"5mg vial + 2.0mL BAC = 2.5mg/mL — 10 units gives 250mcg."`).
+- **AC 7 (Visual syringe preview — P1):** Given the calculator has computed a non-zero unit value for the target dose, when the result is rendered, then a graphical 1mL insulin syringe is displayed alongside the numeric output, with the plunger drawn at the calculated unit mark and the measurement labelled.
+- **AC 8 (Field-level guardrails + sticky summary — P2):** Given the user is editing any input on the calculator, when the field loses focus or recalculates, then field-level inline validation runs (zero/negative blocked, BAC < 0.5mL warning inline, vial size missing inline error, target dose above reference high-range warning inline). A sticky summary panel showing concentration, dose volume, and insulin-syringe units updates live as inputs change and remains visible while the user scrolls.
 
 **Domain Events:** `ReconstitutionCalculated`
 
@@ -231,7 +258,7 @@
 **so that** my dose logging can decrement from the vial's total content.
 
 **Acceptance Criteria:**
-- **AC 1 (Persistence):** Saving a calculation creates a `Vial` record with an estimated expiry date (14 days default).
+- **AC 1 (Persistence — modified by A2):** Saving a calculation creates a `Vial` record with an estimated expiry date computed from the compound profile's `reconstituted shelf life` field (per PRD §5.1). If the profile field is empty, the default falls back to 14 days. Expiry remains editable before save.
 - **AC 2 (Inventory):** The dashboard shows a "Low Inventory" or "Expiring" badge when the vial is nearly empty or past its date.
 
 **Domain Events:** `VialReconstituted`
@@ -262,6 +289,7 @@
 **Acceptance Criteria:**
 - **AC 1 (Suggestions):** When I open the order builder, compounds with < 14 days of supply remaining are listed in a "Suggested" section.
 - **AC 2 (Quick Add):** I can add suggested items to my cart with one tap.
+- **AC 3 (Suggestion reason — A17):** Given a compound is in the Suggested section of the order builder, when it is rendered, then a reason string is shown next to it (e.g., `~8 doses remaining`, `vial expires in 3 days`, `no active vial recorded`). The reason explains why the compound was flagged for reorder.
 
 **Domain Events:** `OrderSuggestionsGenerated`
 
@@ -276,8 +304,9 @@
 - **AC 1 (Cart):** I can add items from the vendor catalog to a cart.
 - **AC 2 (MTProto Send):** Tapping "Send Order" sends the message via the linked Telegram account.
 - **AC 3 (Audit):** The full text of the sent message is archived in the order history.
+- **AC 4 (Failed-send order queue — P4):** Given a Telegram MTProto send attempt fails (network error, session invalidated, rate limit, timeout), when the user navigates away and returns later, then the order remains in `Send failed` state with the composed message, vendor target, cart contents, and `send_method` history intact. A `Retry send` action is available, and the manual fallback options (copy message, open Telegram deep-link) are always accessible from the queue entry. The order is not silently discarded and never auto-transitions out of `Send failed` without explicit user action.
 
-**Domain Events:** `OrderSent`
+**Domain Events:** `OrderSent`, `OrderSendFailed`
 
 ---
 
@@ -291,6 +320,8 @@
 - **AC 2 (Verification):** The "Mark Payment Sent" button is only enabled after I view a summary screen showing the address and amount together.
 - **AC 3 (Duplicate send idempotency):** If I attempt to re-send an identical order message to the same vendor within 60 seconds of the previous send (e.g., via double-click or network retry), the app shows a "Possible duplicate — send again?" confirmation before proceeding.
 - **AC 4 (Stale wallet warning):** When entering the wallet address, the app shows the wallet address from my most recent order to the same vendor for comparison, but requires me to verify the current address from the vendor's Telegram reply before "Mark Payment Sent" is enabled.
+- **AC 5 (Chunked address display — A22):** Given the user is on the payment summary screen, when the wallet address is rendered, then it is displayed in monospace font broken into 4-character chunks separated by spaces, with the amount and currency shown directly above. The `Mark Payment Sent` button is placed below a required acknowledgment checkbox (`I have verified the wallet address and amount`) and is visually separated from copy-address and open-wallet actions to prevent fat-finger errors.
+- **AC 6 (Wallet character diff — P3):** Given a previous confirmed wallet address exists for this vendor, when the payment confirmation gate renders, then the new and previous addresses are displayed in a side-by-side character-diff view with added/removed/changed characters highlighted. The `Mark Payment Sent` button remains disabled until the user explicitly taps `I have compared the addresses`. If no prior address exists for this vendor, the diff view is omitted and the acknowledgment label adapts to `I have verified this is the address from the vendor's current reply`.
 
 **Domain Events:** `OrderPaymentConfirmed`, `DuplicateSendBlocked`
 
@@ -378,6 +409,7 @@
 - **AC 3 (Invite states):** The admin panel shows the invite status per user row: **Active** | **Invited (expires MM/DD)** | **Invite Expired** | **Deactivated**.
 - **AC 4 (Resend invite):** From any "Invited" or "Invite Expired" row, I can resend the invite. Resending generates a new link and immediately invalidates the prior one. Resending to a user who has already accepted is not available — I use password reset instead.
 - **AC 5 (Duplicate-invite guard):** Attempting to invite an email that already has an account shows "This email already has an account." Attempting to invite an email with a pending invite shows "An invite is already pending for this email. Resend or cancel it first."
+- **AC 6 (Copy invite link — A12):** Given an invite has been generated for a managed user, when the admin views the invite-status row, then the invite link is shown alongside a copy-to-clipboard action. The email is sent in parallel; both paths land on the same one-time-use link.
 
 **Domain Events:** `ManagedUserInvited`, `ManagedUserInviteResent`
 
@@ -490,8 +522,9 @@
 **Acceptance Criteria:**
 - **AC 1 (Install):** The app provides a manifest and service worker for home screen installation on iOS and Android.
 - **AC 2 (Offline Shell):** The app shell loads instantly even without an internet connection.
+- **AC 3 (Persistent sync indicator — P7):** Given the app shell is rendered, when the user is online and synced, then a green sync indicator with last-sync timestamp (`Synced HH:MM`) is shown in the shell header. When offline with pending mutations, an amber indicator with queue count (`Offline — N queued`) is shown. When a sync attempt has failed, a red indicator (`Sync failed — Retry`) is shown with a retry action. Tapping the indicator opens a list of queued operations with their type, target, and timestamp.
 
-**Domain Events:** `AppInstalled`
+**Domain Events:** `AppInstalled`, `SyncQueueViewed`, `SyncRetryRequested`
 
 ---
 
