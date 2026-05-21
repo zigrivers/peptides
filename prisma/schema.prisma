@@ -399,12 +399,13 @@ model OrderItem {
 }
 
 model TelegramSession {
-  id            String    @id @default(uuid())
-  userId        String    @unique
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionString String    // Encrypted AES-256
-  isActive      Boolean   @default(true)
-  updatedAt     DateTime  @updatedAt
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionString     String    // Encrypted AES-256
+  isActive          Boolean   @default(true)
+  lastConnectedIp   String?   // For IP-mismatch heartbeat (§4.4)
+  updatedAt         DateTime  @updatedAt
 }
 
 // --- Notification Domain ---
