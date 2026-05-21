@@ -70,12 +70,13 @@ const mockWithAudit = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
 const mockSend = vi.fn();
 const mockEmailUpdateMany = vi.fn();
+const mockEmailFindFirst = vi.fn();
 
 vi.mock('next/server', () => ({ unstable_after: mockAfter }));
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
     user: { findUnique: mockFindUnique, findFirst: mockFindFirst },
-    emailChangeRequest: { updateMany: mockEmailUpdateMany },
+    emailChangeRequest: { updateMany: mockEmailUpdateMany, findFirst: mockEmailFindFirst },
   },
 }));
 vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }));
@@ -102,9 +103,11 @@ const HASH = await bcrypt.hash(PASSWORD, 4);
 const future = new Date(Date.now() + 3_600_000);
 const fakeTx = {};
 
+const fakeCreatedAt = new Date('2026-01-01T00:00:00Z');
 const pendingRecord = {
   id: 'req-1', userId: 'u1', oldEmail: 'old@e.com', newEmail: 'new@e.com',
-  expiresAt: future, status: 'PENDING', appliedAt: null, revertibleUntil: null, verifiedAt: null,
+  createdAt: fakeCreatedAt, expiresAt: future, status: 'PENDING',
+  appliedAt: null, revertibleUntil: null, verifiedAt: null,
 };
 const appliedRecord = {
   ...pendingRecord,
@@ -117,6 +120,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockFindUnique.mockResolvedValue({ email: 'old@e.com', passwordHash: HASH });
   mockFindFirst.mockResolvedValue(null);
+  mockEmailFindFirst.mockResolvedValue(null);
   mockCancelPending.mockResolvedValue(undefined);
   mockCreate.mockResolvedValue('raw-token-64hex');
   mockEmailUpdateMany.mockResolvedValue({ count: 0 });
@@ -167,7 +171,7 @@ describe('US-AUT-07 (application-service level)', () => {
     mockFindByRawToken.mockResolvedValue(appliedRecord);
     await revertEmailChange({ rawToken: 'revert-token' });
     expect(mockRevertById).toHaveBeenCalledWith(
-      expect.anything(), 'req-1', 'u1', 'old@e.com'
+      expect.anything(), 'req-1', 'u1', 'old@e.com', fakeCreatedAt
     );
   });
 

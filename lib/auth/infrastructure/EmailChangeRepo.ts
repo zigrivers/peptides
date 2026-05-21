@@ -40,6 +40,7 @@ export const EmailChangeRepo = {
     userId: string;
     oldEmail: string;
     newEmail: string;
+    createdAt: Date;
     expiresAt: Date;
     status: string;
     appliedAt: Date | null;
@@ -54,6 +55,7 @@ export const EmailChangeRepo = {
         userId: true,
         oldEmail: true,
         newEmail: true,
+        createdAt: true,
         expiresAt: true,
         status: true,
         appliedAt: true,
@@ -106,11 +108,14 @@ export const EmailChangeRepo = {
   },
 
   // Atomically marks the request REVERTED and restores the user's email.
+  // createdAt: the creation time of THIS token, used to only cancel NEWER APPLIED tokens.
+  // This prevents an attacker from reverting a later change to cancel an earlier victim revert token.
   async revertById(
     tx: Prisma.TransactionClient,
     id: string,
     userId: string,
-    oldEmail: string
+    oldEmail: string,
+    createdAt: Date
   ): Promise<boolean> {
     const now = new Date();
     // Include revertibleUntil guard to close the validation→update TOCTOU window
@@ -120,9 +125,18 @@ export const EmailChangeRepo = {
     });
     if (count !== 1) return false;
 
-    // Invalidate other APPLIED tokens still within their revert window to prevent chaining attacks
+    // Cancel any PENDING tokens (prevent new changes from being applied after recovery) AND
+    // any APPLIED tokens created AFTER this one (prevent forward-chaining attacks).
+    // We deliberately do NOT cancel older APPLIED tokens to preserve their revert rights.
     await tx.emailChangeRequest.updateMany({
-      where: { userId, status: 'APPLIED', id: { not: id }, revertibleUntil: { gt: now } },
+      where: {
+        userId,
+        id: { not: id },
+        OR: [
+          { status: 'PENDING' },
+          { status: 'APPLIED', createdAt: { gt: createdAt }, revertibleUntil: { gt: now } },
+        ],
+      },
       data: { status: 'CANCELLED' },
     });
 

@@ -12,11 +12,13 @@ vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }
 const { revertEmailChange } = await import('./revertEmailChange');
 
 const future48h = new Date(Date.now() + 48 * 3_600_000);
+const fakeCreatedAt = new Date('2026-01-01T00:00:00Z');
 const validRecord = {
   id: 'req-1',
   userId: 'user-1',
   oldEmail: 'old@e.com',
   newEmail: 'new@e.com',
+  createdAt: fakeCreatedAt,
   expiresAt: new Date(Date.now() + 3_600_000),
   status: 'APPLIED',
   appliedAt: new Date(),
@@ -65,13 +67,13 @@ describe('revertEmailChange', () => {
     await expect(revertEmailChange({ rawToken: 'valid-token' })).rejects.toThrow('token_already_used');
   });
 
-  it('calls revertById with id + userId + oldEmail', async () => {
+  it('calls revertById with id + userId + oldEmail + createdAt', async () => {
     const fakeTx = {};
     mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>) =>
       mutation(fakeTx)
     );
     await revertEmailChange({ rawToken: 'valid-token' });
-    expect(mockRevertById).toHaveBeenCalledWith(fakeTx, 'req-1', 'user-1', 'old@e.com');
+    expect(mockRevertById).toHaveBeenCalledWith(fakeTx, 'req-1', 'user-1', 'old@e.com', fakeCreatedAt);
   });
 
   it('audit factory returns EMAIL_CHANGE_REVERTED with correct actorUserId', async () => {

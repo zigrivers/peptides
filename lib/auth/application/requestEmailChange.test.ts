@@ -10,9 +10,12 @@ const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
 const mockSend = vi.fn();
 
 vi.mock('next/server', () => ({ unstable_after: mockAfter }));
+const mockEmailFindFirst = vi.fn();
+
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
     user: { findUnique: mockFindUnique, findFirst: mockFindFirst },
+    emailChangeRequest: { findFirst: mockEmailFindFirst },
   },
 }));
 vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }));
@@ -39,7 +42,8 @@ const fakeTx = {};
 beforeEach(() => {
   vi.clearAllMocks();
   mockFindUnique.mockResolvedValue(validUser);
-  mockFindFirst.mockResolvedValue(null); // no conflict by default
+  mockFindFirst.mockResolvedValue(null); // no user conflict by default
+  mockEmailFindFirst.mockResolvedValue(null); // no oldEmail reservation by default
   mockCancelPending.mockResolvedValue(undefined);
   mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>) =>
     mutation(fakeTx)
@@ -71,6 +75,13 @@ describe('requestEmailChange', () => {
     mockFindFirst.mockResolvedValue({ id: 'other-user' });
     await expect(
       requestEmailChange({ userId: 'u1', currentPassword: 'ValidPass123', newEmail: 'taken@e.com' })
+    ).rejects.toThrow('email_already_in_use');
+  });
+
+  it('throws email_already_in_use when newEmail is reserved as oldEmail in an active revert window', async () => {
+    mockEmailFindFirst.mockResolvedValue({ id: 'req-existing' });
+    await expect(
+      requestEmailChange({ userId: 'u1', currentPassword: 'ValidPass123', newEmail: 'reserved@e.com' })
     ).rejects.toThrow('email_already_in_use');
   });
 

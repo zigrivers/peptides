@@ -19,7 +19,7 @@ export async function revertEmailChange(input: RevertEmailChangeInput): Promise<
 
   await withAudit(
     async (tx) => {
-      const ok = await EmailChangeRepo.revertById(tx, record.id, record.userId, record.oldEmail);
+      const ok = await EmailChangeRepo.revertById(tx, record.id, record.userId, record.oldEmail, record.createdAt);
       if (!ok) throw new Error('token_already_used');
       return record.userId;
     },

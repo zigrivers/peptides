@@ -41,6 +41,19 @@ export async function requestEmailChange(input: RequestEmailChangeInput): Promis
   });
   if (existing) throw new Error('email_already_in_use');
 
+  // oldEmail reservation: reject the new address if it is reserved as an oldEmail in an
+  // APPLIED change still within its 48h revert window. This prevents an attacker from
+  // claiming a victim's old address and blocking the victim's revert with a P2002.
+  const reservedAsOldEmail = await prisma.emailChangeRequest.findFirst({
+    where: {
+      oldEmail: { equals: newEmail, mode: 'insensitive' },
+      status: 'APPLIED',
+      revertibleUntil: { gt: new Date() },
+    },
+    select: { id: true },
+  });
+  if (reservedAsOldEmail) throw new Error('email_already_in_use');
+
   const oldEmail = user.email;
 
   const rawToken = await withAudit(
