@@ -56,4 +56,13 @@ describe('InviteToken', () => {
       })
     ).toThrow('invite_revoked');
   });
+
+  it('throws invite_revoked for any non-PENDING non-ACCEPTED status (future-proof)', () => {
+    expect(() =>
+      InviteToken.validateForAccept({
+        status: 'EXPIRED',
+        expiresAt: new Date(Date.now() + 3_600_000),
+      })
+    ).toThrow('invite_revoked');
+  });
 });

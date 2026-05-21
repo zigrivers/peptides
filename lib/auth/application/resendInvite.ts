@@ -1,5 +1,5 @@
 import { unstable_after as after } from 'next/server';
-import { InviteToken } from '@/lib/auth/domain/InviteToken';
+import { InviteToken, INVITE_EXPIRY_MS } from '@/lib/auth/domain/InviteToken';
 import { InviteRepo } from '@/lib/auth/infrastructure/InviteRepo';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import { resend, FROM_ADDRESS } from '@/lib/shared/email';
@@ -20,9 +20,12 @@ export async function resendInvite(input: ResendInviteInput): Promise<ResendInvi
 
   const prior = await InviteRepo.findById(inviteId, powerUserId);
   if (!prior) throw new Error('invite_not_found');
+  // AC-4: resend is only permitted on PENDING or EXPIRED invites (not ACCEPTED or REVOKED)
+  if (prior.status === 'ACCEPTED') throw new Error('invite_already_accepted');
+  if (prior.status === 'REVOKED') throw new Error('invite_revoked');
 
   const { rawToken, tokenHash } = InviteToken.generate();
-  const expiresAt = new Date(Date.now() + 72 * 3_600_000);
+  const expiresAt = new Date(Date.now() + INVITE_EXPIRY_MS);
   const email = prior.email;
 
   let newInviteId!: string;

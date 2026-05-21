@@ -1,6 +1,6 @@
 import { unstable_after as after } from 'next/server';
 import { prisma } from '@/lib/shared/prisma';
-import { InviteToken } from '@/lib/auth/domain/InviteToken';
+import { InviteToken, INVITE_EXPIRY_MS } from '@/lib/auth/domain/InviteToken';
 import { InviteRepo } from '@/lib/auth/infrastructure/InviteRepo';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import { resend, FROM_ADDRESS } from '@/lib/shared/email';
@@ -28,7 +28,7 @@ export async function createInvite(input: CreateInviteInput): Promise<CreateInvi
   if (pendingInvite) throw new Error('invite_already_pending');
 
   const { rawToken, tokenHash } = InviteToken.generate();
-  const expiresAt = new Date(Date.now() + 72 * 3_600_000);
+  const expiresAt = new Date(Date.now() + INVITE_EXPIRY_MS);
 
   let inviteId!: string;
   await withAudit(
@@ -42,6 +42,8 @@ export async function createInvite(input: CreateInviteInput): Promise<CreateInvi
       action: 'USER_INVITED' as const,
       resourceId: powerUserId,
       resourceType: 'User',
+      // inviteId is captured in metadata since it is generated inside the transaction
+      metadata: { email },
     }
   );
 

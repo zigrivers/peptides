@@ -125,6 +125,16 @@ describe('US-ADM-01: Create Managed User', () => {
       await expect(resendInvite({ powerUserId: 'pu-1', inviteId: 'nonexistent' })).rejects.toThrow('invite_not_found');
     });
 
+    it('AC-4: throws invite_already_accepted when invite is ACCEPTED', async () => {
+      mockFindFirst.mockResolvedValue({ ...existingInvite, status: 'ACCEPTED' });
+      await expect(resendInvite({ powerUserId: 'pu-1', inviteId: 'invite-1' })).rejects.toThrow('invite_already_accepted');
+    });
+
+    it('AC-4: throws invite_revoked when invite is REVOKED', async () => {
+      mockFindFirst.mockResolvedValue({ ...existingInvite, status: 'REVOKED' });
+      await expect(resendInvite({ powerUserId: 'pu-1', inviteId: 'invite-1' })).rejects.toThrow('invite_revoked');
+    });
+
     it('AC-4: revokes the prior invite (sets status = REVOKED)', async () => {
       await resendInvite({ powerUserId: 'pu-1', inviteId: 'invite-1' });
       expect(mockUpdateMany).toHaveBeenCalledWith(

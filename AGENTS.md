@@ -35,6 +35,7 @@ You are the automated code reviewer for the Peptides project. Your goal is to en
 
 - **Prisma schema `@id` on `EmailChangeRequest.id`**: Gemini has incorrectly flagged this as `@middleware.ts` in past reviews. The schema uses standard `@id @default(uuid())` — this is valid Prisma and compiles cleanly. Do not re-flag.
 - **`email_already_in_use` in `requestEmailChange.ts`**: Gemini flagged this as an enumeration risk. The endpoint is authenticated (requires current-password gate). Enumeration would require an attacker who controls an account AND knows the victim's current password — acceptable risk. See Auth Scoping exception above for context.
+- **Leading space in import paths** (`invite-user.ts`, `createInvite.ts`, etc.): Gemini has incorrectly flagged import paths as having a leading space (e.g., `' @/lib/auth'`). Verified: no leading spaces exist in any import paths. This is a Gemini hallucination — do not re-flag.
 
 ## Known Design Decisions (do NOT flag these)
 
