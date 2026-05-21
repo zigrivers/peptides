@@ -46,10 +46,7 @@ export async function requestEmailChange(input: RequestEmailChangeInput): Promis
   const rawToken = await withAudit(
     async (tx) => {
       // Cancel any existing PENDING tokens so there is at most one in flight per user
-      await tx.emailChangeRequest.updateMany({
-        where: { userId, status: 'PENDING' },
-        data: { status: 'CANCELLED' },
-      });
+      await EmailChangeRepo.cancelPending(tx, userId);
       return EmailChangeRepo.create(tx, userId, oldEmail, newEmail);
     },
     {

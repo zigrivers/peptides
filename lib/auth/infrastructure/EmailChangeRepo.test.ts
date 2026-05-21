@@ -61,6 +61,19 @@ describe('EmailChangeRepo.findByRawToken', () => {
   });
 });
 
+describe('EmailChangeRepo.cancelPending', () => {
+  it('cancels all PENDING tokens for the user', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 2 });
+    await EmailChangeRepo.cancelPending(fakeTx, 'user-1');
+    expect(mockUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user-1', status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      })
+    );
+  });
+});
+
 describe('EmailChangeRepo.applyById', () => {
   it('returns true when one row updated and user email changed', async () => {
     mockUpdateMany.mockResolvedValue({ count: 1 });
@@ -135,11 +148,11 @@ describe('EmailChangeRepo.revertById', () => {
     expect(whereArg.revertibleUntil).toHaveProperty('gt');
   });
 
-  it('cancels other APPLIED tokens to prevent state-machine chaining attack', async () => {
+  it('cancels other within-window APPLIED tokens to prevent state-machine chaining attack', async () => {
     mockUpdateMany.mockResolvedValue({ count: 1 });
     mockUserUpdate.mockResolvedValue({});
     await EmailChangeRepo.revertById(fakeTx, 'req-1', 'user-1', 'old@e.com');
-    // Second updateMany call should cancel other APPLIED tokens
+    // Second updateMany call should cancel other within-window APPLIED tokens
     expect(mockUpdateMany).toHaveBeenCalledTimes(2);
     const secondCall = mockUpdateMany.mock.calls[1][0];
     expect(secondCall.where).toMatchObject({
@@ -147,6 +160,7 @@ describe('EmailChangeRepo.revertById', () => {
       status: 'APPLIED',
       id: { not: 'req-1' },
     });
+    expect(secondCall.where).toHaveProperty('revertibleUntil.gt');
     expect(secondCall.data).toEqual({ status: 'CANCELLED' });
   });
 

@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 
 const mockFindUnique = vi.fn();
 const mockFindFirst = vi.fn();
-const mockEmailUpdateMany = vi.fn();
+const mockCancelPending = vi.fn();
 const mockWithAudit = vi.fn();
 const mockCreate = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
@@ -17,7 +17,7 @@ vi.mock('@/lib/shared/prisma', () => ({
 }));
 vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }));
 vi.mock('@/lib/auth/infrastructure/EmailChangeRepo', () => ({
-  EmailChangeRepo: { create: mockCreate },
+  EmailChangeRepo: { create: mockCreate, cancelPending: mockCancelPending },
 }));
 vi.mock('@/lib/shared/email', () => ({
   resend: { emails: { send: mockSend } },
@@ -33,14 +33,14 @@ const validUser = {
   passwordHash: CURRENT_HASH,
 };
 
-// tx passed to withAudit mutation — must have emailChangeRequest.updateMany
-const fakeTx = { emailChangeRequest: { updateMany: mockEmailUpdateMany } };
+// tx passed to withAudit mutation
+const fakeTx = {};
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockFindUnique.mockResolvedValue(validUser);
   mockFindFirst.mockResolvedValue(null); // no conflict by default
-  mockEmailUpdateMany.mockResolvedValue({ count: 0 });
+  mockCancelPending.mockResolvedValue(undefined);
   mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>) =>
     mutation(fakeTx)
   );
@@ -74,14 +74,9 @@ describe('requestEmailChange', () => {
     ).rejects.toThrow('email_already_in_use');
   });
 
-  it('cancels existing PENDING tokens before creating a new one', async () => {
+  it('cancels existing PENDING tokens via EmailChangeRepo.cancelPending before creating a new one', async () => {
     await requestEmailChange({ userId: 'u1', currentPassword: 'ValidPass123', newEmail: 'new@e.com' });
-    expect(mockEmailUpdateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ userId: 'u1', status: 'PENDING' }),
-        data: { status: 'CANCELLED' },
-      })
-    );
+    expect(mockCancelPending).toHaveBeenCalledWith(fakeTx, 'u1');
   });
 
   it('creates a token via withAudit and calls after() for email delivery', async () => {

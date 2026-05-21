@@ -30,7 +30,7 @@ export async function verifyEmailChange(input: VerifyEmailChangeInput): Promise<
       {
         actorUserId: record.userId,
         category: 'Auth' as const,
-        action: 'EMAIL_CHANGE_APPLIED' as const,
+        action: 'EMAIL_CHANGE_VERIFIED' as const,
         resourceId: record.userId,
         resourceType: 'User',
       }

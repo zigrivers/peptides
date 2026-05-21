@@ -63,6 +63,14 @@ export const EmailChangeRepo = {
     });
   },
 
+  // Cancels all PENDING tokens for the user (call before creating a new token).
+  async cancelPending(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+    await tx.emailChangeRequest.updateMany({
+      where: { userId, status: 'PENDING' },
+      data: { status: 'CANCELLED' },
+    });
+  },
+
   // Atomically marks the request APPLIED and updates the user's email in one transaction.
   async applyById(
     tx: Prisma.TransactionClient,
@@ -112,9 +120,9 @@ export const EmailChangeRepo = {
     });
     if (count !== 1) return false;
 
-    // Invalidate any other APPLIED tokens for this user to prevent state-machine chaining attacks
+    // Invalidate other APPLIED tokens still within their revert window to prevent chaining attacks
     await tx.emailChangeRequest.updateMany({
-      where: { userId, status: 'APPLIED', id: { not: id } },
+      where: { userId, status: 'APPLIED', id: { not: id }, revertibleUntil: { gt: now } },
       data: { status: 'CANCELLED' },
     });
 

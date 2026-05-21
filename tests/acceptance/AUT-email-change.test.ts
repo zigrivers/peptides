@@ -1,16 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EmailChangeToken } from '@/lib/auth/domain/EmailChangeToken';
+import bcrypt from 'bcryptjs';
 
 /**
  * Story: US-AUT-07 - Change Own Email
+ * Domain-level and application-service-level acceptance tests.
+ * DB-integration cases require a real Postgres instance and are marked it.todo.
  */
-describe('US-AUT-07: Change Own Email', () => {
-  it.todo('AC-1: changing email requires current-password gate (requires DB)');
-  it.todo('AC-2: verification email sent to new address; change only takes effect after link clicked (requires DB + email)');
-  it.todo('AC-3: conflict check — new email in use returns same error regardless of ownership (no enumeration)');
-  it.todo('AC-4: old-address notification sent with 48h revert link after change applied (requires DB + email)');
-  it.todo('AC-5: full audit chain — request, verify, complete events recorded (requires DB)');
 
+// --- Domain-level AC coverage (no DB required) ---
+
+describe('US-AUT-07: Change Own Email', () => {
   it('AC-6: verify token expires in 24h; revert window is 48h from apply time', () => {
     const msIn24h = 24 * 60 * 60 * 1000;
     const msIn48h = 48 * 60 * 60 * 1000;
@@ -53,7 +53,131 @@ describe('US-AUT-07: Change Own Email', () => {
     expect(rawToken).toHaveLength(64);
     expect(tokenHash).toHaveLength(64);
     expect(tokenHash).not.toBe(rawToken);
-    // Verify hash is deterministic (SHA-256 of the raw token)
     expect(EmailChangeToken.hash(rawToken)).toBe(tokenHash);
   });
+});
+
+// --- Application-service-level AC coverage (mocked DB) ---
+
+const mockFindUnique = vi.fn();
+const mockFindFirst = vi.fn();
+const mockCancelPending = vi.fn();
+const mockCreate = vi.fn();
+const mockFindByRawToken = vi.fn();
+const mockApplyById = vi.fn();
+const mockRevertById = vi.fn();
+const mockWithAudit = vi.fn();
+const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
+const mockSend = vi.fn();
+const mockEmailUpdateMany = vi.fn();
+
+vi.mock('next/server', () => ({ unstable_after: mockAfter }));
+vi.mock('@/lib/shared/prisma', () => ({
+  prisma: {
+    user: { findUnique: mockFindUnique, findFirst: mockFindFirst },
+    emailChangeRequest: { updateMany: mockEmailUpdateMany },
+  },
+}));
+vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }));
+vi.mock('@/lib/auth/infrastructure/EmailChangeRepo', () => ({
+  EmailChangeRepo: {
+    create: mockCreate,
+    cancelPending: mockCancelPending,
+    findByRawToken: mockFindByRawToken,
+    applyById: mockApplyById,
+    revertById: mockRevertById,
+  },
+}));
+vi.mock('@/lib/shared/email', () => ({
+  resend: { emails: { send: mockSend } },
+  FROM_ADDRESS: 'noreply@peptides.app',
+}));
+
+const { requestEmailChange } = await import('@/lib/auth/application/requestEmailChange');
+const { verifyEmailChange } = await import('@/lib/auth/application/verifyEmailChange');
+const { revertEmailChange } = await import('@/lib/auth/application/revertEmailChange');
+
+const PASSWORD = 'ValidPass123';
+const HASH = await bcrypt.hash(PASSWORD, 4);
+const future = new Date(Date.now() + 3_600_000);
+const fakeTx = {};
+
+const pendingRecord = {
+  id: 'req-1', userId: 'u1', oldEmail: 'old@e.com', newEmail: 'new@e.com',
+  expiresAt: future, status: 'PENDING', appliedAt: null, revertibleUntil: null, verifiedAt: null,
+};
+const appliedRecord = {
+  ...pendingRecord,
+  status: 'APPLIED',
+  appliedAt: new Date(),
+  revertibleUntil: new Date(Date.now() + 48 * 3_600_000),
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockFindUnique.mockResolvedValue({ email: 'old@e.com', passwordHash: HASH });
+  mockFindFirst.mockResolvedValue(null);
+  mockCancelPending.mockResolvedValue(undefined);
+  mockCreate.mockResolvedValue('raw-token-64hex');
+  mockEmailUpdateMany.mockResolvedValue({ count: 0 });
+  mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>) => mutation(fakeTx));
+  mockApplyById.mockResolvedValue(true);
+  mockRevertById.mockResolvedValue(true);
+  mockFindByRawToken.mockResolvedValue(pendingRecord);
+  mockSend.mockResolvedValue({});
+});
+
+describe('US-AUT-07 (application-service level)', () => {
+  it('AC-1: requestEmailChange requires correct current password', async () => {
+    await expect(
+      requestEmailChange({ userId: 'u1', currentPassword: 'WrongPass!', newEmail: 'new@e.com' })
+    ).rejects.toThrow('current_password_invalid');
+  });
+
+  it('AC-1: requestEmailChange throws user_not_found when account missing', async () => {
+    mockFindUnique.mockResolvedValue(null);
+    await expect(
+      requestEmailChange({ userId: 'u1', currentPassword: PASSWORD, newEmail: 'new@e.com' })
+    ).rejects.toThrow('user_not_found');
+  });
+
+  it('AC-2: requestEmailChange creates token via withAudit and defers email via after()', async () => {
+    await requestEmailChange({ userId: 'u1', currentPassword: PASSWORD, newEmail: 'new@e.com' });
+    expect(mockWithAudit).toHaveBeenCalled();
+    expect(mockAfter).toHaveBeenCalledTimes(1);
+  });
+
+  it('AC-3: conflict check throws same error regardless of who owns the new email', async () => {
+    mockFindFirst.mockResolvedValue({ id: 'other-user' });
+    await expect(
+      requestEmailChange({ userId: 'u1', currentPassword: PASSWORD, newEmail: 'taken@e.com' })
+    ).rejects.toThrow('email_already_in_use');
+  });
+
+  it('AC-2+AC-7: verifyEmailChange applies the change and throws on token reuse', async () => {
+    await verifyEmailChange({ rawToken: 'valid-token' });
+    expect(mockApplyById).toHaveBeenCalled();
+
+    // Simulate reuse — record now APPLIED
+    mockFindByRawToken.mockResolvedValue({ ...pendingRecord, status: 'APPLIED' });
+    await expect(verifyEmailChange({ rawToken: 'valid-token' })).rejects.toThrow('token_already_used');
+  });
+
+  it('AC-4+AC-6: revertEmailChange restores old email within 48h window', async () => {
+    mockFindByRawToken.mockResolvedValue(appliedRecord);
+    await revertEmailChange({ rawToken: 'revert-token' });
+    expect(mockRevertById).toHaveBeenCalledWith(
+      expect.anything(), 'req-1', 'u1', 'old@e.com'
+    );
+  });
+
+  it('AC-6: revertEmailChange throws token_expired after 48h window', async () => {
+    mockFindByRawToken.mockResolvedValue({
+      ...appliedRecord,
+      revertibleUntil: new Date(Date.now() - 1),
+    });
+    await expect(revertEmailChange({ rawToken: 'expired-revert-token' })).rejects.toThrow('token_expired');
+  });
+
+  it.todo('AC-5: full audit chain — EMAIL_CHANGE_REQUESTED, EMAIL_CHANGE_VERIFIED, EMAIL_CHANGE_REVERTED events recorded (requires DB)');
 });
