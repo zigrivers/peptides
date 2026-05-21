@@ -24,6 +24,7 @@ vi.mock('@/lib/shared/prisma', () => ({
       const tx = {
         vial: { create: mockPrismaVialCreate },
         auditEvent: { create: mockPrismaAuditEventCreate },
+        orderItem: { findFirst: vi.fn().mockResolvedValue(null) },
       };
       return fn(tx);
     }),

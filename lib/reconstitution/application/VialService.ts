@@ -44,8 +44,16 @@ export async function saveVial(input: SaveVialInput): Promise<VialWithBadges> {
     new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays));
 
   const vial = await withAudit(
-    (tx) =>
-      tx.vial.create({
+    async (tx) => {
+      if (input.orderItemId) {
+        const orderItem = await tx.orderItem.findFirst({
+          where: { id: input.orderItemId, compoundId: input.compoundId, order: { userId: input.userId } },
+          select: { id: true },
+        });
+        if (!orderItem) throw new Error('order_item_not_found_or_not_owned');
+      }
+
+      return tx.vial.create({
         data: {
           userId: input.userId,
           compoundId: input.compoundId,
@@ -58,7 +66,8 @@ export async function saveVial(input: SaveVialInput): Promise<VialWithBadges> {
           expiresAt,
         },
         include: { compound: { select: { name: true } } },
-      }),
+      });
+    },
     (vialRow) => ({
       actorUserId: input.userId,
       category: 'Reconstitution' as const,

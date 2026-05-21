@@ -120,6 +120,10 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
 
   const canSave = compoundId && totalMg && bacWaterMl && saveState !== 'saving';
 
+  const resetSaveState = () => {
+    if (saveState !== 'idle') setSaveState('idle');
+  };
+
   return (
     <div className="space-y-6">
       {/* Compound selector */}
@@ -129,6 +133,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
           value={compoundId}
           onChange={(e) => {
             setCompoundId(e.target.value);
+            resetSaveState();
           }}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
@@ -182,7 +187,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
             min="0.001"
             step="0.1"
             value={totalMg}
-            onChange={(e) => setTotalMg(e.target.value)}
+            onChange={(e) => { setTotalMg(e.target.value); resetSaveState(); }}
             placeholder="e.g. 5"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
@@ -194,7 +199,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
             min="0.1"
             step="0.1"
             value={bacWaterMl}
-            onChange={(e) => setBacWaterMl(e.target.value)}
+            onChange={(e) => { setBacWaterMl(e.target.value); resetSaveState(); }}
             placeholder="e.g. 2"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
@@ -209,7 +214,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
           min="1"
           step="1"
           value={targetDoseMcg}
-          onChange={(e) => setTargetDoseMcg(e.target.value)}
+          onChange={(e) => { setTargetDoseMcg(e.target.value); resetSaveState(); }}
           placeholder="e.g. 250"
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
@@ -243,7 +248,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
 
             <dt className="text-gray-500">Syringe units (U-100)</dt>
             <dd className="font-medium text-gray-900">
-              {calcResult.syringeUnitsPerDose.toFixed(2)} units
+              {calcResult.syringeUnitsPerDose.toFixed(1)} units
             </dd>
           </dl>
         </div>
