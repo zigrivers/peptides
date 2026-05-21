@@ -148,6 +148,7 @@ describe('US-REC-02: Record Reconstitution', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('AC-1: creates a RECONSTITUTED vial with expiry derived from compound profile shelf life', async () => {

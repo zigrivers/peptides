@@ -125,11 +125,15 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
   };
 
   return (
-    <div className="space-y-6">
+    <form
+      className="space-y-6"
+      onSubmit={(e) => { e.preventDefault(); handleSave(); }}
+    >
       {/* Compound selector */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Compound</label>
+        <label htmlFor="compound-select" className="block text-sm font-medium text-gray-700 mb-1">Compound</label>
         <select
+          id="compound-select"
           value={compoundId}
           onChange={(e) => {
             setCompoundId(e.target.value);
@@ -181,8 +185,9 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
       {/* Vial inputs */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Vial Total (mg)</label>
+          <label htmlFor="total-mg" className="block text-sm font-medium text-gray-700 mb-1">Vial Total (mg)</label>
           <input
+            id="total-mg"
             type="number"
             min="0.001"
             step="0.1"
@@ -193,8 +198,9 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">BAC Water (mL)</label>
+          <label htmlFor="bac-water-ml" className="block text-sm font-medium text-gray-700 mb-1">BAC Water (mL)</label>
           <input
+            id="bac-water-ml"
             type="number"
             min="0.1"
             step="0.1"
@@ -208,8 +214,9 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
 
       {/* Target dose */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Target Dose (mcg)</label>
+        <label htmlFor="target-dose-mcg" className="block text-sm font-medium text-gray-700 mb-1">Target Dose (mcg)</label>
         <input
+          id="target-dose-mcg"
           type="number"
           min="1"
           step="1"
@@ -271,7 +278,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
 
       {/* Expiry date — shows auto-computed default so user knows what they're overriding */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="expires-at" className="block text-sm font-medium text-gray-700 mb-1">
           Custom Expiry Date{' '}
           <span className="text-gray-400 font-normal">(optional — overrides auto-computed)</span>
         </label>
@@ -287,6 +294,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
           );
         })()}
         <input
+          id="expires-at"
           type="date"
           value={expiresAt}
           onChange={(e) => setExpiresAt(e.target.value)}
@@ -297,8 +305,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
       {/* Save button */}
       <div className="flex items-center gap-3">
         <button
-          type="button"
-          onClick={handleSave}
+          type="submit"
           disabled={!canSave}
           className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
@@ -309,6 +316,6 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
         )}
         {saveState === 'error' && <p className="text-sm text-red-600">{saveError}</p>}
       </div>
-    </div>
+    </form>
   );
 }
