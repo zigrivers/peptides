@@ -6,15 +6,22 @@ import { auth } from '@/lib/auth';
 import { createCycle, restartCycle } from '@/lib/tracker/application/CycleService';
 import type { Cycle } from '@/lib/tracker/domain/types';
 
+const calendarDate = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((s) => {
+    const d = new Date(`${s}T00:00:00Z`);
+    return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+  }, 'Invalid calendar date');
+
 const CreateCycleSchema = z.object({
   name: z.string().min(1).max(100),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  startDate: calendarDate,
+  endDate: calendarDate.optional(),
 });
 
 const RestartCycleSchema = z.object({
   cycleId: z.string().min(1),
-  newStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  newStartDate: calendarDate,
 });
 
 function parseUTCDate(iso: string): Date {

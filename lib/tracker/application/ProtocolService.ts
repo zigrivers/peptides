@@ -56,8 +56,8 @@ export async function createProtocol(input: CreateProtocolInput): Promise<Protoc
   return withAudit(
     async (tx) => {
       if (input.cycleId) {
-        const cycle = await tx.cycle.findFirst({ where: { id: input.cycleId, userId: input.subjectUserId } });
-        if (!cycle) throw new Error(`cycle_not_found: cycle does not belong to this user`);
+        const cycle = await tx.cycle.findFirst({ where: { id: input.cycleId, userId: input.subjectUserId, status: 'ACTIVE' } });
+        if (!cycle) throw new Error(`cycle_not_found: cycle does not belong to this user or is not active`);
       }
       return createProtocolRecord(tx, {
         userId: input.subjectUserId,

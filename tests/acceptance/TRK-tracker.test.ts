@@ -278,6 +278,24 @@ describe('US-TRK-01: Create and Edit Protocol', () => {
 
       expect(result.schedule.frequency).toBe('CustomInterval');
     });
+
+    it('AC-3: throws if cycleId references a COMPLETED cycle', async () => {
+      // DB query includes status: 'ACTIVE' filter — COMPLETED cycle returns null.
+      mockCycleFindFirst.mockResolvedValue(null);
+
+      await expect(
+        createProtocol({
+          actorUserId,
+          subjectUserId: actorUserId,
+          compoundId,
+          cycleId: 'cycle-done',
+          dose: { amount: '250', unit: 'mcg' },
+          schedule: { frequency: 'Daily' },
+          administrationRoute: 'SubQ',
+          startDate: new Date('2026-06-01'),
+        })
+      ).rejects.toThrow(/cycle_not_found/i);
+    });
   });
 
   describe('updateProtocol', () => {
@@ -662,6 +680,41 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
     it('throws if cycle not found', async () => {
       mockCycleFindFirst.mockResolvedValue(null);
       await expect(restartCycle({ actorUserId, cycleId: 'nonexistent', newStartDate })).rejects.toThrow(/not found/i);
+    });
+
+    it('throws if cycle is already COMPLETED', async () => {
+      mockCycleFindFirst.mockResolvedValue({ ...cycleRow, status: 'COMPLETED' });
+      await expect(
+        restartCycle({ actorUserId, cycleId: oldCycleId, newStartDate })
+      ).rejects.toThrow(/not_restartable/i);
+    });
+
+    it('preserves cycle duration and protocol endDate offset on restart', async () => {
+      const protocolWithEndDate = {
+        ...protocolInCycle,
+        endDate: new Date(Date.UTC(2026, 4, 15)), // 14 days into the old cycle
+      };
+      const durationMs = cycleRow.endDate!.getTime() - cycleRow.startDate.getTime();
+      const expectedCycleEndDate = new Date(newStartDate.getTime() + durationMs);
+      const startOffsetMs = newStartDate.getTime() - cycleRow.startDate.getTime();
+      const expectedProtoEndDate = new Date(protocolWithEndDate.endDate!.getTime() + startOffsetMs);
+
+      mockCycleFindFirst.mockResolvedValue(cycleRow);
+      mockProtocolFindMany.mockResolvedValue([protocolWithEndDate]);
+      mockProtocolUpdateMany.mockResolvedValue({ count: 1 });
+      mockCycleUpdateMany.mockResolvedValue({ count: 1 });
+      mockCycleCreate.mockResolvedValue(newCycleRow);
+      mockProtocolCreate.mockResolvedValue(clonedProtocolRow);
+      mockAuditCreate.mockResolvedValue({});
+
+      await restartCycle({ actorUserId, cycleId: oldCycleId, newStartDate });
+
+      expect(mockCycleCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ endDate: expectedCycleEndDate }) })
+      );
+      expect(mockProtocolCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ endDate: expectedProtoEndDate }) })
+      );
     });
   });
 });

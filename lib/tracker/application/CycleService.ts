@@ -75,6 +75,18 @@ export async function restartCycle(input: RestartCycleInput): Promise<{ newCycle
   return prisma.$transaction(async (tx) => {
     const oldCycle = await findCycleById(tx, input.cycleId, input.actorUserId);
     if (!oldCycle) throw new Error(`Cycle not found: ${input.cycleId}`);
+    if (oldCycle.status !== 'ACTIVE') throw new Error('cycle_not_restartable: only active cycles can be restarted');
+
+    // Preserve the original cycle's planned duration in the new cycle.
+    const durationMs = oldCycle.endDate
+      ? oldCycle.endDate.getTime() - oldCycle.startDate.getTime()
+      : null;
+    const newCycleEndDate = durationMs !== null
+      ? new Date(input.newStartDate.getTime() + durationMs)
+      : undefined;
+
+    // Offset to apply to protocol endDates (same shift as cycle startDate).
+    const startOffsetMs = input.newStartDate.getTime() - oldCycle.startDate.getTime();
 
     // Snapshot active protocols before completing them.
     const protocols = await tx.protocol.findMany({
@@ -91,16 +103,18 @@ export async function restartCycle(input: RestartCycleInput): Promise<{ newCycle
       data: { status: 'COMPLETED' },
     });
 
-    // Create the new cycle with the same name and new start date.
+    // Create the new cycle preserving the original planned duration.
     const newCycle = await repoCreateCycle(tx, {
       userId: input.actorUserId,
       name: oldCycle.name,
       startDate: input.newStartDate,
+      endDate: newCycleEndDate,
     });
 
-    // Clone each protocol from the snapshot to the new cycle.
+    // Clone each protocol, shifting endDate by the same offset as the start date.
     const clonedProtocols: { id: string }[] = [];
     for (const p of protocols) {
+      const protoEndDate = p.endDate ? new Date((p.endDate as Date).getTime() + startOffsetMs) : null;
       const clone = await tx.protocol.create({
         data: {
           userId: p.userId,
@@ -110,7 +124,7 @@ export async function restartCycle(input: RestartCycleInput): Promise<{ newCycle
           schedule: p.schedule as Prisma.InputJsonValue,
           administrationRoute: p.administrationRoute,
           startDate: input.newStartDate,
-          endDate: null,
+          endDate: protoEndDate,
           notes: p.notes,
           status: 'ACTIVE',
         },
