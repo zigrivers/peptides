@@ -9,6 +9,7 @@ dist/
 build/
 *.log
 .turbo/
+tsconfig.tsbuildinfo
 
 # Env
 .env

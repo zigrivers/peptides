@@ -4,7 +4,8 @@ const mockFindByEmail = vi.fn();
 const mockCreate = vi.fn();
 const mockSend = vi.fn();
 const mockWithAudit = vi.fn();
-const mockAfter = vi.fn((fn: () => Promise<void>) => { fn().catch(() => {}); });
+// Default: no-op (task captured elsewhere or ignored)
+const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
 
 vi.mock('next/server', () => ({
   unstable_after: mockAfter,
@@ -37,23 +38,34 @@ describe('requestPasswordReset', () => {
     await expect(requestPasswordReset('unknown@example.com')).resolves.toBeUndefined();
     expect(mockWithAudit).not.toHaveBeenCalled();
     expect(mockSend).not.toHaveBeenCalled();
+    expect(mockAfter).not.toHaveBeenCalled();
   });
 
-  it('creates a token via withAudit then sends email outside the transaction', async () => {
+  it('defers all found-path work (token create + email) into after() for uniform response timing', async () => {
     mockFindByEmail.mockResolvedValue({ id: 'user-1', email: 'user@example.com' });
-    // withAudit returns the result of the mutation (rawToken)
-    mockWithAudit.mockImplementation(async (mutation, _audit, _client) => {
-      return mutation({ passwordResetToken: { create: mockCreate } });
-    });
+    mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>, _audit: unknown, _client: unknown) =>
+      mutation({ passwordResetToken: { create: mockCreate } })
+    );
     mockCreate.mockResolvedValue('raw-token-hex');
     mockSend.mockResolvedValue({});
 
+    // Capture the deferred task so we can run it explicitly and verify its internals.
+    let deferredTask: (() => Promise<void>) | undefined;
+    mockAfter.mockImplementationOnce((fn: () => Promise<void>) => { deferredTask = fn; });
+
     await requestPasswordReset('user@example.com');
 
+    // The response boundary is hit — after() called but heavy work NOT yet executed.
+    expect(mockAfter).toHaveBeenCalledTimes(1);
+    expect(mockWithAudit).not.toHaveBeenCalled();
+    expect(mockSend).not.toHaveBeenCalled();
+
+    // Run the deferred task (simulates what Next.js runs after the response is sent).
+    await deferredTask!();
+
     expect(mockWithAudit).toHaveBeenCalled();
-    // Email is sent AFTER withAudit (outside the transaction)
     expect(mockSend).toHaveBeenCalled();
-    // Email send call order: withAudit first, then send
+    // DB write (withAudit) must precede email send
     const withAuditOrder = mockWithAudit.mock.invocationCallOrder[0];
     const sendOrder = mockSend.mock.invocationCallOrder[0];
     expect(sendOrder).toBeGreaterThan(withAuditOrder);
