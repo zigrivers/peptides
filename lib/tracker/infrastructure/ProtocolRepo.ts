@@ -65,6 +65,7 @@ export async function createProtocolRecord(
 export async function updateProtocolRecord(
   tx: Prisma.TransactionClient,
   protocolId: string,
+  ownerId: string,
   updates: Partial<{
     compoundId: string;
     dose: Protocol['dose'];
@@ -85,21 +86,29 @@ export async function updateProtocolRecord(
   if (updates.notes !== undefined) data.notes = updates.notes;
 
   const raw = await tx.protocol.update({
-    where: { id: protocolId },
+    // userId clause ensures the UPDATE itself is userId-scoped (CLAUDE.md)
+    where: { id: protocolId, userId: ownerId },
     data,
   });
   return mapProtocol(raw);
 }
 
-export async function findProtocolByIdForUser(
+/**
+ * Find a protocol by id where the owner is either the actor themselves OR
+ * a managed user of the actor. This supports the power-user edit use case
+ * where actorUserId !== protocol.userId (managed user protocol).
+ */
+export async function findProtocolByIdForActor(
   tx: Prisma.TransactionClient,
   protocolId: string,
-  actorUserId: string
+  actorUserId: string,
+  managedUserIds: string[]
 ): Promise<Protocol | null> {
+  const allowedUserIds = [actorUserId, ...managedUserIds];
   const raw = await tx.protocol.findFirst({
     where: {
       id: protocolId,
-      userId: actorUserId,
+      userId: { in: allowedUserIds },
     },
   });
   return raw ? mapProtocol(raw) : null;

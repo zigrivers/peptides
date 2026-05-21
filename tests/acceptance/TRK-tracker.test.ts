@@ -4,6 +4,7 @@ const mockProtocolFindFirst = vi.fn();
 const mockProtocolFindMany = vi.fn();
 const mockAuditCreate = vi.fn();
 const mockUserFindUnique = vi.fn();
+const mockUserFindMany = vi.fn();
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -20,6 +21,7 @@ vi.mock('@/lib/shared/prisma', () => ({
     },
     user: {
       findUnique: mockUserFindUnique,
+      findMany: mockUserFindMany,
     },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
@@ -37,6 +39,8 @@ vi.mock('@/lib/shared/prisma', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: actor has no managed users
+  mockUserFindMany.mockResolvedValue([]);
 });
 
 const { createProtocol, updateProtocol } = await import(

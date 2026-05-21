@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
-import { createProtocol } from '@/lib/tracker/application/ProtocolService';
+import { createProtocol, isAuthorizedSubject } from '@/lib/tracker/application/ProtocolService';
 import { revalidatePath } from 'next/cache';
 
 const DoseAmountSchema = z.object({
@@ -37,6 +37,7 @@ const InputSchema = z.object({
 
 export type CreateProtocolError =
   | 'unauthorized'
+  | 'forbidden'
   | 'validation_error'
   | 'dose_validation_error'
   | 'system_error';
@@ -55,6 +56,11 @@ export async function createProtocolAction(
   if (!parsed.success) {
     return { ok: false, error: 'validation_error', message: parsed.error.message };
   }
+
+  // Verify the actor is allowed to create protocols for subjectUserId:
+  // allowed if assigning to themselves, or if subjectUserId is one of their managed users.
+  const authorized = await isAuthorizedSubject(session.user.id, parsed.data.subjectUserId);
+  if (!authorized) return { ok: false, error: 'forbidden' };
 
   try {
     const protocol = await createProtocol({

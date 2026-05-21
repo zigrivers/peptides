@@ -5,17 +5,44 @@ import { validateCreateInput, validateUpdateInput } from '../domain/validation';
 import {
   createProtocolRecord,
   updateProtocolRecord,
-  findProtocolByIdForUser,
+  findProtocolByIdForActor,
   listProtocolsForUser,
 } from '../infrastructure/ProtocolRepo';
 import type { Protocol, CreateProtocolInput, UpdateProtocolInput } from '../domain/types';
+
+async function getManagedUserIds(actorUserId: string): Promise<string[]> {
+  const users = await prisma.user.findMany({
+    where: { managedBy: actorUserId, status: 'ACTIVE' },
+    select: { id: true },
+  });
+  return users.map((u) => u.id);
+}
+
+/**
+ * Returns true if actorUserId may create/edit a protocol for subjectUserId:
+ * allowed for self-assignment, or when subjectUserId is one of the actor's managed users.
+ */
+export async function isAuthorizedSubject(
+  actorUserId: string,
+  subjectUserId: string
+): Promise<boolean> {
+  if (actorUserId === subjectUserId) return true;
+  const managedIds = await getManagedUserIds(actorUserId);
+  return managedIds.includes(subjectUserId);
+}
 
 export async function getProtocolsForUser(userId: string): Promise<Protocol[]> {
   return listProtocolsForUser(prisma, userId);
 }
 
-export async function getProtocolById(protocolId: string, userId: string): Promise<Protocol | null> {
-  return prisma.$transaction(async (tx) => findProtocolByIdForUser(tx, protocolId, userId));
+export async function getProtocolById(
+  protocolId: string,
+  actorUserId: string
+): Promise<Protocol | null> {
+  const managedIds = await getManagedUserIds(actorUserId);
+  return prisma.$transaction(async (tx) =>
+    findProtocolByIdForActor(tx, protocolId, actorUserId, managedIds)
+  );
 }
 
 export async function createProtocol(input: CreateProtocolInput): Promise<Protocol> {
@@ -56,8 +83,15 @@ export async function createProtocol(input: CreateProtocolInput): Promise<Protoc
 export async function updateProtocol(input: UpdateProtocolInput): Promise<Protocol> {
   validateUpdateInput(input);
 
+  const managedIds = await getManagedUserIds(input.actorUserId);
+
   return prisma.$transaction(async (tx) => {
-    const existing = await findProtocolByIdForUser(tx, input.protocolId, input.actorUserId);
+    const existing = await findProtocolByIdForActor(
+      tx,
+      input.protocolId,
+      input.actorUserId,
+      managedIds
+    );
     if (!existing) {
       throw new Error(`Protocol not found: ${input.protocolId}`);
     }
@@ -67,7 +101,7 @@ export async function updateProtocol(input: UpdateProtocolInput): Promise<Protoc
       schedule: existing.schedule as unknown as JsonValue,
     };
 
-    const updated = await updateProtocolRecord(tx, input.protocolId, {
+    const updated = await updateProtocolRecord(tx, input.protocolId, existing.userId, {
       compoundId: input.compoundId,
       dose: input.dose,
       schedule: input.schedule,
