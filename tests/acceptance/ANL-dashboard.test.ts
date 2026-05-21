@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { isVialLowSupply } from '@/app/(dashboard)/dashboard/_components/StackOverview';
 
 const mockPrismaOutcomeLogFindMany = vi.fn();
 const mockPrismaDoseLogFindMany = vi.fn();
@@ -130,27 +131,20 @@ describe('US-ANL-01: Stack Overview Dashboard', () => {
   });
 
   describe('Vial inventory badge — 14-day threshold', () => {
-    const LOW_SUPPLY_DAYS = 14;
-
-    function isLowSupply(v: { daysUntilExpiry: number | null; badges: string[] }): boolean {
-      if (v.badges.some((b) => b === 'LOW_INVENTORY' || b === 'EXPIRED')) return true;
-      return v.daysUntilExpiry !== null && v.daysUntilExpiry < LOW_SUPPLY_DAYS;
-    }
-
     it('AC-2: vial expiring in 10 days (daysUntilExpiry=10) is low-supply', () => {
-      expect(isLowSupply({ daysUntilExpiry: 10, badges: [] })).toBe(true);
+      expect(isVialLowSupply({ daysUntilExpiry: 10, badges: [] })).toBe(true);
     });
 
     it('AC-2: vial expiring in 20 days with no badges is not low-supply', () => {
-      expect(isLowSupply({ daysUntilExpiry: 20, badges: [] })).toBe(false);
+      expect(isVialLowSupply({ daysUntilExpiry: 20, badges: [] })).toBe(false);
     });
 
     it('AC-2: vial with LOW_INVENTORY badge is low-supply regardless of expiry', () => {
-      expect(isLowSupply({ daysUntilExpiry: 20, badges: ['LOW_INVENTORY'] })).toBe(true);
+      expect(isVialLowSupply({ daysUntilExpiry: 20, badges: ['LOW_INVENTORY'] })).toBe(true);
     });
 
     it('AC-2: vial with EXPIRED badge is low-supply regardless of daysUntilExpiry', () => {
-      expect(isLowSupply({ daysUntilExpiry: null, badges: ['EXPIRED'] })).toBe(true);
+      expect(isVialLowSupply({ daysUntilExpiry: null, badges: ['EXPIRED'] })).toBe(true);
     });
   });
 

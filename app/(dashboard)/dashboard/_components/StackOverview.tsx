@@ -8,6 +8,11 @@ import type { SerializedVial } from '@/app/(dashboard)/reconstitution/_component
 
 const LOW_SUPPLY_DAYS = 14;
 
+export function isVialLowSupply(v: { daysUntilExpiry: number | null; badges: string[] }): boolean {
+  if (v.badges.some((b) => b === 'LOW_INVENTORY' || b === 'EXPIRED')) return true;
+  return v.daysUntilExpiry !== null && v.daysUntilExpiry < LOW_SUPPLY_DAYS;
+}
+
 interface Props {
   weekInfo: CycleWeekInfo | null;
   vials: SerializedVial[];
@@ -125,10 +130,7 @@ function EmptyState({ userRole }: { userRole: 'POWER_USER' | 'MANAGED_USER' }) {
 }
 
 export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActiveProtocols, userRole, fetchedAt }: Props) {
-  const lowSupplyVials = vials.filter((v) => {
-    if (v.badges.some((b) => b === 'LOW_INVENTORY' || b === 'EXPIRED')) return true;
-    return v.daysUntilExpiry !== null && v.daysUntilExpiry < LOW_SUPPLY_DAYS;
-  });
+  const lowSupplyVials = vials.filter(isVialLowSupply);
 
   if (!hasActiveProtocols) {
     return <EmptyState userRole={userRole} />;
@@ -164,7 +166,7 @@ export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActive
                 const daysUntil = v.daysUntilExpiry;
                 const isExpired = v.badges.includes('EXPIRED') || (daysUntil !== null && daysUntil <= 0);
                 const isLowInventory = v.badges.includes('LOW_INVENTORY');
-                const label = isExpired ? 'Expired' : isLowInventory && daysUntil === null ? 'Low inventory' : `${daysUntil}d left`;
+                const label = isExpired ? 'Expired' : isLowInventory ? 'Low inventory' : `${daysUntil}d left`;
                 const ariaLabel = isExpired ? 'Expired' : isLowInventory ? 'Low inventory warning' : 'Low supply warning';
                 const style = isExpired
                   ? 'bg-red-50 border-red-200 text-red-700'
