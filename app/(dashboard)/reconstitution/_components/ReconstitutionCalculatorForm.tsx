@@ -264,12 +264,23 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
         </div>
       )}
 
-      {/* Optional expiry override */}
+      {/* Expiry date — shows auto-computed default so user knows what they're overriding */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Custom Expiry Date{' '}
           <span className="text-gray-400 font-normal">(optional — overrides auto-computed)</span>
         </label>
+        {compoundId && (() => {
+          const shelfDays = profile?.reconstitutedShelfLifeDays ?? 14;
+          const d = new Date();
+          const computed = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + shelfDays));
+          return (
+            <p className="text-xs text-gray-500 mb-1">
+              Auto-computed: <span className="font-medium">{computed.toLocaleDateString(undefined, { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+              {' '}({shelfDays}-day shelf life)
+            </p>
+          );
+        })()}
         <input
           type="date"
           value={expiresAt}

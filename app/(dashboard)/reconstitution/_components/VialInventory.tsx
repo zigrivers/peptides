@@ -59,10 +59,10 @@ export function VialInventory({ vials }: Props) {
             <div>
               <p className="font-medium text-gray-900 text-sm">{vial.compoundName}</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                {parseFloat(vial.remainingMg).toFixed(2)} mg remaining of{' '}
-                {parseFloat(vial.totalMg).toFixed(2)} mg
+                {Number(vial.remainingMg).toFixed(2)} mg remaining of{' '}
+                {Number(vial.totalMg).toFixed(2)} mg
                 {vial.bacWaterMl && (
-                  <> &middot; {parseFloat(vial.bacWaterMl).toFixed(1)} mL BAC water</>
+                  <> &middot; {Number(vial.bacWaterMl).toFixed(1)} mL BAC water</>
                 )}
               </p>
               <p className="text-xs text-gray-400 mt-0.5">

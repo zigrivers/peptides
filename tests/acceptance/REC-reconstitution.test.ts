@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Decimal from 'decimal.js';
 import { ReconstitutionCalculator } from '@/lib/reconstitution/domain/ReconstitutionCalculator';
 import { WarningPolicy, type WarningType } from '@/lib/reconstitution/domain/WarningPolicy';
@@ -142,7 +142,11 @@ describe('US-REC-01: Calculate Reconstitution', () => {
  */
 describe('US-REC-02: Record Reconstitution', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
   });
 
   it('AC-1: creates a RECONSTITUTED vial with expiry derived from compound profile shelf life', async () => {
@@ -186,7 +190,6 @@ describe('US-REC-02: Record Reconstitution', () => {
       })
     );
 
-    vi.useRealTimers();
   });
 
   it('AC-1: falls back to 14-day expiry when compound profile has no shelf life', async () => {
@@ -222,7 +225,6 @@ describe('US-REC-02: Record Reconstitution', () => {
       })
     );
 
-    vi.useRealTimers();
   });
 
   it('AC-2: getVialsForUser returns vials with LOW_INVENTORY flag when remainingMg < 20% of total', async () => {

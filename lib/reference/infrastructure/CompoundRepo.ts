@@ -47,6 +47,7 @@ function mapCompound(raw: PrismaCompoundResult): Compound {
           dosingHigh: parseDoseAmount(raw.profile.dosingHigh, 'dosingHigh'),
           sideEffects: raw.profile.sideEffects,
           stackingNotes: raw.profile.stackingNotes,
+          reconstitutedShelfLifeDays: raw.profile.reconstitutedShelfLifeDays,
           citations: raw.profile.citations,
         }
       : null,
