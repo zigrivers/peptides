@@ -75,7 +75,6 @@ export async function restartCycle(input: RestartCycleInput): Promise<{ newCycle
   return prisma.$transaction(async (tx) => {
     const oldCycle = await findCycleById(tx, input.cycleId, input.actorUserId);
     if (!oldCycle) throw new Error(`Cycle not found: ${input.cycleId}`);
-    if (oldCycle.status !== 'ACTIVE') throw new Error('cycle_not_restartable: only active cycles can be restarted');
 
     // Preserve the original cycle's planned duration in the new cycle.
     const durationMs = oldCycle.endDate
@@ -88,20 +87,27 @@ export async function restartCycle(input: RestartCycleInput): Promise<{ newCycle
     // Offset to apply to protocol endDates (same shift as cycle startDate).
     const startOffsetMs = input.newStartDate.getTime() - oldCycle.startDate.getTime();
 
-    // Snapshot active protocols before completing them.
+    // Snapshot protocols to clone: ACTIVE/PAUSED for an active cycle, COMPLETED for a completed one.
+    const isActiveCycle = oldCycle.status === 'ACTIVE';
     const protocols = await tx.protocol.findMany({
-      where: { cycleId: input.cycleId, userId: input.actorUserId, status: 'ACTIVE' },
+      where: {
+        cycleId: input.cycleId,
+        userId: input.actorUserId,
+        status: isActiveCycle ? { in: ['ACTIVE', 'PAUSED'] } : 'COMPLETED',
+      },
     });
 
-    // Complete old protocols and old cycle within the same transaction to prevent duplicates.
-    await tx.protocol.updateMany({
-      where: { cycleId: input.cycleId, userId: input.actorUserId, status: 'ACTIVE' },
-      data: { status: 'COMPLETED' },
-    });
-    await tx.cycle.updateMany({
-      where: { id: input.cycleId, userId: input.actorUserId },
-      data: { status: 'COMPLETED' },
-    });
+    // Complete active items only when the cycle is still running.
+    if (isActiveCycle) {
+      await tx.protocol.updateMany({
+        where: { cycleId: input.cycleId, userId: input.actorUserId, status: { in: ['ACTIVE', 'PAUSED'] } },
+        data: { status: 'COMPLETED' },
+      });
+      await tx.cycle.updateMany({
+        where: { id: input.cycleId, userId: input.actorUserId },
+        data: { status: 'COMPLETED' },
+      });
+    }
 
     // Create the new cycle preserving the original planned duration.
     const newCycle = await repoCreateCycle(tx, {

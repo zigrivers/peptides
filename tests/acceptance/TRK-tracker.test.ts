@@ -682,11 +682,22 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
       await expect(restartCycle({ actorUserId, cycleId: 'nonexistent', newStartDate })).rejects.toThrow(/not found/i);
     });
 
-    it('throws if cycle is already COMPLETED', async () => {
-      mockCycleFindFirst.mockResolvedValue({ ...cycleRow, status: 'COMPLETED' });
-      await expect(
-        restartCycle({ actorUserId, cycleId: oldCycleId, newStartDate })
-      ).rejects.toThrow(/not_restartable/i);
+    it('clones COMPLETED protocols and skips completion step when restarting a COMPLETED cycle', async () => {
+      const completedCycle = { ...cycleRow, status: 'COMPLETED' };
+      const completedProtocol = { ...protocolInCycle, status: 'COMPLETED' };
+
+      mockCycleFindFirst.mockResolvedValue(completedCycle);
+      mockProtocolFindMany.mockResolvedValue([completedProtocol]);
+      mockCycleCreate.mockResolvedValue(newCycleRow);
+      mockProtocolCreate.mockResolvedValue(clonedProtocolRow);
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await restartCycle({ actorUserId, cycleId: oldCycleId, newStartDate });
+
+      expect(result.clonedProtocols).toHaveLength(1);
+      // Already COMPLETED — no updateMany calls needed.
+      expect(mockProtocolUpdateMany).not.toHaveBeenCalled();
+      expect(mockCycleUpdateMany).not.toHaveBeenCalled();
     });
 
     it('preserves cycle duration and protocol endDate offset on restart', async () => {

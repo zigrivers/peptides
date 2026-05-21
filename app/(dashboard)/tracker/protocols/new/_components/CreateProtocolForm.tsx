@@ -15,10 +15,10 @@ type Props = {
   compounds: Compound[];
   managedUsers: ManagedUser[];
   currentUserId: string;
-  cycles: CycleOption[];
+  cyclesByUserId: Record<string, CycleOption[]>;
 };
 
-export function CreateProtocolForm({ compounds, managedUsers, currentUserId, cycles }: Props) {
+export function CreateProtocolForm({ compounds, managedUsers, currentUserId, cyclesByUserId }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -260,7 +260,7 @@ export function CreateProtocolForm({ compounds, managedUsers, currentUserId, cyc
       </div>
 
       {/* Cycle */}
-      {cycles.length > 0 && subjectUserId === currentUserId && (
+      {(cyclesByUserId[subjectUserId] ?? []).length > 0 && (
         <div>
           <label htmlFor="cycle" className="block text-sm font-medium text-gray-700 mb-1">
             Cycle <span className="text-gray-400">(optional)</span>
@@ -272,7 +272,7 @@ export function CreateProtocolForm({ compounds, managedUsers, currentUserId, cyc
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">No cycle</option>
-            {cycles.map((c) => (
+            {(cyclesByUserId[subjectUserId] ?? []).map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>

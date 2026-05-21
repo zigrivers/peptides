@@ -25,8 +25,8 @@ const RestartCycleSchema = z.object({
 });
 
 function parseUTCDate(iso: string): Date {
-  const [, y, m, d] = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)!.map(Number);
-  return new Date(Date.UTC(y, m - 1, d));
+  // Zod's calendarDate validator already guarantees YYYY-MM-DD + valid calendar date.
+  return new Date(`${iso}T00:00:00Z`);
 }
 
 type CreateResult = { ok: true; cycle: Cycle } | { ok: false; error: string; message: string };
@@ -52,7 +52,8 @@ export async function createCycleAction(input: unknown): Promise<CreateResult> {
     revalidatePath('/tracker');
     return { ok: true, cycle };
   } catch (err) {
-    return { ok: false, error: 'unknown', message: err instanceof Error ? err.message : 'Unknown error.' };
+    console.error('[createCycleAction] internal error:', err);
+    return { ok: false, error: 'unknown', message: 'Could not create cycle. Please try again.' };
   }
 }
 
@@ -72,8 +73,9 @@ export async function restartCycleAction(input: unknown): Promise<RestartResult>
     revalidatePath('/tracker');
     return { ok: true, newCycle };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error.';
-    if (/not found/i.test(msg)) return { ok: false, error: 'not_found', message: msg };
-    return { ok: false, error: 'unknown', message: msg };
+    const msg = err instanceof Error ? err.message : '';
+    console.error('[restartCycleAction] internal error:', err);
+    if (/not found/i.test(msg)) return { ok: false, error: 'not_found', message: 'Cycle not found.' };
+    return { ok: false, error: 'unknown', message: 'Could not restart cycle. Please try again.' };
   }
 }

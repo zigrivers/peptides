@@ -49,12 +49,10 @@ export default async function CycleDetailPage({ params }: { params: Promise<{ id
         </div>
       )}
 
-      {cycle.status === 'ACTIVE' && (
-        <div className="mt-6 border-t pt-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Actions</h2>
-          <RestartCycleButton cycleId={cycle.id} />
-        </div>
-      )}
+      <div className="mt-6 border-t pt-6">
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">Actions</h2>
+        <RestartCycleButton cycleId={cycle.id} />
+      </div>
     </main>
   );
 }
