@@ -95,7 +95,7 @@ export async function findCompounds(
 }
 
 export async function findCompoundById(id: string): Promise<{ name: string; slug: string } | null> {
-  return prisma.compound.findFirst({
+  return prisma.compound.findUnique({
     where: { id },
     select: { name: true, slug: true },
   });

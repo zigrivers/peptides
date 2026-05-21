@@ -65,12 +65,12 @@ export default async function ProtocolDetailPage({
         </div>
         <div className="flex justify-between">
           <dt className="text-gray-500">Start date</dt>
-          <dd className="font-medium text-gray-900">{protocol.startDate.toLocaleDateString()}</dd>
+          <dd className="font-medium text-gray-900">{protocol.startDate.toLocaleDateString(undefined, { timeZone: 'UTC' })}</dd>
         </div>
         {protocol.endDate && (
           <div className="flex justify-between">
             <dt className="text-gray-500">End date</dt>
-            <dd className="font-medium text-gray-900">{protocol.endDate.toLocaleDateString()}</dd>
+            <dd className="font-medium text-gray-900">{protocol.endDate.toLocaleDateString(undefined, { timeZone: 'UTC' })}</dd>
           </div>
         )}
         {protocol.notes && (

@@ -27,15 +27,25 @@ export function ProtocolActions({ protocol }: Props) {
   const [showCloneForm, setShowCloneForm] = useState(false);
   const [cloneDate, setCloneDate] = useState('');
 
-  async function run(fn: () => Promise<{ ok: boolean; error?: string; message?: string; protocolId?: string }>) {
+  async function run(
+    fn: () => Promise<{ ok: boolean; error?: string; message?: string; protocolId?: string }>,
+    navigateTo?: string | ((protocolId?: string) => string)
+  ) {
     setError(null);
     startTransition(async () => {
-      const result = await fn();
-      if (result.ok) {
-        router.push('/tracker');
-        router.refresh();
-      } else {
-        setError(result.message ?? result.error ?? 'Unknown error');
+      try {
+        const result = await fn();
+        if (result.ok) {
+          if (navigateTo) {
+            const path = typeof navigateTo === 'function' ? navigateTo(result.protocolId) : navigateTo;
+            router.push(path);
+          }
+          router.refresh();
+        } else {
+          setError(result.message ?? result.error ?? 'Unknown error');
+        }
+      } catch {
+        setError('An unexpected error occurred. Please try again.');
       }
     });
   }
@@ -87,7 +97,7 @@ export function ProtocolActions({ protocol }: Props) {
             disabled={isPending}
             onClick={() => {
               if (confirm('Deactivate this protocol? This cannot be undone.')) {
-                run(() => deactivateProtocolAction({ protocolId: id }));
+                run(() => deactivateProtocolAction({ protocolId: id }), '/tracker');
               }
             }}
             className="rounded-md border border-red-300 text-red-700 bg-red-50 px-4 py-2 text-sm font-medium hover:bg-red-100 disabled:opacity-60 transition-colors"
@@ -110,8 +120,9 @@ export function ProtocolActions({ protocol }: Props) {
             <button
               disabled={isPending || !cloneDate}
               onClick={() =>
-                run(() =>
-                  cloneProtocolAction({ protocolId: id, newStartDate: parseDateUTC(cloneDate) })
+                run(
+                  () => cloneProtocolAction({ protocolId: id, newStartDate: parseDateUTC(cloneDate) }),
+                  (newId) => `/tracker/protocols/${newId}`
                 )
               }
               className="rounded-md bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 transition-colors"

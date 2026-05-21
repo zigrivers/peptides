@@ -71,7 +71,7 @@ export default async function TrackerPage() {
                       {p.dose.amount} {p.dose.unit} — {formatSchedule(p.schedule)}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {p.administrationRoute} · Started {p.startDate.toLocaleDateString()}
+                      {p.administrationRoute} · Started {p.startDate.toLocaleDateString(undefined, { timeZone: 'UTC' })}
                     </p>
                   </div>
                   {statusBadge(p.status)}

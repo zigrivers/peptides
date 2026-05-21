@@ -81,6 +81,7 @@ export async function cloneProtocolAction(rawInput: unknown): Promise<LifecycleR
       newStartDate: parsed.data.newStartDate,
     });
     revalidatePath('/tracker');
+    revalidatePath('/dashboard');
     return { ok: true, protocolId: result.id };
   } catch (err) {
     const msg = err instanceof Error ? err.message : '';

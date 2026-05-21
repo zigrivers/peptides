@@ -5,8 +5,6 @@ const mockProtocolFindMany = vi.fn();
 const mockAuditCreate = vi.fn();
 const mockUserFindUnique = vi.fn();
 const mockUserFindMany = vi.fn();
-const mockCycleProtocolFindMany = vi.fn();
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/shared/prisma', () => ({
