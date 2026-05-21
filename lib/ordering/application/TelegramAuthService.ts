@@ -10,6 +10,16 @@ export async function initiateTelegramLink(
 ): Promise<{ flowId: string; phoneCodeHash: string }> {
   const { phoneCodeHash, tempSession } = await startPhoneAuth(phone);
   const flowId = createFlow(userId, tempSession);
+  await withAudit(
+    async () => { /* audit-only — no DB mutation at the initiate step */ },
+    {
+      actorUserId: userId,
+      category: 'Security' as const,
+      action: 'TELEGRAM_SESSION_LINK_INITIATED' as const,
+      resourceId: userId,
+      resourceType: 'TelegramSession',
+    }
+  );
   return { flowId, phoneCodeHash };
 }
 

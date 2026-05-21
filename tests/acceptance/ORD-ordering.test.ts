@@ -314,8 +314,9 @@ describe('US-ORD-01: Configure Telegram MTProto', () => {
     const { flowId } = await initiateTelegramLink('user-1', '+15551234567');
     await completeTelegramLink('user-1', '+15551234567', 'hash-abc', '11111', flowId);
 
-    expect(mockPrismaAuditEventCreate).toHaveBeenCalledOnce();
-    const auditCall = mockPrismaAuditEventCreate.mock.calls[0][0];
+    expect(mockPrismaAuditEventCreate).toHaveBeenCalledTimes(2);
+    expect(mockPrismaAuditEventCreate.mock.calls[0][0].data.action).toBe('TELEGRAM_SESSION_LINK_INITIATED');
+    const auditCall = mockPrismaAuditEventCreate.mock.calls[1][0];
     expect(auditCall.data.action).toBe('TELEGRAM_SESSION_LINKED');
     expect(auditCall.data.actorUserId).toBe('user-1');
   });
@@ -358,8 +359,9 @@ describe('US-ORD-01: Configure Telegram MTProto', () => {
     const upsertCall = mockPrismaTelegramSessionUpsert.mock.calls[0][0];
     expect(upsertCall.create.sessionString).not.toBe('2fa-session');
     expect(decryptSession(upsertCall.create.sessionString as string)).toBe('2fa-session');
-    expect(mockPrismaAuditEventCreate).toHaveBeenCalledOnce();
-    const auditCall = mockPrismaAuditEventCreate.mock.calls[0][0];
+    expect(mockPrismaAuditEventCreate).toHaveBeenCalledTimes(2);
+    expect(mockPrismaAuditEventCreate.mock.calls[0][0].data.action).toBe('TELEGRAM_SESSION_LINK_INITIATED');
+    const auditCall = mockPrismaAuditEventCreate.mock.calls[1][0];
     expect(auditCall.data.action).toBe('TELEGRAM_SESSION_LINKED');
   });
 
