@@ -20,7 +20,7 @@ export function TelegramSetupForm({ linked }: Props) {
   const [step, setStep] = useState<Step>('idle');
   const [phone, setPhone] = useState('');
   const [phoneCodeHash, setPhoneCodeHash] = useState('');
-  const [tempSession, setTempSession] = useState('');
+  const [flowId, setFlowId] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState(false);
@@ -37,7 +37,7 @@ export function TelegramSetupForm({ linked }: Props) {
       return;
     }
     setPhoneCodeHash(result.data.phoneCodeHash);
-    setTempSession(result.data.tempSession);
+    setFlowId(result.data.flowId);
     setStep('code');
   }
 
@@ -45,11 +45,11 @@ export function TelegramSetupForm({ linked }: Props) {
     e.preventDefault();
     setPending(true);
     setError(null);
-    const result = await completeTelegramLinkAction({ phone, phoneCodeHash, code, tempSession });
+    const result = await completeTelegramLinkAction({ phone, phoneCodeHash, code, flowId });
     setPending(false);
     if (!result.ok) {
-      if (result.error === 'password_required' && result.tempSession) {
-        setTempSession(result.tempSession);
+      if (result.error === 'password_required' && result.flowId) {
+        setFlowId(result.flowId);
         setStep('password');
         return;
       }
@@ -63,7 +63,7 @@ export function TelegramSetupForm({ linked }: Props) {
     e.preventDefault();
     setPending(true);
     setError(null);
-    const result = await completeTelegramLinkWithPasswordAction({ password, tempSession });
+    const result = await completeTelegramLinkWithPasswordAction({ password, flowId });
     setPending(false);
     if (!result.ok) {
       setError(result.message ?? result.error);

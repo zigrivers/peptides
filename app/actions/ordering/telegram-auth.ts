@@ -18,22 +18,23 @@ export type TelegramAuthError =
   | 'mtproto_connection_error'
   | 'invalid_code'
   | 'password_required'
+  | 'flow_expired'
   | 'system_error';
 
 export type TelegramAuthResult<T = void> =
   | { ok: true; data: T }
-  | { ok: false; error: TelegramAuthError; message?: string; tempSession?: string };
+  | { ok: false; error: TelegramAuthError; message?: string; flowId?: string };
 
 const PhoneSchema = z.object({ phone: z.string().min(7).max(20) });
 const CompleteSchema = z.object({
   phone: z.string().min(7).max(20),
   phoneCodeHash: z.string().min(1),
   code: z.string().min(4).max(8),
-  tempSession: z.string().min(1),
+  flowId: z.string().uuid(),
 });
 const PasswordSchema = z.object({
   password: z.string().min(1),
-  tempSession: z.string().min(1),
+  flowId: z.string().uuid(),
 });
 
 // 3 initiate requests per user per hour — prevents abuse of Telegram's SendCode API.
@@ -43,7 +44,7 @@ const completeLimiter = createRateLimiter(5, 10 * 60 * 1000);
 
 export async function initiateTelegramLinkAction(
   rawInput: unknown
-): Promise<TelegramAuthResult<{ phoneCodeHash: string; tempSession: string }>> {
+): Promise<TelegramAuthResult<{ flowId: string; phoneCodeHash: string }>> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
@@ -55,7 +56,7 @@ export async function initiateTelegramLinkAction(
     return { ok: false, error: 'validation_error', message: parsed.error.issues.map((i) => i.message).join(', ') };
 
   try {
-    const result = await initiateTelegramLink(parsed.data.phone);
+    const result = await initiateTelegramLink(session.user.id, parsed.data.phone);
     return { ok: true, data: result };
   } catch (err) {
     const msg = err instanceof Error ? err.message : '';
@@ -84,14 +85,16 @@ export async function completeTelegramLinkAction(
       parsed.data.phone,
       parsed.data.phoneCodeHash,
       parsed.data.code,
-      parsed.data.tempSession
+      parsed.data.flowId
     );
     if (result.passwordRequired) {
-      return { ok: false, error: 'password_required', tempSession: result.tempSession };
+      return { ok: false, error: 'password_required', flowId: result.flowId };
     }
     return { ok: true, data: undefined };
   } catch (err) {
     const msg = err instanceof Error ? err.message : '';
+    if (msg.includes('flow_not_found_or_expired'))
+      return { ok: false, error: 'flow_expired', message: 'Session expired. Please start again.' };
     if (msg.includes('PHONE_CODE_INVALID') || msg.includes('code'))
       return { ok: false, error: 'invalid_code', message: 'Verification code is incorrect' };
     if (msg.includes('connection') || msg.includes('connect'))
@@ -117,11 +120,13 @@ export async function completeTelegramLinkWithPasswordAction(
     await completeTelegramLinkWithPassword(
       session.user.id,
       parsed.data.password,
-      parsed.data.tempSession
+      parsed.data.flowId
     );
     return { ok: true, data: undefined };
   } catch (err) {
     const msg = err instanceof Error ? err.message : '';
+    if (msg.includes('flow_not_found_or_expired'))
+      return { ok: false, error: 'flow_expired', message: 'Session expired. Please start again.' };
     if (msg.includes('PASSWORD_HASH_INVALID') || msg.includes('password'))
       return { ok: false, error: 'invalid_code', message: 'Incorrect 2FA password' };
     if (msg.includes('connection') || msg.includes('connect'))

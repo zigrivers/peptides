@@ -2,9 +2,15 @@ import { withAudit } from '@/lib/audit/application/withAudit';
 import { encryptSession, decryptSession } from './SessionManager';
 import { startPhoneAuth, completePhoneAuth, completePhoneAuthWithPassword, logoutSession } from '@/lib/ordering/infrastructure/MTProtoClient';
 import { saveSession, getSession, deactivateSession } from '@/lib/ordering/infrastructure/TelegramSessionRepo';
+import { createFlow, getAndValidateFlow, updateFlowSession, deleteFlow } from './TelegramFlowStore';
 
-export async function initiateTelegramLink(phone: string): Promise<{ phoneCodeHash: string; tempSession: string }> {
-  return startPhoneAuth(phone);
+export async function initiateTelegramLink(
+  userId: string,
+  phone: string
+): Promise<{ flowId: string; phoneCodeHash: string }> {
+  const { phoneCodeHash, tempSession } = await startPhoneAuth(phone);
+  const flowId = createFlow(userId, tempSession);
+  return { flowId, phoneCodeHash };
 }
 
 export async function completeTelegramLink(
@@ -12,14 +18,18 @@ export async function completeTelegramLink(
   phone: string,
   phoneCodeHash: string,
   code: string,
-  tempSession: string
-): Promise<{ passwordRequired: false } | { passwordRequired: true; tempSession: string }> {
-  const result = await completePhoneAuth(phone, phoneCodeHash, code, tempSession);
+  flowId: string
+): Promise<{ passwordRequired: false } | { passwordRequired: true; flowId: string }> {
+  const flow = getAndValidateFlow(flowId, userId);
+  const result = await completePhoneAuth(phone, phoneCodeHash, code, flow.tempSession);
 
   if (result.type === 'password_required') {
-    return { passwordRequired: true, tempSession: result.tempSession };
+    // GramJS returns a new session containing auth state needed for CheckPassword.
+    updateFlowSession(flowId, result.tempSession);
+    return { passwordRequired: true, flowId };
   }
 
+  deleteFlow(flowId);
   const encrypted = encryptSession(result.sessionString);
   await withAudit(
     async (tx) => {
@@ -40,9 +50,12 @@ export async function completeTelegramLink(
 export async function completeTelegramLinkWithPassword(
   userId: string,
   password: string,
-  tempSession: string
+  flowId: string
 ): Promise<void> {
-  const { sessionString } = await completePhoneAuthWithPassword(password, tempSession);
+  const flow = getAndValidateFlow(flowId, userId);
+  deleteFlow(flowId);
+
+  const { sessionString } = await completePhoneAuthWithPassword(password, flow.tempSession);
   const encrypted = encryptSession(sessionString);
 
   await withAudit(
