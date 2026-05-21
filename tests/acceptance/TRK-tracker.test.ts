@@ -294,6 +294,28 @@ describe('US-TRK-01: Create and Edit Protocol', () => {
         })
       ).rejects.toThrow(/dose/i);
     });
+
+    it('power user can update a managed user protocol (F-002 regression)', async () => {
+      const managedUserId = 'managed-user-1';
+      mockUserFindMany.mockResolvedValue([{ id: managedUserId }]);
+      const managedProtocolRow = { ...baseProtocolRow, userId: managedUserId };
+      mockProtocolFindFirst.mockResolvedValue(managedProtocolRow);
+      mockProtocolUpdate.mockResolvedValue({ ...managedProtocolRow, dose: { amount: '300', unit: 'mcg' } });
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await updateProtocol({
+        actorUserId,
+        protocolId,
+        dose: { amount: '300', unit: 'mcg' },
+      });
+
+      expect(result.userId).toBe(managedUserId);
+      expect(mockAuditCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ action: 'PROTOCOL_UPDATED', actorUserId }),
+        })
+      );
+    });
   });
 });
 

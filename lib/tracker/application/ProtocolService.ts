@@ -40,9 +40,8 @@ export async function getProtocolById(
   actorUserId: string
 ): Promise<Protocol | null> {
   const managedIds = await getManagedUserIds(actorUserId);
-  return prisma.$transaction(async (tx) =>
-    findProtocolByIdForActor(tx, protocolId, actorUserId, managedIds)
-  );
+  // Single read — no $transaction needed; avoids unnecessary round-trip overhead
+  return findProtocolByIdForActor(prisma, protocolId, actorUserId, managedIds);
 }
 
 export async function createProtocol(input: CreateProtocolInput): Promise<Protocol> {

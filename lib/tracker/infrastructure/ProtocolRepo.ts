@@ -93,19 +93,23 @@ export async function updateProtocolRecord(
   return mapProtocol(raw);
 }
 
+type ProtocolClient = Prisma.TransactionClient | PrismaClient;
+
 /**
  * Find a protocol by id where the owner is either the actor themselves OR
  * a managed user of the actor. This supports the power-user edit use case
  * where actorUserId !== protocol.userId (managed user protocol).
+ * Accepts both a transaction client and a plain PrismaClient to avoid
+ * unnecessary $transaction overhead for read-only lookups.
  */
 export async function findProtocolByIdForActor(
-  tx: Prisma.TransactionClient,
+  client: ProtocolClient,
   protocolId: string,
   actorUserId: string,
   managedUserIds: string[]
 ): Promise<Protocol | null> {
   const allowedUserIds = [actorUserId, ...managedUserIds];
-  const raw = await tx.protocol.findFirst({
+  const raw = await client.protocol.findFirst({
     where: {
       id: protocolId,
       userId: { in: allowedUserIds },
