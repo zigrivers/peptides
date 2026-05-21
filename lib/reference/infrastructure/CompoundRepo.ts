@@ -79,8 +79,10 @@ export async function findCompounds(
   };
 
   if (query) {
+    // name: partial case-insensitive; synonyms: exact-match (Prisma array 'has' is exact-only)
     where.OR = [
       { name: { contains: query, mode: 'insensitive' } },
+      { synonyms: { has: query } },
     ];
   }
 

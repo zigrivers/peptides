@@ -1,14 +1,7 @@
 import { PrismaClient } from '@prisma/client';
+import { nameToSlug } from '../lib/reference/domain/slug';
 
 const prisma = new PrismaClient();
-
-function nameToSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w-]/g, '')
-    .replace(/-+/g, '-');
-}
 
 async function main() {
   const compounds = [

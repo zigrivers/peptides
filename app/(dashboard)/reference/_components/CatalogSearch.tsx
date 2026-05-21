@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useRef } from 'react';
+import { CATALOG_TAGS } from '@/lib/reference/domain/tags';
 
 const DEBOUNCE_MS = 350;
 
@@ -58,13 +59,9 @@ export function CatalogSearch() {
         aria-label="Filter by category"
       >
         <option value="">All categories</option>
-        <option value="healing">Healing</option>
-        <option value="recovery">Recovery</option>
-        <option value="weight-loss">Weight Loss</option>
-        <option value="longevity">Longevity</option>
-        <option value="cognitive">Cognitive</option>
-        <option value="skin">Skin</option>
-        <option value="metabolic">Metabolic</option>
+        {CATALOG_TAGS.map(({ value, label }) => (
+          <option key={value} value={value}>{label}</option>
+        ))}
       </select>
     </div>
   );
