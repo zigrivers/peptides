@@ -16,7 +16,6 @@ type SiteData = {
 type Props = {
   protocolId: string;
   amount: DoseAmount;
-  todayISO: string;
   existingStatus?: 'LOGGED' | 'SKIPPED';
   existingInjectionSite?: InjectionSite | null;
   siteData?: SiteData;
@@ -97,7 +96,7 @@ function SitePicker({
   );
 }
 
-export function DoseLogActions({ protocolId, amount, todayISO, existingStatus, existingInjectionSite, siteData }: Props) {
+export function DoseLogActions({ protocolId, amount, existingStatus, existingInjectionSite, siteData }: Props) {
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<'LOGGED' | 'SKIPPED' | null>(existingStatus ?? null);
   // For existing LOGGED entries, initialize to the recorded site; fall back to suggestion for new logs.
@@ -117,11 +116,9 @@ export function DoseLogActions({ protocolId, amount, todayISO, existingStatus, e
       setError('Please select an injection site.');
       return;
     }
-    const scheduledDate = todayISO;
     startTransition(async () => {
       const result = await logDoseAction({
         protocolId,
-        scheduledDate,
         amount,
         status: logStatus,
         injectionSite: logStatus === 'LOGGED' ? (selectedSite ?? undefined) : undefined,

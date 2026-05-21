@@ -22,10 +22,6 @@ export default async function ProtocolDetailPage({
   const protocol = await getProtocolById(id, session.user.id);
   if (!protocol) notFound();
 
-  // Compute today's date on the server so the client doesn't rely on its own clock.
-  const now = new Date();
-  const todayISO = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
-
   const [compound, todaysDoseLog, siteData] = await Promise.all([
     findCompoundById(protocol.compoundId),
     protocol.status === 'ACTIVE' ? getTodaysDoseLog(session.user.id, id) : Promise.resolve(null),
@@ -109,7 +105,6 @@ export default async function ProtocolDetailPage({
           <DoseLogActions
             protocolId={protocol.id}
             amount={protocol.dose}
-            todayISO={todayISO}
             existingStatus={todaysDoseLog?.status as 'LOGGED' | 'SKIPPED' | undefined}
             existingInjectionSite={todaysDoseLog?.injectionSite ?? null}
             siteData={siteData ?? undefined}
