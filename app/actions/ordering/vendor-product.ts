@@ -10,7 +10,7 @@ import {
 } from '@/lib/ordering/application/VendorProductService';
 
 const CreateProductSchema = z.object({
-  vendorId: z.string().uuid(),
+  vendorId: z.string().min(1),
   compoundId: z.string().min(1),
   name: z.string().min(1).max(200),
   priceUsd: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid price'),

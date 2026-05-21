@@ -84,16 +84,8 @@ export async function updateVendorProduct(input: UpdateVendorProductInput): Prom
       if (input.priceUsd !== undefined) data.priceUsd = new Decimal(input.priceUsd);
       if (input.inStock !== undefined) data.inStock = input.inStock;
 
-      const { count } = await tx.vendorProduct.updateMany({
-        where: { id: input.productId, vendor: { userId: input.userId } },
-        data,
-      });
-      if (count === 0) throw new Error('product_not_found');
-
-      const row = await tx.vendorProduct.findFirst({
-        where: { id: input.productId, vendor: { userId: input.userId } },
-      });
-      if (!row) throw new Error('product_not_found');
+      // updateMany does not support relation filters — use the verified ID from the scoped findFirst above
+      const row = await tx.vendorProduct.update({ where: { id: existing.id }, data });
       return toVendorProduct(row);
     },
     (result) => ({
@@ -109,11 +101,12 @@ export async function updateVendorProduct(input: UpdateVendorProductInput): Prom
 export async function archiveVendorProduct(userId: string, productId: string): Promise<void> {
   await withAudit(
     async (tx) => {
-      const { count } = await tx.vendorProduct.updateMany({
+      const existing = await tx.vendorProduct.findFirst({
         where: { id: productId, vendor: { userId } },
-        data: { inStock: false },
       });
-      if (count === 0) throw new Error('product_not_found');
+      if (!existing) throw new Error('product_not_found');
+      // updateMany does not support relation filters — use the verified ID from the scoped findFirst above
+      await tx.vendorProduct.update({ where: { id: existing.id }, data: { inStock: false } });
     },
     {
       actorUserId: userId,
