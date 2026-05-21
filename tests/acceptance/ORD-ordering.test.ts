@@ -471,6 +471,28 @@ describe('US-ORD-02: Build Order', () => {
     expect(itemsArg.data[0].quantity).toBe(3);
   });
 
+  it('AC-1: createDraftOrder merges equivalent decimal vialSizeMg strings (5 vs 5.0 vs 5.000)', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+    mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-3', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-3', createdAt: new Date() });
+    mockPrismaOrderItemCreateMany.mockResolvedValueOnce({ count: 1 });
+
+    await createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1 },
+      { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5.0', quantity: 2 },
+      { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5.000', quantity: 3 },
+    ]);
+
+    const itemsArg = mockPrismaOrderItemCreateMany.mock.calls[0][0];
+    expect(itemsArg.data).toHaveLength(1);
+    expect(itemsArg.data[0].quantity).toBe(6);
+  });
+
   it('AC-1: createDraftOrder throws vendor_not_found when vendor does not belong to user', async () => {
     const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
 
@@ -497,6 +519,28 @@ describe('US-ORD-02: Build Order', () => {
 
     expect(result.orderId).toBe('order-existing');
     expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
+  });
+
+  it('AC-1: createDraftOrder recovers from P2002 race on idempotencyKey unique constraint', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst
+      .mockResolvedValueOnce(null) // idempotency pre-check misses (race)
+      .mockResolvedValueOnce({ id: 'order-winner', userId: 'user-1', status: 'DRAFT' }); // re-read after P2002
+
+    const p2002 = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+    mockPrismaOrderCreate.mockRejectedValueOnce(p2002);
+
+    const dupeKey = '00000000-0000-0000-0000-000000000002' as `${string}-${string}-${string}-${string}-${string}`;
+    const result = await createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1 },
+    ], dupeKey);
+
+    expect(result.orderId).toBe('order-winner');
   });
 });
 

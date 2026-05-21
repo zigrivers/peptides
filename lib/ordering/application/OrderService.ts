@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import Decimal from 'decimal.js';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
@@ -27,7 +28,9 @@ export interface SendOrderResult {
 function mergeItems(items: OrderLineItemInput[]): OrderLineItemInput[] {
   const map = new Map<string, OrderLineItemInput>();
   for (const item of items) {
-    const key = `${item.compoundId}:${item.form}:${item.vialSizeMg}`;
+    // Normalize vialSizeMg to canonical Decimal form so '5', '5.0', '5.000' all merge.
+    const normalizedSize = new Decimal(item.vialSizeMg).toString();
+    const key = `${item.compoundId}:${item.form}:${normalizedSize}`;
     const existing = map.get(key);
     if (existing) {
       existing.quantity += item.quantity;
@@ -72,42 +75,53 @@ export async function createDraftOrder(
 
   const merged = mergeItems(items);
 
-  const order = await withAudit(
-    async (tx) => {
-      const newOrder = await tx.order.create({
-        data: { userId, vendorId, idempotencyKey, status: 'DRAFT' },
-      });
-      const nonNullProductIds = merged.filter((i) => i.productId != null).map((i) => i.productId!);
-      if (nonNullProductIds.length > 0) {
-        const validCount = await tx.vendorProduct.count({
-          where: { id: { in: nonNullProductIds }, vendorId, vendor: { userId } },
+  try {
+    const order = await withAudit(
+      async (tx) => {
+        const newOrder = await tx.order.create({
+          data: { userId, vendorId, idempotencyKey, status: 'DRAFT' },
         });
-        if (validCount !== nonNullProductIds.length) throw new Error('product_not_found');
-      }
-      await tx.orderItem.createMany({
-        data: merged.map((item) => ({
-          orderId: newOrder.id,
-          compoundId: item.compoundId,
-          form: item.form,
-          vialSizeMg: item.vialSizeMg,
-          quantity: item.quantity,
-          productId: item.productId ?? null,
-          unitPrice: item.unitPrice ?? null,
-          unitCurrency: item.unitCurrency ?? null,
-        })),
-      });
-      return newOrder;
-    },
-    (result) => ({
-      actorUserId: userId,
-      category: 'Order' as const,
-      action: 'ORDER_DRAFTED' as const,
-      resourceId: result.id,
-      resourceType: 'Order',
-    })
-  );
+        const nonNullProductIds = merged.filter((i) => i.productId != null).map((i) => i.productId!);
+        if (nonNullProductIds.length > 0) {
+          const validCount = await tx.vendorProduct.count({
+            where: { id: { in: nonNullProductIds }, vendorId, vendor: { userId } },
+          });
+          if (validCount !== nonNullProductIds.length) throw new Error('product_not_found');
+        }
+        await tx.orderItem.createMany({
+          data: merged.map((item) => ({
+            orderId: newOrder.id,
+            compoundId: item.compoundId,
+            form: item.form,
+            vialSizeMg: item.vialSizeMg,
+            quantity: item.quantity,
+            productId: item.productId ?? null,
+            unitPrice: item.unitPrice ?? null,
+            unitCurrency: item.unitCurrency ?? null,
+          })),
+        });
+        return newOrder;
+      },
+      (result) => ({
+        actorUserId: userId,
+        category: 'Order' as const,
+        action: 'ORDER_DRAFTED' as const,
+        resourceId: result.id,
+        resourceType: 'Order',
+      })
+    );
 
-  return { orderId: order.id };
+    return { orderId: order.id };
+  } catch (err) {
+    // If two concurrent requests race on the same idempotencyKey (which has a @unique
+    // constraint), one will succeed and the other will get a P2002 unique-key violation.
+    // Re-read the winner and return it rather than surfacing an internal error.
+    if (err instanceof Error && 'code' in err && (err as { code: string }).code === 'P2002') {
+      const winner = await prisma.order.findFirst({ where: { userId, idempotencyKey } });
+      if (winner) return { orderId: winner.id };
+    }
+    throw err;
+  }
 }
 
 export async function sendOrder(
@@ -163,15 +177,31 @@ export async function sendOrder(
     throw new Error('possible_duplicate_send');
   }
 
-  // Reserve the send slot before external I/O — if the process crashes after a successful
-  // Telegram send but before the final DB update, the next retry will find sentAt set and
-  // the 60-second duplicate check will block a second send.
+  // Reserve the send slot inside withAudit so the reservation and its audit trail
+  // are atomic. When force=true, skip the sentAt constraint to allow deliberate retries.
+  // When not forced, allow re-reservation if the prior lock has expired (>60s ago).
   const sentAt = new Date();
-  const { count: reserveCount } = await prisma.order.updateMany({
-    where: { id: orderId, userId, status: 'DRAFT', sentAt: null },
-    data: { messageText, sentAt },
-  });
-  if (reserveCount === 0) throw new Error('order_not_found_or_not_draft');
+  await withAudit(
+    async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: {
+          id: orderId,
+          userId,
+          status: 'DRAFT',
+          ...(force ? {} : { OR: [{ sentAt: null }, { sentAt: { lt: cutoff } }] }),
+        },
+        data: { messageText, sentAt },
+      });
+      if (count === 0) throw new Error('order_not_found_or_not_draft');
+    },
+    () => ({
+      actorUserId: userId,
+      category: 'Order' as const,
+      action: 'ORDER_SEND_ATTEMPTED' as const,
+      resourceId: orderId,
+      resourceType: 'Order',
+    })
+  );
 
   // Attempt Telegram send
   let sendMethod: SendMethod = 'MANUAL_FALLBACK';
@@ -184,8 +214,8 @@ export async function sendOrder(
       telegramMessageId = result.messageId;
       sendMethod = 'AUTOMATED';
     }
-  } catch {
-    // Fall through to manual fallback
+  } catch (err) {
+    console.error('[OrderService] Telegram send failed, falling back to manual:', err);
   }
 
   // Both AUTOMATED and MANUAL_FALLBACK transition to 'SENT'. The order is finalized
