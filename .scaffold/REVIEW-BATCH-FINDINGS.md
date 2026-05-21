@@ -10,7 +10,7 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 | 1 | review-vision | ✅ done | 6 (1×P1, 2×P2, 3×P3) | 6 | 1 retained (1.1) |
 | 2 | review-prd | ✅ done | 3 (3×P2) | 3 | 1 retained (4.2) |
 | 3 | review-user-stories | ✅ done | 13 (4×P1, 5×P2, 4×P3) | 13 | 0 |
-| 4 | review-domain-modeling | pending | | | |
+| 4 | review-domain-modeling | ✅ done | 12 (5×P1, 4×P2, 3×P3) | 12 | 0 |
 | 5 | review-adrs | pending | | | |
 | 6 | review-architecture | pending | | | |
 | 7 | review-database | pending | | | |
@@ -158,4 +158,66 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 **Files modified:**
 - `docs/user-stories.md` (+~155 lines, -8 lines)
 - `docs/reviews/pre-review-user-stories.md` (+~120 lines)
+
+---
+
+### Step 4: review-domain-modeling
+
+**Artifacts**: 7 files in `docs/domain-models/` (index, auth, tracker, reconstitution, ordering, audit, reference) — 529 → ~750 lines after fixes
+**Review log**: `docs/reviews/review-domain-modeling.md`
+**Mode**: update / re-review (accounts for new requirements from batch steps 2-3)
+**Gate result**: **Full Pass** (upgraded from INITIAL)
+
+**Findings raised (12 total):**
+
+| # | Sev | Finding (one-line) |
+|---|-----|--------------------|
+| N1 | P1 | Auth: missing `Session` + `EmailChangeRequest` entities |
+| N2 | P1 | Auth: `Invite` referenced but never defined as entity |
+| N2.1 | P1 | Ordering: `Vendor` listed as Key Aggregate but absent from ordering.md |
+| N3 | P1 | Tracker: `OutcomeLog` named in ubiquitous language but never modeled |
+| N4 | P1 | Ordering: `Order` missing line items collection |
+| N5 | P2 | Reconstitution: `Vial.orderId` missing despite cross-context arrow |
+| N6 | P2 | Cycle.status enum mismatch with PRD §5.2.4 |
+| N9 | P2 | Order missing `sendMethod` field from step-2 PRD fix |
+| N10 | P2 | Audit: action vocabulary missing new auth + email events |
+| N11 | P3 | index.md omits AuditEvent + audit.md from listings |
+| N12 | P3 | Auth domain events list incomplete |
+| N13 | P3 | `ReminderPreference` not modeled (promoted from prior F-002 deferral) |
+
+**Findings fixed (12):**
+
+1. **N1 — Session + EmailChangeRequest (P1, auth.md)**. **Why:** without `Session` the 30-day rolling expiry and password-change session-invalidation rules can't be enforced at the domain layer; without `EmailChangeRequest` the new US-AUT-07 verify-and-revert flow has no aggregate to attach state to. Added both with full attribute sets including the 48h revert window for email changes.
+2. **N2 — Invite entity added (P1, auth.md)**. **Why:** events without an entity are unenforceable; the "resend revokes prior + creates new" rule is the security-critical part of the multi-user invitation flow.
+3. **N2.1 — Vendor + VendorCatalogProduct (P1, ordering.md)**. **Why:** the `vendorId` FK on Order was pointing nowhere; the catalog product is what line items reference.
+4. **N3 — OutcomeLog + ProtocolRating (P1, tracker.md)**. **Why:** US-TRK-06 captures this; without a domain entity the data has no home and persistence has no schema target.
+5. **N4 — OrderLineItem value object (P1, ordering.md)**. **Why:** Order is meaningless without line items; the duplicate-merge invariant (PRD §5.4.3) prevents quantity-doubling bugs on duplicate add.
+6. **N5 — Vial.orderId FK (P2, reconstitution.md)**. **Why:** matches the index.md cross-context arrow that was previously aspirational; lets the inventory-on-receipt flow be traced.
+7. **N6 — Cycle.status enum aligned (P2, tracker.md)**. **Why:** mismatched enums cause silent data-corruption when persistence reads a status value the domain model doesn't recognize. PRD is the source of truth.
+8. **N9 — Order.sendMethod (P2, ordering.md)**. Added with "set exactly once at Sent transition, immutable afterward" invariant. **Why:** Phase 2 success metric depends on this field.
+9. **N10 — Audit action vocabulary (P2, audit.md)**. **Why:** the prior list was an example, not a contract; without canonical names the action vocabulary diverges per-service and audit queries break.
+10. **N11 — index.md fixes (P3)**. Added Audit to Key Aggregates + audit.md to file listing. **Why:** index.md is the entry point for new contributors.
+11. **N12 — Auth events list (P3, auth.md)**. Expanded from 4 events to 14 covering session creation, password reset/change, email change (3), account deletion + cancel. **Why:** events are the integration contract between Auth and Audit; missing events become silent audit-log gaps.
+12. **N13 — ReminderPreference (P3, tracker.md)**. **Why:** prior deferral made sense pre-architecture, but US-TRK-09 (step 3) added 5 ACs — the domain owes a model.
+
+**Also applied (consistency hardening):**
+
+- `Decimal` annotations on `Vial.totalMg/bacWaterMl/remainingMg`, `DoseAmount.value`, and all `ReconstitutionResult` numeric fields — per `.claude/rules/safety-math.md` ("ALWAYS use Decimal — NEVER Float"). The prior models used `number` ambiguously.
+- `ReconstitutionResult` expanded with `concentrationMgPerMl` + low/typical/high cross-check fields per PRD §5.3.
+- `Schedule.frequency` enum updated to `(Daily, EOD, SpecificDaysOfWeek, CustomInterval)` with `daysOfWeek` field — aligned with step-3 US-TRK-01 AC 5. (The prior model had `MWF` as an enum value, which conflated specific-days-of-week into a single hard-coded combination.)
+- Added "Daily Outcome" aggregate + uniqueness invariant (one OutcomeLog per user per scheduled date).
+- Tracker domain events expanded with `DoseBatchLogged`, `OutcomeLogged`, `ReminderSent`, `ReminderDeliveryFailed`, all protocol lifecycle events, all cycle events.
+
+**Intentionally retained / declined:** None.
+
+**Regressions from prior review:** None.
+
+**Files modified:**
+- `docs/domain-models/index.md` (+3 lines)
+- `docs/domain-models/auth.md` (+~50 lines)
+- `docs/domain-models/tracker.md` (+~50 lines, partial rewrite of value objects + events)
+- `docs/domain-models/reconstitution.md` (+~10 lines, Decimal annotations)
+- `docs/domain-models/ordering.md` (full rewrite, +~80 lines net)
+- `docs/domain-models/audit.md` (+~15 lines)
+- `docs/reviews/review-domain-modeling.md` (+~80 lines)
 

@@ -15,21 +15,26 @@ A single unit of inventory.
   - `id`: UUID
   - `userId`: UUID (FK)
   - `compoundId`: UUID (FK)
-  - `totalMg`: number
-  - `bacWaterMl`: number (optional)
-  - `remainingMg`: number
+  - `orderId`: UUID (FK, optional — populated when the vial originated from an order receipt; null when added manually)
+  - `totalMg`: number (must use `Decimal` type — never `Float`)
+  - `bacWaterMl`: number (optional; `Decimal`)
+  - `remainingMg`: number (`Decimal`)
   - `status`: enum (Dry, Reconstituted, Empty, Expired)
   - `reconstitutedAt`: timestamp (optional)
-  - `expiresAt`: timestamp (optional)
+  - `expiresAt`: timestamp (optional — defaults to 14 days post-reconstitution; configurable per-vial)
 
 ## Value Objects
 
 ### ReconstitutionResult
 The output of a reconstitution calculation.
 - **Attributes**:
-  - `concentrationMcgPerMl`: number
-  - `syringeUnitsPerDose`: number
-  - `injectionVolMl`: number
+  - `concentrationMgPerMl`: number (`Decimal`)
+  - `concentrationMcgPerMl`: number (`Decimal`)
+  - `syringeUnitsPerDose`: number (`Decimal` — based on a 100-unit insulin syringe, 1 unit = 0.01mL)
+  - `injectionVolMl`: number (`Decimal`)
+  - `lowDoseUnits`: number (`Decimal`, optional — cross-check against profile dosingLow)
+  - `typicalDoseUnits`: number (`Decimal`, optional — cross-check against profile dosingTypical)
+  - `highDoseUnits`: number (`Decimal`, optional — cross-check against profile dosingHigh)
 
 ## Domain Services
 

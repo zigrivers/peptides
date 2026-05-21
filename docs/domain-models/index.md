@@ -7,10 +7,10 @@ This directory contains the domain models for the Peptides application, organize
 | Context | Description | Key Aggregates |
 |---------|-------------|----------------|
 | **Reference** | Static compound knowledge and research data. | `Compound` |
-| **Tracker** | Dosing schedules, logs, and subjective outcomes. | `Cycle`, `Protocol` |
+| **Tracker** | Dosing schedules, logs, subjective outcomes, reminders. | `Protocol`, `Cycle`, `OutcomeLog`, `ReminderPreference` |
 | **Reconstitution** | Vial inventory and math calculations. | `Vial` |
-| **Ordering** | Vendor products and Telegram order transactions. | `Order`, `Vendor` |
-| **Auth** | User accounts, sessions, and multi-user logic. | `User` |
+| **Ordering** | Vendor products and Telegram order transactions. | `Vendor`, `Order` |
+| **Auth** | User accounts, sessions, invites, and multi-user logic. | `User`, `Session`, `Invite`, `EmailChangeRequest`, `AccountDeletionRequest`, `DataExportRequest` |
 | **Audit** | Immutable system-wide record of sensitive mutations. | `AuditEvent` |
 
 ## Context Map (High Level)
@@ -29,3 +29,4 @@ This directory contains the domain models for the Peptides application, organize
 - [Reconstitution Domain](reconstitution.md)
 - [Ordering Domain](ordering.md)
 - [Auth Domain](auth.md)
+- [Audit Domain](audit.md)
