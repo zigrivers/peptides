@@ -66,7 +66,7 @@ export async function createVendorProduct(input: CreateVendorProductInput): Prom
 export async function listVendorProducts(userId: string, vendorId: string): Promise<VendorProduct[]> {
   const rows = await prisma.vendorProduct.findMany({
     where: { vendorId, vendor: { userId } },
-    orderBy: { name: 'asc' },
+    orderBy: [{ inStock: 'desc' }, { name: 'asc' }],
   });
   return rows.map((r) => toVendorProduct(r));
 }

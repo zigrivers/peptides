@@ -13,13 +13,13 @@ const CreateProductSchema = z.object({
   vendorId: z.string().min(1),
   compoundId: z.string().min(1),
   name: z.string().min(1).max(200),
-  priceUsd: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid price'),
+  priceUsd: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid price').refine((v) => parseFloat(v) > 0, 'Price must be greater than zero'),
   inStock: z.boolean().default(true),
 });
 
 const UpdateProductSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  priceUsd: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid price').optional(),
+  priceUsd: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid price').refine((v) => parseFloat(v) > 0, 'Price must be greater than zero').optional(),
   inStock: z.boolean().optional(),
 });
 
@@ -41,7 +41,7 @@ export async function createVendorProductAction(
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
   const parsed = CreateProductSchema.safeParse(rawInput);
-  if (!parsed.success) return { ok: false, error: 'validation_error', message: parsed.error.message };
+  if (!parsed.success) return { ok: false, error: 'validation_error', message: parsed.error.issues.map((i) => i.message).join(', ') };
 
   try {
     const product = await createVendorProduct({ userId: session.user.id, ...parsed.data });
@@ -64,7 +64,7 @@ export async function updateVendorProductAction(
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
   const parsed = UpdateProductSchema.safeParse(rawInput);
-  if (!parsed.success) return { ok: false, error: 'validation_error', message: parsed.error.message };
+  if (!parsed.success) return { ok: false, error: 'validation_error', message: parsed.error.issues.map((i) => i.message).join(', ') };
 
   try {
     await updateVendorProduct({ userId: session.user.id, productId, ...parsed.data });
