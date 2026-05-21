@@ -43,4 +43,13 @@ describe('PasswordHash', () => {
     const fromStore = PasswordHash.fromHash(original.toString());
     expect(await fromStore.verify('mystrongpassword')).toBe(true);
   });
+
+  it('rejects overlong passwords during verify (same 72-byte prefix must not authenticate)', async () => {
+    const password = 'a'.repeat(72);
+    const hash = await PasswordHash.create(password);
+    // Without the guard, bcrypt silently truncates verify input to 72 bytes, making
+    // a 73-char password with the same prefix incorrectly return true.
+    expect(await hash.verify('a'.repeat(73))).toBe(false);
+    expect(await hash.verify(password)).toBe(true);
+  });
 });

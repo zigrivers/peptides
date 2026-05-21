@@ -25,6 +25,12 @@ export class PasswordHash {
   }
 
   async verify(plaintext: string): Promise<boolean> {
+    // Mirror the MAX_PASSWORD_BYTES guard from create() — bcrypt silently truncates
+    // inputs beyond 72 bytes, so an overlong input with the same 72-byte prefix as
+    // the stored password would incorrectly return true without this check.
+    if (Buffer.byteLength(plaintext, 'utf8') > MAX_PASSWORD_BYTES) {
+      return false;
+    }
     return bcrypt.compare(plaintext, this.hash);
   }
 
