@@ -103,14 +103,18 @@ model VerificationToken {
 }
 
 model Invite {
-  id            String    @id @default(uuid())
-  email         String
-  token         String    @unique
-  powerUserId   String
-  powerUser     User      @relation("InvitesSent", fields: [powerUserId], references: [id])
-  status        String    @default("PENDING")
-  expiresAt     DateTime
-  createdAt     DateTime  @default(now())
+  id                  String    @id @default(uuid())
+  email               String
+  tokenHash           String    @unique
+  powerUserId         String
+  powerUser           User      @relation("InvitesSent", fields: [powerUserId], references: [id])
+  status              String    @default("PENDING") // PENDING | ACCEPTED | REVOKED
+  expiresAt           DateTime
+  createdAt           DateTime  @default(now())
+  acceptedAt          DateTime?
+  acceptedByUserId    String?
+
+  @@index([powerUserId, status])
 }
 
 model PasswordResetToken {

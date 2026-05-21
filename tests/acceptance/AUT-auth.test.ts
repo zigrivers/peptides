@@ -1,17 +1,80 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PasswordHash } from '@/lib/auth/domain/PasswordHash';
 import { authConfig } from '@/lib/auth/auth.config';
+
+const mockUserFindUnique = vi.fn();
+const mockUserUpdate = vi.fn();
+
+vi.mock('@/lib/shared/prisma', () => ({
+  prisma: {
+    user: { findUnique: mockUserFindUnique, update: mockUserUpdate },
+  },
+}));
+
+beforeEach(() => { vi.clearAllMocks(); });
+
+const { getOnboardingState, advanceOnboardingStep, dismissOnboarding } = await import(
+  '@/lib/auth/application/onboarding'
+);
 
 /**
  * Story: US-AUT-01 - Onboarding Path
  */
 describe('US-AUT-01: Onboarding Path', () => {
-  it.todo('AC-1: guides power user through 3-step setup', () => {
-    // Hint: check OnboardingState domain model
+  describe('getOnboardingState', () => {
+    it('AC-1: returns initial browse_catalog step for new power user with no onboardingState', async () => {
+      mockUserFindUnique.mockResolvedValue({ onboardingState: null, role: 'POWER_USER' });
+      const state = await getOnboardingState('u-1');
+      expect(state?.step).toBe('browse_catalog');
+    });
+
+    it('AC-2: returns initial view_schedule step for new managed user', async () => {
+      mockUserFindUnique.mockResolvedValue({ onboardingState: null, role: 'MANAGED_USER' });
+      const state = await getOnboardingState('u-1');
+      expect(state?.step).toBe('view_schedule');
+    });
+
+    it('returns existing onboarding state when already set', async () => {
+      const existing = { step: 'create_protocol', dismissed: false };
+      mockUserFindUnique.mockResolvedValue({ onboardingState: existing, role: 'POWER_USER' });
+      const state = await getOnboardingState('u-1');
+      expect(state?.step).toBe('create_protocol');
+    });
+
+    it('returns null when user is not found', async () => {
+      mockUserFindUnique.mockResolvedValue(null);
+      expect(await getOnboardingState('no-such-user')).toBeNull();
+    });
   });
 
-  it.todo('AC-2: guides managed user through dose logging walkthrough', () => {
-    // Hint: check app/(auth)/onboarding/page.tsx
+  describe('advanceOnboardingStep', () => {
+    it('AC-1: advances power user to next step', async () => {
+      mockUserUpdate.mockResolvedValue({});
+      await advanceOnboardingStep('u-1', 'create_protocol');
+      expect(mockUserUpdate).toHaveBeenCalledWith({
+        where: { id: 'u-1' },
+        data: { onboardingState: { step: 'create_protocol', dismissed: false } },
+      });
+    });
+
+    it('stamps completedAt when step is completed', async () => {
+      mockUserUpdate.mockResolvedValue({});
+      await advanceOnboardingStep('u-1', 'completed');
+      const call = mockUserUpdate.mock.calls[0][0];
+      expect(call.data.onboardingState.completedAt).toBeDefined();
+      expect(call.data.onboardingState.step).toBe('completed');
+    });
+  });
+
+  describe('dismissOnboarding', () => {
+    it('sets dismissed = true preserving step', async () => {
+      mockUserFindUnique.mockResolvedValue({ onboardingState: { step: 'telegram_setup', dismissed: false }, role: 'POWER_USER' });
+      mockUserUpdate.mockResolvedValue({});
+      await dismissOnboarding('u-1');
+      const call = mockUserUpdate.mock.calls[0][0];
+      expect(call.data.onboardingState.dismissed).toBe(true);
+      expect(call.data.onboardingState.step).toBe('telegram_setup');
+    });
   });
 });
 
