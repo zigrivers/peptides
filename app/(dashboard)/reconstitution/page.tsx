@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { listCompounds } from '@/lib/reference/infrastructure/CompoundRepo';
 import { getVialsForUser } from '@/lib/reconstitution/application/VialService';
 import { ReconstitutionCalculatorForm } from './_components/ReconstitutionCalculatorForm';
-import { VialInventory } from './_components/VialInventory';
+import { VialInventory, type SerializedVial } from './_components/VialInventory';
 
 export default async function ReconstitutionPage() {
   const session = await auth();
@@ -22,6 +22,18 @@ export default async function ReconstitutionPage() {
     profile: c.profile,
   }));
 
+  // Serialize Decimal and Date to plain strings before crossing the server/client boundary
+  const serializedVials: SerializedVial[] = vials.map((v) => ({
+    id: v.id,
+    compoundName: v.compoundName,
+    totalMg: v.totalMg.toFixed(3),
+    bacWaterMl: v.bacWaterMl ? v.bacWaterMl.toFixed(3) : null,
+    remainingMg: v.remainingMg.toFixed(3),
+    status: v.status,
+    expiresAt: v.expiresAt ? v.expiresAt.toISOString() : null,
+    badges: v.badges,
+  }));
+
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 space-y-10">
       <div>
@@ -38,7 +50,7 @@ export default async function ReconstitutionPage() {
 
       <section>
         <h2 className="text-base font-semibold text-gray-800 mb-3">Active Vial Inventory</h2>
-        <VialInventory vials={vials} />
+        <VialInventory vials={serializedVials} />
       </section>
     </main>
   );

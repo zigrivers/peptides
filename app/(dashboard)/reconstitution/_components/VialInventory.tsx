@@ -1,9 +1,20 @@
 'use client';
 
-import type { VialWithBadges, VialBadge } from '@/lib/reconstitution/application/VialService';
+import type { VialBadge } from '@/lib/reconstitution/application/VialService';
+
+export interface SerializedVial {
+  id: string;
+  compoundName: string;
+  totalMg: string;
+  bacWaterMl: string | null;
+  remainingMg: string;
+  status: string;
+  expiresAt: string | null;
+  badges: VialBadge[];
+}
 
 interface Props {
-  vials: VialWithBadges[];
+  vials: SerializedVial[];
 }
 
 const BADGE_STYLES: Record<VialBadge, string> = {
@@ -18,9 +29,14 @@ const BADGE_LABELS: Record<VialBadge, string> = {
   LOW_INVENTORY: 'Low inventory',
 };
 
-function formatDate(date: Date | null): string {
-  if (!date) return '—';
-  return date.toLocaleDateString(undefined, { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric' });
+function formatDate(isoStr: string | null): string {
+  if (!isoStr) return '—';
+  return new Date(isoStr).toLocaleDateString(undefined, {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 export function VialInventory({ vials }: Props) {
@@ -43,9 +59,10 @@ export function VialInventory({ vials }: Props) {
             <div>
               <p className="font-medium text-gray-900 text-sm">{vial.compoundName}</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                {vial.remainingMg.toFixed(2)} mg remaining of {vial.totalMg.toFixed(2)} mg
+                {parseFloat(vial.remainingMg).toFixed(2)} mg remaining of{' '}
+                {parseFloat(vial.totalMg).toFixed(2)} mg
                 {vial.bacWaterMl && (
-                  <> &middot; {vial.bacWaterMl.toFixed(1)} mL BAC water</>
+                  <> &middot; {parseFloat(vial.bacWaterMl).toFixed(1)} mL BAC water</>
                 )}
               </p>
               <p className="text-xs text-gray-400 mt-0.5">

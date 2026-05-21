@@ -1,8 +1,10 @@
 import Decimal from 'decimal.js';
 import { prisma } from '@/lib/shared/prisma';
+import { withAudit } from '@/lib/audit/application/withAudit';
+import { getReconstitutedShelfLifeDays } from '@/lib/reference/infrastructure/CompoundRepo';
 
 const DEFAULT_SHELF_LIFE_DAYS = 14;
-const LOW_INVENTORY_DOSE_THRESHOLD = 5;
+const LOW_INVENTORY_PERCENT = new Decimal('0.20');
 const EXPIRING_SOON_DAYS = 7;
 
 export type VialBadge = 'LOW_INVENTORY' | 'EXPIRING_SOON' | 'EXPIRED';
@@ -34,28 +36,40 @@ export interface VialWithBadges {
 export async function saveVial(input: SaveVialInput): Promise<VialWithBadges> {
   const now = new Date();
 
-  const profile = await prisma.compoundProfile.findFirst({
-    where: { compoundId: input.compoundId },
-    select: { reconstitutedShelfLifeDays: true },
-  });
-
-  const shelfLifeDays = profile?.reconstitutedShelfLifeDays ?? DEFAULT_SHELF_LIFE_DAYS;
+  const shelfLifeDays =
+    (await getReconstitutedShelfLifeDays(input.compoundId)) ?? DEFAULT_SHELF_LIFE_DAYS;
   const expiresAt = input.expiresAt ?? new Date(now.getTime() + shelfLifeDays * 24 * 60 * 60 * 1000);
 
-  const vial = await prisma.vial.create({
-    data: {
-      userId: input.userId,
-      compoundId: input.compoundId,
-      orderItemId: input.orderItemId,
-      totalMg: input.totalMg,
-      bacWaterMl: input.bacWaterMl,
-      remainingMg: input.totalMg,
-      status: 'RECONSTITUTED',
-      reconstitutedAt: now,
-      expiresAt,
-    },
-    include: { compound: { select: { name: true } } },
-  });
+  const vial = await withAudit(
+    (tx) =>
+      tx.vial.create({
+        data: {
+          userId: input.userId,
+          compoundId: input.compoundId,
+          orderItemId: input.orderItemId,
+          totalMg: input.totalMg,
+          bacWaterMl: input.bacWaterMl,
+          remainingMg: input.totalMg,
+          status: 'RECONSTITUTED',
+          reconstitutedAt: now,
+          expiresAt,
+        },
+        include: { compound: { select: { name: true } } },
+      }),
+    (vialRow) => ({
+      actorUserId: input.userId,
+      category: 'Reconstitution' as const,
+      action: 'VIAL_RECONSTITUTED' as const,
+      resourceId: vialRow.id,
+      resourceType: 'Vial',
+      newValues: {
+        compoundId: input.compoundId,
+        totalMg: input.totalMg.toFixed(3),
+        bacWaterMl: input.bacWaterMl.toFixed(3),
+        expiresAt: expiresAt.toISOString(),
+      },
+    }),
+  );
 
   return toVialWithBadges(vial);
 }
@@ -99,15 +113,8 @@ function toVialWithBadges(
   const totalMg = new Decimal(vial.totalMg);
   const remainingMg = new Decimal(vial.remainingMg);
   const bacWaterMl = vial.bacWaterMl ? new Decimal(vial.bacWaterMl) : null;
-  if (bacWaterMl && totalMg.gt(0)) {
-    const concentrationMgPerMl = totalMg.dividedBy(bacWaterMl);
-    const doseVolumeEstimate = concentrationMgPerMl.gt(0)
-      ? remainingMg.dividedBy(concentrationMgPerMl)
-      : new Decimal(0);
-    const dosesRemaining = doseVolumeEstimate.times(10);
-    if (dosesRemaining.lt(LOW_INVENTORY_DOSE_THRESHOLD)) {
-      badges.push('LOW_INVENTORY');
-    }
+  if (totalMg.gt(0) && remainingMg.dividedBy(totalMg).lt(LOW_INVENTORY_PERCENT)) {
+    badges.push('LOW_INVENTORY');
   }
 
   return {

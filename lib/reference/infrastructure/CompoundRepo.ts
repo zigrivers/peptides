@@ -110,6 +110,14 @@ export async function findCompoundsByIds(ids: string[]): Promise<Record<string, 
   return Object.fromEntries(rows.map((r) => [r.id, r.name]));
 }
 
+export async function getReconstitutedShelfLifeDays(compoundId: string): Promise<number | null> {
+  const profile = await prisma.compoundProfile.findFirst({
+    where: { compoundId },
+    select: { reconstitutedShelfLifeDays: true },
+  });
+  return profile?.reconstitutedShelfLifeDays ?? null;
+}
+
 export async function listCompounds(opts?: { includeArchived?: boolean }): Promise<Compound[]> {
   const where: Prisma.CompoundWhereInput = {};
 

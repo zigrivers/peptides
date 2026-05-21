@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import Decimal from 'decimal.js';
 import { ReconstitutionCalculator } from '@/lib/reconstitution/domain/ReconstitutionCalculator';
 import { WarningPolicy, type WarningType } from '@/lib/reconstitution/domain/WarningPolicy';
@@ -11,19 +11,21 @@ interface Props {
   compounds: Pick<Compound, 'id' | 'name' | 'profile'>[];
 }
 
-type CalcResult = {
-  concentrationMgPerMl: string;
-  concentrationMcgPerMl: string;
-  injectionVolMl: string;
-  syringeUnitsPerDose: string;
-};
-
 const WARNING_LABELS: Record<WarningType, string> = {
   HIGH_VOLUME: 'Injection volume exceeds 1.5 mL — consider diluting further.',
   LOW_BAC_VOLUME: 'BAC water volume below 0.5 mL — vial may be difficult to draw from.',
-  ABOVE_REFERENCE_RANGE: 'Dose exceeds the compound\'s reference high range.',
+  ABOVE_REFERENCE_RANGE: "Dose exceeds the compound's reference high range.",
   EXCEEDS_VIAL_CAPACITY: 'Required volume exceeds BAC water added — physically impossible.',
 };
+
+function isPositiveDecimalString(s: string): boolean {
+  if (!s || s.trim() === '') return false;
+  try {
+    return new Decimal(s).gt(0);
+  } catch {
+    return false;
+  }
+}
 
 export function ReconstitutionCalculatorForm({ compounds }: Props) {
   const [compoundId, setCompoundId] = useState('');
@@ -31,97 +33,85 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
   const [bacWaterMl, setBacWaterMl] = useState('');
   const [targetDoseMcg, setTargetDoseMcg] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
-
-  const [result, setResult] = useState<CalcResult | null>(null);
-  const [warnings, setWarnings] = useState<WarningType[]>([]);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveError, setSaveError] = useState('');
 
   const selectedCompound = compounds.find((c) => c.id === compoundId) ?? null;
   const profile = selectedCompound?.profile ?? null;
 
-  const profileHighMcg = profile?.dosingHigh
-    ? (() => {
-        const d = profile.dosingHigh;
-        if (d.unit === 'mcg') return new Decimal(d.amount);
-        if (d.unit === 'mg') return new Decimal(d.amount).times(1000);
-        return undefined;
-      })()
-    : undefined;
+  const profileHighMcg = useMemo(() => {
+    if (!profile?.dosingHigh) return undefined;
+    const d = profile.dosingHigh;
+    if (d.unit === 'mcg') return new Decimal(d.amount);
+    if (d.unit === 'mg') return new Decimal(d.amount).times(1000);
+    return undefined;
+  }, [profile]);
 
-  const profileTypicalMcg = profile?.dosingTypical
-    ? (() => {
-        const d = profile.dosingTypical;
-        if (d.unit === 'mcg') return new Decimal(d.amount);
-        if (d.unit === 'mg') return new Decimal(d.amount).times(1000);
-        return undefined;
-      })()
-    : undefined;
+  const profileTypicalMcg = useMemo(() => {
+    if (!profile?.dosingTypical) return undefined;
+    const d = profile.dosingTypical;
+    if (d.unit === 'mcg') return new Decimal(d.amount);
+    if (d.unit === 'mg') return new Decimal(d.amount).times(1000);
+    return undefined;
+  }, [profile]);
 
-  const calculate = useCallback(() => {
-    const mg = parseFloat(totalMg);
-    const ml = parseFloat(bacWaterMl);
-    const mcg = parseFloat(targetDoseMcg);
+  // Derived state — recomputed each render so it's never stale
+  const { calcResult, warnings } = useMemo(() => {
+    const mgOk = isPositiveDecimalString(totalMg);
+    const mlOk = isPositiveDecimalString(bacWaterMl);
+    const mcgOk = isPositiveDecimalString(targetDoseMcg);
 
-    if (!mg || !ml || !mcg || mg <= 0 || ml <= 0 || mcg <= 0) {
-      setResult(null);
-      setWarnings([]);
-      return;
-    }
+    if (!mgOk || !mlOk || !mcgOk) return { calcResult: null, warnings: [] };
 
     try {
       const calc = ReconstitutionCalculator.calculate({
-        totalMg: new Decimal(mg),
-        bacWaterMl: new Decimal(ml),
-        targetDoseMcg: new Decimal(mcg),
+        totalMg: new Decimal(totalMg),
+        bacWaterMl: new Decimal(bacWaterMl),
+        targetDoseMcg: new Decimal(targetDoseMcg),
       });
 
-      setResult({
-        concentrationMgPerMl: calc.concentrationMgPerMl.toFixed(4),
-        concentrationMcgPerMl: calc.concentrationMcgPerMl.toFixed(2),
-        injectionVolMl: calc.injectionVolMl.toFixed(4),
-        syringeUnitsPerDose: calc.syringeUnitsPerDose.toFixed(2),
+      const w = WarningPolicy.evaluate({
+        injectionVolMl: calc.injectionVolMl,
+        bacWaterMl: new Decimal(bacWaterMl),
+        targetDoseMcg: new Decimal(targetDoseMcg),
+        profileHighMcg,
       });
 
-      setWarnings(
-        WarningPolicy.evaluate({
+      return {
+        calcResult: {
+          concentrationMgPerMl: calc.concentrationMgPerMl,
+          concentrationMcgPerMl: calc.concentrationMcgPerMl,
           injectionVolMl: calc.injectionVolMl,
-          bacWaterMl: new Decimal(ml),
-          targetDoseMcg: new Decimal(mcg),
-          profileHighMcg,
-        })
-      );
+          syringeUnitsPerDose: calc.syringeUnitsPerDose,
+        },
+        warnings: w,
+      };
     } catch {
-      setResult(null);
-      setWarnings([]);
+      return { calcResult: null, warnings: [] };
     }
   }, [totalMg, bacWaterMl, targetDoseMcg, profileHighMcg]);
-
-  const handleFieldChange = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setter(e.target.value);
-    // Trigger recalc after state settles
-    setTimeout(calculate, 0);
-  };
 
   const useTypicalDose = () => {
     if (!profileTypicalMcg) return;
     setTargetDoseMcg(profileTypicalMcg.toString());
-    setTimeout(calculate, 0);
   };
 
   const handleSave = async () => {
     if (!compoundId || !totalMg || !bacWaterMl) return;
     setSaveState('saving');
     setSaveError('');
-    const res = await saveVialAction({ compoundId, totalMg, bacWaterMl, expiresAt: expiresAt || undefined });
+    const res = await saveVialAction({
+      compoundId,
+      totalMg,
+      bacWaterMl,
+      expiresAt: expiresAt || undefined,
+    });
     if (res.ok) {
       setSaveState('saved');
       setTotalMg('');
       setBacWaterMl('');
       setTargetDoseMcg('');
       setExpiresAt('');
-      setResult(null);
-      setWarnings([]);
     } else {
       setSaveState('error');
       setSaveError(res.error);
@@ -139,14 +129,14 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
           value={compoundId}
           onChange={(e) => {
             setCompoundId(e.target.value);
-            setResult(null);
-            setWarnings([]);
           }}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">Select a compound…</option>
           {compounds.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
       </div>
@@ -157,7 +147,10 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
           <p className="text-xs font-semibold text-indigo-700 mb-2">Reference Dosing</p>
           <div className="flex flex-wrap gap-3 text-sm">
             <span className="text-gray-600">
-              Low: <span className="font-medium text-gray-900">{profile.dosingLow.amount} {profile.dosingLow.unit}</span>
+              Low:{' '}
+              <span className="font-medium text-gray-900">
+                {profile.dosingLow.amount} {profile.dosingLow.unit}
+              </span>
             </span>
             <span className="text-gray-600">
               Typical:{' '}
@@ -171,7 +164,10 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
               </button>
             </span>
             <span className="text-gray-600">
-              High: <span className="font-medium text-gray-900">{profile.dosingHigh.amount} {profile.dosingHigh.unit}</span>
+              High:{' '}
+              <span className="font-medium text-gray-900">
+                {profile.dosingHigh.amount} {profile.dosingHigh.unit}
+              </span>
             </span>
           </div>
         </div>
@@ -186,7 +182,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
             min="0.001"
             step="0.1"
             value={totalMg}
-            onChange={handleFieldChange(setTotalMg)}
+            onChange={(e) => setTotalMg(e.target.value)}
             placeholder="e.g. 5"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
@@ -198,7 +194,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
             min="0.1"
             step="0.1"
             value={bacWaterMl}
-            onChange={handleFieldChange(setBacWaterMl)}
+            onChange={(e) => setBacWaterMl(e.target.value)}
             placeholder="e.g. 2"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
@@ -213,33 +209,42 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
           min="1"
           step="1"
           value={targetDoseMcg}
-          onChange={handleFieldChange(setTargetDoseMcg)}
+          onChange={(e) => setTargetDoseMcg(e.target.value)}
           placeholder="e.g. 250"
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
       </div>
 
       {/* Calculation result */}
-      {result && (
+      {calcResult && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 space-y-3">
           <p className="text-sm font-semibold text-gray-700">Calculation Results</p>
 
           {/* Read-back summary line (AC-6) */}
           <p className="text-base font-medium text-indigo-700">
-            Draw <span className="font-bold">{parseFloat(result.syringeUnitsPerDose).toFixed(1)} units</span>{' '}
-            ({parseFloat(result.injectionVolMl).toFixed(4)} mL) for a{' '}
-            {targetDoseMcg} mcg dose
+            Draw{' '}
+            <span className="font-bold">
+              {calcResult.syringeUnitsPerDose.toFixed(1)} units
+            </span>{' '}
+            ({calcResult.injectionVolMl.toFixed(4)} mL) for a {targetDoseMcg} mcg dose
           </p>
 
           <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
             <dt className="text-gray-500">Concentration</dt>
-            <dd className="font-medium text-gray-900">{parseFloat(result.concentrationMgPerMl).toFixed(2)} mg/mL ({parseFloat(result.concentrationMcgPerMl).toFixed(0)} mcg/mL)</dd>
+            <dd className="font-medium text-gray-900">
+              {calcResult.concentrationMgPerMl.toFixed(2)} mg/mL (
+              {calcResult.concentrationMcgPerMl.toFixed(0)} mcg/mL)
+            </dd>
 
             <dt className="text-gray-500">Injection volume</dt>
-            <dd className="font-medium text-gray-900">{parseFloat(result.injectionVolMl).toFixed(4)} mL</dd>
+            <dd className="font-medium text-gray-900">
+              {calcResult.injectionVolMl.toFixed(4)} mL
+            </dd>
 
             <dt className="text-gray-500">Syringe units (U-100)</dt>
-            <dd className="font-medium text-gray-900">{parseFloat(result.syringeUnitsPerDose).toFixed(2)} units</dd>
+            <dd className="font-medium text-gray-900">
+              {calcResult.syringeUnitsPerDose.toFixed(2)} units
+            </dd>
           </dl>
         </div>
       )}
@@ -248,7 +253,10 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
       {warnings.length > 0 && (
         <div className="space-y-2">
           {warnings.map((w) => (
-            <div key={w} className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+            <div
+              key={w}
+              className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800"
+            >
               <span className="mt-0.5 shrink-0">&#9888;</span>
               <span>{WARNING_LABELS[w]}</span>
             </div>
@@ -259,7 +267,8 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
       {/* Optional expiry override */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Custom Expiry Date <span className="text-gray-400 font-normal">(optional — overrides auto-computed)</span>
+          Custom Expiry Date{' '}
+          <span className="text-gray-400 font-normal">(optional — overrides auto-computed)</span>
         </label>
         <input
           type="date"
@@ -282,9 +291,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
         {saveState === 'saved' && (
           <p className="text-sm text-green-600 font-medium">Vial saved!</p>
         )}
-        {saveState === 'error' && (
-          <p className="text-sm text-red-600">{saveError}</p>
-        )}
+        {saveState === 'error' && <p className="text-sm text-red-600">{saveError}</p>}
       </div>
     </div>
   );

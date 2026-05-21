@@ -7,6 +7,7 @@ const mockPrismaVialCreate = vi.fn();
 const mockPrismaVialFindFirst = vi.fn();
 const mockPrismaVialFindMany = vi.fn();
 const mockPrismaCompoundProfileFindFirst = vi.fn();
+const mockPrismaAuditEventCreate = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
@@ -18,6 +19,14 @@ vi.mock('@/lib/shared/prisma', () => ({
     compoundProfile: {
       findFirst: mockPrismaCompoundProfileFindFirst,
     },
+    auditEvent: { create: mockPrismaAuditEventCreate },
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        vial: { create: mockPrismaVialCreate },
+        auditEvent: { create: mockPrismaAuditEventCreate },
+      };
+      return fn(tx);
+    }),
   },
 }));
 
