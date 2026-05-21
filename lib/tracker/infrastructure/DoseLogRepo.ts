@@ -157,6 +157,28 @@ export async function countActiveVialsForCompound(
   });
 }
 
+export async function findRecentLogsWithSitesForCompound(
+  client: PrismaClient_,
+  userId: string,
+  compoundId: string,
+  limit: number
+): Promise<DoseLog[]> {
+  // Fetch more than limit to account for logs without an injection site
+  const rows = await client.doseLog.findMany({
+    where: {
+      userId,
+      status: 'LOGGED',
+      protocol: { compoundId },
+    },
+    orderBy: { scheduledDate: 'desc' },
+    take: limit * 3,
+  });
+  return rows
+    .filter((r) => r.injectionSite !== null)
+    .slice(0, limit)
+    .map((r) => mapDoseLog(r as RawDoseLog));
+}
+
 export async function validateVialOwnership(
   client: PrismaClient_,
   vialId: string,
