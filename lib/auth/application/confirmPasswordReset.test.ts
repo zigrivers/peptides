@@ -95,6 +95,17 @@ describe('confirmPasswordReset', () => {
     );
   });
 
+  it('propagates tx.user.update error — atomicity depends on withAudit $transaction (rollback proof)', async () => {
+    // claimById succeeds but user.update throws (e.g. user deleted between claim and update).
+    // withAudit wraps both in a single Prisma $transaction — the error propagates and
+    // Prisma rolls back claimById. withAudit.test.ts validates the $transaction guarantee.
+    mockFindByRawToken.mockResolvedValue(validRecord);
+    mockUserUpdate.mockRejectedValue(new Error('DB_WRITE_FAILED'));
+    await expect(
+      confirmPasswordReset({ rawToken: 'valid-token', newPassword: 'ValidPassword123' })
+    ).rejects.toThrow('DB_WRITE_FAILED');
+  });
+
   it('audit factory returns PASSWORD_RESET_COMPLETED with correct actorUserId', async () => {
     mockFindByRawToken.mockResolvedValue(validRecord);
     let capturedFactory: ((userId: string) => unknown) | null = null;
