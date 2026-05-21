@@ -15,12 +15,9 @@ type ItemState = 'pending' | 'logged' | 'skipped' | 'failed';
 export function BatchLogReview({ items, compoundNames }: Props) {
   const [isPending, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(
-    () =>
-      new Set(
-        items
-          .filter((i) => i.isAvailable && (!i.existingLog || i.existingLog.status === 'SKIPPED'))
-          .map((i) => i.protocol.id)
-      )
+    // Only pre-select protocols with no existing log — SKIPPED items require explicit opt-in
+    // to avoid silently converting an intentional skip into a LOGGED dose.
+    () => new Set(items.filter((i) => i.isAvailable && !i.existingLog).map((i) => i.protocol.id))
   );
   const [itemStates, setItemStates] = useState<Record<string, ItemState>>(() => {
     const s: Record<string, ItemState> = {};
