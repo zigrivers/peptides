@@ -60,9 +60,8 @@ export function getSitesMeta(
   asOf: Date
 ): SiteWithMeta[] {
   return validSites.map((site) => {
-    const lastLog = logs
-      .filter((l) => l.injectionSite !== null && sitesEqual(l.injectionSite!, site))
-      .sort((a, b) => b.loggedAt.getTime() - a.loggedAt.getTime())[0];
+    // logs is newest-first; find() gives the most recent matching site
+    const lastLog = logs.find((l) => l.injectionSite !== null && sitesEqual(l.injectionSite!, site));
 
     const lastUsed = lastLog?.loggedAt ?? null;
     const daysSinceLastUse =

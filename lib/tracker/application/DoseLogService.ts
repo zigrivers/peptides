@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
-import type { LogDoseInput, LogDoseResult, SafetyWarning, DoseLog } from '../domain/types';
+import type { LogDoseInput, LogDoseResult, SafetyWarning, DoseLog, InjectionSite } from '../domain/types';
 import {
   createDoseLog,
   updateDoseLog,
@@ -93,10 +93,17 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
   }
 
   if (existing) {
-    if (existing.status === input.status) {
+    // True idempotent: same status AND injection site unchanged → nothing to do.
+    const injectionSiteChanged =
+      input.status === 'LOGGED' &&
+      input.injectionSite !== undefined &&
+      (existing.injectionSite === null ||
+        !sitesEqual(input.injectionSite, existing.injectionSite as InjectionSite));
+
+    if (existing.status === input.status && !injectionSiteChanged) {
       return { doseLog: existing, warnings };
     }
-    // Same-calendar-day edit: update the existing log to the new status.
+    // Same-calendar-day edit: update status and/or injection site.
     const updated = await prisma.$transaction(async (tx) => {
       const log = await updateDoseLog(tx, existing.id, subjectUserId, {
         status: input.status,

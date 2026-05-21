@@ -170,7 +170,7 @@ export async function findRecentLogsWithSitesForCompound(
       status: 'LOGGED',
       protocol: { compoundId },
     },
-    orderBy: { scheduledDate: 'desc' },
+    orderBy: [{ scheduledDate: 'desc' }, { loggedAt: 'desc' }],
     take: limit * 3,
   });
   return rows
