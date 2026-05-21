@@ -657,6 +657,26 @@ Every PRD Must Have and Should Have feature cross-referenced against the stack t
 
 ---
 
+## 9b. AI Provider (Vercel AI SDK + Anthropic + Gemini fallback)
+
+**Decision:** Anthropic Claude (Sonnet 4.6 for drafting, Haiku 4.5 for batch) as primary AI provider; Google Gemini 2.5 Pro as secondary fallback. Vercel AI SDK as the unified client. Authoritative ADR: **ADR-010**.
+
+**Why:**
+- Bounded AI uses per vision §8 anti-vision (no dose recommendations, no stack optimization, no AI safety claims). Allowed: PubMed citation extraction, profile drafting w/ human review, v2 Telegram parser, v2 PubMed digest.
+- Anthropic primary chosen over OpenAI to limit provider-lock-in surface and because team's evaluation + prompt-caching workflows are already invested in Claude.
+- Gemini secondary covers Anthropic outages without adding a third dependency.
+- Anthropic prompt caching (5-minute TTL) is non-optional — materially affects cost at v1 scale.
+
+**Failure handling:** auto-fail-over Anthropic → Gemini per ADR-010. If both fail, dependent features degrade gracefully (PubMed digest skips that week; profile drafting falls back to manual entry). AI failures NEVER block user-facing dose logging, ordering, or reconstitution flows.
+
+**Env vars added (per §8.4 env table):** `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`.
+
+**Alternatives considered:** OpenAI primary (rejected — adds a second provider lock-in without compelling cost/quality win); self-hosted Llama (rejected — solo dev cannot sustain GPU hosting + eval pipeline at v1).
+
+**Lock-in level:** Low. Vercel AI SDK abstracts the provider; switching is a configuration change.
+
+---
+
 ## 10. AI Compatibility Assessment
 
 This project uses Claude Code as the primary development tool. AI compatibility is a first-class criterion.
