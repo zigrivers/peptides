@@ -29,7 +29,6 @@ export async function completeTelegramLink(
     return { passwordRequired: true, flowId };
   }
 
-  deleteFlow(flowId);
   const encrypted = encryptSession(result.sessionString);
   await withAudit(
     async (tx) => {
@@ -43,6 +42,8 @@ export async function completeTelegramLink(
       resourceType: 'TelegramSession',
     }
   );
+  // Delete only after a successful save — preserves state if the DB write fails.
+  deleteFlow(flowId);
 
   return { passwordRequired: false };
 }
@@ -53,7 +54,6 @@ export async function completeTelegramLinkWithPassword(
   flowId: string
 ): Promise<void> {
   const flow = getAndValidateFlow(flowId, userId);
-  deleteFlow(flowId);
 
   const { sessionString } = await completePhoneAuthWithPassword(password, flow.tempSession);
   const encrypted = encryptSession(sessionString);
@@ -70,6 +70,9 @@ export async function completeTelegramLinkWithPassword(
       resourceType: 'TelegramSession',
     }
   );
+  // Delete only after the session is saved — allows password retries within the TTL
+  // if the user mistyped, without forcing them to re-request the SMS code.
+  deleteFlow(flowId);
 }
 
 export async function unlinkTelegram(userId: string): Promise<void> {
