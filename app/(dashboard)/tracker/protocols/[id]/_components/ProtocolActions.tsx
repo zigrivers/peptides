@@ -26,6 +26,7 @@ export function ProtocolActions({ protocol }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [showCloneForm, setShowCloneForm] = useState(false);
   const [cloneDate, setCloneDate] = useState('');
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
 
   async function run(
     fn: () => Promise<{ ok: boolean; error?: string; message?: string; protocolId?: string }>,
@@ -92,20 +93,40 @@ export function ProtocolActions({ protocol }: Props) {
           </button>
         )}
 
-        {!isTerminal && (
+        {!isTerminal && !showDeactivateConfirm && (
           <button
             disabled={isPending}
-            onClick={() => {
-              if (confirm('Deactivate this protocol? This cannot be undone.')) {
-                run(() => deactivateProtocolAction({ protocolId: id }), '/tracker');
-              }
-            }}
+            onClick={() => setShowDeactivateConfirm(true)}
             className="rounded-md border border-red-300 text-red-700 bg-red-50 px-4 py-2 text-sm font-medium hover:bg-red-100 disabled:opacity-60 transition-colors"
           >
             Deactivate
           </button>
         )}
       </div>
+
+      {showDeactivateConfirm && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 space-y-3">
+          <p className="text-sm font-medium text-red-800">Deactivate this protocol? This cannot be undone.</p>
+          <div className="flex gap-2">
+            <button
+              disabled={isPending}
+              onClick={() => {
+                run(() => deactivateProtocolAction({ protocolId: id }), '/tracker');
+                setShowDeactivateConfirm(false);
+              }}
+              className="rounded-md bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-60 transition-colors"
+            >
+              Yes, deactivate
+            </button>
+            <button
+              onClick={() => setShowDeactivateConfirm(false)}
+              className="rounded-md border border-gray-300 text-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {showCloneForm && (
         <div className="rounded-md border border-gray-200 p-4 space-y-3">

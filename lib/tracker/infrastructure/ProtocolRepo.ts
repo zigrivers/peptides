@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client';
-import type { Protocol } from '../domain/types';
+import type { Protocol, ProtocolStatus } from '../domain/types';
 
 type PrismaProtocol = {
   id: string;
@@ -122,7 +122,7 @@ export async function transitionProtocolStatus(
   tx: Prisma.TransactionClient,
   protocolId: string,
   ownerId: string,
-  newStatus: string
+  newStatus: ProtocolStatus
 ): Promise<Protocol> {
   const raw = await tx.protocol.update({
     where: { id: protocolId, userId: ownerId },

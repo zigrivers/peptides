@@ -3,15 +3,15 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getProtocolById } from '@/lib/tracker/application/ProtocolService';
 import { findCompoundById } from '@/lib/reference/infrastructure/CompoundRepo';
+import type { Schedule } from '@/lib/tracker/domain/types';
 import { ProtocolActions } from './_components/ProtocolActions';
 
-function formatSchedule(schedule: { frequency: string; daysOfWeek?: string[]; intervalDays?: number }): string {
+function formatSchedule(schedule: Schedule): string {
   switch (schedule.frequency) {
     case 'Daily': return 'Daily';
     case 'EOD': return 'Every other day';
-    case 'SpecificDaysOfWeek': return schedule.daysOfWeek?.join(', ') ?? 'Specific days';
+    case 'SpecificDaysOfWeek': return schedule.daysOfWeek.join(', ');
     case 'CustomInterval': return `Every ${schedule.intervalDays} days`;
-    default: return schedule.frequency;
   }
 }
 
@@ -50,7 +50,7 @@ export default async function ProtocolDetailPage({
             {compound?.name ?? protocol.compoundId}
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {protocol.dose.amount} {protocol.dose.unit} — {formatSchedule(protocol.schedule as Parameters<typeof formatSchedule>[0])}
+            {protocol.dose.amount} {protocol.dose.unit} — {formatSchedule(protocol.schedule)}
           </p>
         </div>
         <span className={`text-xs rounded-full px-2 py-1 font-medium ${statusColors[protocol.status] ?? 'text-gray-600 bg-gray-100'}`}>
