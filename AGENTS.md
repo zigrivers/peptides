@@ -12,6 +12,11 @@ You are the automated code reviewer for the Peptides project. Your goal is to en
     - `findByRawToken`: Pre-auth lookup by SHA-256 token hash — unforgeable; returns only `id`, `userId`, `used`, `expiresAt`.
     - `claimById`: userId-scoped `updateMany WHERE { id, userId, used: false }` — fully scoped. Called inside the transaction after `findByRawToken` supplies the id + userId.
     - `markUsed`: Includes userId in the predicate (defense-in-depth).
+  - **Exception** — ALL methods in `lib/auth/infrastructure/EmailChangeRepo.ts` are explicitly exempt (post-auth, but operates on its own token-hash boundary):
+    - `create`: Scoped to userId.
+    - `findByRawToken`: Pre-apply lookup by SHA-256 token hash — unforgeable; returns only `id`, `userId`, `oldEmail`, `newEmail`, `expiresAt`, `status`, and nullable timestamps.
+    - `applyById`: userId-scoped `updateMany WHERE { id, userId, status: 'PENDING' }` + `user.update WHERE { id: userId }` — both fully scoped.
+    - `revertById`: userId-scoped `updateMany WHERE { id, userId, status: 'APPLIED' }` + `user.update WHERE { id: userId }` — both fully scoped.
   - **Exception** — `lib/auth/index.ts` `jwt` callback: `prisma.user.findUnique({ where: { id: token.id } })` is an approved boundary. `token.id` IS the userId (embedded at sign-in as `token.id = user.id`). Cannot use `where: { userId: session.user.id }` because the session is being validated, not consumed. Queries only `passwordVersion` and never returns user-authored content. Node.js runtime only (not edge middleware).
   - **No other files may skip userId scoping.**
 - **Audit Logging**: If a Server Action mutation lacks an `AuditEvent` write, mark as **P1**.
@@ -30,6 +35,7 @@ You are the automated code reviewer for the Peptides project. Your goal is to en
 The following models are defined in `prisma/schema.prisma`. They may not appear in incremental diff reviews if they were added in an earlier commit of the same PR:
 - `PasswordResetToken`: `id`, `userId` (FK → User, Cascade), `tokenHash` (unique), `expiresAt`, `used`
 - `User.passwordVersion`: `Int @default(1)` — added in initial Task 1.4 commit; migration in `prisma/migrations/20260521000000_init/migration.sql`
+- `EmailChangeRequest`: `id`, `userId` (FK → User, Cascade), `oldEmail`, `newEmail`, `tokenHash` (unique), `createdAt`, `expiresAt` (+24h), `verifiedAt?`, `appliedAt?`, `revertibleUntil?` (+48h from appliedAt), `status` (PENDING→APPLIED→REVERTED|EXPIRED|CANCELLED)
 
 ## Output Format
 Always respond with a JSON array of findings:

@@ -146,6 +146,7 @@ model EmailChangeRequest {
   id              String    @id @default(uuid())
   userId          String
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  oldEmail        String    // captured at request time so revert can restore it
   newEmail        String
   tokenHash       String    @unique
   createdAt       DateTime  @default(now())
@@ -153,7 +154,7 @@ model EmailChangeRequest {
   verifiedAt      DateTime?
   appliedAt       DateTime?
   revertibleUntil DateTime? // appliedAt + 48h
-  status          String    @default("PENDING") // PENDING, VERIFIED, APPLIED, REVERTED, EXPIRED, CANCELLED
+  status          String    @default("PENDING") // PENDING, APPLIED, REVERTED, EXPIRED, CANCELLED
 
   @@index([userId, status])
 }
