@@ -5,6 +5,8 @@ import type { NextAuthConfig } from 'next-auth';
 // The Credentials provider (which needs Prisma) lives in lib/auth/index.ts
 // and is merged here at server startup via the NextAuth({ ...authConfig, providers: [...] }) call.
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 export const authConfig = {
   providers: [], // Credentials merged in lib/auth/index.ts (Node.js runtime only)
   session: {
@@ -13,10 +15,12 @@ export const authConfig = {
   },
   cookies: {
     sessionToken: {
+      name: isProduction ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
       options: {
         httpOnly: true,
         sameSite: 'strict',
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction,
+        path: '/',
       },
     },
   },

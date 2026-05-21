@@ -5,20 +5,33 @@ import type { NextRequest } from 'next/server';
 
 // Edge-safe middleware: uses only the JWT-based authConfig (no Prisma imports).
 // Session revocation (revokedAt check) is deferred to Task 1.4 and will require
-// a lightweight edge-compatible approach (Upstash/KV revocation list).
+// a lightweight edge-compatible revocation store.
 const { auth } = NextAuth(authConfig);
 
+// Exact-prefix matching: /login matches /login and /login/* but NOT /loginAdmin
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
+
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
+}
 
 export default auth((req: NextRequest & { auth: { user?: { id?: string } } | null }) => {
   const { pathname } = req.nextUrl;
-  const isPublicRoute = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
 
-  if (!req.auth && !isPublicRoute) {
+  if (!req.auth && !isPublicPath(pathname)) {
+    // API routes: return 401 JSON — don't redirect browsers to /login
+    if (pathname.startsWith('/api/')) {
+      return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const loginUrl = new URL('/login', req.nextUrl.origin);
-    // Only embed same-origin paths to prevent open-redirect attacks
-    if (pathname.startsWith('/') && !pathname.startsWith('//')) {
-      loginUrl.searchParams.set('callbackUrl', pathname);
+    // Preserve path + query string; validate same-origin to prevent open-redirect
+    const returnPath = pathname + req.nextUrl.search;
+    if (returnPath.startsWith('/') && !returnPath.startsWith('//')) {
+      loginUrl.searchParams.set('callbackUrl', returnPath);
     }
     return NextResponse.redirect(loginUrl);
   }
