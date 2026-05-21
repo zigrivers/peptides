@@ -12,7 +12,7 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 | 3 | review-user-stories | ✅ done | 13 (4×P1, 5×P2, 4×P3) | 13 | 0 |
 | 4 | review-domain-modeling | ✅ done | 12 (5×P1, 4×P2, 3×P3) | 12 | 0 |
 | 5 | review-adrs | ✅ done | 10 (1×P0 regression, 3×P1, 3×P2, 3×P3) | 8 fully + 2 partially | 2 partial (N9, N10) |
-| 6 | review-architecture | pending | | | |
+| 6 | review-architecture | ✅ done | 6 (4×P1, 2×P2) | 6 | 0 |
 | 7 | review-database | pending | | | |
 | 8 | review-api | pending | | | |
 | 9 | review-ux | pending | | | |
@@ -273,4 +273,39 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 - `docs/adrs/ADR-012-scheduled-jobs.md` (+~22 lines)
 - `docs/adrs/ADR-014-object-storage.md` (+~18 lines)
 - `docs/reviews/review-adrs.md` (+~75 lines)
+
+---
+
+### Step 6: review-architecture
+
+**Artifact**: `docs/system-architecture.md` (144 → ~260 lines after fixes)
+**Review log**: `docs/reviews/review-architecture.md`
+**Mode**: update / re-review (accounts for new requirements from steps 2-5)
+**Gate result**: **Full Pass** (upgraded from INITIAL)
+
+**Findings raised (6 total):**
+
+| # | Sev | Finding (one-line) |
+|---|-----|--------------------|
+| N1 | P1 | §2.1 Component Overview missing Admin, Export Pipeline, AI Layer components |
+| N2 | P1 | §3 only had 2 flows; missing 6 (account deletion, password change, email change, invitation, reminder dispatch, async export) |
+| N3 | P1 | §6 Cron table disagreed with ADR-012 step-5 update |
+| N4 | P1 | Architecture silent on AI layer despite ADR-010 |
+| N5 | P2 | §8 Failure Modes sparse (3 entries); missing Resend, Push, R2, cron-missed, AI failures |
+| N6 | P2 | No rate-limit / backoff policy table |
+
+**All 6 fixed.** Highlights:
+
+1. **N1** — Expanded the component table from 9 → 12 entries; called out Admin + Export Pipeline + AI Layer; Auth/Ordering rows expanded with step-5 entity scope. **Why:** without these the architecture doesn't account for ~25% of the new functionality from steps 2-3.
+2. **N2** — Added 6 new data flows in §3.3-§3.8 covering all the auth/admin flows added in steps 2-3. **Why:** the existing 2 flows (dose logging, ordering) were the most-critical flows but the new password/email change flows have important security semantics (session invalidation, verify + 48h revert) that need to be designed at architecture time, not implementation time.
+3. **N3** — Rewrote the cron table aligned with ADR-012. **Why:** divergence between architecture and ADR is exactly the kind of silent drift that produces missed jobs or wrong frequencies — the cross-reference rule ("ADR is authoritative; updates land there first") prevents future drift.
+4. **N4** — Added AI Layer to component table + mentioned in cron + failure-mode sections. **Why:** ADR-010 was created in step 5 but the architecture hadn't acknowledged it; the "AI failures never block user-facing flows" rule belongs in the architecture, not just in the ADR.
+5. **N5** — Rewrote §8 as §8.1 with 9 failure modes covering all external services. Added the silent-fail-soft policy for reminder emails (US-TRK-09 AC 5) and the AI-failure-isolation policy. **Why:** the prior 3 entries were a starting point; without comprehensive failure coverage the implementation defaults to "crash" or "retry forever" — both wrong.
+6. **N6** — Added §8.2 Rate limits and backoff policies table. **Why:** without explicit per-service rate-limit handling the system will hit production limits silently or implement ad-hoc per-call retry logic that diverges.
+
+**Regressions:** None. All 8 prior-pass findings remain RESOLVED.
+
+**Files modified:**
+- `docs/system-architecture.md` (+~116 lines, partial rewrite of §2.1, §6, §7, §8)
+- `docs/reviews/review-architecture.md` (+~60 lines)
 

@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-20  
 **Methodology:** deep | Depth: 5/5  
-**Status:** INITIAL  
+**Status:** RE-REVIEWED 2026-05-20 — 6 new findings fixed; Full Pass  
 **Models:** Claude (local) + Codex + Gemini
 
 ---
@@ -109,3 +109,31 @@
 | F-006   | P1       | RESOLVED | Updated Dose Logging flow with Skips, Edits, and Idempotency logic. |
 | F-007   | P1       | RESOLVED | Refined module structure into bounded context slices. |
 | F-008   | P2       | RESOLVED | Added Section 9: Testing Architecture. |
+
+---
+
+## Re-Review Pass — 2026-05-20 (auto-fix batch)
+
+**Reviewer**: Claude (Opus 4.7). Depth 5/strict. Re-review accounts for new requirements from batch steps 2-5 (PRD, stories, domain models, ADRs).
+
+### New findings + fixes
+
+| # | Severity | Finding | Fix |
+|---|----------|---------|-----|
+| N1 | P1 | §2.1 Component Overview missed Admin, Export Pipeline, and AI Layer components that exist in the codebase scope per steps 2-5. | Expanded the table to 12 components; added Admin (managed-user invitation/lifecycle/adherence), Export Pipeline (R2 + Resend + cron), AI Layer (Anthropic/Gemini, ADR-010). Auth row also expanded to include password/email change flows and account deletion. Ordering row updated to mention Vendor + VendorCatalogProduct. |
+| N2 | P1 | §3 only documented 2 flows (dose logging, ordering). Six additional flows needed for the new story coverage from steps 2-3. | Added §3.3 Account Deletion (48h delay + immediate + Telegram session revoke), §3.4 Password Change (with session-invalidation), §3.5 Email Change (verify + 48h revert window + old-address notice), §3.6 Managed User Invitation (resend revokes prior + audit), §3.7 Reminder Dispatch (15-min tick + per-user local-time resolution + push-then-email fallback), §3.8 Async Data Export (R2 + signed URL + cleanup). Also expanded §3.2 Ordering with idempotency (60s), stale-wallet warning, cancel-from-any-non-terminal, Stale auto-flag. |
+| N3 | P1 | §6 Cron table disagreed with ADR-012 step-5 update: "Hourly" dose reminders vs. ADR's every-15-minutes; missing export-cleanup and backup-verification jobs. | Rewrote the table aligned with ADR-012 (every-15-min reminders, daily 09:00 stale orders, 04:00 audit purge, 05:00 backup verify, 03:00 export cleanup, 06:00 vial expiry, weekly Sun 12:00 PubMed digest v2). Added cross-reference: schedules authoritative in ADR-012; updates land there first. |
+| N4 | P1 | Architecture silent on the AI layer despite ADR-010 (step 5) defining it. No AI component, no AI-job orchestration. | Added AI Layer to §2.1; mentioned in §3.7 / §3.8 / §7 / §8 where relevant. AI failures fall back to secondary provider (ADR-010) and never block user-facing dose logging, ordering, or reconstitution. |
+| N5 | P2 | §8 Failure Modes was sparse (3 entries). Missing Resend failure, Web Push failure, R2 unreachable, cron-missed, AI provider failure. | Rewrote §8 as §8.1 Failure Modes with 9 entries covering all external services + the new flows from steps 2-5; added explicit silent-fail-soft policy for reminder emails (US-TRK-09 AC 5) and the "AI failures never block user-facing flows" rule. |
+| N6 | P2 | Architecture silent on external-service rate limits / circuit breakers. | Added §8.2 Rate limits and backoff policies — table covering Telegram MTProto, Resend, R2, Anthropic, Gemini with each service's v1-expected limits and the chosen backoff strategy. |
+
+### Regressions detected
+
+None. All 8 prior-pass findings remain RESOLVED.
+
+### Gate result (re-review)
+
+- **Gate**: **Full Pass** (upgraded from INITIAL)
+- **All P0/P1 findings addressed**
+- **No retained gaps**
+- **Re-trigger conditions**: any new external integration, any new background job (must land in both this doc and ADR-012), any new domain bounded context.
