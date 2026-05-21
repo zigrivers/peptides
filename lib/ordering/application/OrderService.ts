@@ -64,7 +64,7 @@ export async function createDraftOrder(
   items: OrderLineItemInput[],
   idempotencyKey = randomUUID()
 ): Promise<CreateDraftOrderResult> {
-  const vendor = await prisma.vendor.findFirst({ where: { id: vendorId, userId } });
+  const vendor = await prisma.vendor.findFirst({ where: { id: vendorId, userId, status: 'ACTIVE' } });
   if (!vendor) throw new Error('vendor_not_found');
 
   const existing = await prisma.order.findFirst({ where: { userId, idempotencyKey } });
@@ -77,6 +77,13 @@ export async function createDraftOrder(
       const newOrder = await tx.order.create({
         data: { userId, vendorId, idempotencyKey, status: 'DRAFT' },
       });
+      const nonNullProductIds = merged.filter((i) => i.productId != null).map((i) => i.productId!);
+      if (nonNullProductIds.length > 0) {
+        const validCount = await tx.vendorProduct.count({
+          where: { id: { in: nonNullProductIds }, vendorId, vendor: { userId } },
+        });
+        if (validCount !== nonNullProductIds.length) throw new Error('product_not_found');
+      }
       await tx.orderItem.createMany({
         data: merged.map((item) => ({
           orderId: newOrder.id,
@@ -117,6 +124,7 @@ export async function sendOrder(
   });
   if (!order) throw new Error('order_not_found');
   if (order.status !== 'DRAFT') throw new Error('invalid_order_transition');
+  if (!order.vendor.telegramUsername) throw new Error('vendor_missing_telegram_username');
 
   const itemsForMessage = order.items.map((i) => ({
     compoundName: i.compound?.name ?? i.compoundId,
@@ -143,14 +151,14 @@ export async function sendOrder(
   if (duplicate && !force) {
     await withAudit(
       async () => { /* audit-only — no DB mutation */ },
-      {
+      () => ({
         actorUserId: userId,
         category: 'Order' as const,
         action: 'DUPLICATE_SEND_BLOCKED' as const,
         resourceId: orderId,
         resourceType: 'Order',
         metadata: { duplicateOrderId: duplicate.id },
-      }
+      })
     );
     throw new Error('possible_duplicate_send');
   }
@@ -160,7 +168,7 @@ export async function sendOrder(
   // the 60-second duplicate check will block a second send.
   const sentAt = new Date();
   const { count: reserveCount } = await prisma.order.updateMany({
-    where: { id: orderId, userId, status: 'DRAFT' },
+    where: { id: orderId, userId, status: 'DRAFT', sentAt: null },
     data: { messageText, sentAt },
   });
   if (reserveCount === 0) throw new Error('order_not_found_or_not_draft');
@@ -194,14 +202,14 @@ export async function sendOrder(
       });
       if (count === 0) throw new Error('order_not_found');
     },
-    {
+    () => ({
       actorUserId: userId,
       category: 'Order' as const,
       action: 'ORDER_SENT' as const,
       resourceId: orderId,
       resourceType: 'Order',
       newValues: { sendMethod, telegramMessageId: telegramMessageId ?? null },
-    }
+    })
   );
 
   if (sendMethod === 'MANUAL_FALLBACK') {

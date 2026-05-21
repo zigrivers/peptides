@@ -65,6 +65,7 @@ vi.mock('@/lib/shared/prisma', () => ({
           create: mockPrismaVendorProductCreate,
           findFirst: mockPrismaVendorProductFindFirst,
           update: mockPrismaVendorProductUpdate,
+          count: vi.fn().mockResolvedValue(0),
         },
         telegramSession: {
           upsert: mockPrismaTelegramSessionUpsert,
