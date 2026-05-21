@@ -5,6 +5,7 @@ const mockProtocolFindMany = vi.fn();
 const mockAuditCreate = vi.fn();
 const mockUserFindUnique = vi.fn();
 const mockUserFindMany = vi.fn();
+const mockCycleProtocolFindMany = vi.fn();
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -43,7 +44,7 @@ beforeEach(() => {
   mockUserFindMany.mockResolvedValue([]);
 });
 
-const { createProtocol, updateProtocol } = await import(
+const { createProtocol, updateProtocol, pauseProtocol, resumeProtocol, cloneProtocol, deactivateProtocol } = await import(
   '@/lib/tracker/application/ProtocolService'
 );
 const { generateScheduleDates } = await import(
@@ -386,10 +387,108 @@ describe('ScheduleGenerator', () => {
  * Story: US-TRK-02 — Protocol Lifecycle
  */
 describe('US-TRK-02: Protocol Lifecycle', () => {
-  it.todo('AC-1: hides paused protocol from Today doses');
-  it.todo('AC-2: resumes paused protocol instantly');
-  it.todo('AC-3: clones protocol preserving dose and frequency');
-  it.todo('AC-4: restarts cycle by cloning all protocols');
+  const pausedProtocolRow = { ...baseProtocolRow, status: 'PAUSED' };
+  const activeProtocolRow = { ...baseProtocolRow, status: 'ACTIVE' };
+
+  describe('pauseProtocol', () => {
+    it('AC-1: sets status to PAUSED and emits PROTOCOL_PAUSED audit event', async () => {
+      mockProtocolFindFirst.mockResolvedValue(activeProtocolRow);
+      mockProtocolUpdate.mockResolvedValue(pausedProtocolRow);
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await pauseProtocol({ actorUserId, protocolId });
+
+      expect(result.status).toBe('PAUSED');
+      expect(mockAuditCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ action: 'PROTOCOL_PAUSED' }),
+        })
+      );
+    });
+
+    it('throws if protocol not found', async () => {
+      mockProtocolFindFirst.mockResolvedValue(null);
+      await expect(pauseProtocol({ actorUserId, protocolId })).rejects.toThrow(/not found/i);
+    });
+
+    it('throws if protocol is already PAUSED', async () => {
+      mockProtocolFindFirst.mockResolvedValue(pausedProtocolRow);
+      await expect(pauseProtocol({ actorUserId, protocolId })).rejects.toThrow(/paused|already/i);
+    });
+  });
+
+  describe('resumeProtocol', () => {
+    it('AC-2: sets status to ACTIVE and emits PROTOCOL_RESUMED audit event', async () => {
+      mockProtocolFindFirst.mockResolvedValue(pausedProtocolRow);
+      mockProtocolUpdate.mockResolvedValue(activeProtocolRow);
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await resumeProtocol({ actorUserId, protocolId });
+
+      expect(result.status).toBe('ACTIVE');
+      expect(mockAuditCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ action: 'PROTOCOL_RESUMED' }),
+        })
+      );
+    });
+
+    it('throws if protocol is not PAUSED', async () => {
+      mockProtocolFindFirst.mockResolvedValue(activeProtocolRow);
+      await expect(resumeProtocol({ actorUserId, protocolId })).rejects.toThrow(/not paused/i);
+    });
+  });
+
+  describe('cloneProtocol', () => {
+    it('AC-3: creates a new ACTIVE protocol preserving dose, frequency, and route', async () => {
+      mockProtocolFindFirst.mockResolvedValue(activeProtocolRow);
+      const clonedRow = { ...activeProtocolRow, id: 'proto-cloned', startDate: new Date('2026-07-01') };
+      mockProtocolCreate.mockResolvedValue(clonedRow);
+      mockAuditCreate.mockResolvedValue({});
+
+      const newStartDate = new Date('2026-07-01');
+      const result = await cloneProtocol({ actorUserId, protocolId, newStartDate });
+
+      expect(result.id).toBe('proto-cloned');
+      expect(result.dose).toEqual(activeProtocolRow.dose);
+      expect(result.schedule).toEqual(activeProtocolRow.schedule);
+      expect(result.status).toBe('ACTIVE');
+      expect(mockAuditCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ action: 'PROTOCOL_CLONED' }),
+        })
+      );
+    });
+
+    it('throws if source protocol not found', async () => {
+      mockProtocolFindFirst.mockResolvedValue(null);
+      await expect(
+        cloneProtocol({ actorUserId, protocolId, newStartDate: new Date('2026-07-01') })
+      ).rejects.toThrow(/not found/i);
+    });
+  });
+
+  describe('deactivateProtocol', () => {
+    it('sets status to DEACTIVATED and emits PROTOCOL_DEACTIVATED audit event', async () => {
+      mockProtocolFindFirst.mockResolvedValue(activeProtocolRow);
+      mockProtocolUpdate.mockResolvedValue({ ...activeProtocolRow, status: 'DEACTIVATED' });
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await deactivateProtocol({ actorUserId, protocolId });
+
+      expect(result.status).toBe('DEACTIVATED');
+      expect(mockAuditCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ action: 'PROTOCOL_DEACTIVATED' }),
+        })
+      );
+    });
+
+    it('throws if protocol is already DEACTIVATED', async () => {
+      mockProtocolFindFirst.mockResolvedValue({ ...activeProtocolRow, status: 'DEACTIVATED' });
+      await expect(deactivateProtocol({ actorUserId, protocolId })).rejects.toThrow(/deactivated|already/i);
+    });
+  });
 });
 
 /**

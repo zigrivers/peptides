@@ -62,7 +62,7 @@ export default async function TrackerPage() {
           {protocols.map((p) => (
             <li key={p.id}>
               <Link
-                href={`/tracker/protocols/${p.id}/edit`}
+                href={`/tracker/protocols/${p.id}`}
                 className="block rounded-lg border border-gray-200 p-4 hover:border-indigo-400 hover:shadow-sm transition-all"
               >
                 <div className="flex items-start justify-between gap-3">

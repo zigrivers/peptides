@@ -118,6 +118,19 @@ export async function findProtocolByIdForActor(
   return raw ? mapProtocol(raw) : null;
 }
 
+export async function transitionProtocolStatus(
+  tx: Prisma.TransactionClient,
+  protocolId: string,
+  ownerId: string,
+  newStatus: string
+): Promise<Protocol> {
+  const raw = await tx.protocol.update({
+    where: { id: protocolId, userId: ownerId },
+    data: { status: newStatus },
+  });
+  return mapProtocol(raw);
+}
+
 export async function listProtocolsForUser(
   client: PrismaClient,
   userId: string
