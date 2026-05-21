@@ -51,7 +51,7 @@ function composeMessage(
 
   if (vendor.messageTemplate) {
     return vendor.messageTemplate.includes('{ITEMS}')
-      ? vendor.messageTemplate.replace('{ITEMS}', itemLines)
+      ? vendor.messageTemplate.replaceAll('{ITEMS}', itemLines)
       : `${vendor.messageTemplate}\n\n${itemLines}`;
   }
 
@@ -66,6 +66,9 @@ export async function createDraftOrder(
 ): Promise<CreateDraftOrderResult> {
   const vendor = await prisma.vendor.findFirst({ where: { id: vendorId, userId } });
   if (!vendor) throw new Error('vendor_not_found');
+
+  const existing = await prisma.order.findFirst({ where: { userId, idempotencyKey } });
+  if (existing) return { orderId: existing.id };
 
   const merged = mergeItems(items);
 
@@ -124,7 +127,9 @@ export async function sendOrder(
 
   const messageText = composeMessage(order.vendor, itemsForMessage);
 
-  // 60-second duplicate-send check
+  // 60-second duplicate-send check — includes the current order so a crash-retry
+  // (after Telegram sends but before the DB finalize) is also blocked by the
+  // pre-send sentAt reservation written below.
   const cutoff = new Date(Date.now() - 60_000);
   const duplicate = await prisma.order.findFirst({
     where: {
@@ -132,7 +137,6 @@ export async function sendOrder(
       vendorId: order.vendorId,
       messageText,
       sentAt: { gte: cutoff },
-      id: { not: orderId },
     },
   });
 
@@ -176,6 +180,8 @@ export async function sendOrder(
     // Fall through to manual fallback
   }
 
+  // Both AUTOMATED and MANUAL_FALLBACK transition to 'SENT'. The order is finalized
+  // regardless of delivery method; sendMethod distinguishes automated from manual dispatch.
   await withAudit(
     async (tx) => {
       const { count } = await tx.order.updateMany({

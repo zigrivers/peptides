@@ -431,6 +431,7 @@ describe('US-ORD-02: Build Order', () => {
       id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
       messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
     });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null); // idempotency check — no existing order
     mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-1', createdAt: new Date() });
     mockPrismaOrderItemCreateMany.mockResolvedValueOnce({ count: 2 });
 
@@ -454,6 +455,7 @@ describe('US-ORD-02: Build Order', () => {
       id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
       messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
     });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null); // idempotency check — no existing order
     mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-2', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-2', createdAt: new Date() });
     mockPrismaOrderItemCreateMany.mockResolvedValueOnce({ count: 1 });
 
@@ -476,6 +478,24 @@ describe('US-ORD-02: Build Order', () => {
     await expect(createDraftOrder('user-1', 'vendor-other', [
       { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1 },
     ])).rejects.toThrow('vendor_not_found');
+  });
+
+  it('AC-1: createDraftOrder returns existing orderId when idempotencyKey was already used', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    const dupeKey = '00000000-0000-0000-0000-000000000001' as `${string}-${string}-${string}-${string}-${string}`;
+    mockPrismaOrderFindFirst.mockResolvedValueOnce({ id: 'order-existing', userId: 'user-1', idempotencyKey: dupeKey, status: 'DRAFT' });
+
+    const result = await createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1 },
+    ], dupeKey);
+
+    expect(result.orderId).toBe('order-existing');
+    expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
   });
 });
 
