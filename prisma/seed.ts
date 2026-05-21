@@ -198,7 +198,13 @@ async function main() {
   ];
 
   for (const { profile, ...compoundData } of compounds) {
-    const dataWithSlug = { ...compoundData, slug: nameToSlug(compoundData.name) };
+    const dataWithSlug = {
+      ...compoundData,
+      slug: nameToSlug(compoundData.name),
+      // Store synonyms lowercase so case-insensitive synonym search works
+      // (Prisma 'has' on string arrays is case-sensitive).
+      synonyms: compoundData.synonyms.map((s) => s.toLowerCase()),
+    };
     const compound = await prisma.compound.upsert({
       where: { name: compoundData.name },
       update: dataWithSlug,

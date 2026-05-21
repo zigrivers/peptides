@@ -67,7 +67,7 @@ const profileInclude = {
 
 export async function findCompoundBySlug(slug: string): Promise<Compound | null> {
   const raw = await prisma.compound.findFirst({
-    where: { slug },
+    where: { slug: slug.toLowerCase() },
     include: { profile: profileInclude },
   });
   return raw ? mapCompound(raw as PrismaCompoundResult) : null;
@@ -82,10 +82,12 @@ export async function findCompounds(
   };
 
   if (query) {
-    // name: partial case-insensitive; synonyms: exact-match (Prisma array 'has' is exact-only)
+    // name: partial case-insensitive match; synonyms: exact-match against the
+    // stored lowercase synonym (Prisma 'has' is case-sensitive; synonyms are
+    // stored lowercase in seed so callers should lowercase the query too).
     where.OR = [
       { name: { contains: query, mode: 'insensitive' } },
-      { synonyms: { has: query } },
+      { synonyms: { has: query.toLowerCase() } },
     ];
   }
 

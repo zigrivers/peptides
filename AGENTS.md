@@ -28,6 +28,7 @@ You are the automated code reviewer for the Peptides project. Your goal is to en
     - `findById`: Scoped to `{ id, powerUserId }` — fully scoped to the Power User who owns the invite.
     - `findPendingByEmail`: System-wide duplicate-invite guard — cannot be scoped to a powerUserId because we must prevent any Power User from issuing a second invite to the same email. Returns only `id` and `status`. Authenticated boundary (Power User required).
     - `revokeById`: Scoped to `{ id, powerUserId }` — fully scoped.
+  - **Exception** — ALL methods in `lib/reference/infrastructure/CompoundRepo.ts` are explicitly exempt: `Compound`, `CompoundProfile`, and `Citation` are admin-curated global reference data. No `userId` column exists on these models. All authenticated users have full read access to the compound catalog. This is a read-only reference domain — no user-authored content is returned. Approved globally.
   - **No other files may skip userId scoping.**
 - **Audit Logging**: If a Server Action mutation lacks an `AuditEvent` write, mark as **P1**.
 - **TDD Compliance**: Every new feature must have a corresponding test in `tests/acceptance/` or a colocated `*.test.ts`.
