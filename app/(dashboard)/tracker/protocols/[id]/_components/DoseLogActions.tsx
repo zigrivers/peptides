@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { DoseAmount, InjectionSite, SafetyWarning } from '@/lib/tracker/domain/types';
+import { sitesEqual } from '@/lib/tracker/domain/SiteRotation';
 import type { SiteWithMeta } from '@/lib/tracker/domain/SiteRotation';
 import { logDoseAction } from '@/app/actions/tracker/log-dose';
 
@@ -35,9 +36,6 @@ function formatSiteLabel(site: InjectionSite): string {
   return `${side} ${part}`;
 }
 
-function sitesEqual(a: InjectionSite, b: InjectionSite): boolean {
-  return a.bodyPart === b.bodyPart && a.side === b.side;
-}
 
 function SitePicker({
   siteData,

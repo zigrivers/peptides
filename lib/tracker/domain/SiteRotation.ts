@@ -25,7 +25,7 @@ export function getSitesForRoute(administrationRoute: string): InjectionSite[] {
   return SITES_BY_ROUTE[administrationRoute] ?? [];
 }
 
-function sitesEqual(a: InjectionSite, b: InjectionSite): boolean {
+export function sitesEqual(a: InjectionSite, b: InjectionSite): boolean {
   return a.bodyPart === b.bodyPart && a.side === b.side;
 }
 
@@ -39,10 +39,8 @@ export function suggestNextSite(
 ): InjectionSite | null {
   if (validSites.length === 0 || recentSites.length === 0) return null;
 
-  // Find the most-recently-used site that belongs to the valid set
-  const lastValidSite = [...recentSites]
-    .reverse()
-    .find((s) => validSites.some((v) => sitesEqual(v, s)));
+  // recentSites is newest-first; find() returns the most recent valid site
+  const lastValidSite = recentSites.find((s) => validSites.some((v) => sitesEqual(v, s)));
   if (!lastValidSite) return null;
 
   const lastIdx = validSites.findIndex((v) => sitesEqual(v, lastValidSite));
