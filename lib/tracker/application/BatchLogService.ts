@@ -68,7 +68,8 @@ async function logOneInBatch(
   actorUserId: string,
   managedIds: string[],
   protocolId: string,
-  scheduledDate: Date
+  scheduledDate: Date,
+  vialCountCache: Record<string, number>
 ): Promise<{ doseLog: DoseLog; warnings: SafetyWarning[] }> {
   const protocol = await findProtocolByIdForActor(prisma, protocolId, actorUserId, managedIds);
   if (!protocol) throw new Error(`Protocol not found: ${protocolId}`);
@@ -91,7 +92,11 @@ async function logOneInBatch(
   }
 
   // Block batch log when no vials available — do not create a LOGGED dose without inventory.
-  const vialCount = await countActiveVialsForCompound(prisma, subjectUserId, protocol.compoundId);
+  // Use compound-level cache to avoid repeated queries when multiple protocols share a compound.
+  if (!(protocol.compoundId in vialCountCache)) {
+    vialCountCache[protocol.compoundId] = await countActiveVialsForCompound(prisma, subjectUserId, protocol.compoundId);
+  }
+  const vialCount = vialCountCache[protocol.compoundId];
   if (vialCount === 0) {
     throw new Error('insufficient_inventory: No reconstituted vials available for this compound');
   }
@@ -116,7 +121,13 @@ async function logOneInBatch(
           resourceId: log.id,
           resourceType: 'DoseLog',
           oldValues: { status: 'SKIPPED' },
-          newValues: { status: 'LOGGED', isBatchLog: true },
+          newValues: {
+            protocolId,
+            scheduledDate: scheduledDate.toISOString(),
+            status: 'LOGGED',
+            isBatchLog: true,
+            loggedByUserId: actorUserId,
+          },
         },
       });
       return log;
@@ -162,7 +173,31 @@ async function logOneInBatch(
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       const winner = await findDoseLogForDate(prisma, subjectUserId, protocolId, toUTCDay(scheduledDate));
-      if (winner) return { doseLog: winner, warnings };
+      if (winner) {
+        if (winner.status === 'LOGGED') return { doseLog: winner, warnings };
+        // Race: concurrent request wrote a SKIPPED log — update it to LOGGED to match batch intent.
+        const updated = await prisma.$transaction(async (tx) => {
+          const log = await updateDoseLog(tx, winner.id, subjectUserId, {
+            status: 'LOGGED',
+            isBatchLog: true,
+            loggedByUserId: actorUserId,
+          });
+          await tx.auditEvent.create({
+            data: {
+              actorUserId,
+              subjectUserId,
+              category: 'Protocol',
+              action: 'DOSE_LOGGED',
+              resourceId: log.id,
+              resourceType: 'DoseLog',
+              oldValues: { status: 'SKIPPED' },
+              newValues: { protocolId, scheduledDate: scheduledDate.toISOString(), status: 'LOGGED', isBatchLog: true },
+            },
+          });
+          return log;
+        });
+        return { doseLog: updated, warnings };
+      }
     }
     throw err;
   }
@@ -171,6 +206,7 @@ async function logOneInBatch(
 export async function batchLogDoses(input: BatchLogInput): Promise<BatchLogResult> {
   const managedIds = await getManagedUserIds(input.actorUserId);
   const scheduledDate = toUTCDay(input.scheduledDate);
+  const vialCountCache: Record<string, number> = {};
 
   const results: BatchLogItemResult[] = [];
 
@@ -180,7 +216,8 @@ export async function batchLogDoses(input: BatchLogInput): Promise<BatchLogResul
         input.actorUserId,
         managedIds,
         protocolId,
-        scheduledDate
+        scheduledDate,
+        vialCountCache
       );
       results.push({ ok: true, protocolId, doseLog, warnings });
     } catch (err) {
