@@ -53,12 +53,15 @@ export async function findActiveCycleForUser(
   userId: string,
   today: Date
 ): Promise<Cycle | null> {
+  // Normalize to UTC midnight so endDate (stored as UTC midnight) is compared to the start of
+  // the calendar day, not the current time-of-day — prevents cycle disappearing mid-day.
+  const utcMidnight = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
   const raw = await client.cycle.findFirst({
     where: {
       userId,
       status: 'ACTIVE',
-      startDate: { lte: today },
-      OR: [{ endDate: null }, { endDate: { gte: today } }],
+      startDate: { lte: utcMidnight },
+      OR: [{ endDate: null }, { endDate: { gte: utcMidnight } }],
     },
     orderBy: { startDate: 'desc' },
   });
