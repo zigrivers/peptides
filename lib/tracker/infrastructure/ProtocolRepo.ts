@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client';
-import type { Protocol } from '../domain/types';
+import type { Protocol, ProtocolStatus } from '../domain/types';
 
 type PrismaProtocol = {
   id: string;
@@ -116,6 +116,25 @@ export async function findProtocolByIdForActor(
     },
   });
   return raw ? mapProtocol(raw) : null;
+}
+
+export async function transitionProtocolStatus(
+  tx: Prisma.TransactionClient,
+  protocolId: string,
+  ownerId: string,
+  newStatus: ProtocolStatus,
+  fromStatus: ProtocolStatus
+): Promise<Protocol> {
+  const result = await tx.protocol.updateMany({
+    where: { id: protocolId, userId: ownerId, status: fromStatus },
+    data: { status: newStatus },
+  });
+  if (result.count === 0) {
+    throw new Error(`Protocol status changed concurrently; expected ${fromStatus}`);
+  }
+  const raw = await tx.protocol.findFirst({ where: { id: protocolId, userId: ownerId } });
+  if (!raw) throw new Error(`Protocol not found after transition: ${protocolId}`);
+  return mapProtocol(raw);
 }
 
 export async function listProtocolsForUser(

@@ -3,17 +3,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
 import type { Protocol } from '@/lib/tracker/domain/types';
-
-function formatSchedule(schedule: Protocol['schedule']): string {
-  switch (schedule.frequency) {
-    case 'Daily': return 'Daily';
-    case 'EOD': return 'Every other day';
-    case 'SpecificDaysOfWeek':
-      return schedule.daysOfWeek.join(', ');
-    case 'CustomInterval':
-      return `Every ${schedule.intervalDays} days`;
-  }
-}
+import { formatSchedule } from '@/lib/tracker/domain/formatters';
 
 function statusBadge(status: Protocol['status']) {
   const styles: Record<Protocol['status'], string> = {
@@ -62,7 +52,7 @@ export default async function TrackerPage() {
           {protocols.map((p) => (
             <li key={p.id}>
               <Link
-                href={`/tracker/protocols/${p.id}/edit`}
+                href={`/tracker/protocols/${p.id}`}
                 className="block rounded-lg border border-gray-200 p-4 hover:border-indigo-400 hover:shadow-sm transition-all"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -71,7 +61,7 @@ export default async function TrackerPage() {
                       {p.dose.amount} {p.dose.unit} — {formatSchedule(p.schedule)}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {p.administrationRoute} · Started {p.startDate.toLocaleDateString()}
+                      {p.administrationRoute} · Started {p.startDate.toLocaleDateString(undefined, { timeZone: 'UTC' })}
                     </p>
                   </div>
                   {statusBadge(p.status)}

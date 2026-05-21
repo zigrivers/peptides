@@ -1,3 +1,4 @@
+import { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
@@ -5,13 +6,18 @@ import { validateCreateInput, validateUpdateInput } from '../domain/validation';
 import {
   createProtocolRecord,
   updateProtocolRecord,
+  transitionProtocolStatus,
   findProtocolByIdForActor,
   listProtocolsForUser,
 } from '../infrastructure/ProtocolRepo';
 import type { Protocol, CreateProtocolInput, UpdateProtocolInput } from '../domain/types';
 
-async function getManagedUserIds(actorUserId: string): Promise<string[]> {
-  const users = await prisma.user.findMany({
+type LifecycleInput = { actorUserId: string; protocolId: string };
+type CloneInput = LifecycleInput & { newStartDate: Date };
+type AnyClient = Prisma.TransactionClient | PrismaClient;
+
+async function getManagedUserIds(actorUserId: string, client: AnyClient = prisma): Promise<string[]> {
+  const users = await client.user.findMany({
     where: { managedBy: actorUserId, status: 'ACTIVE' },
     select: { id: true },
   });
@@ -123,6 +129,129 @@ export async function updateProtocol(input: UpdateProtocolInput): Promise<Protoc
           dose: updated.dose as unknown as JsonValue,
           schedule: updated.schedule as unknown as JsonValue,
         },
+      },
+    });
+
+    return updated;
+  });
+}
+
+async function requireProtocolForActor(
+  tx: Prisma.TransactionClient,
+  protocolId: string,
+  actorUserId: string
+): Promise<Protocol> {
+  const managedIds = await getManagedUserIds(actorUserId, tx);
+  const protocol = await findProtocolByIdForActor(tx, protocolId, actorUserId, managedIds);
+  if (!protocol) throw new Error(`Protocol not found: ${protocolId}`);
+  return protocol;
+}
+
+export async function pauseProtocol(input: LifecycleInput): Promise<Protocol> {
+  return prisma.$transaction(async (tx) => {
+    const protocol = await requireProtocolForActor(tx, input.protocolId, input.actorUserId);
+    if (protocol.status === 'PAUSED') throw new Error('Protocol is already paused');
+    if (protocol.status === 'COMPLETED' || protocol.status === 'DEACTIVATED') {
+      throw new Error(`Cannot pause a ${protocol.status.toLowerCase()} protocol`);
+    }
+
+    const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'PAUSED', protocol.status);
+
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: input.actorUserId,
+        subjectUserId: protocol.userId,
+        category: 'Protocol',
+        action: 'PROTOCOL_PAUSED',
+        resourceId: input.protocolId,
+        resourceType: 'Protocol',
+        oldValues: { status: protocol.status },
+        newValues: { status: 'PAUSED' },
+      },
+    });
+
+    return updated;
+  });
+}
+
+export async function resumeProtocol(input: LifecycleInput): Promise<Protocol> {
+  return prisma.$transaction(async (tx) => {
+    const protocol = await requireProtocolForActor(tx, input.protocolId, input.actorUserId);
+    if (protocol.status !== 'PAUSED') throw new Error('Protocol is not paused');
+
+    const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'ACTIVE', 'PAUSED');
+
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: input.actorUserId,
+        subjectUserId: protocol.userId,
+        category: 'Protocol',
+        action: 'PROTOCOL_RESUMED',
+        resourceId: input.protocolId,
+        resourceType: 'Protocol',
+        oldValues: { status: 'PAUSED' },
+        newValues: { status: 'ACTIVE' },
+      },
+    });
+
+    return updated;
+  });
+}
+
+export async function cloneProtocol(input: CloneInput): Promise<Protocol> {
+  return prisma.$transaction(async (tx) => {
+    const source = await requireProtocolForActor(tx, input.protocolId, input.actorUserId);
+    if (source.status === 'DEACTIVATED') {
+      throw new Error('Cannot clone a deactivated protocol');
+    }
+
+    const cloned = await createProtocolRecord(tx, {
+      userId: source.userId,
+      compoundId: source.compoundId,
+      cycleId: source.cycleId ?? undefined,
+      dose: source.dose,
+      schedule: source.schedule,
+      administrationRoute: source.administrationRoute,
+      startDate: input.newStartDate,
+      notes: source.notes ?? undefined,
+    });
+
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: input.actorUserId,
+        subjectUserId: source.userId,
+        category: 'Protocol',
+        action: 'PROTOCOL_CLONED',
+        resourceId: cloned.id,
+        resourceType: 'Protocol',
+        metadata: { sourceProtocolId: input.protocolId },
+      },
+    });
+
+    return cloned;
+  });
+}
+
+export async function deactivateProtocol(input: LifecycleInput): Promise<Protocol> {
+  return prisma.$transaction(async (tx) => {
+    const protocol = await requireProtocolForActor(tx, input.protocolId, input.actorUserId);
+    if (protocol.status === 'DEACTIVATED') throw new Error('Protocol is already deactivated');
+    if (protocol.status === 'COMPLETED') {
+      throw new Error('Cannot deactivate a completed protocol');
+    }
+
+    const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'DEACTIVATED', protocol.status);
+
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: input.actorUserId,
+        subjectUserId: protocol.userId,
+        category: 'Protocol',
+        action: 'PROTOCOL_DEACTIVATED',
+        resourceId: input.protocolId,
+        resourceType: 'Protocol',
+        oldValues: { status: protocol.status },
+        newValues: { status: 'DEACTIVATED' },
       },
     });
 
