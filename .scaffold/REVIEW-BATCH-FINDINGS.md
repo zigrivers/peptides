@@ -11,7 +11,7 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 | 2 | review-prd | ✅ done | 3 (3×P2) | 3 | 1 retained (4.2) |
 | 3 | review-user-stories | ✅ done | 13 (4×P1, 5×P2, 4×P3) | 13 | 0 |
 | 4 | review-domain-modeling | ✅ done | 12 (5×P1, 4×P2, 3×P3) | 12 | 0 |
-| 5 | review-adrs | pending | | | |
+| 5 | review-adrs | ✅ done | 10 (1×P0 regression, 3×P1, 3×P2, 3×P3) | 8 fully + 2 partially | 2 partial (N9, N10) |
 | 6 | review-architecture | pending | | | |
 | 7 | review-database | pending | | | |
 | 8 | review-api | pending | | | |
@@ -220,4 +220,57 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 - `docs/domain-models/ordering.md` (full rewrite, +~80 lines net)
 - `docs/domain-models/audit.md` (+~15 lines)
 - `docs/reviews/review-domain-modeling.md` (+~80 lines)
+
+---
+
+### Step 5: review-adrs (regression repair + new findings)
+
+**Artifacts**: 14 ADRs + index in `docs/adrs/` — initial state: ADR-010 silently missing
+**Review log**: `docs/reviews/review-adrs.md`
+**Mode**: update / re-review (accounts for new requirements from steps 2-4)
+**Gate result**: **Full Pass** (with 2 P3 polish items explicitly deferred)
+
+**Critical: P0 regression repaired** — the prior review's Resolution Log claimed F-001 was RESOLVED with "Added ADR-010", but the file did not exist and the index did not list ADR-010. This re-review actually creates ADR-010 and adds it to the index.
+
+**Findings raised (10 total):**
+
+| # | Sev | Finding |
+|---|-----|---------|
+| N1 | **P0** | ADR-010 (AI strategy) was marked RESOLVED in the prior review but the file didn't exist |
+| N2 | P1 | ADR-004 (Auth.js) didn't address Session/Invite/EmailChangeRequest entities from step 4 |
+| N3 | P1 | ADR-007 (PWA) didn't address Web Push subscription for US-TRK-09 dose reminders |
+| N4 | P1 | ADR-009 (Audit) retention policy didn't address actor/subject user-id preservation on user deletion |
+| N5 | P2 | ADR-008 (Testing) mentioned 100% coverage but didn't reference safety-math.md / testing.md rules |
+| N6 | P2 | ADR-012 (Cron) didn't specify schedules for stale-order, audit purge, reminder dispatch, etc. |
+| N7 | P2 | ADR-014 (R2) didn't address lifecycle / expired export cleanup |
+| N8 | P3 | index.md didn't list ADR-010 (consequent to N1) |
+| N9 | P3 | ADRs lack metadata footer (Decided By / Reviewed By) |
+| N10 | P3 | Most ADRs lack explicit "Traces" / requirement-trace sections |
+
+**Findings fixed (8 fully + 2 partially):**
+
+1. **N1 — ADR-010 created (P0)** — Anthropic Claude primary (Sonnet 4.6 drafting, Haiku 4.5 batch), Gemini secondary, OpenAI not v1, full allowed/disallowed-uses lists, Anthropic prompt caching non-optional, AI failure-handling policy. Added to index.md. **Why this is the right fix:** the file's absence meant Phase 3 features had no architectural foundation; the prior "resolved" marker masked the gap. The detailed allowed/disallowed list is the binding constraint that prevents AI scope creep.
+2. **N2 — ADR-004 expanded (P1)** — Mapping section for Session/Invite/EmailChangeRequest/PasswordResetToken. **Why:** Auth.js's Session table covers part of the domain Session entity but not revocation; Invite/EmailChangeRequest/PasswordResetToken require custom tables. Without this mapping the implementer might either re-implement Session storage or skip the custom tables entirely.
+3. **N3 — ADR-007 expanded (P1)** — Web Push subscription via service worker, VAPID keys as env vars, iOS Safari install constraint, email as mandatory fallback. **Why:** US-TRK-09 depends on Web Push but the PWA ADR was silent — the implementer might miss the dependency or pick a different push mechanism.
+4. **N4 — ADR-009 expanded (P1)** — User Reference Preservation section: actor/subject user IDs are historical references with NO FK constraint, no cascade-delete, LEFT JOIN + "[deleted user]" display. **Why:** the audit trail must survive user deletion to be useful as a forensic record; without explicit "no FK" the implementer could accidentally cascade-delete audit history on account deletion.
+5. **N5 — ADR-008 expanded (P2)** — "Coverage Requirements (binding)" section with explicit rule references. **Why:** the "100% coverage" target was aspirational without an enforcement mechanism; binding the ADR to the rules makes the gate enforceable in CI.
+6. **N6 — ADR-012 expanded (P2)** — Cron Schedules table with 6 jobs (dose reminders every 15min, stale orders daily 09:00 UTC, audit purge 04:00 UTC, backup verify 05:00 UTC, export cleanup 03:00 UTC, PubMed digest weekly). **Why:** schedules drift without an authoritative list; the table is a single review surface.
+7. **N7 — ADR-014 expanded (P2)** — Lifecycle policy: 7-day signed URL + 7-day R2 retention + daily cleanup cron + 14-day defense-in-depth R2 native policy. **Why:** PRD §5.7 said exports are emailed within 5 min but didn't say how long they last — without the policy R2 grows unbounded.
+8. **N8 — index.md updated (P3)** — Added ADR-010 row.
+9. **N9 — Metadata footer (P3) — DEFERRED** with rationale: org-process polish; solo build has no separate reviewer; re-trigger when team size > 1.
+10. **N10 — Traces sections (P3) — PARTIALLY FIXED**: added to ADR-004, 007, 008, 009, 012, 014 (the ones whose decisions trace to multiple PRD/story/domain artifacts). Deferred for ADR-001, 002, 003, 005, 006, 011, 013, 015 — those have less-ambiguous PRD anchors and the prior review already addressed the most-critical (ADR-005 via F-004).
+
+**Regressions from prior review:**
+- F-001 was a P0 regression (ADR-010 missing despite RESOLVED marker). **Repaired in this re-review.** No regressions introduced by these fixes.
+
+**Files modified:**
+- `docs/adrs/ADR-010-ai-strategy.md` (new file, 39 lines)
+- `docs/adrs/index.md` (+1 line)
+- `docs/adrs/ADR-004-authjs.md` (+~22 lines)
+- `docs/adrs/ADR-007-pwa-offline.md` (+~18 lines)
+- `docs/adrs/ADR-008-testing-strategy.md` (+~12 lines)
+- `docs/adrs/ADR-009-audit-logging.md` (+~18 lines)
+- `docs/adrs/ADR-012-scheduled-jobs.md` (+~22 lines)
+- `docs/adrs/ADR-014-object-storage.md` (+~18 lines)
+- `docs/reviews/review-adrs.md` (+~75 lines)
 

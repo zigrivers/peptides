@@ -19,4 +19,21 @@ We will implement a system-wide `audit_events` table in PostgreSQL to store immu
 - **Costs**: Database storage growth (mitigated by 90-day rolling purge); additional latency on writes to record the audit event.
 
 ## Retention Policy
-Audit events will be retained for 90 days. A daily background job will delete events older than 90 days to manage database size.
+Audit events will be retained for 90 days. A daily background job (per ADR-012) will delete events older than 90 days to manage database size.
+
+## User Reference Preservation
+
+`AuditEvent.actorUserId` and `subjectUserId` are **historical references**, not enforced foreign keys at the database level. When a user is deleted (PRD §5.6, US-AUT-02, US-ADM-04), their `auth_users` row is removed but their identity in audit events is preserved. This is intentional: audit events must be able to record "user X performed action Y" even after user X has been deleted — the audit trail is the only durable record of what happened.
+
+Concretely:
+- The `audit_events.actor_user_id` and `audit_events.subject_user_id` columns are nullable UUID columns with **no FK constraint to `auth_users.id`**.
+- User deletion does not cascade-delete or null-out audit events.
+- The audit-query layer joins to `auth_users` with a `LEFT JOIN` and displays "[deleted user]" when the join misses.
+
+This decision is consistent with `docs/domain-models/audit.md` and `docs/domain-models/auth.md` (the "Account Identity" aggregate boundary explicitly excludes the audit log).
+
+## Traces
+- PRD §5.7 (Audit log retention), §8.2 (Security audit log), §8.7 (Monitoring)
+- Domain model: `docs/domain-models/audit.md`
+- Stories: US-AUT-02 (account deletion preserves audit), US-ADM-04 (managed-user deletion preserves audit)
+- ADR-012 (Railway Cron — runs the daily purge job)

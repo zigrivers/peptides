@@ -13,6 +13,7 @@ This log tracks the significant architectural decisions made for the Peptides ap
 | ADR-007 | Implement PWA with Serwist for Offline Dose Logging | Accepted | 2026-05-20 |
 | ADR-008 | Use Vitest and Playwright for Automated Testing | Accepted | 2026-05-20 |
 | ADR-009 | Implement Persistent Audit Logging for Sensitive Mutations | Accepted | 2026-05-20 |
+| ADR-010 | AI Strategy and Provider Selection (Anthropic primary, Gemini secondary) | Accepted | 2026-05-20 |
 | ADR-011 | Use Resend for Transactional Email | Accepted | 2026-05-20 |
 | ADR-012 | Use Railway Cron for Scheduled Jobs | Accepted | 2026-05-20 |
 | ADR-013 | Use Sentry for Error Tracking and Observability | Accepted | 2026-05-20 |
