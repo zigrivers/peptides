@@ -3,6 +3,7 @@ import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 import type { LogDoseInput, LogDoseResult, SafetyWarning, DoseLog } from '../domain/types';
 import {
   createDoseLog,
+  updateDoseLog,
   findDoseLogByIdempotencyKey,
   findDoseLogForDate,
   countActiveVialsForCompound,
@@ -44,7 +45,32 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
 
   const existing = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, input.actorUserId);
   if (existing) {
-    return { doseLog: existing, warnings: [] };
+    if (existing.status === input.status) {
+      return { doseLog: existing, warnings: [] };
+    }
+    // Same-calendar-day edit: update the existing log to the new status.
+    const updated = await prisma.$transaction(async (tx) => {
+      const log = await updateDoseLog(tx, existing.id, input.actorUserId, {
+        status: input.status,
+        injectionSite: input.injectionSite ?? existing.injectionSite,
+        note: input.note ?? existing.note,
+        vialId: input.vialId ?? existing.vialId,
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorUserId: input.actorUserId,
+          subjectUserId: input.actorUserId,
+          category: 'Protocol',
+          action: input.status === 'SKIPPED' ? 'DOSE_SKIPPED' : 'DOSE_LOGGED',
+          resourceId: log.id,
+          resourceType: 'DoseLog',
+          oldValues: { status: existing.status },
+          newValues: { status: input.status },
+        },
+      });
+      return log;
+    });
+    return { doseLog: updated, warnings: [] };
   }
 
   const protocol = await findProtocolByIdForActor(prisma, input.protocolId, input.actorUserId, []);

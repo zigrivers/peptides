@@ -27,8 +27,16 @@ export async function logDoseAction(input: LogDoseActionInput): Promise<LogDoseA
   }
 
   const actorUserId = session.user.id;
-  const [year, month, day] = input.scheduledDate.split('-').map(Number);
-  const scheduledDate = new Date(Date.UTC(year, month - 1, day));
+
+  const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.scheduledDate);
+  if (!dateParts) {
+    return { ok: false, error: 'invalid_date', message: 'scheduledDate must be a valid YYYY-MM-DD date.' };
+  }
+  const [, y, m, d] = dateParts.map(Number);
+  const scheduledDate = new Date(Date.UTC(y, m - 1, d));
+  if (isNaN(scheduledDate.getTime())) {
+    return { ok: false, error: 'invalid_date', message: 'scheduledDate is not a valid calendar date.' };
+  }
 
   try {
     const result = await logDose({

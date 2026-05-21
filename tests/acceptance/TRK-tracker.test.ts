@@ -8,6 +8,7 @@ const mockUserFindUnique = vi.fn();
 const mockUserFindMany = vi.fn();
 const mockDoseLogCreate = vi.fn();
 const mockDoseLogFindFirst = vi.fn();
+const mockDoseLogUpdate = vi.fn();
 const mockVialCount = vi.fn();
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -29,6 +30,7 @@ vi.mock('@/lib/shared/prisma', () => ({
     doseLog: {
       create: mockDoseLogCreate,
       findFirst: mockDoseLogFindFirst,
+      update: mockDoseLogUpdate,
     },
     vial: {
       count: mockVialCount,
@@ -43,7 +45,7 @@ vi.mock('@/lib/shared/prisma', () => ({
         },
         auditEvent: { create: mockAuditCreate },
         user: { findMany: mockUserFindMany },
-        doseLog: { create: mockDoseLogCreate },
+        doseLog: { create: mockDoseLogCreate, update: mockDoseLogUpdate },
       };
       return fn(tx);
     }),
@@ -650,7 +652,7 @@ describe('US-TRK-03: Individual Dose Logging', () => {
     expect(result.warnings[0].code).toBe('insufficient_inventory');
   });
 
-  it('idempotency: returns existing log on duplicate key', async () => {
+  it('idempotency: returns existing log on duplicate key with same status', async () => {
     const existingLog = { ...baseDoseLogRow };
     mockDoseLogFindFirst.mockResolvedValue(existingLog);
 
@@ -664,6 +666,30 @@ describe('US-TRK-03: Individual Dose Logging', () => {
 
     expect(result.doseLog.id).toBe('log-1');
     expect(mockDoseLogCreate).not.toHaveBeenCalled();
+    expect(mockDoseLogUpdate).not.toHaveBeenCalled();
+  });
+
+  it('same-day edit: updates existing log when status changes', async () => {
+    const existingSkippedRow = { ...baseDoseLogRow, status: 'SKIPPED' };
+    const updatedLoggedRow = { ...baseDoseLogRow, status: 'LOGGED' };
+    mockDoseLogFindFirst.mockResolvedValue(existingSkippedRow);
+    mockDoseLogUpdate.mockResolvedValue(updatedLoggedRow);
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await logDose({
+      actorUserId: logActorUserId,
+      protocolId: logProtocolId,
+      scheduledDate,
+      amount,
+      status: 'LOGGED',
+    });
+
+    expect(result.doseLog.status).toBe('LOGGED');
+    expect(mockDoseLogCreate).not.toHaveBeenCalled();
+    expect(mockDoseLogUpdate).toHaveBeenCalledOnce();
+    expect(mockAuditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'DOSE_LOGGED' }) })
+    );
   });
 
   it('Negative: rejects future dose logging', async () => {
