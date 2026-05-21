@@ -47,15 +47,16 @@ export async function resendInvite(input: ResendInviteInput): Promise<ResendInvi
       if (revoked.count !== 1) throw new Error('invite_already_accepted');
       const newInvite = await InviteRepo.create(txAny, { email, powerUserId, tokenHash, expiresAt });
       newInviteId = newInvite.id;
+      return newInvite;
     },
-    {
+    (newInvite: { id: string }) => ({
       actorUserId: powerUserId,
       category: 'Admin' as const,
       action: 'INVITE_RESENT' as const,
       resourceId: powerUserId,
       resourceType: 'User',
-      metadata: { email, oldInviteId },
-    }
+      metadata: { email, oldInviteId, newInviteId: newInvite.id },
+    })
   );
 
   after(async () => {

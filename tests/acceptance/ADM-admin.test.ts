@@ -96,9 +96,10 @@ describe('US-ADM-01: Create Managed User', () => {
 
     it('writes MANAGED_USER_INVITED audit event', async () => {
       let capturedAudit: unknown = null;
-      mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>, audit: unknown) => {
-        capturedAudit = audit;
-        return mutation({ invite: { create: mockCreate } });
+      mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+        const result = await mutation({ invite: { create: mockCreate } });
+        capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
+        return result;
       });
       await createInvite({ powerUserId: 'pu-1', email: 'managed@e.com' });
       expect(capturedAudit).toMatchObject({ action: 'USER_INVITED', actorUserId: 'pu-1' });
@@ -170,9 +171,10 @@ describe('US-ADM-01: Create Managed User', () => {
 
     it('writes MANAGED_USER_INVITE_RESENT audit event', async () => {
       let capturedAudit: unknown = null;
-      mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>, audit: unknown) => {
-        capturedAudit = audit;
-        return mutation({ invite: { updateMany: mockUpdateMany, create: mockCreate } });
+      mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+        const result = await mutation({ invite: { updateMany: mockUpdateMany, create: mockCreate } });
+        capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
+        return result;
       });
       await resendInvite({ powerUserId: 'pu-1', inviteId: 'invite-1' });
       expect(capturedAudit).toMatchObject({ action: 'INVITE_RESENT', actorUserId: 'pu-1' });

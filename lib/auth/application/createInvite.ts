@@ -35,16 +35,16 @@ export async function createInvite(input: CreateInviteInput): Promise<CreateInvi
     async (tx) => {
       const invite = await InviteRepo.create(tx as { invite: unknown }, { email, powerUserId, tokenHash, expiresAt });
       inviteId = invite.id;
+      return invite;
     },
-    {
+    (invite: { id: string }) => ({
       actorUserId: powerUserId,
       category: 'Admin' as const,
       action: 'USER_INVITED' as const,
       resourceId: powerUserId,
       resourceType: 'User',
-      // inviteId is captured in metadata since it is generated inside the transaction
-      metadata: { email },
-    }
+      metadata: { email, inviteId: invite.id },
+    })
   );
 
   // AC-6: send invite email after the response boundary
