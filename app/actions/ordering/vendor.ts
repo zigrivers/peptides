@@ -16,7 +16,7 @@ const CreateVendorSchema = z.object({
 const UpdateVendorSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   telegramUsername: z.string().min(1).max(100).optional(),
-  preferredCurrency: z.enum(['USDT', 'BTC', 'ETH', 'USD', 'Other']).optional(),
+  preferredCurrency: z.enum(VENDOR_CURRENCIES).optional(),
   messageTemplate: z.string().max(5000).optional(),
 });
 

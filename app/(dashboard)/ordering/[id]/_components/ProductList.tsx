@@ -13,6 +13,7 @@ interface Props {
 export function ProductList({ products, vendorId }: Props) {
   const router = useRouter();
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
 
   if (products.length === 0) {
     return (
@@ -24,13 +25,23 @@ export function ProductList({ products, vendorId }: Props) {
 
   async function handleArchive(productId: string) {
     setArchivingId(productId);
-    await archiveVendorProductAction(productId, vendorId);
+    setArchiveError(null);
+    const result = await archiveVendorProductAction(productId, vendorId);
+    if (!result.ok) {
+      setArchiveError(result.error);
+      setArchivingId(null);
+      return;
+    }
     router.refresh();
     setArchivingId(null);
   }
 
   return (
-    <ul className="space-y-2">
+    <>
+      {archiveError && (
+        <p role="alert" className="text-xs text-red-600 mb-2">{archiveError}</p>
+      )}
+      <ul className="space-y-2">
       {products.map((p) => (
         <li key={p.id} className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 bg-white">
           <div>
@@ -57,6 +68,7 @@ export function ProductList({ products, vendorId }: Props) {
           </div>
         </li>
       ))}
-    </ul>
+      </ul>
+    </>
   );
 }
