@@ -13,9 +13,12 @@ import { prisma } from '@/lib/shared/prisma';
  */
 export const AuthRepository = {
   /**
-   * Locate a user by email for authentication. Case-insensitive to handle any
-   * casing stored at registration time; the caller is expected to normalize to
-   * lowercase before passing to minimize index churn.
+   * Locate a user by email for authentication.
+   *
+   * The caller MUST pass a lowercased email. `mode: 'insensitive'` is kept as a safety
+   * net for any legacy records stored before write-time normalization was enforced (Task 1.6).
+   * Once Task 1.6 is shipped and a migration normalizes existing emails, this can switch to
+   * `findUnique` with a case-sensitive match for better index utilization.
    */
   async findByEmailForAuth(email: string) {
     return prisma.user.findFirst({

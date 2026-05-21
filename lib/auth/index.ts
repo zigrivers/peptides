@@ -27,7 +27,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
         // AuthRepository is the approved boundary for userId-scope-exempt auth lookups.
-        // See lib/auth/infrastructure/AuthRepository.ts and CLAUDE.md for the documented exception.
+        // See lib/auth/infrastructure/AuthRepository.ts, CLAUDE.md, and AGENTS.md for the
+        // documented exception to the Identity Scoping rule.
         const user = await AuthRepository.findByEmailForAuth(credentials.email.toLowerCase());
         if (!user?.passwordHash || user.status !== 'ACTIVE') {
           // Constant-time guard: prevents timing-based user enumeration.
