@@ -35,7 +35,9 @@ export const InviteRepo = {
     return prisma.invite.findFirst({ where: { email, status: 'PENDING' } });
   },
 
-  async revokeById(tx: Tx, id: string, powerUserId: string) {
-    return tx.invite.updateMany({ where: { id, powerUserId }, data: { status: 'REVOKED' } });
+  // Returns { count } — caller must check count === 1 to detect race conditions.
+  // onlyIfStatus guards against revoking an invite that was concurrently accepted.
+  async revokeById(tx: Tx, id: string, powerUserId: string, onlyIfStatus: string) {
+    return tx.invite.updateMany({ where: { id, powerUserId, status: onlyIfStatus }, data: { status: 'REVOKED' } });
   },
 };

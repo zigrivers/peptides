@@ -47,7 +47,8 @@ model User {
   outcomeLogs   OutcomeLog[]
   vials         Vial[]
   orders        Order[]
-  invitesSent   Invite[]   @relation("InvitesSent")
+  invitesSent      Invite[]   @relation("InvitesSent")
+  invitesAccepted  Invite[]   @relation("InviteAcceptedBy")
   telegramSession TelegramSession?
   
   passwordResets PasswordResetToken[]
@@ -113,6 +114,7 @@ model Invite {
   createdAt           DateTime  @default(now())
   acceptedAt          DateTime?
   acceptedByUserId    String?
+  acceptedByUser      User?     @relation("InviteAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
 
   @@index([powerUserId, status])
 }

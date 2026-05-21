@@ -19,8 +19,8 @@ export interface CreateInviteResult {
 export async function createInvite(input: CreateInviteInput): Promise<CreateInviteResult> {
   const { powerUserId, email } = input;
 
-  // AC-5: block if email already has an account
-  const existing = await prisma.user.findUnique({ where: { email } });
+  // AC-5: block if email already has an account (case-insensitive — mirrors sign-up uniqueness policy)
+  const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } }, select: { id: true } });
   if (existing) throw new Error('invite_email_exists');
 
   // AC-5: block if a pending invite already exists for this email

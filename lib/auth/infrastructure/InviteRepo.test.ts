@@ -57,12 +57,12 @@ describe('InviteRepo', () => {
   });
 
   describe('revokeById', () => {
-    it('sets status to REVOKED for the given invite id and powerUserId', async () => {
+    it('sets status to REVOKED only when current status matches onlyIfStatus', async () => {
       mockUpdateMany.mockResolvedValue({ count: 1 });
       const tx = { invite: { updateMany: mockUpdateMany } };
-      await InviteRepo.revokeById(tx, 'inv-1', 'pu-1');
+      await InviteRepo.revokeById(tx, 'inv-1', 'pu-1', 'PENDING');
       expect(mockUpdateMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'inv-1', powerUserId: 'pu-1' }, data: { status: 'REVOKED' } })
+        expect.objectContaining({ where: { id: 'inv-1', powerUserId: 'pu-1', status: 'PENDING' }, data: { status: 'REVOKED' } })
       );
     });
   });

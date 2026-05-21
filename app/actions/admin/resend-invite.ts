@@ -8,7 +8,7 @@ const InputSchema = z.object({
   inviteId: z.string().uuid(),
 });
 
-const DOMAIN_ERRORS = new Set(['invite_not_found', 'invite_already_accepted', 'invite_revoked']);
+const DOMAIN_ERRORS = new Set(['invite_not_found', 'invite_already_accepted', 'invite_revoked', 'invite_email_exists']);
 
 export type ResendInviteError =
   | 'unauthorized'
@@ -17,6 +17,7 @@ export type ResendInviteError =
   | 'invite_not_found'
   | 'invite_already_accepted'
   | 'invite_revoked'
+  | 'invite_email_exists'
   | 'system_error';
 
 export type ResendInviteResult =

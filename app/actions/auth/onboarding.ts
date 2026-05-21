@@ -27,6 +27,10 @@ export async function advanceOnboardingAction(nextStep: unknown): Promise<Onboar
   const parsed = NextStepSchema.safeParse(nextStep);
   if (!parsed.success) return { ok: false, error: 'validation_error' };
 
+  const allowedSteps: readonly string[] =
+    session.user.role === 'POWER_USER' ? POWER_USER_STEPS : MANAGED_USER_STEPS;
+  if (!allowedSteps.includes(parsed.data)) return { ok: false, error: 'validation_error' };
+
   try {
     await advanceOnboardingStep(session.user.id, parsed.data);
     return { ok: true };

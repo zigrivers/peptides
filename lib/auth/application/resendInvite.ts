@@ -1,4 +1,5 @@
 import { unstable_after as after } from 'next/server';
+import { prisma } from '@/lib/shared/prisma';
 import { InviteToken, INVITE_EXPIRY_MS } from '@/lib/auth/domain/InviteToken';
 import { InviteRepo } from '@/lib/auth/infrastructure/InviteRepo';
 import { withAudit } from '@/lib/audit/application/withAudit';
@@ -24,16 +25,26 @@ export async function resendInvite(input: ResendInviteInput): Promise<ResendInvi
   if (prior.status === 'ACCEPTED') throw new Error('invite_already_accepted');
   if (prior.status === 'REVOKED') throw new Error('invite_revoked');
 
+  // Re-check that the email has not been registered since the original invite was issued
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: prior.email, mode: 'insensitive' } },
+    select: { id: true },
+  });
+  if (existing) throw new Error('invite_email_exists');
+
   const { rawToken, tokenHash } = InviteToken.generate();
   const expiresAt = new Date(Date.now() + INVITE_EXPIRY_MS);
   const email = prior.email;
+  const oldInviteId = inviteId;
 
   let newInviteId!: string;
   await withAudit(
     async (tx) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const txAny = tx as { invite: any };
-      await InviteRepo.revokeById(txAny, inviteId, powerUserId);
+      // Only revoke if status is still the same non-ACCEPTED status (guards concurrent acceptance race)
+      const revoked = await InviteRepo.revokeById(txAny, oldInviteId, powerUserId, prior.status);
+      if (revoked.count !== 1) throw new Error('invite_already_accepted');
       const newInvite = await InviteRepo.create(txAny, { email, powerUserId, tokenHash, expiresAt });
       newInviteId = newInvite.id;
     },
@@ -43,6 +54,7 @@ export async function resendInvite(input: ResendInviteInput): Promise<ResendInvi
       action: 'INVITE_RESENT' as const,
       resourceId: powerUserId,
       resourceType: 'User',
+      metadata: { email, oldInviteId },
     }
   );
 

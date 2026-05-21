@@ -5,7 +5,7 @@ const mockFindFirst = vi.fn();
 const mockFindMany = vi.fn();
 const mockUpdate = vi.fn();
 const mockUpdateMany = vi.fn();
-const mockUserFindUnique = vi.fn();
+const mockUserFindFirst = vi.fn();
 const mockWithAudit = vi.fn();
 const mockSend = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
@@ -14,7 +14,7 @@ vi.mock('next/server', () => ({ unstable_after: mockAfter }));
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
     invite: { create: mockCreate, findFirst: mockFindFirst, findMany: mockFindMany, updateMany: mockUpdateMany },
-    user: { findUnique: mockUserFindUnique, update: mockUpdate },
+    user: { findFirst: mockUserFindFirst, update: mockUpdate },
   },
 }));
 vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }));
@@ -38,7 +38,7 @@ beforeEach(() => {
   mockSend.mockResolvedValue({});
   mockCreate.mockResolvedValue({ id: 'invite-1', email: 'managed@e.com', expiresAt: new Date(Date.now() + 72 * 3_600_000), status: 'PENDING' });
   mockFindFirst.mockResolvedValue(null);
-  mockUserFindUnique.mockResolvedValue(null);
+  mockUserFindFirst.mockResolvedValue(null);
   mockUpdateMany.mockResolvedValue({ count: 1 });
 });
 
@@ -69,7 +69,7 @@ describe('US-ADM-01: Create Managed User', () => {
     });
 
     it('AC-5: throws invite_email_exists when email already has an account', async () => {
-      mockUserFindUnique.mockResolvedValue({ id: 'existing-user' });
+      mockUserFindFirst.mockResolvedValue({ id: 'existing-user' });
       await expect(createInvite({ powerUserId: 'pu-1', email: 'existing@e.com' })).rejects.toThrow('invite_email_exists');
     });
 
@@ -133,6 +133,11 @@ describe('US-ADM-01: Create Managed User', () => {
     it('AC-4: throws invite_revoked when invite is REVOKED', async () => {
       mockFindFirst.mockResolvedValue({ ...existingInvite, status: 'REVOKED' });
       await expect(resendInvite({ powerUserId: 'pu-1', inviteId: 'invite-1' })).rejects.toThrow('invite_revoked');
+    });
+
+    it('throws invite_email_exists when email has been registered since original invite', async () => {
+      mockUserFindFirst.mockResolvedValue({ id: 'registered-user' });
+      await expect(resendInvite({ powerUserId: 'pu-1', inviteId: 'invite-1' })).rejects.toThrow('invite_email_exists');
     });
 
     it('AC-4: revokes the prior invite (sets status = REVOKED)', async () => {
