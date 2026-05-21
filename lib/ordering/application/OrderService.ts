@@ -25,12 +25,21 @@ export interface SendOrderResult {
   fallbackDeepLink?: string;
 }
 
+function normalizeVialSize(vialSizeMg: string): string {
+  try {
+    return new Decimal(vialSizeMg).toString();
+  } catch {
+    throw new Error(`invalid_vial_size: ${vialSizeMg}`);
+  }
+}
+
 function mergeItems(items: OrderLineItemInput[]): OrderLineItemInput[] {
   const map = new Map<string, OrderLineItemInput>();
   for (const item of items) {
-    // Normalize vialSizeMg to canonical Decimal form so '5', '5.0', '5.000' all merge.
-    const normalizedSize = new Decimal(item.vialSizeMg).toString();
-    const key = `${item.compoundId}:${item.form}:${normalizedSize}`;
+    // Include productId/price/currency in the key so items with different catalog
+    // links or prices are never collapsed into one entry.
+    const normalizedSize = normalizeVialSize(item.vialSizeMg);
+    const key = `${item.compoundId}:${item.form}:${normalizedSize}:${item.productId ?? ''}:${item.unitPrice ?? ''}:${item.unitCurrency ?? ''}`;
     const existing = map.get(key);
     if (existing) {
       existing.quantity += item.quantity;
@@ -86,7 +95,7 @@ export async function createDraftOrder(
           const validCount = await tx.vendorProduct.count({
             where: { id: { in: nonNullProductIds }, vendorId, vendor: { userId } },
           });
-          if (validCount !== nonNullProductIds.length) throw new Error('product_not_found');
+          if (validCount !== new Set(nonNullProductIds).size) throw new Error('product_not_found');
         }
         await tx.orderItem.createMany({
           data: merged.map((item) => ({

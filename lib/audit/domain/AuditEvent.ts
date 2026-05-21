@@ -62,7 +62,7 @@ export type AuditAction =
   | 'ORDER_RECEIVED'
   | 'ORDER_CANCELLED'
   | 'ORDER_MARKED_STALE'
-  | 'DUPLICATE_SEND_BLOCKED'
+  | 'DUPLICATE_SEND_BLOCKED'  // written when a 60s duplicate guard fires
   // Reconstitution
   | 'VIAL_RECONSTITUTED'
   | 'SAFETY_WARNING_TRIGGERED'
