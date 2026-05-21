@@ -84,8 +84,9 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
     }
   }
 
-  // Build idempotency key; prefer a caller-supplied key (e.g., offline queue ID) for cross-session idempotency.
-  const idempotencyKey = input.idempotencyKey ?? buildIdempotencyKey(subjectUserId, input.protocolId, input.scheduledDate);
+  // Always derive idempotency key from the authoritative (subjectUserId, protocolId, scheduledDate) triple.
+  // This ensures one dose log per day per protocol regardless of which device or sync path calls logDose.
+  const idempotencyKey = buildIdempotencyKey(subjectUserId, input.protocolId, input.scheduledDate);
   const existing = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, subjectUserId);
 
   // Always check inventory; warnings apply to both new logs and same-day edits to LOGGED.

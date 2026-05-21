@@ -93,8 +93,6 @@ export type LogDoseInput = {
   vialId?: string;
   /** When true, logDose enforces that a site is provided for injectable LOGGED doses. */
   requireInjectionSite?: boolean;
-  /** Caller-supplied idempotency key (e.g., offline queue entry ID). When provided, the service prefers it over the internally derived key. */
-  idempotencyKey?: string;
 };
 
 export type LogDoseResult = {

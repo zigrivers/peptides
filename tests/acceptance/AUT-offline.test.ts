@@ -231,9 +231,11 @@ describe('US-AUT-05 / US-TRK-03: Sync API (/api/sync)', () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
     expect(mockLogDose).toHaveBeenCalledTimes(1);
-    // idempotencyKey derived from queueId so same entry doesn't create two logs
+    // Idempotency is enforced inside logDose via canonical subjectUserId:protocolId:date key —
+    // same entry replayed twice calls logDose once per sync request; the service deduplicates.
     expect(mockLogDose).toHaveBeenCalledWith(expect.objectContaining({
-      idempotencyKey: expect.stringContaining('queue-e1'),
+      protocolId: 'proto-1',
+      scheduledDate: expect.any(Date),
     }));
   });
 });
