@@ -63,7 +63,7 @@ beforeEach(() => {
 const { createProtocol, updateProtocol, pauseProtocol, resumeProtocol, cloneProtocol, deactivateProtocol } = await import(
   '@/lib/tracker/application/ProtocolService'
 );
-const { generateScheduleDates } = await import(
+const { generateScheduleDates, isScheduledOn } = await import(
   '@/lib/tracker/domain/ScheduleGenerator'
 );
 const { logDose } = await import('@/lib/tracker/application/DoseLogService');
@@ -398,6 +398,42 @@ describe('ScheduleGenerator', () => {
     );
     expect(dates[0].toISOString().slice(0, 10)).toBe('2026-06-02'); // first Tuesday
     expect(dates[1].toISOString().slice(0, 10)).toBe('2026-06-09');
+  });
+
+  describe('isScheduledOn', () => {
+    const s = new Date(Date.UTC(2026, 5, 1)); // 2026-06-01 Monday
+
+    it('Daily: returns true for any day on/after start', () => {
+      expect(isScheduledOn({ frequency: 'Daily' }, s, null, new Date(Date.UTC(2026, 5, 5)))).toBe(true);
+    });
+    it('Daily: returns false before start', () => {
+      expect(isScheduledOn({ frequency: 'Daily' }, s, null, new Date(Date.UTC(2026, 4, 31)))).toBe(false);
+    });
+    it('EOD: returns true on even-offset days', () => {
+      expect(isScheduledOn({ frequency: 'EOD' }, s, null, new Date(Date.UTC(2026, 5, 3)))).toBe(true);
+    });
+    it('EOD: returns false on odd-offset days', () => {
+      expect(isScheduledOn({ frequency: 'EOD' }, s, null, new Date(Date.UTC(2026, 5, 2)))).toBe(false);
+    });
+    it('SpecificDaysOfWeek: returns true for matching day', () => {
+      // 2026-06-03 is Wednesday
+      expect(isScheduledOn({ frequency: 'SpecificDaysOfWeek', daysOfWeek: ['Wed'] }, s, null, new Date(Date.UTC(2026, 5, 3)))).toBe(true);
+    });
+    it('SpecificDaysOfWeek: returns false for non-matching day', () => {
+      // 2026-06-02 is Tuesday — not Wed
+      expect(isScheduledOn({ frequency: 'SpecificDaysOfWeek', daysOfWeek: ['Wed'] }, s, null, new Date(Date.UTC(2026, 5, 2)))).toBe(false);
+    });
+    it('CustomInterval: returns true when diff divisible by interval', () => {
+      expect(isScheduledOn({ frequency: 'CustomInterval', intervalDays: 3 }, s, null, new Date(Date.UTC(2026, 5, 7)))).toBe(true);
+    });
+    it('CustomInterval: returns false when diff not divisible by interval', () => {
+      // June 5 = offset 4 from June 1; 4 % 3 = 1 → not a scheduled day
+      expect(isScheduledOn({ frequency: 'CustomInterval', intervalDays: 3 }, s, null, new Date(Date.UTC(2026, 5, 5)))).toBe(false);
+    });
+    it('respects endDate', () => {
+      const end = new Date(Date.UTC(2026, 5, 5));
+      expect(isScheduledOn({ frequency: 'Daily' }, s, end, new Date(Date.UTC(2026, 5, 6)))).toBe(false);
+    });
   });
 });
 
@@ -824,6 +860,40 @@ describe('US-TRK-05: Batch Log', () => {
     const item2 = items.find((i) => i.protocol.id === proto2Id)!;
     expect(item1.isAvailable).toBe(false); // no vials
     expect(item2.isAvailable).toBe(true);
+  });
+
+  it('schedule filter: getDueTodayForBatch excludes EOD protocols not due today', async () => {
+    // EOD protocol starting 2026-05-20 (yesterday) — next dose is 2026-05-22, not today
+    const eodProtocol = {
+      ...makeProtocolRow(proto1Id),
+      schedule: { frequency: 'EOD' },
+      startDate: new Date(Date.UTC(2026, 4, 20)), // yesterday
+    };
+    mockProtocolFindMany.mockResolvedValue([eodProtocol]);
+
+    const items = await getDueTodayForBatch(batchActorUserId);
+
+    expect(items).toHaveLength(0); // EOD not due today
+  });
+
+  it('schedule filter: logOneInBatch rejects protocols not scheduled for the given date', async () => {
+    const eodProtocol = {
+      ...makeProtocolRow(proto1Id),
+      schedule: { frequency: 'EOD' },
+      startDate: new Date(Date.UTC(2026, 4, 20)), // yesterday — next EOD dose is 2026-05-22
+    };
+    mockProtocolFindFirst.mockResolvedValue(eodProtocol);
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    mockVialCount.mockResolvedValue(1);
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH, // 2026-05-21 is not a scheduled day
+    });
+
+    expect(result.results[0].ok).toBe(false);
+    expect((result.results[0] as { ok: false; error: string }).error).toMatch(/no_dose_scheduled/i);
   });
 
   // AC-3 (offline sync) deferred to Task 2.6

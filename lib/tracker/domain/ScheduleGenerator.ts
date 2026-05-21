@@ -58,3 +58,40 @@ export function generateScheduleDates(schedule: Schedule, startDate: Date, count
 
   return results;
 }
+
+/**
+ * Returns true if targetDate is a scheduled dose day for the given schedule + protocol bounds.
+ * All dates must be UTC midnight.
+ */
+export function isScheduledOn(
+  schedule: Schedule,
+  startDate: Date,
+  endDate: Date | null,
+  targetDate: Date
+): boolean {
+  const startUTC = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()));
+  const targetUTC = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate()));
+
+  if (targetUTC < startUTC) return false;
+  if (endDate) {
+    const endUTC = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate()));
+    if (targetUTC > endUTC) return false;
+  }
+
+  const diffDays = Math.round((targetUTC.getTime() - startUTC.getTime()) / 86_400_000);
+
+  switch (schedule.frequency) {
+    case 'Daily':
+      return true;
+    case 'EOD':
+      return diffDays % 2 === 0;
+    case 'SpecificDaysOfWeek': {
+      const dow = targetUTC.getUTCDay();
+      return schedule.daysOfWeek.some((d) => DAY_INDEX[d] === dow);
+    }
+    case 'CustomInterval': {
+      const interval = Math.max(1, schedule.intervalDays);
+      return diffDays % interval === 0;
+    }
+  }
+}

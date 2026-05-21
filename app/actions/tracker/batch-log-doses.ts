@@ -8,7 +8,6 @@ import type { BatchLogItemResult } from '@/lib/tracker/domain/types';
 
 const InputSchema = z.object({
   selectedProtocolIds: z.array(z.string().min(1)).min(1),
-  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
 type BatchLogActionResult =
@@ -26,19 +25,12 @@ export async function batchLogDosesAction(input: unknown): Promise<BatchLogActio
     return { ok: false, error: 'invalid_input', message: parsed.error.issues[0]?.message ?? 'Invalid input.' };
   }
 
-  const { selectedProtocolIds, scheduledDate: scheduledDateStr } = parsed.data;
+  const { selectedProtocolIds } = parsed.data;
   const actorUserId = session.user.id;
 
-  const [, y, m, d] = /^(\d{4})-(\d{2})-(\d{2})$/.exec(scheduledDateStr)!.map(Number);
-  const scheduledDate = new Date(Date.UTC(y, m - 1, d));
-  if (
-    isNaN(scheduledDate.getTime()) ||
-    scheduledDate.getUTCFullYear() !== y ||
-    scheduledDate.getUTCMonth() + 1 !== m ||
-    scheduledDate.getUTCDate() !== d
-  ) {
-    return { ok: false, error: 'invalid_date', message: 'scheduledDate is not a valid calendar date.' };
-  }
+  // Always log for today — derived server-side; client cannot override the date.
+  const now = new Date();
+  const scheduledDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
   try {
     const result = await batchLogDoses({ actorUserId, selectedProtocolIds, scheduledDate });

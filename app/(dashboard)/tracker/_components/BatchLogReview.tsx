@@ -9,13 +9,6 @@ type Props = {
   compoundNames: Record<string, string>; // compoundId → name
 };
 
-function todayUTCISO(): string {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
-  const d = String(now.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 
 type ItemState = 'pending' | 'logged' | 'skipped' | 'failed';
 
@@ -50,10 +43,7 @@ export function BatchLogReview({ items, compoundNames }: Props) {
     setError(null);
 
     startTransition(async () => {
-      const result = await batchLogDosesAction({
-        selectedProtocolIds: selectedIds,
-        scheduledDate: todayUTCISO(),
-      });
+      const result = await batchLogDosesAction({ selectedProtocolIds: selectedIds });
 
       if (!result.ok) {
         setError(result.message);

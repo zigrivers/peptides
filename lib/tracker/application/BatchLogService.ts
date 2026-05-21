@@ -15,6 +15,7 @@ import {
   createDoseLog,
 } from '../infrastructure/DoseLogRepo';
 import { getManagedUserIds } from './ProtocolService';
+import { isScheduledOn } from '../domain/ScheduleGenerator';
 import { Prisma } from '@prisma/client';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 
@@ -26,15 +27,22 @@ function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: 
   return `${userId}:${protocolId}:${scheduledDate.toISOString().slice(0, 10)}`;
 }
 
+// Batch log is scoped to the actor's own protocols. Managed users' doses are logged
+// individually via the per-protocol log action — the batch flow is a personal daily ritual.
 export async function getDueTodayForBatch(actorUserId: string): Promise<BatchDueItem[]> {
   const now = new Date();
   const todayUTC = toUTCDay(now);
 
   const allProtocols = await listProtocolsForUser(prisma, actorUserId);
-  const activeProtocols = allProtocols.filter((p) => p.status === 'ACTIVE');
+  // Only include ACTIVE protocols that have a dose scheduled for today.
+  const dueProtocols = allProtocols.filter(
+    (p) =>
+      p.status === 'ACTIVE' &&
+      isScheduledOn(p.schedule, p.startDate, p.endDate, todayUTC)
+  );
 
   const items = await Promise.all(
-    activeProtocols.map(async (protocol) => {
+    dueProtocols.map(async (protocol) => {
       const [existingLog, availableVials] = await Promise.all([
         findDoseLogForDate(prisma, protocol.userId, protocol.id, todayUTC),
         countActiveVialsForCompound(prisma, actorUserId, protocol.compoundId),
@@ -60,6 +68,9 @@ async function logOneInBatch(
   const protocol = await findProtocolByIdForActor(prisma, protocolId, actorUserId, managedIds);
   if (!protocol) throw new Error(`Protocol not found: ${protocolId}`);
   if (protocol.status !== 'ACTIVE') throw new Error(`Protocol is not active: ${protocolId}`);
+  if (!isScheduledOn(protocol.schedule, protocol.startDate, protocol.endDate, scheduledDate)) {
+    throw new Error(`no_dose_scheduled: No dose scheduled for this protocol on ${scheduledDate.toISOString().slice(0, 10)}`);
+  }
 
   const subjectUserId = protocol.userId;
   const idempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, scheduledDate);
