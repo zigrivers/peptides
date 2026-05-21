@@ -13,7 +13,7 @@ vi.mock('../infrastructure/PrismaAuditRepo', () => ({
 
 import { PrismaAuditRepo } from '../infrastructure/PrismaAuditRepo';
 
-const auditInput: CreateAuditEventInput = {
+const staticAuditInput: CreateAuditEventInput = {
   actorUserId: 'user-abc',
   category: 'Protocol',
   action: 'PROTOCOL_CREATED',
@@ -36,11 +36,11 @@ describe('withAudit — PrismaClient path (starts a new $transaction)', () => {
     vi.mocked(PrismaAuditRepo.create).mockResolvedValue(undefined as never);
 
     const mutation = vi.fn().mockResolvedValue(mutationResult);
-    const result = await withAudit(auditInput, mutation);
+    const result = await withAudit(mutation, staticAuditInput);
 
     expect(result).toEqual(mutationResult);
     expect(mutation).toHaveBeenCalledWith(mockTx);
-    expect(PrismaAuditRepo.create).toHaveBeenCalledWith(mockTx, auditInput);
+    expect(PrismaAuditRepo.create).toHaveBeenCalledWith(mockTx, staticAuditInput);
   });
 
   it('mutation runs before audit write (order guarantee)', async () => {
@@ -55,12 +55,13 @@ describe('withAudit — PrismaClient path (starts a new $transaction)', () => {
       return undefined as never;
     });
 
-    const mutation = vi.fn().mockImplementation(async () => {
-      callOrder.push('mutation');
-      return { id: 'x' };
-    });
-
-    await withAudit(auditInput, mutation);
+    await withAudit(
+      async () => {
+        callOrder.push('mutation');
+        return { id: 'x' };
+      },
+      staticAuditInput
+    );
 
     expect(callOrder).toEqual(['mutation', 'audit']);
   });
@@ -69,8 +70,8 @@ describe('withAudit — PrismaClient path (starts a new $transaction)', () => {
     const auditError = new Error('audit write failed');
     const mockTx = {} as never;
 
-    // Simulate: fn runs, audit write throws, $transaction propagates the rejection.
-    // In a real Prisma $transaction the rejection triggers full rollback of all writes.
+    // When PrismaAuditRepo.create rejects, runInTx rejects, which causes $transaction to
+    // reject and roll back all writes. Here we verify the error propagates correctly.
     vi.mocked(prisma.$transaction).mockImplementation(async (fn: (tx: never) => Promise<unknown>) =>
       fn(mockTx)
     );
@@ -78,19 +79,18 @@ describe('withAudit — PrismaClient path (starts a new $transaction)', () => {
 
     const mutation = vi.fn().mockResolvedValue({ id: 'x' });
 
-    await expect(withAudit(auditInput, mutation)).rejects.toThrow('audit write failed');
-    // mutation ran but the transaction rejected — Prisma rolls back all writes within it
+    await expect(withAudit(mutation, staticAuditInput)).rejects.toThrow('audit write failed');
     expect(mutation).toHaveBeenCalled();
   });
 
   it('propagates errors thrown by $transaction itself', async () => {
     vi.mocked(prisma.$transaction).mockRejectedValue(new Error('tx aborted'));
 
-    await expect(withAudit(auditInput, vi.fn())).rejects.toThrow('tx aborted');
+    await expect(withAudit(vi.fn(), staticAuditInput)).rejects.toThrow('tx aborted');
   });
 });
 
-describe('withAudit — auditInput factory function', () => {
+describe('withAudit — buildAudit factory function', () => {
   it('resolves audit input from mutation result (supports DB-generated resourceId)', async () => {
     const mutationResult = { id: 'db-generated-id' };
     const mockTx = {} as never;
@@ -100,15 +100,15 @@ describe('withAudit — auditInput factory function', () => {
     );
     vi.mocked(PrismaAuditRepo.create).mockResolvedValue(undefined as never);
 
-    const factory = vi.fn().mockImplementation((result: typeof mutationResult) => ({
-      ...auditInput,
+    const buildAudit = vi.fn().mockImplementation((result: typeof mutationResult) => ({
+      ...staticAuditInput,
       resourceId: result.id,
     }));
 
     const mutation = vi.fn().mockResolvedValue(mutationResult);
-    await withAudit(factory, mutation);
+    await withAudit(mutation, buildAudit);
 
-    expect(factory).toHaveBeenCalledWith(mutationResult);
+    expect(buildAudit).toHaveBeenCalledWith(mutationResult);
     expect(PrismaAuditRepo.create).toHaveBeenCalledWith(
       mockTx,
       expect.objectContaining({ resourceId: 'db-generated-id' })
@@ -119,17 +119,16 @@ describe('withAudit — auditInput factory function', () => {
 describe('withAudit — TransactionClient path (joins existing transaction)', () => {
   it('runs mutation and audit write directly (no nested $transaction)', async () => {
     const mutationResult = { id: 'x' };
-    // A TransactionClient has no $transaction method
+    // A TransactionClient has no $transaction property
     const mockTx = {} as never;
 
     vi.mocked(PrismaAuditRepo.create).mockResolvedValue(undefined as never);
     const mutation = vi.fn().mockResolvedValue(mutationResult);
 
-    const result = await withAudit(auditInput, mutation, mockTx);
+    const result = await withAudit(mutation, staticAuditInput, mockTx);
 
     expect(result).toEqual(mutationResult);
-    // $transaction was NOT called — we're already inside one
     expect(prisma.$transaction).not.toHaveBeenCalled();
-    expect(PrismaAuditRepo.create).toHaveBeenCalledWith(mockTx, auditInput);
+    expect(PrismaAuditRepo.create).toHaveBeenCalledWith(mockTx, staticAuditInput);
   });
 });

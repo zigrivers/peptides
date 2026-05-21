@@ -8,20 +8,23 @@ import type { CreateAuditEventInput } from '../domain/AuditEvent';
  * If either the mutation or the audit write throws, the entire transaction
  * is rolled back — guaranteeing audit completeness (ADR-009, tdd-standards §3.2).
  *
- * @param auditInput - Audit event fields, or a factory that receives the mutation
- *   result (useful when resourceId is a DB-generated ID not known before the write).
+ * Parameter order (mutation first) ensures callers can always derive resourceId
+ * and newValues from the DB-generated mutation result without pre-computing IDs.
+ *
  * @param mutation - The database write(s) to perform inside the transaction.
+ * @param buildAudit - Audit event fields, or a factory that receives the mutation
+ *   result (use the factory form when resourceId is a DB-generated ID).
  * @param client - Optional: pass an existing PrismaClient to start a new $transaction,
  *   or a TransactionClient to join an existing transaction without nesting.
  */
 export async function withAudit<T>(
-  auditInput: CreateAuditEventInput | ((result: T) => CreateAuditEventInput),
   mutation: (tx: Prisma.TransactionClient) => Promise<T>,
+  buildAudit: CreateAuditEventInput | ((result: T) => CreateAuditEventInput),
   client: PrismaClient | Prisma.TransactionClient = prisma
 ): Promise<T> {
   const runInTx = async (tx: Prisma.TransactionClient): Promise<T> => {
     const result = await mutation(tx);
-    const input = typeof auditInput === 'function' ? auditInput(result) : auditInput;
+    const input = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
     await PrismaAuditRepo.create(tx, input);
     return result;
   };
