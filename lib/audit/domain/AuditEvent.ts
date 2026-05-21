@@ -1,5 +1,10 @@
 export type AuditCategory = 'Auth' | 'Admin' | 'Protocol' | 'Order' | 'Reconstitution' | 'Security';
 
+// Recursive JSON-serializable type — excludes functions, symbols, and undefined.
+// Callers must use this type for metadata/oldValues/newValues to prevent non-serializable
+// values from reaching Prisma's JSON field writer.
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 export type AuditAction =
   // Auth
   | 'USER_REGISTERED'
@@ -59,7 +64,7 @@ export interface CreateAuditEventInput {
   action: AuditAction;
   resourceId: string;
   resourceType: string;
-  metadata?: Record<string, unknown>;
-  oldValues?: Record<string, unknown>;
-  newValues?: Record<string, unknown>;
+  metadata?: JsonValue;
+  oldValues?: JsonValue;
+  newValues?: JsonValue;
 }

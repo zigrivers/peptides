@@ -6,6 +6,9 @@ import type { CreateAuditEventInput } from '../domain/AuditEvent';
  * No update or delete methods exist to enforce immutability at the application layer.
  * The repository accepts a TransactionClient so callers can share a Prisma transaction
  * with their mutation (see withAudit).
+ *
+ * metadata/oldValues/newValues are typed as JsonValue (domain type) which only contains
+ * serializable primitives — no functions or symbols — making the Prisma cast safe.
  */
 export const PrismaAuditRepo = {
   async create(tx: Prisma.TransactionClient, input: CreateAuditEventInput) {
@@ -17,8 +20,8 @@ export const PrismaAuditRepo = {
         action: input.action,
         resourceId: input.resourceId,
         resourceType: input.resourceType,
-        // Prisma's InputJsonValue doesn't accept Record<string,unknown> directly;
-        // the cast is safe because JSON fields accept any serialisable object.
+        // JsonValue is a recursive serializable-only type; the cast to InputJsonValue is
+        // safe because all JsonValue members map to valid Prisma JSON inputs.
         ...(input.metadata !== undefined && { metadata: input.metadata as Prisma.InputJsonValue }),
         ...(input.oldValues !== undefined && { oldValues: input.oldValues as Prisma.InputJsonValue }),
         ...(input.newValues !== undefined && { newValues: input.newValues as Prisma.InputJsonValue }),
