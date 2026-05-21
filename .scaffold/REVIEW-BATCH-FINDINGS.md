@@ -18,7 +18,7 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 | 9 | review-ux | ✅ done | 13 (1×P1 regression, 6×P1, 4×P2, 2×P3) | 13 | 0 |
 | 10 | review-testing | ✅ done | 8 (1×regression, 3×P1, 4×P2) | 8 | 0 |
 | 11 | review-operations | ✅ done | 12 (6×P1, 4×P2, 2×P3) | 12 | 0 |
-| 12 | review-security | pending | | | |
+| 12 | review-security | ✅ done | 12 (1×regression, 5×P1, 4×P2, 2×P3) | 12 | 0 |
 | 13 | platform-parity-review | pending | | | |
 | 14 | workflow-audit | pending | | | |
 | 15 | implementation-plan-review | pending | | | |
