@@ -10,16 +10,16 @@ type Props = {
   existingStatus?: 'LOGGED' | 'SKIPPED';
 };
 
-function localDateISO(): string {
+// Compute today's UTC date at call time so it stays fresh even if the tab is left open past midnight.
+function todayUTCISO(): string {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(now.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
 export function DoseLogActions({ protocolId, amount, existingStatus }: Props) {
-  const scheduledDate = localDateISO();
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<'LOGGED' | 'SKIPPED' | null>(existingStatus ?? null);
   const [warnings, setWarnings] = useState<SafetyWarning[]>([]);
@@ -28,6 +28,7 @@ export function DoseLogActions({ protocolId, amount, existingStatus }: Props) {
 
   function handleLog(logStatus: 'LOGGED' | 'SKIPPED') {
     setError(null);
+    const scheduledDate = todayUTCISO();
     startTransition(async () => {
       const result = await logDoseAction({ protocolId, scheduledDate, amount, status: logStatus });
       if (result.ok) {
