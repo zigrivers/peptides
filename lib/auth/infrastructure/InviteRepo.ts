@@ -32,7 +32,7 @@ export const InviteRepo = {
   },
 
   async findPendingByEmail(email: string) {
-    return prisma.invite.findFirst({ where: { email, status: 'PENDING' } });
+    return prisma.invite.findFirst({ where: { email: { equals: email, mode: 'insensitive' }, status: 'PENDING' } });
   },
 
   // Returns { count } — caller must check count === 1 to detect race conditions.

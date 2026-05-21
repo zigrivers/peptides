@@ -68,11 +68,11 @@ describe('InviteRepo', () => {
   });
 
   describe('findPendingByEmail', () => {
-    it('queries for PENDING invite by email', async () => {
+    it('queries for PENDING invite by email (case-insensitive)', async () => {
       mockFindFirst.mockResolvedValue(null);
       await InviteRepo.findPendingByEmail('u@e.com');
       expect(mockFindFirst).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { email: 'u@e.com', status: 'PENDING' } })
+        expect.objectContaining({ where: { email: { equals: 'u@e.com', mode: 'insensitive' }, status: 'PENDING' } })
       );
     });
   });
