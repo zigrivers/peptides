@@ -22,4 +22,16 @@ export const AuthRepository = {
       select: { id: true, email: true, passwordHash: true, role: true, status: true },
     });
   },
+
+  /**
+   * Revalidate user status during JWT token refresh. Queries by userId (the User
+   * table primary key), selects only `status` — no user-authored content is returned.
+   * This is the second approved auth-exception query; see CLAUDE.md.
+   */
+  async findStatusById(userId: string) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: { status: true },
+    });
+  },
 };

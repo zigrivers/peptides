@@ -69,10 +69,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (!token.statusCheckedAt || Date.now() - token.statusCheckedAt > STATUS_RECHECK_MS);
 
       if (needsCheck) {
-        const currentUser = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { status: true },
-        });
+        const currentUser = await AuthRepository.findStatusById(token.id as string);
         token.statusCheckedAt = Date.now();
         if (!currentUser || currentUser.status !== 'ACTIVE') {
           token.deactivated = true;
