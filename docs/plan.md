@@ -209,8 +209,10 @@ Manages multi-compound stacks for the Power User and their managed users. Replac
 
 **Protocol status lifecycle:** active | paused | completed | deactivated
 - **Pause / Resume:** "Pause" sets status to paused; paused protocols are excluded from "today's doses" but visible in protocol list with status indicator. "Resume" restores active status. Dose history is unaffected by pause/resume.
+- **Deactivated:** terminal soft-delete state. Deactivated protocols are immediately excluded from "today's doses" (effective at the moment of deactivation, including for doses already due today but not yet logged). They remain visible in the protocol list under an "Inactive" filter with full dose history preserved. They cannot be resumed — to resume an deactivated protocol, the user clones it (see below). Dose history attached to a deactivated protocol is never deleted; only account deletion removes it.
 - **Clone:** "Clone this protocol" creates a copy with all fields copied (compound, dose, frequency, route, notes). User sets a new start date. The clone starts in draft state and is not active until the start date is confirmed.
 - **Restart cycle:** "Restart cycle" reopens a completed cycle with a new start date, re-linking all its associated protocols as new clones. The original completed cycle is preserved in history.
+- **Admin-initiated deactivation of a managed user's protocol:** when a super admin deactivates a managed user's protocol mid-day, the managed user's dashboard refreshes on next render (or polling tick) to remove the affected dose from "today's doses." Any dose for that protocol already logged earlier in the day is preserved. If the managed user is mid-log when the deactivation lands, the log submission is accepted (last-writer-wins on the in-flight request) and the protocol's history retains that final log entry.
 
 **Out of scope:** AI-suggested protocols, community protocol templates
 
@@ -719,7 +721,7 @@ All user-created data is retained until explicit account deletion. No automatic 
 | Criterion | Target | Measurement |
 |-----------|--------|-------------|
 | Active users | 100–1,000 | Auth logs |
-| Community reputation | Referenced as "the honest peptide app" in r/Peptides or biohacker forums | Community monitoring |
+| Community reputation | Referenced as "the honest peptide app" in r/Peptides or biohacker forums | **Monitoring protocol:** Power User (or a delegate) performs a quarterly search on r/Peptides, r/Biohackers, r/longevity, and 2-3 biohacker Discord servers for: (a) direct product mentions by name, (b) mentions of the differentiating positioning ("the honest peptide app," "the grey-market peptide app," etc.), (c) recommendations to other users. **Counts as a reference:** an unsolicited mention by a non-Power-User-affiliated user (not a paid mention, not seeded by the Power User). **Target:** ≥ 5 unsolicited references per quarter by end of Year 3. Maintain a running log at `docs/community-references.md`. |
 | Sustainability | Hosting + maintenance costs covered by license revenue (legal review gate passed) | Revenue vs. cost |
 
 ---
@@ -761,7 +763,15 @@ All user-created data is retained until explicit account deletion. No automatic 
 - **Legal review trigger:** Required before charging any money for a license. Family/friend use is free until legal review is complete and cleared.
 - **Product framing:** Honestly described as a peptide tracker and reference web app. Ordering = opt-in advanced module. No misrepresentation to payment processors.
 - **Data privacy:** Not a HIPAA-covered entity (no PHI in the legal sense). GDPR not applicable for v1 (US personal tool). Re-evaluate at public launch, especially if European users are targeted.
-- **Phase 2 legal gate:** Before Phase 2 ships (managed users), conduct a precautionary review of data stewardship obligations for storing dose and health-adjacent data on behalf of third parties (family members). This is not a HIPAA obligation for personal use, but managing other people's health-adjacent data creates stewardship responsibility. Review before Phase 2 launch.
+- **Phase 2 legal gate:** Before Phase 2 ships (managed users), the Power User conducts a structured self-review against this checklist (consultation with a privacy-experienced attorney is optional but recommended if any item is uncertain). **Pass criteria — all six items must be satisfied before Phase 2 ships:**
+  1. Each managed user signs (or clicks-through) a written acknowledgment that the Power User is configuring their protocols and can view their adherence data.
+  2. No managed user is a minor; no managed user lacks legal capacity to consent.
+  3. The data-export and account-deletion flows in §5.6 + §5.7 are verified working end-to-end for managed users (a managed user can request their data and have their account deleted by the Power User on demand).
+  4. The audit log (§5.7) records every admin action taken on a managed user's data, with the actor identity preserved.
+  5. The product framing in marketing or recruitment communications to family/friends is honest (no claim of clinical oversight, professional advice, or HIPAA coverage).
+  6. The Power User has reviewed their state-of-residence law for any provisions that materially apply to storing third-party health-adjacent data outside a clinical relationship.
+
+  If any item fails, Phase 2 does not ship until it is remediated. This is not a HIPAA obligation for personal use, but managing other people's health-adjacent data creates stewardship responsibility.
 - **Harm reduction:** All dosing content cites ranges; the product does not tell users what to take or prescribe protocols. Side effects and contraindications are documented.
 - **Sourcing as removable module:** Architecture keeps the ordering module isolatable. If regulatory landscape requires it, sourcing can be disabled without breaking the reference and tracker pillars.
 

@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-20  
 **Methodology:** deep | Depth: 5/5  
-**Status:** COMPLETE — all P1 fixes applied; Conditional Pass  
+**Status:** RE-REVIEWED 2026-05-20 — all P1 fixes from initial pass applied + 3 new P2 findings from re-review fixed; Full Pass  
 **Models:** Claude (Sonnet 4.6) + Codex (GPT-5.5) + Gemini (CLI timeout — excluded)
 
 ---
@@ -175,3 +175,57 @@ See `docs/reviews/prd/review-summary.md` for full synthesis.
   - Phase 2 legal gate must pass before Phase 2 stories are shipped
   - Telegram automation is v1 Must Have with mandatory manual fallback in every ordering flow
 - **Remaining P2/P3 after fixes:** ~6 polish items; none block User Stories
+
+---
+
+## Re-Review Pass — 2026-05-20 (auto-fix batch)
+
+**Reviewer**: Claude (Opus 4.7), single-channel re-review of the updated `docs/plan.md` (991 lines). Depth 5/strict. Auto-fix mode.
+
+### New findings
+
+| # | Severity | Finding | Location | Detection pass |
+|---|----------|---------|----------|----------------|
+| N1 | P2 | §6 Year 3 "Community reputation" measurement is "Community monitoring" — undefined operationally. No specification of *who* monitors, *what* counts as a reference, *cadence*, or *threshold*. Unactionable as written. | §6 Year 3 | Pass 4 (success criteria measurability) |
+| N2 | P2 | §7.5 Phase 2 legal gate says "conduct a precautionary review" but doesn't specify *who* conducts the review, *what* the review must cover, or *pass/fail* criteria. The gate is a phase blocker per §10 but cannot be evaluated as written. | §7.5 | Pass 6 (constraint & dependency documentation) |
+| N3 | P2 | §5.2.1 protocol lifecycle has a `deactivated` status but, unlike `paused` (explicitly excluded from "today's doses"), the behavior of `deactivated` on the managed user's dashboard is undefined. Also subsumes prior P2 finding 7.3 (protocol deactivation vs. pending doses). | §5.2.1, §5.5 | Pass 7 (error & edge case coverage) |
+
+### Regressions detected
+
+None. All P1 fixes from the initial review remain intact:
+- Order state machine (§5.4.4): Cancel + Stale auto-flag still in place
+- Invite lifecycle (§5.5): 72h expiry + resend + 4-state model still in place
+- `send_method` field (§5.4.3): still defined
+- Data retention matrix (§5.7): still complete
+- §1 quantitative evidence: still present
+- §7.1 Telegram rate limit constraint: still present
+
+### Fixes applied
+
+| Finding | Section edited | Why (root cause) | How (the change) |
+|---------|----------------|------------------|------------------|
+| N3 | §5.2.1 (protocol lifecycle) | The PRD specified four lifecycle states but only defined behavior transitions for three (active, paused, completed). `deactivated` was a "ghost state" — present in the type but undefined in behavior. Stories about admin-initiated protocol deactivation could not be written. | Added a full `Deactivated` lifecycle paragraph: terminal soft-delete, immediately excluded from "today's doses," visible in protocol list under "Inactive" filter, dose history preserved, cannot be resumed (clone to revive). Added a separate "Admin-initiated deactivation of a managed user's protocol" paragraph: dashboard refresh behavior, in-flight log handling (last-writer-wins), history preservation on the deactivated protocol. |
+| N1 | §6 Year 3 success criteria | "Community monitoring" with no operational detail meant the criterion could never be evaluated as pass/fail — purely aspirational language hiding inside a measurement table. | Replaced the measurement cell with a structured monitoring protocol: quarterly search of r/Peptides, r/Biohackers, r/longevity, and 2-3 biohacker Discord servers; what counts as a reference (unsolicited mention by a non-Power-User-affiliated user); explicit target (≥ 5 unsolicited references per quarter by end of Year 3); running log location (`docs/community-references.md`). |
+| N2 | §7.5 (regulatory & legal) | "Conduct a precautionary review" was conceptually correct but operationally a no-op. The Phase 2 phase gate (§10) referenced this review as a blocker, but the review itself was undefined — the gate could be silently waved through. | Rewrote the legal gate as a 6-item checklist with explicit pass criteria: (1) written acknowledgment from managed users, (2) no minors / no incapacity, (3) data-export and deletion flows verified end-to-end, (4) audit log captures admin actions with identity, (5) honest product framing in family/friends communications, (6) state-of-residence law review by the Power User. Added the explicit rule "if any item fails, Phase 2 does not ship until it is remediated." Attorney consultation is optional but recommended for uncertain items. |
+
+### Re-validation (post-fix)
+
+| Pass | Result |
+|------|--------|
+| Pass 1 — Problem Statement | No changes; still quantified with community + payment evidence. ✓ |
+| Pass 2 — Persona & Stakeholder | No changes; QSC external actor still documented. ✓ |
+| Pass 3 — Feature Scoping | No changes; in/out/deferred sections still complete. ✓ |
+| Pass 4 — Success Criteria | Year 3 community reputation now operationally measurable. ✓ |
+| Pass 5 — NFR Quantification | No changes; all 8 NFR subsections still quantified. ✓ |
+| Pass 6 — Constraint & Dependency | Phase 2 legal gate now operationally executable. ✓ |
+| Pass 7 — Error & Edge Cases | Protocol deactivation behavior now explicit, including admin-initiated mid-day deactivation. ✓ |
+| Pass 8 — Downstream Readiness | User stories for admin deactivation flow, Phase 2 gate, and community-reputation reporting can now be written without strategic clarification. ✓ |
+
+### Gate result (re-review)
+
+- **Gate**: **Full Pass** (upgraded from Conditional Pass)
+- **All P0/P1 items addressed** (carried from initial review)
+- **All P2/P3 items deemed actionable for v1 now fixed**
+- **Remaining known gaps** (deliberately retained):
+  - 4.2 (P2) — Spreadsheet decommission and DP support-burden are self-reported. Acceptable for a personal tool; no automated proxy available without invasive instrumentation.
+- **Re-trigger conditions for future review**: any change to the protocol lifecycle, any change to the Phase 2 legal posture, any change to multi-vendor or multi-user scope.

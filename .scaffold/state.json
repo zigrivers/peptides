@@ -414,10 +414,10 @@
         "docs/reviews/prd/codex-review.json",
         "docs/reviews/prd/gemini-review.json"
       ],
-      "at": "2026-05-20T16:52:41.937Z",
-      "completed_at": "2026-05-20T16:52:41.937Z",
-      "completed_by": "scaffold-run",
-      "depth": 5,
+      "at": "2026-05-21T00:02:32.938Z",
+      "completed_at": "2026-05-21T00:02:32.938Z",
+      "completed_by": "user",
+      "depth": 3,
       "artifacts_verified": true
     },
     "review-user-stories": {
@@ -771,6 +771,6 @@
     "new-enhancement"
   ],
   "extra-steps": [],
-  "save_counter": 113,
+  "save_counter": 115,
   "next_eligible_hash": "b0f96612b7489b4407a2f088950aeae539aca5bb924eab64281c9be389457d2e"
 }

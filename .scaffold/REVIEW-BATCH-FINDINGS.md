@@ -8,7 +8,7 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 | # | Step | Status | Findings | Fixed | Declined |
 |---|------|--------|----------|-------|----------|
 | 1 | review-vision | ✅ done | 6 (1×P1, 2×P2, 3×P3) | 6 | 1 retained (1.1) |
-| 2 | review-prd | pending | | | |
+| 2 | review-prd | ✅ done | 3 (3×P2) | 3 | 1 retained (4.2) |
 | 3 | review-user-stories | pending | | | |
 | 4 | review-domain-modeling | pending | | | |
 | 5 | review-adrs | pending | | | |
@@ -72,4 +72,37 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 **Files modified:**
 - `docs/vision.md` (+22 lines, -5 lines)
 - `docs/reviews/vision-review-vision.md` (+75 lines)
+
+---
+
+### Step 2: review-prd
+
+**Artifact**: `docs/plan.md` (991 → ~1008 lines after fixes)
+**Review log**: `docs/reviews/pre-review-prd.md`
+**Mode**: update / re-review
+**Gate result**: Conditional Pass → **Full Pass**
+
+**Findings raised (3 total):**
+
+| # | Severity | Finding | Section |
+|---|----------|---------|---------|
+| N1 | P2 | §6 Year 3 "Community reputation" measurement undefined operationally (no who/what/cadence/threshold) | §6 |
+| N2 | P2 | §7.5 Phase 2 legal gate has no specified reviewer, scope, or pass/fail criteria | §7.5 |
+| N3 | P2 | §5.2.1 protocol lifecycle has `deactivated` status with undefined dashboard behavior; subsumes prior P2 7.3 | §5.2.1 + §5.5 |
+
+**Findings fixed (3):**
+
+1. **N3 — Deactivated protocol behavior (P2)** — Added a full Deactivated paragraph (terminal soft-delete, immediately excluded from "today's doses," visible under Inactive filter, dose history preserved, not resumable — clone to revive). Added a separate "Admin-initiated deactivation of a managed user's protocol" paragraph defining dashboard refresh behavior and in-flight log handling. **Why this is the right fix:** the lifecycle type had four states but only three were behaviorally specified — `deactivated` was a "ghost state" that stories couldn't be written against. Defining both the protocol-level behavior and the admin-initiated mid-day variant closes the loop completely.
+2. **N1 — Community reputation operationalized (P2)** — Replaced "Community monitoring" with a quarterly monitoring protocol: 3 named subreddits + 2-3 biohacker Discords; counts only unsolicited mentions by non-Power-User-affiliated users; target ≥ 5 references per quarter by end of Year 3; log location `docs/community-references.md`. **Why:** the prior text was aspirational language hiding inside a measurement column; without a protocol, the criterion could never be evaluated as pass/fail.
+3. **N2 — Phase 2 legal gate operationalized (P2)** — Rewrote the gate as a 6-item checklist with hard-pass criteria: (1) written managed-user acknowledgment, (2) no minors/incapacity, (3) data-export + deletion flows verified, (4) audit log integrity, (5) honest product framing, (6) state-law review. Added the rule "if any item fails, Phase 2 does not ship." **Why:** the Phase 2 gate in §10 referenced this review as a blocker, but the review itself was undefined — the gate could be silently waved through. The checklist makes the gate falsifiable.
+
+**Intentionally retained / declined (1):**
+
+- **4.2 (P2)** — Spreadsheet decommissioning and DP support-burden metrics are self-reported. *Why retained:* acceptable for a personal tool; no automated proxy available without invasive instrumentation (which would violate the privacy principle).
+
+**Regressions from prior review:** None. All 6 P1 fixes from the initial review remain intact.
+
+**Files modified:**
+- `docs/plan.md` (+18 lines, -3 lines)
+- `docs/reviews/pre-review-prd.md` (+50 lines)
 
