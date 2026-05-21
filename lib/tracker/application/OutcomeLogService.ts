@@ -12,13 +12,13 @@ function utcMidnightDaysAgo(days: number): Date {
 }
 
 export async function getSevenDayRatingAverage(userId: string): Promise<number | null> {
-  const since = utcMidnightDaysAgo(7);
-  const today = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 1));
+  const since = utcMidnightDaysAgo(6); // today + 6 preceding days = 7 days inclusive
+  const tomorrow = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 1));
 
   const logs = await prisma.outcomeLog.findMany({
     where: {
       userId,
-      scheduledDate: { gte: since, lt: today },
+      scheduledDate: { gte: since, lt: tomorrow },
     },
     select: { overallRating: true },
   });
@@ -29,13 +29,13 @@ export async function getSevenDayRatingAverage(userId: string): Promise<number |
 }
 
 export async function getSevenDayAdherence(userId: string): Promise<AdherenceResult> {
-  const since = utcMidnightDaysAgo(7);
-  const today = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 1));
+  const since = utcMidnightDaysAgo(6); // today + 6 preceding days = 7 days inclusive
+  const tomorrow = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 1));
 
   const logs = await prisma.doseLog.findMany({
     where: {
       userId,
-      scheduledDate: { gte: since, lt: today },
+      scheduledDate: { gte: since, lt: tomorrow },
       status: { in: ['LOGGED', 'SKIPPED'] },
     },
     select: { status: true },

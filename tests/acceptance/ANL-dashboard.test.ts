@@ -130,26 +130,27 @@ describe('US-ANL-01: Stack Overview Dashboard', () => {
   });
 
   describe('Vial inventory badge — 14-day threshold', () => {
-    it('AC-2: vial with daysUntilExpiry < 14 appears in low-supply list', () => {
-      const daysUntilExpiry = 10;
-      expect(daysUntilExpiry).toBeLessThan(14);
+    const LOW_SUPPLY_DAYS = 14;
+
+    function isLowSupply(v: { daysUntilExpiry: number | null; badges: string[] }): boolean {
+      if (v.badges.some((b) => b === 'LOW_INVENTORY' || b === 'EXPIRED')) return true;
+      return v.daysUntilExpiry !== null && v.daysUntilExpiry < LOW_SUPPLY_DAYS;
+    }
+
+    it('AC-2: vial expiring in 10 days (daysUntilExpiry=10) is low-supply', () => {
+      expect(isLowSupply({ daysUntilExpiry: 10, badges: [] })).toBe(true);
     });
 
-    it('AC-2: vial with daysUntilExpiry >= 14 does not appear in low-supply list', () => {
-      const daysUntilExpiry = 20;
-      expect(daysUntilExpiry).toBeGreaterThanOrEqual(14);
+    it('AC-2: vial expiring in 20 days with no badges is not low-supply', () => {
+      expect(isLowSupply({ daysUntilExpiry: 20, badges: [] })).toBe(false);
     });
 
-    it('AC-2: vial with LOW_INVENTORY badge appears in low-supply list even if expiresAt is beyond 14 days', () => {
-      const badges: string[] = ['LOW_INVENTORY'];
-      const isLowSupply = badges.some((b) => b === 'LOW_INVENTORY' || b === 'EXPIRED') || 20 < 14;
-      expect(isLowSupply).toBe(true);
+    it('AC-2: vial with LOW_INVENTORY badge is low-supply regardless of expiry', () => {
+      expect(isLowSupply({ daysUntilExpiry: 20, badges: ['LOW_INVENTORY'] })).toBe(true);
     });
 
-    it('AC-2: vial with EXPIRED badge appears in low-supply list', () => {
-      const badges: string[] = ['EXPIRED'];
-      const isLowSupply = badges.some((b) => b === 'LOW_INVENTORY' || b === 'EXPIRED') || -2 < 14;
-      expect(isLowSupply).toBe(true);
+    it('AC-2: vial with EXPIRED badge is low-supply regardless of daysUntilExpiry', () => {
+      expect(isLowSupply({ daysUntilExpiry: null, badges: ['EXPIRED'] })).toBe(true);
     });
   });
 

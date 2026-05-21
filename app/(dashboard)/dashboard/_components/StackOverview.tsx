@@ -32,13 +32,15 @@ function RatingStars({ rating }: { rating: number }) {
 }
 
 function StaleIndicator({ fetchedAt }: { fetchedAt: string }) {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
 
+  if (now === null) return null;
   const fetchedDate = new Date(fetchedAt);
   const minutesAgo = Math.floor((now - fetchedDate.getTime()) / 60_000);
   if (minutesAgo < 30) return null;
@@ -50,6 +52,32 @@ function StaleIndicator({ fetchedAt }: { fetchedAt: string }) {
     >
       &#9888; Last refreshed {fetchedDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
     </p>
+  );
+}
+
+function ManagedUserActiveView({ weekInfo, fetchedAt }: { weekInfo: CycleWeekInfo | null; fetchedAt: string }) {
+  return (
+    <div className="space-y-4">
+      {weekInfo && (
+        <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Current Cycle</p>
+          <p className="text-lg font-bold text-gray-900">
+            {weekInfo.cycleName} — Week {weekInfo.weekNumber}
+            {weekInfo.totalWeeks && (
+              <span className="text-gray-400 font-normal text-sm"> of {weekInfo.totalWeeks}</span>
+            )}
+          </p>
+          <StaleIndicator fetchedAt={fetchedAt} />
+        </div>
+      )}
+      <Link
+        href="/tracker"
+        className="block rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-6 hover:bg-indigo-100 transition-colors shadow-sm text-center"
+      >
+        <p className="text-base font-semibold text-indigo-700">View Today&#x27;s Doses &rarr;</p>
+        <p className="text-sm text-indigo-500 mt-1">Confirm or skip your scheduled doses</p>
+      </Link>
+    </div>
   );
 }
 
@@ -104,6 +132,10 @@ export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActive
 
   if (!hasActiveProtocols) {
     return <EmptyState userRole={userRole} />;
+  }
+
+  if (userRole === 'MANAGED_USER') {
+    return <ManagedUserActiveView weekInfo={weekInfo} fetchedAt={fetchedAt} />;
   }
 
   return (
