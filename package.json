@@ -7,14 +7,21 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test",
     "eval": "vitest run tests/evals",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm prisma:validate",
+    "db:setup": "docker compose up -d && pnpm prisma migrate dev",
+    "db:reset": "pnpm prisma migrate reset --force",
     "prisma:dev": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",

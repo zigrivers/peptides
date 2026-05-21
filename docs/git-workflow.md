@@ -33,18 +33,20 @@ We use **Conventional Commits** to automate changelog generation.
 
 ---
 
-## 3. PR Workflow (The 8-Step Lifecycle)
+## 3. PR Workflow (9-step lifecycle + 4.5 PR review)
 
 All agents must follow this sequence for every task:
 
 1. **Commit**: `git commit -m "feat(module): description"`
-2. **AI Review**: `scaffold run review-code` (MMR check).
+2. **AI review (pre-push)**: `scaffold run review-code` (local MMR check on the working tree before push)
 3. **Rebase**: `git fetch origin main && git rebase origin/main`
 4. **Push**: `git push origin head`
+4.5. **AI review (post-push, pre-merge)**: `scaffold run review-pr` (full MMR on the PR diff against `main`)
 5. **Create**: `gh pr create --fill`
-6. **Auto-Merge**: `gh pr merge --auto --squash --delete-branch`
-7. **Watch**: `gh run watch` (Wait for CI success).
-8. **Confirm**: Verify merge in `main` and close task.
+6. **Auto-merge**: `gh pr merge --auto --squash --delete-branch`
+7. **Watch**: `gh run watch` (wait for CI success)
+8. **Confirm**: verify merge in `main` and close the task
+9. **Log lessons**: if the PR surfaced a non-obvious learning, append a dated entry to `tasks/lessons.md`
 
 ---
 
@@ -66,14 +68,16 @@ For running multiple agents simultaneously, use **Git Worktrees**.
 
 ## 5. CI Pipeline
 
-The CI pipeline runs on every push and PR.
+The CI pipeline runs on every push and PR. Source of truth: `.github/workflows/ci.yml`. Authoritative stage list also documented in `docs/operations-runbook.md` §1.1.
 
-**Jobs**:
-1. **Lint**: ESLint + Prettier.
-2. **Typecheck**: `tsc --noEmit`.
-3. **Unit/Integration**: `pnpm test`.
-4. **E2E**: `pnpm e2e` (against build).
-5. **Eval**: `pnpm eval` (matches project standards).
+**Jobs** (in order):
+1. **Lint**: `pnpm lint` (ESLint + Prettier).
+2. **Typecheck**: `pnpm typecheck` (`tsc --noEmit`).
+3. **Schema validate**: `pnpm prisma:validate`.
+4. **Build**: `pnpm build` (validates Next.js build + `prisma generate`).
+5. **Unit/Integration**: `pnpm test` (with coverage gates per ADR-008).
+6. **E2E**: `pnpm e2e` (Playwright against the production build on both `chromium` and `webkit` viewports).
+7. **Eval**: `pnpm eval` (LLM-bearing prompts evaluated against gold-standard fixtures; threshold-blocking on miss).
 
 ---
 

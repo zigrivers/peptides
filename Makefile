@@ -21,7 +21,8 @@ lint: ## Run ESLint and Prettier checks
 typecheck: ## Run TypeScript compiler check
 	pnpm typecheck
 
-check: lint typecheck test ## Run all quality gates
+check: lint typecheck test ## Run all quality gates (lint + typecheck + test)
+	pnpm prisma:validate
 
 eval: ## Run automated checks
 	pnpm eval

@@ -20,7 +20,7 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 | 11 | review-operations | ✅ done | 12 (6×P1, 4×P2, 2×P3) | 12 | 0 |
 | 12 | review-security | ✅ done | 12 (1×regression, 5×P1, 4×P2, 2×P3) | 12 | 0 |
 | 13 | platform-parity-review | ✅ done | 10 (5×P1 regression + 4×P2 + 1×P3 new) | 10 | 0 |
-| 14 | workflow-audit | pending | | | |
+| 14 | workflow-audit | ✅ done | 8 (6×P1, 2×P2) | 8 | 0 |
 | 15 | implementation-plan-review | pending | | | |
 | 16 | cross-phase-consistency | pending | | | |
 | 17 | decision-completeness | pending | | | |

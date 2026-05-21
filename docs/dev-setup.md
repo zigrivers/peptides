@@ -34,11 +34,14 @@ The app will be running at [http://localhost:3000](http://localhost:3000).
 
 | Task | Command |
 |------|---------|
-| Start dev server | `pnpm dev` |
+| Start dev server | `pnpm dev` (or `make dev`) |
 | Run all tests | `pnpm test` |
 | Run E2E tests | `pnpm e2e` |
-| Run quality gates | `pnpm check` |
-| Reset database | `pnpm db:reset` |
+| Run evals | `pnpm eval` |
+| Run quality gates | `pnpm check` (or `make check`) — runs lint + typecheck + test + schema validate |
+| Set up local DB | `pnpm db:setup` (or `make db-setup`) |
+| Reset database | `pnpm db:reset` (or `make db-reset`) |
+| Generate Prisma client | `pnpm prisma:generate` |
 
 ## 4. Environment Variables
 

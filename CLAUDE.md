@@ -15,19 +15,24 @@
 | Run E2E | `pnpm e2e` |
 | DB Setup | `make db-setup` |
 
-## Git & PR Workflow
+## Git & PR Workflow (9-step lifecycle + 4.5 PR review)
 1. **Commit**: `type(scope): desc`.
-2. **Review**: `scaffold run review-code` (MMR check).
+2. **Review code (pre-push)**: `scaffold run review-code` (local MMR check).
 3. **Rebase**: `git fetch origin main && git rebase origin/main`.
 4. **Push**: `git push origin head`.
+4.5. **Review PR (post-push, pre-merge)**: `scaffold run review-pr` (full MMR on the PR diff).
 5. **Create**: `gh pr create --fill`.
 6. **Auto-Merge**: `gh pr merge --auto --squash --delete-branch`.
 7. **Watch**: `gh run watch` (Wait for CI success).
-8. **Parallel**: Create worktree: `./scripts/setup-agent-worktree.sh <name>`.
+8. **Confirm**: verify merge in `main`; close the task.
+9. **Log lessons**: if the PR surfaced a non-obvious learning, append a dated entry to `tasks/lessons.md`.
+
+**Parallel sessions**: create worktree with `./scripts/setup-agent-worktree.sh <name>`.
 
 ## Project Rules & Memory
 - **Rules**: Path-scoped conventions in `.claude/rules/`.
 - **Memory**: Captured in `.claude/memory-graph.json` via MCP.
+- **Lessons**: `tasks/lessons.md` — append a dated entry after any PR with a non-obvious learning.
 - **Standards**: Reference `docs/coding-standards.md` and `docs/tdd-standards.md`.
 
 ## Doc Lookup Reference
