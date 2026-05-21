@@ -64,7 +64,7 @@ All 6 (Phase 1) + 1 (Phase 3) cron jobs registered in ADR-012 are monitored by S
 
 | Job | Expected check-in window | Action on miss |
 |-----|--------------------------|----------------|
-| Dose reminder dispatch | Every 15 min ± 5 min | P1 alert; check Railway Cron logs + Resend status |
+| Dose reminder dispatch | Every 15 min ± 5 min — resolution window is `[userLocalNow - 15min, userLocalNow)` (half-open, prevents duplicate dispatch on adjacent ticks) | P1 alert; check Railway Cron logs + Resend status |
 | Stale order auto-flag | Daily ± 1 hour | P2 alert; check job logs |
 | Audit purge | Daily ± 1 hour | P1 alert (regulatory implications); investigate immediately |
 | Backup verify | Daily ± 1 hour | P0 alert (no backup = no DR); page on-call |

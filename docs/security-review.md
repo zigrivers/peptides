@@ -38,7 +38,7 @@
 | 11 | Power User → Account deletion | **Repudiation**: family member denies their data was deleted | US-ADM-04 mandates export-to-admin before deletion + audit event preserved with subjectUserId |
 | 12 | API ↔ user | **Denial of Service (auth brute-force)**: credential stuffing | Per-IP rate limit 5 attempts / 15 min on `/api/auth/*`; CAPTCHA fallback after 3 failures from same IP |
 | 13 | Vendor (Telegram bot) → Server | **Information Disclosure (vendor compromise)** | Vendor messages are treated as untrusted; payment amount + wallet address MUST be re-entered manually by the user (cannot be auto-parsed in v1) |
-| 14 | Power User → Payment confirmation | **Tampering (UI replay attack)**: malicious browser ext autosubmits the safety gate | Server-side `acknowledged: true` check + recent-vendor-wallet display + 60s duplicate-send protection at server |
+| 14 | Power User → Payment confirmation | **Tampering (UI replay attack)**: malicious browser ext autosubmits the safety gate | Server-side `acknowledged: true` check + recent-vendor-wallet display + 60s duplicate-send protection at server. **Limitation**: the server cannot verify the UI actually displayed wallet + amount before submit; the client-side gate is best-effort. Server-side enforcement (idempotency, wallet-non-empty, amount-non-zero) is the real layer. A user whose own browser submits without seeing the gate is a "user attacks themselves" scenario — accepted residual risk. |
 
 ---
 
