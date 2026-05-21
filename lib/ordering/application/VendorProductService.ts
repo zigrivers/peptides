@@ -93,7 +93,8 @@ export async function updateVendorProduct(input: UpdateVendorProductInput): Prom
       const row = await tx.vendorProduct.findFirst({
         where: { id: input.productId, vendor: { userId: input.userId } },
       });
-      return toVendorProduct(row!);
+      if (!row) throw new Error('product_not_found');
+      return toVendorProduct(row);
     },
     (result) => ({
       actorUserId: input.userId,

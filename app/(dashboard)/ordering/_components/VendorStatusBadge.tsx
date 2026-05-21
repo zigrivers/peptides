@@ -1,5 +1,7 @@
+import type { VendorStatus } from '@/lib/ordering/domain/types';
+
 interface Props {
-  status: string;
+  status: VendorStatus;
 }
 
 export function VendorStatusBadge({ status }: Props) {

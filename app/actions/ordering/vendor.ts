@@ -4,11 +4,12 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { createVendor, updateVendor, disableVendor } from '@/lib/ordering/application/VendorService';
+import { VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
 
 const CreateVendorSchema = z.object({
   name: z.string().min(1).max(100),
   telegramUsername: z.string().min(1).max(100),
-  preferredCurrency: z.enum(['USDT', 'BTC', 'ETH', 'USD', 'Other']),
+  preferredCurrency: z.enum(VENDOR_CURRENCIES),
   messageTemplate: z.string().max(5000).optional(),
 });
 

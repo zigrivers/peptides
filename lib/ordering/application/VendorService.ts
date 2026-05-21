@@ -78,7 +78,8 @@ export async function updateVendor(
       });
       if (count === 0) throw new Error('vendor_not_found');
       const row = await tx.vendor.findFirst({ where: { id: vendorId, userId } });
-      return toVendor(row!);
+      if (!row) throw new Error('vendor_not_found');
+      return toVendor(row);
     },
     (result) => ({
       actorUserId: userId,

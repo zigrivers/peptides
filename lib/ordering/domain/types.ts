@@ -1,5 +1,8 @@
 export type VendorStatus = 'ACTIVE' | 'DISABLED';
 
+export const VENDOR_CURRENCIES = ['USDT', 'BTC', 'ETH', 'USD', 'Other'] as const;
+export type VendorCurrency = (typeof VENDOR_CURRENCIES)[number];
+
 export interface Vendor {
   id: string;
   userId: string;

@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createVendorAction } from '@/app/actions/ordering/vendor';
-
-const CURRENCIES = ['USDT', 'BTC', 'ETH', 'USD', 'Other'] as const;
+import { VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
 
 export function CreateVendorForm() {
   const router = useRouter();
@@ -75,7 +74,7 @@ export function CreateVendorForm() {
           defaultValue="USDT"
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
         >
-          {CURRENCIES.map((c) => (
+          {VENDOR_CURRENCIES.map((c) => (
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
