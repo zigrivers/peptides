@@ -42,7 +42,7 @@ export async function confirmPasswordReset(input: ConfirmPasswordResetInput): Pr
 
       await tx.user.update({
         where: { id: record.userId },
-        data: { passwordHash: newHash.toString() },
+        data: { passwordHash: newHash.toString(), passwordVersion: { increment: 1 } },
       });
 
       return record.userId;

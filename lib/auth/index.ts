@@ -58,18 +58,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       // Subsequent requests: validate that passwordVersion in the JWT still matches
-      // the DB. A mismatch means the password was changed → revoke this session by
+      // the DB. A mismatch, missing claim, or deleted user revokes this session by
       // removing id/role so the session callback returns a session without user.id,
       // which middleware treats as unauthenticated.
-      if (token.id && typeof token.passwordVersion === 'number') {
+      if (token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id },
           select: { passwordVersion: true },
         });
-        if (dbUser && dbUser.passwordVersion !== token.passwordVersion) {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id: _id, role: _role, passwordVersion: _pv, ...rest } = token;
-          return rest;
+        const shouldRevoke =
+          !dbUser ||
+          typeof token.passwordVersion !== 'number' ||
+          dbUser.passwordVersion !== token.passwordVersion;
+        if (shouldRevoke) {
+          const stripped = { ...token };
+          delete stripped.id;
+          delete stripped.role;
+          delete stripped.passwordVersion;
+          return stripped;
         }
       }
 

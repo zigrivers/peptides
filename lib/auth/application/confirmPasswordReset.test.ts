@@ -84,11 +84,14 @@ describe('confirmPasswordReset', () => {
     expect(mockClaimById).toHaveBeenCalledWith(fakeTx, 'rec-1', 'user-1');
   });
 
-  it('updates user password on success', async () => {
+  it('updates user password and increments passwordVersion on success', async () => {
     mockFindByRawToken.mockResolvedValue(validRecord);
     await confirmPasswordReset({ rawToken: 'valid-token', newPassword: 'ValidPassword123' });
     expect(mockUserUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'user-1' } })
+      expect.objectContaining({
+        where: { id: 'user-1' },
+        data: expect.objectContaining({ passwordVersion: { increment: 1 } }),
+      })
     );
   });
 
