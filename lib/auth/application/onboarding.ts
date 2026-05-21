@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/shared/prisma';
+import { withAudit } from '@/lib/audit/application/withAudit';
 
 export type PowerUserStep = 'browse_catalog' | 'create_protocol' | 'telegram_setup' | 'completed';
 export type ManagedUserStep = 'view_schedule' | 'log_first_dose' | 'completed';
@@ -31,11 +32,41 @@ export async function advanceOnboardingStep(
       ? { step: 'completed' as const, completedAt: new Date().toISOString(), dismissed: false }
       : { step: nextStep, dismissed: false };
 
-  await prisma.user.update({ where: { id: userId }, data: { onboardingState: state } });
+  await withAudit(
+    async (tx) => {
+      await (tx as { user: typeof prisma['user'] }).user.update({
+        where: { id: userId },
+        data: { onboardingState: state },
+      });
+    },
+    {
+      actorUserId: userId,
+      category: 'Auth' as const,
+      action: 'ONBOARDING_STEP_ADVANCED' as const,
+      resourceId: userId,
+      resourceType: 'User',
+      metadata: { step: nextStep },
+    }
+  );
 }
 
 export async function dismissOnboarding(userId: string): Promise<void> {
   const current = await getOnboardingState(userId);
   const state = { ...(current ?? { step: 'completed' as const, dismissed: true }), dismissed: true };
-  await prisma.user.update({ where: { id: userId }, data: { onboardingState: state } });
+
+  await withAudit(
+    async (tx) => {
+      await (tx as { user: typeof prisma['user'] }).user.update({
+        where: { id: userId },
+        data: { onboardingState: state },
+      });
+    },
+    {
+      actorUserId: userId,
+      category: 'Auth' as const,
+      action: 'ONBOARDING_DISMISSED' as const,
+      resourceId: userId,
+      resourceType: 'User',
+    }
+  );
 }

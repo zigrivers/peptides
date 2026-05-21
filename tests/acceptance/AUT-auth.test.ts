@@ -4,14 +4,21 @@ import { authConfig } from '@/lib/auth/auth.config';
 
 const mockUserFindUnique = vi.fn();
 const mockUserUpdate = vi.fn();
+const mockWithAudit = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
     user: { findUnique: mockUserFindUnique, update: mockUserUpdate },
   },
 }));
+vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }));
 
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>) =>
+    mutation({ user: { update: mockUserUpdate } })
+  );
+});
 
 const { getOnboardingState, advanceOnboardingStep, dismissOnboarding } = await import(
   '@/lib/auth/application/onboarding'
