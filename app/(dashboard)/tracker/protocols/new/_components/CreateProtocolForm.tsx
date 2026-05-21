@@ -9,14 +9,16 @@ type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 const DAYS: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 type ManagedUser = { id: string; name: string | null; email: string };
+type CycleOption = { id: string; name: string };
 
 type Props = {
   compounds: Compound[];
   managedUsers: ManagedUser[];
   currentUserId: string;
+  cyclesByUserId: Record<string, CycleOption[]>;
 };
 
-export function CreateProtocolForm({ compounds, managedUsers, currentUserId }: Props) {
+export function CreateProtocolForm({ compounds, managedUsers, currentUserId, cyclesByUserId }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +31,13 @@ export function CreateProtocolForm({ compounds, managedUsers, currentUserId }: P
   const [intervalDays, setIntervalDays] = useState(2);
   const [adminRoute, setAdminRoute] = useState('SubQ');
   const [startDate, setStartDate] = useState('');
+  const [cycleId, setCycleId] = useState('');
   const [subjectUserId, setSubjectUserId] = useState(currentUserId);
+
+  function handleSubjectChange(newSubjectId: string) {
+    setSubjectUserId(newSubjectId);
+    setCycleId(''); // different subjects have different cycles — always reset
+  }
   const [notes, setNotes] = useState('');
 
   function toggleDay(day: DayOfWeek) {
@@ -54,6 +62,7 @@ export function CreateProtocolForm({ compounds, managedUsers, currentUserId }: P
     const input = {
       subjectUserId,
       compoundId,
+      cycleId: cycleId || undefined,
       dose: { amount: doseAmount, unit: doseUnit },
       schedule: buildSchedule(),
       administrationRoute: adminRoute,
@@ -93,7 +102,7 @@ export function CreateProtocolForm({ compounds, managedUsers, currentUserId }: P
           <select
             id="subject"
             value={subjectUserId}
-            onChange={(e) => setSubjectUserId(e.target.value)}
+            onChange={(e) => handleSubjectChange(e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             {allUsers.map((u) => (
@@ -249,6 +258,26 @@ export function CreateProtocolForm({ compounds, managedUsers, currentUserId }: P
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
+
+      {/* Cycle */}
+      {(cyclesByUserId[subjectUserId] ?? []).length > 0 && (
+        <div>
+          <label htmlFor="cycle" className="block text-sm font-medium text-gray-700 mb-1">
+            Cycle <span className="text-gray-400">(optional)</span>
+          </label>
+          <select
+            id="cycle"
+            value={cycleId}
+            onChange={(e) => setCycleId(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">No cycle</option>
+            {(cyclesByUserId[subjectUserId] ?? []).map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Notes */}
       <div>

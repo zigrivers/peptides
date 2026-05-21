@@ -54,8 +54,12 @@ export async function createProtocol(input: CreateProtocolInput): Promise<Protoc
   validateCreateInput(input);
 
   return withAudit(
-    async (tx) =>
-      createProtocolRecord(tx, {
+    async (tx) => {
+      if (input.cycleId) {
+        const cycle = await tx.cycle.findFirst({ where: { id: input.cycleId, userId: input.subjectUserId, status: 'ACTIVE' } });
+        if (!cycle) throw new Error(`cycle_not_found: cycle does not belong to this user or is not active`);
+      }
+      return createProtocolRecord(tx, {
         userId: input.subjectUserId,
         compoundId: input.compoundId,
         cycleId: input.cycleId,
@@ -65,7 +69,8 @@ export async function createProtocol(input: CreateProtocolInput): Promise<Protoc
         startDate: input.startDate,
         endDate: input.endDate,
         notes: input.notes,
-      }),
+      });
+    },
     (protocol) => ({
       actorUserId: input.actorUserId,
       subjectUserId: input.subjectUserId,

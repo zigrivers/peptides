@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
 import { getDueTodayForBatch } from '@/lib/tracker/application/BatchLogService';
+import { getCurrentWeekInfo } from '@/lib/tracker/application/CycleService';
 import { findCompoundsByIds } from '@/lib/reference/infrastructure/CompoundRepo';
 import type { Protocol } from '@/lib/tracker/domain/types';
 import { formatSchedule } from '@/lib/tracker/domain/formatters';
@@ -28,9 +29,10 @@ export default async function TrackerPage() {
 
   const userId = session.user.id;
 
-  const [protocols, dueToday] = await Promise.all([
+  const [protocols, dueToday, weekInfo] = await Promise.all([
     getProtocolsForUser(userId),
     getDueTodayForBatch(userId),
+    getCurrentWeekInfo(userId),
   ]);
 
   // Resolve compound names for batch review display — single bulk query
@@ -46,6 +48,27 @@ export default async function TrackerPage() {
       {dueToday.length > 0 && (
         <section>
           <BatchLogReview items={dueToday} compoundNames={compoundNames} />
+        </section>
+      )}
+
+      {weekInfo && (
+        <section>
+          <Link
+            href="/tracker/cycles"
+            className="flex items-center justify-between rounded-lg bg-indigo-50 border border-indigo-200 px-4 py-3 hover:bg-indigo-100 transition-colors"
+          >
+            <div>
+              <p className="text-xs text-indigo-500 font-medium uppercase tracking-wide">Active Cycle</p>
+              <p className="text-sm font-semibold text-indigo-800 mt-0.5">
+                {weekInfo.cycleName}
+                {' — '}
+                {weekInfo.totalWeeks
+                  ? `Week ${weekInfo.weekNumber} of ${weekInfo.totalWeeks}`
+                  : `Week ${weekInfo.weekNumber}`}
+              </p>
+            </div>
+            <span className="text-indigo-400 text-sm">→</span>
+          </Link>
         </section>
       )}
 

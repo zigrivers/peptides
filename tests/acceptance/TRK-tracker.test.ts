@@ -12,6 +12,10 @@ const mockDoseLogFindMany = vi.fn();
 const mockDoseLogUpdate = vi.fn();
 const mockVialCount = vi.fn();
 const mockVialFindFirst = vi.fn();
+const mockCycleCreate = vi.fn();
+const mockCycleFindFirst = vi.fn();
+const mockCycleFindMany = vi.fn();
+const mockCycleUpdateMany = vi.fn();
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 vi.mock('@/lib/shared/prisma', () => ({
@@ -39,6 +43,11 @@ vi.mock('@/lib/shared/prisma', () => ({
       count: mockVialCount,
       findFirst: mockVialFindFirst,
     },
+    cycle: {
+      create: mockCycleCreate,
+      findFirst: mockCycleFindFirst,
+      findMany: mockCycleFindMany,
+    },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
         protocol: {
@@ -46,10 +55,12 @@ vi.mock('@/lib/shared/prisma', () => ({
           update: mockProtocolUpdate,
           updateMany: mockProtocolUpdateMany,
           findFirst: mockProtocolFindFirst,
+          findMany: mockProtocolFindMany,
         },
         auditEvent: { create: mockAuditCreate },
         user: { findMany: mockUserFindMany },
         doseLog: { create: mockDoseLogCreate, updateMany: mockDoseLogUpdate, findFirst: mockDoseLogFindFirst },
+        cycle: { create: mockCycleCreate, findFirst: mockCycleFindFirst, findMany: mockCycleFindMany, updateMany: mockCycleUpdateMany },
       };
       return fn(tx);
     }),
@@ -72,6 +83,7 @@ const { logDose } = await import('@/lib/tracker/application/DoseLogService');
 const { batchLogDoses, getDueTodayForBatch } = await import('@/lib/tracker/application/BatchLogService');
 const { getSitesForRoute, suggestNextSite, getSitesMeta } = await import('@/lib/tracker/domain/SiteRotation');
 const { getSiteSuggestion } = await import('@/lib/tracker/application/SiteRotationService');
+const { createCycle, getCyclesForUser, getCurrentWeekInfo, restartCycle } = await import('@/lib/tracker/application/CycleService');
 
 const actorUserId = 'user-1';
 const compoundId = 'compound-bpc157';
@@ -265,6 +277,24 @@ describe('US-TRK-01: Create and Edit Protocol', () => {
       });
 
       expect(result.schedule.frequency).toBe('CustomInterval');
+    });
+
+    it('AC-3: throws if cycleId references a COMPLETED cycle', async () => {
+      // DB query includes status: 'ACTIVE' filter — COMPLETED cycle returns null.
+      mockCycleFindFirst.mockResolvedValue(null);
+
+      await expect(
+        createProtocol({
+          actorUserId,
+          subjectUserId: actorUserId,
+          compoundId,
+          cycleId: 'cycle-done',
+          dose: { amount: '250', unit: 'mcg' },
+          schedule: { frequency: 'Daily' },
+          administrationRoute: 'SubQ',
+          startDate: new Date('2026-06-01'),
+        })
+      ).rejects.toThrow(/cycle_not_found/i);
     });
   });
 
@@ -580,9 +610,144 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
     });
   });
 
-  // AC-4 (Restart Cycle) deferred to Task 2.5 — requires Cycle domain and
-  // cycleId FK infrastructure that does not exist yet in this wave.
-  it.todo('AC-4: restartCycle clones all cycle protocols to new start date and emits CycleRestarted event');
+  describe('AC-4: restartCycle', () => {
+    const FROZEN_NOW = new Date(Date.UTC(2026, 4, 21));
+    beforeEach(() => { vi.setSystemTime(FROZEN_NOW); });
+    afterAll(() => { vi.useRealTimers(); });
+
+    const oldCycleId = 'cycle-old';
+    const newStartDate = new Date(Date.UTC(2026, 7, 1)); // 2026-08-01
+
+    const cycleRow = {
+      id: oldCycleId,
+      userId: actorUserId,
+      name: 'Round 1',
+      startDate: new Date(Date.UTC(2026, 4, 1)),
+      endDate: new Date(Date.UTC(2026, 6, 31)),
+      status: 'ACTIVE',
+    };
+
+    const protocolInCycle = {
+      ...baseProtocolRow,
+      id: 'proto-cycle-1',
+      cycleId: oldCycleId,
+    };
+
+    const clonedProtocolRow = {
+      ...protocolInCycle,
+      id: 'proto-cycle-1-clone',
+      cycleId: 'cycle-new',
+      startDate: newStartDate,
+      endDate: null,
+    };
+
+    const newCycleRow = {
+      id: 'cycle-new',
+      userId: actorUserId,
+      name: 'Round 1',
+      startDate: newStartDate,
+      endDate: null,
+      status: 'ACTIVE',
+    };
+
+    it('clones all active cycle protocols to new start date and emits CycleRestarted', async () => {
+      mockCycleFindFirst.mockResolvedValue(cycleRow);
+      mockProtocolFindMany.mockResolvedValue([protocolInCycle]);
+      mockProtocolUpdateMany.mockResolvedValue({ count: 1 });
+      mockCycleUpdateMany.mockResolvedValue({ count: 1 });
+      mockCycleCreate.mockResolvedValue(newCycleRow);
+      mockProtocolCreate.mockResolvedValue(clonedProtocolRow);
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await restartCycle({ actorUserId, cycleId: oldCycleId, newStartDate });
+
+      expect(result.newCycle.startDate).toEqual(newStartDate);
+      expect(result.clonedProtocols).toHaveLength(1);
+      expect(mockProtocolCreate).toHaveBeenCalledTimes(1);
+      // Old protocols are completed before cloning.
+      expect(mockProtocolUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'COMPLETED' } })
+      );
+      // Old cycle is completed within the same transaction.
+      expect(mockCycleUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'COMPLETED' } })
+      );
+      expect(mockAuditCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: 'CYCLE_RESTARTED' }) })
+      );
+    });
+
+    it('throws if cycle not found', async () => {
+      mockCycleFindFirst.mockResolvedValue(null);
+      await expect(restartCycle({ actorUserId, cycleId: 'nonexistent', newStartDate })).rejects.toThrow(/cycle_not_found/i);
+    });
+
+    it('includes COMPLETED protocols in clone when restarting an active cycle', async () => {
+      const completedProtocolInActiveCycle = { ...protocolInCycle, id: 'proto-completed-early', status: 'COMPLETED' };
+
+      mockCycleFindFirst.mockResolvedValue(cycleRow);
+      mockProtocolFindMany.mockResolvedValue([protocolInCycle, completedProtocolInActiveCycle]);
+      mockProtocolUpdateMany.mockResolvedValue({ count: 1 });
+      mockCycleUpdateMany.mockResolvedValue({ count: 1 });
+      mockCycleCreate.mockResolvedValue(newCycleRow);
+      mockProtocolCreate.mockResolvedValue(clonedProtocolRow);
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await restartCycle({ actorUserId, cycleId: oldCycleId, newStartDate });
+
+      // Both ACTIVE and COMPLETED protocols from the original cycle are cloned.
+      expect(result.clonedProtocols).toHaveLength(2);
+      expect(mockProtocolCreate).toHaveBeenCalledTimes(2);
+    });
+
+    it('clones COMPLETED protocols and skips completion step when restarting a COMPLETED cycle', async () => {
+      const completedCycle = { ...cycleRow, status: 'COMPLETED' };
+      const completedProtocol = { ...protocolInCycle, status: 'COMPLETED' };
+
+      mockCycleFindFirst.mockResolvedValue(completedCycle);
+      mockProtocolFindMany.mockResolvedValue([completedProtocol]);
+      mockCycleCreate.mockResolvedValue(newCycleRow);
+      mockProtocolCreate.mockResolvedValue(clonedProtocolRow);
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await restartCycle({ actorUserId, cycleId: oldCycleId, newStartDate });
+
+      expect(result.clonedProtocols).toHaveLength(1);
+      // Already COMPLETED — no updateMany calls needed.
+      expect(mockProtocolUpdateMany).not.toHaveBeenCalled();
+      expect(mockCycleUpdateMany).not.toHaveBeenCalled();
+    });
+
+    it('preserves cycle duration and protocol start/end date offsets on restart', async () => {
+      const protocolWithDates = {
+        ...protocolInCycle,
+        startDate: new Date(Date.UTC(2026, 4, 8)),  // 7 days into old cycle
+        endDate: new Date(Date.UTC(2026, 4, 15)),   // 14 days into old cycle
+      };
+      const durationMs = cycleRow.endDate!.getTime() - cycleRow.startDate.getTime();
+      const expectedCycleEndDate = new Date(newStartDate.getTime() + durationMs);
+      const startOffsetMs = newStartDate.getTime() - cycleRow.startDate.getTime();
+      const expectedProtoStartDate = new Date(protocolWithDates.startDate.getTime() + startOffsetMs);
+      const expectedProtoEndDate = new Date(protocolWithDates.endDate!.getTime() + startOffsetMs);
+
+      mockCycleFindFirst.mockResolvedValue(cycleRow);
+      mockProtocolFindMany.mockResolvedValue([protocolWithDates]);
+      mockProtocolUpdateMany.mockResolvedValue({ count: 1 });
+      mockCycleUpdateMany.mockResolvedValue({ count: 1 });
+      mockCycleCreate.mockResolvedValue(newCycleRow);
+      mockProtocolCreate.mockResolvedValue(clonedProtocolRow);
+      mockAuditCreate.mockResolvedValue({});
+
+      await restartCycle({ actorUserId, cycleId: oldCycleId, newStartDate });
+
+      expect(mockCycleCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ endDate: expectedCycleEndDate }) })
+      );
+      expect(mockProtocolCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ startDate: expectedProtoStartDate, endDate: expectedProtoEndDate }) })
+      );
+    });
+  });
 });
 
 /**
@@ -1211,7 +1376,82 @@ describe('US-TRK-04: Injection Site Rotation', () => {
  * Story: US-TRK-08 — Manage Cycles
  */
 describe('US-TRK-08: Manage Cycles', () => {
-  it.todo('AC-1: creates cycle with name and date range');
-  it.todo('AC-2: links multiple protocols to one cycle');
-  it.todo('AC-3: displays current week number on dashboard');
+  const FROZEN_NOW = new Date(Date.UTC(2026, 4, 21)); // 2026-05-21
+  beforeEach(() => { vi.setSystemTime(FROZEN_NOW); });
+  afterAll(() => { vi.useRealTimers(); });
+
+  const cycleActorUserId = 'user-cycle';
+  const cycleId = 'cycle-1';
+  const startDate = new Date(Date.UTC(2026, 4, 1)); // 2026-05-01
+  const endDate = new Date(Date.UTC(2026, 6, 31));  // 2026-07-31
+
+  const cycleRow = {
+    id: cycleId,
+    userId: cycleActorUserId,
+    name: 'Summer 2026',
+    startDate,
+    endDate,
+    status: 'ACTIVE',
+  };
+
+  describe('AC-1: createCycle', () => {
+    it('creates cycle with name, startDate, and optional endDate; emits CycleCreated', async () => {
+      mockCycleCreate.mockResolvedValue(cycleRow);
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await createCycle({ actorUserId: cycleActorUserId, name: 'Summer 2026', startDate, endDate });
+
+      expect(result.name).toBe('Summer 2026');
+      expect(result.startDate).toEqual(startDate);
+      expect(mockCycleCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ userId: cycleActorUserId, name: 'Summer 2026' }) })
+      );
+      expect(mockAuditCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: 'CYCLE_CREATED' }) })
+      );
+    });
+
+    it('creates cycle without endDate', async () => {
+      const openRow = { ...cycleRow, endDate: null };
+      mockCycleCreate.mockResolvedValue(openRow);
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await createCycle({ actorUserId: cycleActorUserId, name: 'Open Cycle', startDate });
+      expect(result.endDate).toBeNull();
+    });
+  });
+
+  describe('AC-2: getCyclesForUser', () => {
+    it('returns all cycles with linked protocol count', async () => {
+      mockCycleFindMany.mockResolvedValue([cycleRow]);
+
+      const cycles = await getCyclesForUser(cycleActorUserId);
+      expect(cycles).toHaveLength(1);
+      expect(cycles[0].id).toBe(cycleId);
+    });
+  });
+
+  describe('AC-3: getCurrentWeekInfo', () => {
+    it('returns week 3 when 20 days into a cycle (days 15–21 = week 3)', async () => {
+      // FROZEN_NOW = 2026-05-21; startDate = 2026-05-01 → 20 days elapsed → week 3
+      mockCycleFindFirst.mockResolvedValue(cycleRow);
+
+      const info = await getCurrentWeekInfo(cycleActorUserId);
+      expect(info).not.toBeNull();
+      expect(info!.weekNumber).toBe(3);
+    });
+
+    it('returns null when no active cycle exists', async () => {
+      mockCycleFindFirst.mockResolvedValue(null);
+      const info = await getCurrentWeekInfo(cycleActorUserId);
+      expect(info).toBeNull();
+    });
+
+    it('includes totalWeeks when endDate is set', async () => {
+      mockCycleFindFirst.mockResolvedValue(cycleRow);
+      // 2026-05-01 to 2026-07-31 inclusive = 92 days → Math.ceil(92/7) = 14 weeks
+      const info = await getCurrentWeekInfo(cycleActorUserId);
+      expect(info!.totalWeeks).toBe(14);
+    });
+  });
 });
