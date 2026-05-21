@@ -88,10 +88,11 @@ export function BatchLogReview({ items, compoundNames }: Props) {
   }
 
   const pendingCount = items.filter((i) => itemStates[i.protocol.id] === 'pending').length;
+  const skippedCount = items.filter((i) => itemStates[i.protocol.id] === 'skipped').length;
   const failedCount = items.filter((i) => itemStates[i.protocol.id] === 'failed').length;
   const loggedCount = items.filter((i) => itemStates[i.protocol.id] === 'logged').length;
 
-  if (done || (pendingCount === 0 && failedCount === 0 && items.length > 0)) {
+  if (done || (pendingCount === 0 && skippedCount === 0 && failedCount === 0 && items.length > 0)) {
     return (
       <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center">
         <p className="text-sm font-medium text-green-700">

@@ -8,6 +8,7 @@ const mockUserFindUnique = vi.fn();
 const mockUserFindMany = vi.fn();
 const mockDoseLogCreate = vi.fn();
 const mockDoseLogFindFirst = vi.fn();
+const mockDoseLogFindMany = vi.fn();
 const mockDoseLogUpdate = vi.fn();
 const mockVialCount = vi.fn();
 const mockVialFindFirst = vi.fn();
@@ -31,6 +32,7 @@ vi.mock('@/lib/shared/prisma', () => ({
     doseLog: {
       create: mockDoseLogCreate,
       findFirst: mockDoseLogFindFirst,
+      findMany: mockDoseLogFindMany,
       update: mockDoseLogUpdate,
     },
     vial: {
@@ -877,19 +879,22 @@ describe('US-TRK-05: Batch Log', () => {
   });
 
   it('AC-6: getDueTodayForBatch returns protocols with availability flags', async () => {
-    mockProtocolFindMany.mockResolvedValue([makeProtocolRow(proto1Id), makeProtocolRow(proto2Id)]);
-    // proto1: no vials; proto2: has vials
+    const proto2CompoundId = 'compound-tb500';
+    // proto2 uses a different compound so vial counts can differ
+    const proto2Row = { ...makeProtocolRow(proto2Id), compoundId: proto2CompoundId };
+    mockProtocolFindMany.mockResolvedValue([makeProtocolRow(proto1Id), proto2Row]);
+    // compound-bpc157: 0 vials; compound-tb500: 1 vial (one call per unique compound)
     mockVialCount.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
-    // No existing logs
-    mockDoseLogFindFirst.mockResolvedValue(null);
+    // No existing logs (bulk findMany returns empty array)
+    mockDoseLogFindMany.mockResolvedValue([]);
 
     const items = await getDueTodayForBatch(batchActorUserId);
 
     expect(items).toHaveLength(2);
     const item1 = items.find((i) => i.protocol.id === proto1Id)!;
     const item2 = items.find((i) => i.protocol.id === proto2Id)!;
-    expect(item1.isAvailable).toBe(false); // no vials
-    expect(item2.isAvailable).toBe(true);
+    expect(item1.isAvailable).toBe(false); // no vials for compound-bpc157
+    expect(item2.isAvailable).toBe(true);  // has vials for compound-tb500
   });
 
   it('schedule filter: getDueTodayForBatch excludes EOD protocols not due today', async () => {
@@ -900,6 +905,7 @@ describe('US-TRK-05: Batch Log', () => {
       startDate: new Date(Date.UTC(2026, 4, 20)), // yesterday
     };
     mockProtocolFindMany.mockResolvedValue([eodProtocol]);
+    // No bulk findMany calls expected (no due protocols after schedule filter)
 
     const items = await getDueTodayForBatch(batchActorUserId);
 
@@ -926,12 +932,14 @@ describe('US-TRK-05: Batch Log', () => {
     expect((result.results[0] as { ok: false; error: string }).error).toMatch(/no_dose_scheduled/i);
   });
 
-  it('SKIPPED→LOGGED: batchLogDoses converts an existing SKIPPED log to LOGGED', async () => {
-    const skippedLog = { ...makeLogRow(proto1Id, 'log-skipped'), status: 'SKIPPED' };
+  it('SKIPPED→LOGGED: batchLogDoses converts an existing SKIPPED log to LOGGED with isBatchLog=true', async () => {
+    const skippedLog = { ...makeLogRow(proto1Id, 'log-skipped'), status: 'SKIPPED', isBatchLog: false };
     mockProtocolFindFirst.mockResolvedValue(makeProtocolRow(proto1Id));
-    mockDoseLogFindFirst.mockResolvedValue(skippedLog); // idempotency check returns SKIPPED
+    mockDoseLogFindFirst
+      .mockResolvedValueOnce(skippedLog) // idempotency check returns SKIPPED
+      .mockResolvedValueOnce({ ...skippedLog, status: 'LOGGED', isBatchLog: true, loggedByUserId: batchActorUserId }); // post-update read
     mockVialCount.mockResolvedValue(2); // vials required even for SKIPPED→LOGGED
-    mockDoseLogUpdate.mockResolvedValue({ ...skippedLog, status: 'LOGGED' });
+    mockDoseLogUpdate.mockResolvedValue({ count: 1 }); // updateMany result
     mockAuditCreate.mockResolvedValue({});
 
     const result = await batchLogDoses({
@@ -942,7 +950,12 @@ describe('US-TRK-05: Batch Log', () => {
 
     expect(result.results[0].ok).toBe(true);
     expect(mockDoseLogCreate).not.toHaveBeenCalled(); // updateMany, not create
-    expect(mockDoseLogUpdate).toHaveBeenCalled();
+    expect(mockDoseLogUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'log-skipped' }),
+        data: expect.objectContaining({ status: 'LOGGED', isBatchLog: true, loggedByUserId: batchActorUserId }),
+      })
+    );
     expect(mockVialCount).toHaveBeenCalled(); // vial check enforced for SKIPPED→LOGGED
   });
 

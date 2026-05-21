@@ -11,6 +11,7 @@ import { listProtocolsForUser, findProtocolByIdForActor } from '../infrastructur
 import {
   findDoseLogByIdempotencyKey,
   findDoseLogForDate,
+  findDoseLogsForDate,
   countActiveVialsForCompound,
   createDoseLog,
   updateDoseLog,
@@ -43,22 +44,24 @@ export async function getDueTodayForBatch(actorUserId: string): Promise<BatchDue
       isScheduledOn(p.schedule, p.startDate, p.endDate, todayUTC)
   );
 
-  const items = await Promise.all(
-    dueProtocols.map(async (protocol) => {
-      const [existingLog, availableVials] = await Promise.all([
-        findDoseLogForDate(prisma, protocol.userId, protocol.id, todayUTC),
-        countActiveVialsForCompound(prisma, actorUserId, protocol.compoundId),
-      ]);
-      return {
-        protocol,
-        existingLog,
-        availableVials,
-        isAvailable: availableVials > 0,
-      };
+  // Bulk dose log lookup — 1 query instead of N
+  const protocolIds = dueProtocols.map((p) => p.id);
+  const logsByProtocol = await findDoseLogsForDate(prisma, actorUserId, protocolIds, todayUTC);
+
+  // Vial counts — 1 query per unique compound instead of 1 per protocol
+  const uniqueCompoundIds = [...new Set(dueProtocols.map((p) => p.compoundId))];
+  const vialCountByCompound: Record<string, number> = {};
+  await Promise.all(
+    uniqueCompoundIds.map(async (compoundId) => {
+      vialCountByCompound[compoundId] = await countActiveVialsForCompound(prisma, actorUserId, compoundId);
     })
   );
 
-  return items;
+  return dueProtocols.map((protocol) => {
+    const existingLog = logsByProtocol[protocol.id] ?? null;
+    const availableVials = vialCountByCompound[protocol.compoundId] ?? 0;
+    return { protocol, existingLog, availableVials, isAvailable: availableVials > 0 };
+  });
 }
 
 async function logOneInBatch(
@@ -99,7 +102,11 @@ async function logOneInBatch(
   // SKIPPED → LOGGED same-day edit via updateDoseLog
   if (existing?.status === 'SKIPPED') {
     const updated = await prisma.$transaction(async (tx) => {
-      const log = await updateDoseLog(tx, existing.id, subjectUserId, { status: 'LOGGED' });
+      const log = await updateDoseLog(tx, existing.id, subjectUserId, {
+        status: 'LOGGED',
+        isBatchLog: true,
+        loggedByUserId: actorUserId,
+      });
       await tx.auditEvent.create({
         data: {
           actorUserId,
