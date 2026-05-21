@@ -36,7 +36,7 @@ export async function createVendorProduct(input: CreateVendorProductInput): Prom
   return withAudit(
     async (tx) => {
       const vendor = await tx.vendor.findFirst({
-        where: { id: input.vendorId, userId: input.userId },
+        where: { id: input.vendorId, userId: input.userId, status: 'ACTIVE' },
         select: { id: true },
       });
       if (!vendor) throw new Error('vendor_not_found');
@@ -74,22 +74,18 @@ export async function listVendorProducts(userId: string, vendorId: string): Prom
 export async function updateVendorProduct(input: UpdateVendorProductInput): Promise<VendorProduct> {
   return withAudit(
     async (tx) => {
+      // Verify ownership inside the same transaction (eliminates TOCTOU); update by verified ID
+      const existing = await tx.vendorProduct.findFirst({
+        where: { id: input.productId, vendor: { userId: input.userId } },
+      });
+      if (!existing) throw new Error('product_not_found');
+
       const data: Record<string, unknown> = {};
       if (input.name !== undefined) data.name = input.name;
       if (input.priceUsd !== undefined) data.priceUsd = new Decimal(input.priceUsd);
       if (input.inStock !== undefined) data.inStock = input.inStock;
 
-      // Prisma v5 supports relation filters in updateMany — required to keep userId in the mutation predicate
-      const { count } = await tx.vendorProduct.updateMany({
-        where: { id: input.productId, vendor: { userId: input.userId } },
-        data,
-      });
-      if (count === 0) throw new Error('product_not_found');
-
-      const row = await tx.vendorProduct.findFirst({
-        where: { id: input.productId, vendor: { userId: input.userId } },
-      });
-      if (!row) throw new Error('product_not_found');
+      const row = await tx.vendorProduct.update({ where: { id: existing.id }, data });
       return toVendorProduct(row);
     },
     (result) => ({
@@ -105,12 +101,12 @@ export async function updateVendorProduct(input: UpdateVendorProductInput): Prom
 export async function archiveVendorProduct(userId: string, productId: string): Promise<void> {
   await withAudit(
     async (tx) => {
-      // Prisma v5 supports relation filters in updateMany — required to keep userId in the mutation predicate
-      const { count } = await tx.vendorProduct.updateMany({
+      // Verify ownership inside the same transaction (eliminates TOCTOU); update by verified ID
+      const existing = await tx.vendorProduct.findFirst({
         where: { id: productId, vendor: { userId } },
-        data: { inStock: false },
       });
-      if (count === 0) throw new Error('product_not_found');
+      if (!existing) throw new Error('product_not_found');
+      await tx.vendorProduct.update({ where: { id: existing.id }, data: { inStock: false } });
     },
     {
       actorUserId: userId,
