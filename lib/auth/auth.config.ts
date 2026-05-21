@@ -18,6 +18,7 @@ export const authConfig = {
           where: { email: credentials.email },
           select: { id: true, email: true, passwordHash: true, role: true, status: true },
         });
+        // Status already checked here — signIn callback re-check is not needed
         if (!user?.passwordHash || user.status !== 'ACTIVE') return null;
         const ph = PasswordHash.fromHash(user.passwordHash);
         const valid = await ph.verify(credentials.password);
@@ -42,24 +43,18 @@ export const authConfig = {
   },
   callbacks: {
     async session({ session, user }) {
-      // Attach role to the session so UI can make role-aware decisions
+      const typedUser = user as unknown as { id: string; role: string };
+      // role is required — the authorize function always populates it from the DB.
+      // If it's missing, deny the session rather than defaulting to a privileged role.
+      if (!typedUser.role) return null as unknown as typeof session;
       return {
         ...session,
         user: {
           ...session.user,
-          id: user.id,
-          role: (user as unknown as { id: string; role: string }).role ?? 'POWER_USER',
+          id: typedUser.id,
+          role: typedUser.role,
         },
       };
-    },
-    async signIn({ user }) {
-      // Block deactivated users
-      if (!user?.id) return false;
-      const dbUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { status: true },
-      });
-      return dbUser?.status === 'ACTIVE';
     },
   },
   pages: {
