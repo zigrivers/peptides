@@ -8,7 +8,16 @@ const mockPrismaVendorProductCreate = vi.fn();
 const mockPrismaVendorProductFindMany = vi.fn();
 const mockPrismaVendorProductFindFirst = vi.fn();
 const mockPrismaVendorProductUpdate = vi.fn();
+const mockPrismaTelegramSessionUpsert = vi.fn();
+const mockPrismaTelegramSessionFindUnique = vi.fn();
+const mockPrismaTelegramSessionDelete = vi.fn();
+const mockPrismaTelegramSessionDeleteMany = vi.fn();
 const mockPrismaAuditEventCreate = vi.fn();
+
+const mockStartPhoneAuth = vi.fn();
+const mockCompletePhoneAuth = vi.fn();
+const mockCompletePhoneAuthWithPassword = vi.fn();
+const mockLogoutSession = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
@@ -24,6 +33,12 @@ vi.mock('@/lib/shared/prisma', () => ({
       findFirst: mockPrismaVendorProductFindFirst,
       update: mockPrismaVendorProductUpdate,
     },
+    telegramSession: {
+      upsert: mockPrismaTelegramSessionUpsert,
+      findUnique: mockPrismaTelegramSessionFindUnique,
+      delete: mockPrismaTelegramSessionDelete,
+      deleteMany: mockPrismaTelegramSessionDeleteMany,
+    },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
         vendor: {
@@ -36,11 +51,24 @@ vi.mock('@/lib/shared/prisma', () => ({
           findFirst: mockPrismaVendorProductFindFirst,
           update: mockPrismaVendorProductUpdate,
         },
+        telegramSession: {
+          upsert: mockPrismaTelegramSessionUpsert,
+          findUnique: mockPrismaTelegramSessionFindUnique,
+          delete: mockPrismaTelegramSessionDelete,
+          deleteMany: mockPrismaTelegramSessionDeleteMany,
+        },
         auditEvent: { create: mockPrismaAuditEventCreate },
       };
       return fn(tx);
     }),
   },
+}));
+
+vi.mock('@/lib/ordering/infrastructure/MTProtoClient', () => ({
+  startPhoneAuth: mockStartPhoneAuth,
+  completePhoneAuth: mockCompletePhoneAuth,
+  completePhoneAuthWithPassword: mockCompletePhoneAuthWithPassword,
+  logoutSession: mockLogoutSession,
 }));
 
 /**
@@ -218,16 +246,147 @@ describe('US-ORD-06: Manage Vendor Catalog', () => {
  * Story: US-ORD-01 - Configure Telegram MTProto
  */
 describe('US-ORD-01: Configure Telegram MTProto', () => {
-  it.todo('AC-1: authenticates with phone and verification code', () => {
-    // Hint: check lib/ordering/infrastructure/MTProtoClient
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPrismaAuditEventCreate.mockResolvedValue({});
+    mockLogoutSession.mockResolvedValue(undefined);
+    process.env.TELEGRAM_SESSION_KEY = 'a'.repeat(64);
+    process.env.TELEGRAM_APP_ID = '12345';
+    process.env.TELEGRAM_APP_HASH = 'abc123hash';
   });
 
-  it.todo('AC-2: encrypts session string at rest (AES-256)', () => {
-    // Hint: check lib/ordering/application/SessionManager.encrypt()
+  it('AC-1: initiates phone auth, stores tempSession server-side, and returns opaque flowId + phoneCodeHash', async () => {
+    const { initiateTelegramLink } = await import('@/lib/ordering/application/TelegramAuthService');
+
+    mockStartPhoneAuth.mockResolvedValueOnce({ phoneCodeHash: 'hash-abc', tempSession: 'tmp-sess' });
+
+    const result = await initiateTelegramLink('user-1', '+15551234567');
+    expect(result.phoneCodeHash).toBe('hash-abc');
+    expect(typeof result.flowId).toBe('string');
+    expect(result.flowId.length).toBeGreaterThan(0);
+    // tempSession must NOT be returned to the caller — only the opaque flowId
+    expect(result).not.toHaveProperty('tempSession');
+    expect(mockStartPhoneAuth).toHaveBeenCalledWith('+15551234567');
   });
 
-  it.todo('AC-3: provides manual message fallback', () => {
-    // Hint: assert visibility of message text in UI
+  it('AC-1: completes auth, encrypts session, and persists to DB via repo', async () => {
+    const { initiateTelegramLink, completeTelegramLink } = await import('@/lib/ordering/application/TelegramAuthService');
+
+    mockStartPhoneAuth.mockResolvedValueOnce({ phoneCodeHash: 'hash-abc', tempSession: 'tmp-sess' });
+    mockCompletePhoneAuth.mockResolvedValueOnce({ type: 'success', sessionString: 'raw-session-string' });
+    mockPrismaTelegramSessionUpsert.mockResolvedValueOnce({ id: 'ts-1', userId: 'user-1' });
+
+    const { flowId } = await initiateTelegramLink('user-1', '+15551234567');
+    await completeTelegramLink('user-1', '+15551234567', 'hash-abc', '12345', flowId);
+
+    expect(mockPrismaTelegramSessionUpsert).toHaveBeenCalledOnce();
+    const upsertCall = mockPrismaTelegramSessionUpsert.mock.calls[0][0];
+    // session string must be encrypted (not the raw value)
+    expect(upsertCall.create.sessionString).not.toBe('raw-session-string');
+    expect(upsertCall.update.sessionString).not.toBe('raw-session-string');
+    // userId must be present for ownership scoping
+    expect(upsertCall.where.userId).toBe('user-1');
+  });
+
+  it('AC-2: session string persisted to DB is AES-256-GCM encrypted (decryptable)', async () => {
+    const { initiateTelegramLink, completeTelegramLink } = await import('@/lib/ordering/application/TelegramAuthService');
+    const { decryptSession } = await import('@/lib/ordering/application/SessionManager');
+
+    mockStartPhoneAuth.mockResolvedValueOnce({ phoneCodeHash: 'hash-abc', tempSession: 'tmp-sess' });
+    mockCompletePhoneAuth.mockResolvedValueOnce({ type: 'success', sessionString: 'plaintext-session' });
+    mockPrismaTelegramSessionUpsert.mockResolvedValueOnce({ id: 'ts-1', userId: 'user-1' });
+
+    const { flowId } = await initiateTelegramLink('user-1', '+15551234567');
+    await completeTelegramLink('user-1', '+15551234567', 'hash-abc', '99999', flowId);
+
+    const upsertCall = mockPrismaTelegramSessionUpsert.mock.calls[0][0];
+    const stored = upsertCall.create.sessionString as string;
+    expect(decryptSession(stored)).toBe('plaintext-session');
+  });
+
+  it('AC-2: audit event TELEGRAM_SESSION_LINKED is written on successful link', async () => {
+    const { initiateTelegramLink, completeTelegramLink } = await import('@/lib/ordering/application/TelegramAuthService');
+
+    mockStartPhoneAuth.mockResolvedValueOnce({ phoneCodeHash: 'hash-abc', tempSession: 'tmp-sess' });
+    mockCompletePhoneAuth.mockResolvedValueOnce({ type: 'success', sessionString: 'session' });
+    mockPrismaTelegramSessionUpsert.mockResolvedValueOnce({ id: 'ts-1', userId: 'user-1' });
+
+    const { flowId } = await initiateTelegramLink('user-1', '+15551234567');
+    await completeTelegramLink('user-1', '+15551234567', 'hash-abc', '11111', flowId);
+
+    expect(mockPrismaAuditEventCreate).toHaveBeenCalledTimes(2);
+    expect(mockPrismaAuditEventCreate.mock.calls[0][0].data.action).toBe('TELEGRAM_SESSION_LINK_INITIATED');
+    const auditCall = mockPrismaAuditEventCreate.mock.calls[1][0];
+    expect(auditCall.data.action).toBe('TELEGRAM_SESSION_LINKED');
+    expect(auditCall.data.actorUserId).toBe('user-1');
+  });
+
+  it('AC-3: returns passwordRequired=true and same flowId when Telegram requires 2FA; no DB write yet', async () => {
+    const { initiateTelegramLink, completeTelegramLink } = await import('@/lib/ordering/application/TelegramAuthService');
+
+    mockStartPhoneAuth.mockResolvedValueOnce({ phoneCodeHash: 'hash-abc', tempSession: 'tmp-sess' });
+    mockCompletePhoneAuth.mockResolvedValueOnce({ type: 'password_required', tempSession: 'session-with-authkey' });
+
+    const { flowId } = await initiateTelegramLink('user-1', '+15551234567');
+    const result = await completeTelegramLink('user-1', '+15551234567', 'hash-abc', '12345', flowId);
+
+    expect(result.passwordRequired).toBe(true);
+    if (result.passwordRequired) {
+      // Same flowId is returned so UI can use it for the password step without receiving tempSession.
+      expect(result.flowId).toBe(flowId);
+    }
+    // No DB write should happen until the password is also verified.
+    expect(mockPrismaTelegramSessionUpsert).not.toHaveBeenCalled();
+  });
+
+  it('AC-3: completeTelegramLinkWithPassword validates flowId server-side, encrypts session, and writes audit event', async () => {
+    const { initiateTelegramLink, completeTelegramLink, completeTelegramLinkWithPassword } =
+      await import('@/lib/ordering/application/TelegramAuthService');
+    const { decryptSession } = await import('@/lib/ordering/application/SessionManager');
+
+    mockStartPhoneAuth.mockResolvedValueOnce({ phoneCodeHash: 'hash-abc', tempSession: 'tmp-sess' });
+    mockCompletePhoneAuth.mockResolvedValueOnce({ type: 'password_required', tempSession: 'session-with-authkey' });
+    mockCompletePhoneAuthWithPassword.mockResolvedValueOnce({ sessionString: '2fa-session' });
+    mockPrismaTelegramSessionUpsert.mockResolvedValueOnce({ id: 'ts-1', userId: 'user-1' });
+
+    const { flowId } = await initiateTelegramLink('user-1', '+15551234567');
+    const codeResult = await completeTelegramLink('user-1', '+15551234567', 'hash-abc', '12345', flowId);
+    const continueFlowId = codeResult.passwordRequired ? codeResult.flowId : '';
+
+    await completeTelegramLinkWithPassword('user-1', 'my-password', continueFlowId);
+
+    expect(mockPrismaTelegramSessionUpsert).toHaveBeenCalledOnce();
+    const upsertCall = mockPrismaTelegramSessionUpsert.mock.calls[0][0];
+    expect(upsertCall.create.sessionString).not.toBe('2fa-session');
+    expect(decryptSession(upsertCall.create.sessionString as string)).toBe('2fa-session');
+    expect(mockPrismaAuditEventCreate).toHaveBeenCalledTimes(2);
+    expect(mockPrismaAuditEventCreate.mock.calls[0][0].data.action).toBe('TELEGRAM_SESSION_LINK_INITIATED');
+    const auditCall = mockPrismaAuditEventCreate.mock.calls[1][0];
+    expect(auditCall.data.action).toBe('TELEGRAM_SESSION_LINKED');
+  });
+
+  it('AC-2: getSessionStatus returns linked=true when session row exists', async () => {
+    const { getSessionStatus } = await import('@/lib/ordering/application/TelegramAuthService');
+
+    mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce({ id: 'ts-1', isActive: true });
+
+    const status = await getSessionStatus('user-1');
+    expect(status.linked).toBe(true);
+  });
+
+  it('AC-2: getSessionStatus returns linked=false when no session row exists', async () => {
+    const { getSessionStatus } = await import('@/lib/ordering/application/TelegramAuthService');
+
+    mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce(null);
+
+    const status = await getSessionStatus('user-1');
+    expect(status.linked).toBe(false);
+  });
+
+  it('AC-3: manual fallback deep-link is always constructable from vendorTelegramUsername', async () => {
+    const { buildFallbackDeepLink } = await import('@/lib/ordering/application/TelegramAuthService');
+    const link = buildFallbackDeepLink('qsc_vendor');
+    expect(link).toBe('tg://resolve?domain=qsc_vendor');
   });
 });
 
