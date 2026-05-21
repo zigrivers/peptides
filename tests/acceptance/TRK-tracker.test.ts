@@ -682,6 +682,24 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
       await expect(restartCycle({ actorUserId, cycleId: 'nonexistent', newStartDate })).rejects.toThrow(/cycle_not_found/i);
     });
 
+    it('includes COMPLETED protocols in clone when restarting an active cycle', async () => {
+      const completedProtocolInActiveCycle = { ...protocolInCycle, id: 'proto-completed-early', status: 'COMPLETED' };
+
+      mockCycleFindFirst.mockResolvedValue(cycleRow);
+      mockProtocolFindMany.mockResolvedValue([protocolInCycle, completedProtocolInActiveCycle]);
+      mockProtocolUpdateMany.mockResolvedValue({ count: 1 });
+      mockCycleUpdateMany.mockResolvedValue({ count: 1 });
+      mockCycleCreate.mockResolvedValue(newCycleRow);
+      mockProtocolCreate.mockResolvedValue(clonedProtocolRow);
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await restartCycle({ actorUserId, cycleId: oldCycleId, newStartDate });
+
+      // Both ACTIVE and COMPLETED protocols from the original cycle are cloned.
+      expect(result.clonedProtocols).toHaveLength(2);
+      expect(mockProtocolCreate).toHaveBeenCalledTimes(2);
+    });
+
     it('clones COMPLETED protocols and skips completion step when restarting a COMPLETED cycle', async () => {
       const completedCycle = { ...cycleRow, status: 'COMPLETED' };
       const completedProtocol = { ...protocolInCycle, status: 'COMPLETED' };

@@ -87,14 +87,11 @@ export async function restartCycle(input: RestartCycleInput): Promise<{ newCycle
     // Offset to apply to protocol endDates (same shift as cycle startDate).
     const startOffsetMs = input.newStartDate.getTime() - oldCycle.startDate.getTime();
 
-    // Snapshot protocols to clone: ACTIVE/PAUSED for an active cycle, COMPLETED for a completed one.
+    // Snapshot all non-deactivated protocols — includes COMPLETED ones from short-duration regimens
+    // that finished early within the cycle but should still be part of the restarted cycle.
     const isActiveCycle = oldCycle.status === 'ACTIVE';
     const protocols = await tx.protocol.findMany({
-      where: {
-        cycleId: input.cycleId,
-        userId: input.actorUserId,
-        status: isActiveCycle ? { in: ['ACTIVE', 'PAUSED'] } : 'COMPLETED',
-      },
+      where: { cycleId: input.cycleId, userId: input.actorUserId, status: { not: 'DEACTIVATED' } },
     });
 
     // Complete active items only when the cycle is still running.
