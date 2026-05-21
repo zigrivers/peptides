@@ -67,6 +67,7 @@ const { generateScheduleDates } = await import(
   '@/lib/tracker/domain/ScheduleGenerator'
 );
 const { logDose } = await import('@/lib/tracker/application/DoseLogService');
+const { batchLogDoses, getDueTodayForBatch } = await import('@/lib/tracker/application/BatchLogService');
 
 const actorUserId = 'user-1';
 const compoundId = 'compound-bpc157';
@@ -724,8 +725,109 @@ describe('US-TRK-03: Individual Dose Logging', () => {
  * Story: US-TRK-05 — Batch Log
  */
 describe('US-TRK-05: Batch Log', () => {
-  it.todo('AC-1: logs all scheduled doses in one action');
-  it.todo('AC-2: allows deselecting doses in review sheet');
+  const FROZEN_BATCH = new Date(Date.UTC(2026, 4, 21)); // 2026-05-21
+  beforeEach(() => { vi.setSystemTime(FROZEN_BATCH); });
+  afterAll(() => { vi.useRealTimers(); });
+
+  const batchActorUserId = 'user-batch';
+  const proto1Id = 'proto-batch-1';
+  const proto2Id = 'proto-batch-2';
+  const batchCompoundId = 'compound-bpc157';
+  const batchAmount = { amount: '250', unit: 'mcg' as const };
+
+  const makeProtocolRow = (id: string) => ({
+    id,
+    userId: batchActorUserId,
+    compoundId: batchCompoundId,
+    cycleId: null,
+    dose: batchAmount,
+    schedule: { frequency: 'Daily' },
+    administrationRoute: 'SubQ',
+    status: 'ACTIVE',
+    startDate: new Date(Date.UTC(2026, 4, 1)),
+    endDate: null,
+    notes: null,
+  });
+
+  const makeLogRow = (protocolId: string, id: string) => ({
+    id,
+    protocolId,
+    userId: batchActorUserId,
+    vialId: null,
+    idempotencyKey: `${batchActorUserId}:${protocolId}:2026-05-21`,
+    loggedAt: new Date(),
+    scheduledDate: FROZEN_BATCH,
+    amount: batchAmount,
+    status: 'LOGGED',
+    injectionSite: null,
+    isBatchLog: true,
+    note: null,
+    loggedByUserId: batchActorUserId,
+  });
+
+  it('AC-1: logs all selected ACTIVE protocols as LOGGED with isBatchLog=true', async () => {
+    // Protocol lookup: called per-protocol during batchLogDoses
+    mockProtocolFindFirst
+      .mockResolvedValueOnce(makeProtocolRow(proto1Id))
+      .mockResolvedValueOnce(makeProtocolRow(proto2Id));
+    // No existing logs
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    // Vials available
+    mockVialCount.mockResolvedValue(2);
+    mockDoseLogCreate
+      .mockResolvedValueOnce(makeLogRow(proto1Id, 'log-batch-1'))
+      .mockResolvedValueOnce(makeLogRow(proto2Id, 'log-batch-2'));
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id, proto2Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results).toHaveLength(2);
+    expect(result.results.every((r) => r.ok)).toBe(true);
+    const succeeded = result.results.filter((r) => r.ok) as Array<{ ok: true; doseLog: { isBatchLog: boolean } }>;
+    expect(succeeded.every((r) => r.doseLog.isBatchLog)).toBe(true);
+  });
+
+  it('AC-2 (partial): already-logged protocols are returned as ok=true with existing log (idempotent)', async () => {
+    const existingLog = makeLogRow(proto1Id, 'log-existing');
+    mockProtocolFindFirst.mockResolvedValue(makeProtocolRow(proto1Id));
+    // idempotency lookup: return existing
+    mockDoseLogFindFirst.mockResolvedValue(existingLog);
+    mockVialCount.mockResolvedValue(1);
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].ok).toBe(true);
+    expect(mockDoseLogCreate).not.toHaveBeenCalled();
+  });
+
+  it('AC-6: getDueTodayForBatch returns protocols with availability flags', async () => {
+    mockProtocolFindMany.mockResolvedValue([makeProtocolRow(proto1Id), makeProtocolRow(proto2Id)]);
+    // proto1: no vials; proto2: has vials
+    mockVialCount.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+    // No existing logs
+    mockDoseLogFindFirst.mockResolvedValue(null);
+
+    const items = await getDueTodayForBatch(batchActorUserId);
+
+    expect(items).toHaveLength(2);
+    const item1 = items.find((i) => i.protocol.id === proto1Id)!;
+    const item2 = items.find((i) => i.protocol.id === proto2Id)!;
+    expect(item1.isAvailable).toBe(false); // no vials
+    expect(item2.isAvailable).toBe(true);
+  });
+
+  // AC-3 (offline sync) deferred to Task 2.6
+  it.todo('AC-3: queues batch log while offline');
 });
 
 /**

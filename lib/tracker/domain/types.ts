@@ -97,3 +97,24 @@ export type LogDoseResult = {
   doseLog: DoseLog;
   warnings: SafetyWarning[];
 };
+
+export type BatchDueItem = {
+  protocol: Protocol;
+  existingLog: DoseLog | null;
+  availableVials: number;
+  isAvailable: boolean; // false when no inventory prevents logging
+};
+
+export type BatchLogInput = {
+  actorUserId: string;
+  selectedProtocolIds: string[];
+  scheduledDate: Date;
+};
+
+export type BatchLogItemResult =
+  | { ok: true; protocolId: string; doseLog: DoseLog; warnings: SafetyWarning[] }
+  | { ok: false; protocolId: string; error: string };
+
+export type BatchLogResult = {
+  results: BatchLogItemResult[];
+};

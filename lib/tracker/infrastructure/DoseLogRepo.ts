@@ -46,6 +46,7 @@ export async function createDoseLog(
     scheduledDate: Date;
     amount: DoseAmount;
     status: DoseLogStatus;
+    isBatchLog?: boolean;
     injectionSite?: InjectionSite;
     note?: string;
     vialId?: string;
@@ -61,7 +62,7 @@ export async function createDoseLog(
       amount: data.amount as Prisma.InputJsonValue,
       status: data.status,
       injectionSite: data.injectionSite ? (data.injectionSite as Prisma.InputJsonValue) : Prisma.JsonNull,
-      isBatchLog: false,
+      isBatchLog: data.isBatchLog ?? false,
       note: data.note ?? null,
       vialId: data.vialId ?? null,
       loggedByUserId: data.loggedByUserId ?? null,
