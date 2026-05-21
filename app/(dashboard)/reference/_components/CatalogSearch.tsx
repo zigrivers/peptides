@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { CATALOG_TAGS } from '@/lib/reference/domain/tags';
 
 const DEBOUNCE_MS = 350;
@@ -10,6 +10,12 @@ export function CatalogSearch() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -1,3 +1,6 @@
+// Auth-scoping exception (see CLAUDE.md): Compound/CompoundProfile/Citation
+// are admin-curated global reference data. No userId column exists on these
+// models. All authenticated users have full read access to the catalog.
 import { prisma } from '@/lib/shared/prisma';
 import type { Compound, DoseAmount } from '../domain/types';
 

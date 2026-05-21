@@ -206,30 +206,25 @@ async function main() {
     });
 
     if (profile) {
-      const existingProfile = await prisma.compoundProfile.findUnique({
+      const { citations, ...profileData } = profile;
+      const upsertedProfile = await prisma.compoundProfile.upsert({
         where: { compoundId: compound.id },
+        update: profileData,
+        create: { compoundId: compound.id, ...profileData },
       });
 
-      if (!existingProfile) {
-        const { citations, ...profileData } = profile;
-        const createdProfile = await prisma.compoundProfile.create({
+      // Replace citations on each seed run to keep them in sync.
+      await prisma.citation.deleteMany({ where: { profileId: upsertedProfile.id } });
+      for (const citation of citations) {
+        await prisma.citation.create({
           data: {
-            compoundId: compound.id,
-            ...profileData,
+            profileId: upsertedProfile.id,
+            title: citation.title,
+            doi: citation.doi ?? null,
+            pmid: citation.pmid ?? null,
+            url: null,
           },
         });
-
-        for (const citation of citations) {
-          await prisma.citation.create({
-            data: {
-              profileId: createdProfile.id,
-              title: citation.title,
-              doi: citation.doi ?? null,
-              pmid: citation.pmid ?? null,
-              url: null,
-            },
-          });
-        }
       }
     }
   }
