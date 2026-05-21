@@ -3,11 +3,10 @@ import { auth } from '@/lib/auth';
 import { getOnboardingState } from '@/lib/auth/application/onboarding';
 import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
 import { getCurrentWeekInfo } from '@/lib/tracker/application/CycleService';
-import { getSevenDayRatingAverage, getSevenDayAdherence } from '@/lib/tracker/application/OutcomeLogService';
-import { getVialsForUser } from '@/lib/reconstitution/application/VialService';
+import { getSevenDayRatingAverage, getSevenDayAdherence, hasDoseTodayForUser } from '@/lib/tracker/application/OutcomeLogService';
+import { getVialsForUser, serializeVial } from '@/lib/reconstitution/application/VialService';
 import { GettingStartedChecklist } from './_components/GettingStartedChecklist';
 import { StackOverview } from './_components/StackOverview';
-import type { SerializedVial } from '@/app/(dashboard)/reconstitution/_components/VialInventory';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -16,36 +15,21 @@ export default async function DashboardPage() {
   const userId = session.user.id;
   const userRole = session.user.role as 'POWER_USER' | 'MANAGED_USER';
 
-  const [onboardingState, protocols, weekInfo, ratingAvg, adherence, vials] = await Promise.all([
+  const [onboardingState, protocols, weekInfo, ratingAvg, adherence, vials, hasDoseToday] = await Promise.all([
     getOnboardingState(userId),
     getProtocolsForUser(userId),
     getCurrentWeekInfo(userId),
     getSevenDayRatingAverage(userId),
     getSevenDayAdherence(userId),
     getVialsForUser(userId),
+    hasDoseTodayForUser(userId),
   ]);
 
   const showChecklist = onboardingState !== null && onboardingState.step !== 'completed';
   const hasActiveProtocols = protocols.some((p) => p.status === 'ACTIVE');
 
   const nowUtcMidnight = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
-
-  const serializedVials: SerializedVial[] = vials.map((v) => {
-    const daysUntilExpiry = v.expiresAt
-      ? Math.ceil((v.expiresAt.getTime() - nowUtcMidnight.getTime()) / 86400_000)
-      : null;
-    return {
-      id: v.id,
-      compoundName: v.compoundName,
-      totalMg: v.totalMg.toFixed(3),
-      bacWaterMl: v.bacWaterMl ? v.bacWaterMl.toFixed(3) : null,
-      remainingMg: v.remainingMg.toFixed(3),
-      status: v.status,
-      expiresAt: v.expiresAt ? v.expiresAt.toISOString() : null,
-      daysUntilExpiry,
-      badges: v.badges,
-    };
-  });
+  const serializedVials = vials.map((v) => serializeVial(v, nowUtcMidnight));
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8">
@@ -64,6 +48,7 @@ export default async function DashboardPage() {
         ratingAvg={ratingAvg}
         adherence={adherence}
         hasActiveProtocols={hasActiveProtocols}
+        hasDoseToday={hasDoseToday}
         userRole={userRole}
         fetchedAt={new Date().toISOString()}
       />

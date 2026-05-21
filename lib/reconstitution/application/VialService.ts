@@ -143,3 +143,29 @@ function toVialWithBadges(
     badges,
   };
 }
+
+export interface SerializedVialData {
+  id: string;
+  compoundName: string;
+  totalMg: string;
+  bacWaterMl: string | null;
+  remainingMg: string;
+  status: string;
+  expiresAt: string | null;
+  daysUntilExpiry: number | null;
+  badges: VialBadge[];
+}
+
+export function serializeVial(v: VialWithBadges, nowUtcMidnight: Date): SerializedVialData {
+  return {
+    id: v.id,
+    compoundName: v.compoundName,
+    totalMg: v.totalMg.toFixed(3),
+    bacWaterMl: v.bacWaterMl ? v.bacWaterMl.toFixed(3) : null,
+    remainingMg: v.remainingMg.toFixed(3),
+    status: v.status,
+    expiresAt: v.expiresAt ? v.expiresAt.toISOString() : null,
+    daysUntilExpiry: v.expiresAt ? Math.ceil((v.expiresAt.getTime() - nowUtcMidnight.getTime()) / 86400_000) : null,
+    badges: v.badges,
+  };
+}

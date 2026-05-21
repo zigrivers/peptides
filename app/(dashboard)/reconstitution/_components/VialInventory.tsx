@@ -1,18 +1,9 @@
 'use client';
 
-import type { VialBadge } from '@/lib/reconstitution/application/VialService';
+import type { SerializedVialData, VialBadge } from '@/lib/reconstitution/application/VialService';
 
-export interface SerializedVial {
-  id: string;
-  compoundName: string;
-  totalMg: string;
-  bacWaterMl: string | null;
-  remainingMg: string;
-  status: string;
-  expiresAt: string | null;
-  daysUntilExpiry: number | null;
-  badges: VialBadge[];
-}
+// Re-exported as SerializedVial for backward compatibility with existing imports.
+export type SerializedVial = SerializedVialData;
 
 interface Props {
   vials: SerializedVial[];

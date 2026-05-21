@@ -53,3 +53,16 @@ export async function getSevenDayAdherence(userId: string): Promise<AdherenceRes
 
   return { logged, total, percent };
 }
+
+export async function hasDoseTodayForUser(userId: string): Promise<boolean> {
+  const todayMidnight = utcMidnightDaysAgo(0);
+  const tomorrow = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 1));
+  const log = await prisma.doseLog.findFirst({
+    where: {
+      userId,
+      scheduledDate: { gte: todayMidnight, lt: tomorrow },
+    },
+    select: { id: true },
+  });
+  return log !== null;
+}

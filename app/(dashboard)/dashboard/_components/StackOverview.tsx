@@ -19,6 +19,7 @@ interface Props {
   ratingAvg: number | null;
   adherence: AdherenceResult;
   hasActiveProtocols: boolean;
+  hasDoseToday: boolean;
   userRole: 'POWER_USER' | 'MANAGED_USER';
   fetchedAt: string; // ISO string
 }
@@ -137,7 +138,7 @@ function EmptyState({ userRole }: { userRole: 'POWER_USER' | 'MANAGED_USER' }) {
   );
 }
 
-export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActiveProtocols, userRole, fetchedAt }: Props) {
+export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActiveProtocols, hasDoseToday, userRole, fetchedAt }: Props) {
   const lowSupplyVials = vials.filter(isVialLowSupply);
 
   if (!hasActiveProtocols) {
@@ -145,6 +146,17 @@ export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActive
   }
 
   if (userRole === 'MANAGED_USER') {
+    if (!hasDoseToday) {
+      return (
+        <div
+          role="status"
+          className="rounded-xl border border-gray-200 bg-white px-6 py-8 text-center shadow-sm"
+        >
+          <p className="text-gray-600 font-medium">No dose scheduled today</p>
+          <p className="text-sm text-gray-400 mt-1">Check back on your next scheduled day.</p>
+        </div>
+      );
+    }
     return <ManagedUserActiveView weekInfo={weekInfo} fetchedAt={fetchedAt} />;
   }
 
