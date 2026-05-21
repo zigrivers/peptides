@@ -4,7 +4,11 @@ const mockFindByEmail = vi.fn();
 const mockCreate = vi.fn();
 const mockSend = vi.fn();
 const mockWithAudit = vi.fn();
+const mockAfter = vi.fn((fn: () => Promise<void>) => { fn().catch(() => {}); });
 
+vi.mock('next/server', () => ({
+  unstable_after: mockAfter,
+}));
 vi.mock('@/lib/auth/infrastructure/AuthRepository', () => ({
   AuthRepository: { findByEmailForAuth: mockFindByEmail },
 }));

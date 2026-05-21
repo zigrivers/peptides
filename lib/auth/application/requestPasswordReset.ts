@@ -1,3 +1,4 @@
+import { unstable_after as after } from 'next/server';
 import { resend, FROM_ADDRESS } from '@/lib/shared/email';
 import { AuthRepository } from '@/lib/auth/infrastructure/AuthRepository';
 import { PasswordResetToken } from '@/lib/auth/domain/PasswordResetToken';
@@ -7,9 +8,10 @@ import { prisma } from '@/lib/shared/prisma';
 
 // Minimum response time for both found and not-found paths.
 // DB operations and the delay run in Promise.all so the caller always waits at
-// least MIN_RESPONSE_MS. Email send happens AFTER Promise.all resolves so that
-// Resend latency cannot create a timing oracle distinguishing registered from
-// unregistered addresses (US-AUT-04 AC-2 no-enumeration contract).
+// least MIN_RESPONSE_MS. Email send is deferred via unstable_after so that Resend
+// latency cannot create a timing oracle distinguishing registered from unregistered
+// addresses (US-AUT-04 AC-2 no-enumeration contract) while still guaranteeing
+// delivery within the serverless function lifecycle.
 const MIN_RESPONSE_MS = 500;
 
 /**
@@ -19,8 +21,8 @@ const MIN_RESPONSE_MS = 500;
 export async function requestPasswordReset(email: string): Promise<void> {
   const normalizedEmail = email.trim().toLowerCase();
 
-  // Captured inside Promise.all; executed outside it so email latency is invisible.
-  // Array avoids TypeScript's closure-assignment tracking limitation on let variables.
+  // Captured inside Promise.all; executed via unstable_after outside it so email
+  // latency cannot extend the user-visible response time.
   const emailQueue: Array<() => Promise<void>> = [];
 
   await Promise.all([
@@ -50,8 +52,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
       if (!appUrl) throw new Error('APP_URL_NOT_CONFIGURED');
       const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
 
-      // Schedule email send outside the timing boundary — not executed until after
-      // Promise.all resolves so Resend latency cannot leak account existence.
+      // Enqueue email send — executed via unstable_after after the response boundary.
       emailQueue.push(async () => {
         const { error } = await resend.emails.send({
           from: FROM_ADDRESS,
@@ -64,9 +65,10 @@ export async function requestPasswordReset(email: string): Promise<void> {
     })(),
   ]);
 
-  // Fire email after the uniform response boundary — intentionally not awaited so
-  // Resend latency cannot extend the user-visible response time (no-enumeration contract).
+  // Schedule email delivery after the uniform response boundary via Next.js unstable_after.
+  // This guarantees execution within the serverless function lifecycle while keeping
+  // Resend latency invisible to the caller (no timing oracle on account existence).
   for (const send of emailQueue) {
-    send().catch((err: unknown) => console.error('[requestPasswordReset] email error:', err));
+    after(send);
   }
 }
