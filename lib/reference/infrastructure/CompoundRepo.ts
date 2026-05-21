@@ -47,6 +47,7 @@ function mapCompound(raw: PrismaCompoundResult): Compound {
           dosingHigh: parseDoseAmount(raw.profile.dosingHigh, 'dosingHigh'),
           sideEffects: raw.profile.sideEffects,
           stackingNotes: raw.profile.stackingNotes,
+          reconstitutedShelfLifeDays: raw.profile.reconstitutedShelfLifeDays,
           citations: raw.profile.citations,
         }
       : null,
@@ -108,6 +109,14 @@ export async function findCompoundsByIds(ids: string[]): Promise<Record<string, 
     select: { id: true, name: true },
   });
   return Object.fromEntries(rows.map((r) => [r.id, r.name]));
+}
+
+export async function getReconstitutedShelfLifeDays(compoundId: string): Promise<number | null> {
+  const profile = await prisma.compoundProfile.findFirst({
+    where: { compoundId },
+    select: { reconstitutedShelfLifeDays: true },
+  });
+  return profile?.reconstitutedShelfLifeDays ?? null;
 }
 
 export async function listCompounds(opts?: { includeArchived?: boolean }): Promise<Compound[]> {

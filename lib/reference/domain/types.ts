@@ -20,6 +20,7 @@ export type CompoundProfile = {
   dosingHigh: DoseAmount;
   sideEffects: string | null;
   stackingNotes: string | null;
+  reconstitutedShelfLifeDays: number | null;
   citations: Citation[];
 };
 
