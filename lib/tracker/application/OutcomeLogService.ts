@@ -6,6 +6,8 @@ export interface AdherenceResult {
   percent: number;
 }
 
+// scheduledDate is stored at UTC midnight by convention (see lessons.md, 2026-05-21).
+// All calendar-date boundaries use UTC midnight to align with stored values.
 function utcMidnightDaysAgo(days: number): Date {
   const d = new Date();
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - days));
@@ -31,12 +33,16 @@ export async function getSevenDayRatingAverage(userId: string): Promise<number |
 export async function getSevenDayAdherence(userId: string): Promise<AdherenceResult> {
   const since = utcMidnightDaysAgo(6); // today + 6 preceding days = 7 days inclusive
   const tomorrow = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 1));
+  // todayMidnight separates past PENDING (missed) from today's not-yet-acted-on PENDING
+  const todayMidnight = utcMidnightDaysAgo(0);
 
   const logs = await prisma.doseLog.findMany({
     where: {
       userId,
-      scheduledDate: { gte: since, lt: tomorrow },
-      status: { in: ['LOGGED', 'SKIPPED'] },
+      OR: [
+        { scheduledDate: { gte: since, lt: tomorrow }, status: { in: ['LOGGED', 'SKIPPED'] } },
+        { scheduledDate: { gte: since, lt: todayMidnight }, status: 'PENDING' },
+      ],
     },
     select: { status: true },
   });

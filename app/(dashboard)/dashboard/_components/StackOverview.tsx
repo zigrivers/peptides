@@ -36,26 +36,33 @@ function RatingStars({ rating }: { rating: number }) {
   );
 }
 
-function StaleIndicator({ fetchedAt }: { fetchedAt: string }) {
+function useStaleMinutes(fetchedAt: string): number | null {
   const [now, setNow] = useState<number | null>(null);
-
   useEffect(() => {
     setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
-
   if (now === null) return null;
-  const fetchedDate = new Date(fetchedAt);
-  const minutesAgo = Math.floor((now - fetchedDate.getTime()) / 60_000);
-  if (minutesAgo < 30) return null;
+  return Math.floor((now - new Date(fetchedAt).getTime()) / 60_000);
+}
+
+function StaleIndicator({ fetchedAt }: { fetchedAt: string }) {
+  const minutesAgo = useStaleMinutes(fetchedAt);
+  if (minutesAgo === null || minutesAgo < 30) return null;
   return (
-    <p
-      role="status"
-      aria-live="polite"
-      className="text-xs text-amber-600 mt-1"
-    >
-      &#9888; Last refreshed {fetchedDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+    <p aria-hidden="true" className="text-xs text-amber-600 mt-1">
+      &#9888; Last refreshed {new Date(fetchedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+    </p>
+  );
+}
+
+function StaleAnnouncer({ fetchedAt }: { fetchedAt: string }) {
+  const minutesAgo = useStaleMinutes(fetchedAt);
+  if (minutesAgo === null || minutesAgo < 30) return null;
+  return (
+    <p role="status" aria-live="polite" className="sr-only">
+      Dashboard data was last refreshed {new Date(fetchedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
     </p>
   );
 }
@@ -63,6 +70,7 @@ function StaleIndicator({ fetchedAt }: { fetchedAt: string }) {
 function ManagedUserActiveView({ weekInfo, fetchedAt }: { weekInfo: CycleWeekInfo | null; fetchedAt: string }) {
   return (
     <div className="space-y-4">
+      <StaleAnnouncer fetchedAt={fetchedAt} />
       {weekInfo && (
         <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Current Cycle</p>
@@ -142,6 +150,8 @@ export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActive
 
   return (
     <div className="space-y-4">
+      {/* Single aria-live region for stale announcements (prevents duplicate screen reader reads) */}
+      <StaleAnnouncer fetchedAt={fetchedAt} />
       {/* Cycle Week tile */}
       {weekInfo && (
         <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
