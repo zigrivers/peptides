@@ -44,13 +44,28 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
   );
 
   const existing = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, input.actorUserId);
+
+  const protocol = await findProtocolByIdForActor(prisma, input.protocolId, input.actorUserId, []);
+  if (!protocol) {
+    throw new Error(`Protocol not found: ${input.protocolId}`);
+  }
+
+  // Always check inventory; warnings apply to both new logs and same-day edits to LOGGED.
+  const warnings: SafetyWarning[] = [];
+  if (input.status === 'LOGGED') {
+    const vialCount = await countActiveVialsForCompound(prisma, input.actorUserId, protocol.compoundId);
+    if (vialCount === 0) {
+      warnings.push({ code: 'insufficient_inventory', message: 'No reconstituted vials available for this compound.' });
+    }
+  }
+
   if (existing) {
     if (existing.status === input.status) {
-      return { doseLog: existing, warnings: [] };
+      return { doseLog: existing, warnings };
     }
     // Same-calendar-day edit: update the existing log to the new status.
     const updated = await prisma.$transaction(async (tx) => {
-      const log = await updateDoseLog(tx, existing.id, input.actorUserId, {
+      const log = await updateDoseLog(tx, existing.id, {
         status: input.status,
         injectionSite: input.injectionSite ?? existing.injectionSite,
         note: input.note ?? existing.note,
@@ -70,19 +85,11 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
       });
       return log;
     });
-    return { doseLog: updated, warnings: [] };
+    return { doseLog: updated, warnings };
   }
 
-  const protocol = await findProtocolByIdForActor(prisma, input.protocolId, input.actorUserId, []);
-  if (!protocol) {
-    throw new Error(`Protocol not found: ${input.protocolId}`);
-  }
-
-  const warnings: SafetyWarning[] = [];
-  const vialCount = await countActiveVialsForCompound(prisma, input.actorUserId, protocol.compoundId);
-  if (vialCount === 0) {
-    warnings.push({ code: 'insufficient_inventory', message: 'No reconstituted vials available for this compound.' });
-  }
+  // Use the protocol's scheduled dose amount as the authoritative amount.
+  const amount = protocol.dose;
 
   const doseLog = await prisma.$transaction(async (tx) => {
     const log = await createDoseLog(tx, {
@@ -90,7 +97,7 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
       userId: input.actorUserId,
       idempotencyKey,
       scheduledDate: toUTCDay(input.scheduledDate),
-      amount: input.amount,
+      amount,
       status: input.status,
       injectionSite: input.injectionSite,
       note: input.note,
@@ -110,7 +117,7 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
           protocolId: input.protocolId,
           scheduledDate: log.scheduledDate.toISOString(),
           status: input.status,
-          amount: input.amount as unknown as JsonValue,
+          amount: amount as unknown as JsonValue,
         },
       },
     });

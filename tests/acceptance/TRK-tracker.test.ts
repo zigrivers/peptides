@@ -612,7 +612,7 @@ describe('US-TRK-03: Individual Dose Logging', () => {
     const skippedRow = { ...baseDoseLogRow, status: 'SKIPPED', idempotencyKey: `${logActorUserId}:${logProtocolId}:2026-05-21` };
     mockDoseLogFindFirst.mockResolvedValue(null);
     mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
-    mockVialCount.mockResolvedValue(1);
+    // vialCount is not called for SKIPPED status
     mockDoseLogCreate.mockResolvedValue(skippedRow);
     mockAuditCreate.mockResolvedValue({});
 
@@ -655,6 +655,8 @@ describe('US-TRK-03: Individual Dose Logging', () => {
   it('idempotency: returns existing log on duplicate key with same status', async () => {
     const existingLog = { ...baseDoseLogRow };
     mockDoseLogFindFirst.mockResolvedValue(existingLog);
+    mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
+    mockVialCount.mockResolvedValue(1);
 
     const result = await logDose({
       actorUserId: logActorUserId,
@@ -673,6 +675,8 @@ describe('US-TRK-03: Individual Dose Logging', () => {
     const existingSkippedRow = { ...baseDoseLogRow, status: 'SKIPPED' };
     const updatedLoggedRow = { ...baseDoseLogRow, status: 'LOGGED' };
     mockDoseLogFindFirst.mockResolvedValue(existingSkippedRow);
+    mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
+    mockVialCount.mockResolvedValue(1);
     mockDoseLogUpdate.mockResolvedValue(updatedLoggedRow);
     mockAuditCreate.mockResolvedValue({});
 

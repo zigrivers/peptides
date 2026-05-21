@@ -6,12 +6,20 @@ import { logDoseAction } from '@/app/actions/tracker/log-dose';
 
 type Props = {
   protocolId: string;
-  scheduledDate: string; // YYYY-MM-DD
   amount: DoseAmount;
   existingStatus?: 'LOGGED' | 'SKIPPED';
 };
 
-export function DoseLogActions({ protocolId, scheduledDate, amount, existingStatus }: Props) {
+function localDateISO(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function DoseLogActions({ protocolId, amount, existingStatus }: Props) {
+  const scheduledDate = localDateISO();
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<'LOGGED' | 'SKIPPED' | null>(existingStatus ?? null);
   const [warnings, setWarnings] = useState<SafetyWarning[]>([]);

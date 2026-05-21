@@ -25,9 +25,6 @@ export default async function ProtocolDetailPage({
     protocol.status === 'ACTIVE' ? getTodaysDoseLog(session.user.id, id) : Promise.resolve(null),
   ]);
 
-  const nowUTC = new Date();
-  const todayISO = `${nowUTC.getUTCFullYear()}-${String(nowUTC.getUTCMonth() + 1).padStart(2, '0')}-${String(nowUTC.getUTCDate()).padStart(2, '0')}`;
-
   const statusColors: Record<string, string> = {
     ACTIVE: 'text-green-700 bg-green-50',
     PAUSED: 'text-yellow-700 bg-yellow-50',
@@ -96,7 +93,6 @@ export default async function ProtocolDetailPage({
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Today&apos;s dose</h2>
           <DoseLogActions
             protocolId={protocol.id}
-            scheduledDate={todayISO}
             amount={protocol.dose}
             existingStatus={todaysDoseLog?.status as 'LOGGED' | 'SKIPPED' | undefined}
           />

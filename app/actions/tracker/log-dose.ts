@@ -34,7 +34,13 @@ export async function logDoseAction(input: LogDoseActionInput): Promise<LogDoseA
   }
   const [, y, m, d] = dateParts.map(Number);
   const scheduledDate = new Date(Date.UTC(y, m - 1, d));
-  if (isNaN(scheduledDate.getTime())) {
+  // Verify JS did not normalize an impossible date (e.g. 2026-02-31 → 2026-03-03)
+  if (
+    isNaN(scheduledDate.getTime()) ||
+    scheduledDate.getUTCFullYear() !== y ||
+    scheduledDate.getUTCMonth() + 1 !== m ||
+    scheduledDate.getUTCDate() !== d
+  ) {
     return { ok: false, error: 'invalid_date', message: 'scheduledDate is not a valid calendar date.' };
   }
 

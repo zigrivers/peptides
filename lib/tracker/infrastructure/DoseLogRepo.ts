@@ -95,7 +95,6 @@ export async function findDoseLogForDate(
 export async function updateDoseLog(
   tx: Prisma.TransactionClient,
   id: string,
-  userId: string,
   updates: Partial<{
     amount: DoseAmount;
     status: DoseLogStatus;
@@ -114,7 +113,7 @@ export async function updateDoseLog(
   if (updates.vialId !== undefined) data.vialId = updates.vialId;
 
   const raw = await tx.doseLog.update({
-    where: { id, userId },
+    where: { id },
     data,
   });
   return mapDoseLog(raw as RawDoseLog);
