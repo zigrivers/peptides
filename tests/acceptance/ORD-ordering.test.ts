@@ -58,8 +58,6 @@ vi.mock('@/lib/shared/prisma', () => ({
           deleteMany: mockPrismaTelegramSessionDeleteMany,
         },
         auditEvent: { create: mockPrismaAuditEventCreate },
-        // Expose $transaction on tx so withAudit can detect it as a PrismaClient
-        $transaction: undefined,
       };
       return fn(tx);
     }),

@@ -17,6 +17,9 @@ type Step = 'idle' | 'phone' | 'code' | 'password';
 
 export function TelegramSetupForm({ linked }: Props) {
   const router = useRouter();
+  // isLinked is derived from the server prop but managed locally so the UI updates
+  // immediately on success without waiting for router.refresh() to propagate.
+  const [isLinked, setIsLinked] = useState(linked);
   const [step, setStep] = useState<Step>('idle');
   const [phone, setPhone] = useState('');
   const [phoneCodeHash, setPhoneCodeHash] = useState('');
@@ -56,6 +59,8 @@ export function TelegramSetupForm({ linked }: Props) {
       setError(result.message ?? result.error);
       return;
     }
+    setIsLinked(true);
+    setStep('idle');
     router.refresh();
   }
 
@@ -69,6 +74,8 @@ export function TelegramSetupForm({ linked }: Props) {
       setError(result.message ?? result.error);
       return;
     }
+    setIsLinked(true);
+    setStep('idle');
     router.refresh();
   }
 
@@ -82,10 +89,11 @@ export function TelegramSetupForm({ linked }: Props) {
       setError(result.message ?? result.error);
       return;
     }
+    setIsLinked(false);
     router.refresh();
   }
 
-  if (linked) {
+  if (isLinked) {
     return (
       <div className="rounded-lg border border-green-200 bg-green-50 p-4">
         <div className="flex items-start justify-between">

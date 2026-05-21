@@ -1,5 +1,6 @@
-import { TelegramClient } from 'telegram';
+import { TelegramClient, Api } from 'telegram';
 import { StringSession } from 'telegram/sessions';
+import { computeCheck } from 'telegram/Password';
 
 function getCredentials() {
   const apiId = process.env.TELEGRAM_APP_ID;
@@ -21,9 +22,8 @@ export async function startPhoneAuth(phone: string): Promise<{ phoneCodeHash: st
   const client = makeClient();
   await client.connect();
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { Api } = await import('telegram') as any;
     const { apiId, apiHash } = getCredentials();
+    // TypeSentCode is a union — SentCode carries phoneCodeHash for the standard SMS flow.
     const result = await client.invoke(
       new Api.auth.SendCode({
         phoneNumber: phone,
@@ -31,7 +31,7 @@ export async function startPhoneAuth(phone: string): Promise<{ phoneCodeHash: st
         apiHash,
         settings: new Api.CodeSettings({}),
       })
-    );
+    ) as Api.auth.SentCode;
     // Save auth_key in session so SignIn can reuse it.
     const tempSession = client.session.save() as unknown as string;
     return { phoneCodeHash: result.phoneCodeHash, tempSession };
@@ -51,8 +51,6 @@ export async function completePhoneAuth(
   const client = makeClient(tempSession);
   await client.connect();
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { Api } = await import('telegram') as any;
     await client.invoke(
       new Api.auth.SignIn({ phoneNumber: phone, phoneCodeHash, phoneCode: code })
     );
@@ -80,10 +78,6 @@ export async function completePhoneAuthWithPassword(
   const client = makeClient(tempSession);
   await client.connect();
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { Api } = await import('telegram') as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { computeCheck } = await import('telegram/Password') as any;
     const passwordInfo = await client.invoke(new Api.account.GetPassword());
     const check = await computeCheck(passwordInfo, password);
     await client.invoke(new Api.auth.CheckPassword({ password: check }));
@@ -98,9 +92,7 @@ export async function logoutSession(plainSessionString: string): Promise<void> {
   const client = makeClient(plainSessionString);
   await client.connect();
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { Api } = await import('telegram') as any;
-    await client.invoke(new Api.auth.LogOut({}));
+    await client.invoke(new Api.auth.LogOut());
   } catch {
     // Session may already be invalid on Telegram's side — ignore, proceed with local cleanup.
   } finally {
