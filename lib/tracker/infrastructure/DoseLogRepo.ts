@@ -136,3 +136,13 @@ export async function countActiveVialsForCompound(
     },
   });
 }
+
+export async function validateVialOwnership(
+  client: PrismaClient_,
+  vialId: string,
+  userId: string,
+  compoundId: string
+): Promise<boolean> {
+  const vial = await client.vial.findFirst({ where: { id: vialId, userId, compoundId } });
+  return vial !== null;
+}

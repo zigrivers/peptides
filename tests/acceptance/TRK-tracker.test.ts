@@ -10,6 +10,7 @@ const mockDoseLogCreate = vi.fn();
 const mockDoseLogFindFirst = vi.fn();
 const mockDoseLogUpdate = vi.fn();
 const mockVialCount = vi.fn();
+const mockVialFindFirst = vi.fn();
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 vi.mock('@/lib/shared/prisma', () => ({
@@ -34,6 +35,7 @@ vi.mock('@/lib/shared/prisma', () => ({
     },
     vial: {
       count: mockVialCount,
+      findFirst: mockVialFindFirst,
     },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {

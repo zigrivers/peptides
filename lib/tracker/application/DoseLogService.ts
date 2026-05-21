@@ -8,6 +8,7 @@ import {
   findDoseLogByIdempotencyKey,
   findDoseLogForDate,
   countActiveVialsForCompound,
+  validateVialOwnership,
 } from '../infrastructure/DoseLogRepo';
 import { findProtocolByIdForActor } from '../infrastructure/ProtocolRepo';
 import { getManagedUserIds } from './ProtocolService';
@@ -29,11 +30,13 @@ function isFutureCalendarDay(scheduledDate: Date): boolean {
 }
 
 export async function getTodaysDoseLog(userId: string, protocolId: string): Promise<DoseLog | null> {
-  const protocol = await findProtocolByIdForActor(prisma, protocolId, userId, []);
+  const managedIds = await getManagedUserIds(userId);
+  const protocol = await findProtocolByIdForActor(prisma, protocolId, userId, managedIds);
   if (!protocol) return null;
   const now = new Date();
   const todayUTC = toUTCDay(now);
-  return findDoseLogForDate(prisma, userId, protocolId, todayUTC);
+  // Read the dose log using the protocol owner's userId (not necessarily the actor).
+  return findDoseLogForDate(prisma, protocol.userId, protocolId, todayUTC);
 }
 
 export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
@@ -41,15 +44,8 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
     throw new Error('dose_log_too_late: Cannot log a dose for a future date');
   }
 
-  const idempotencyKey = buildIdempotencyKey(
-    input.actorUserId,
-    input.protocolId,
-    input.scheduledDate
-  );
-
+  // Resolve protocol first to obtain the authoritative subject userId.
   const managedIds = await getManagedUserIds(input.actorUserId);
-  const existing = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, input.actorUserId);
-
   const protocol = await findProtocolByIdForActor(prisma, input.protocolId, input.actorUserId, managedIds);
   if (!protocol) {
     throw new Error(`Protocol not found: ${input.protocolId}`);
@@ -58,17 +54,29 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
     throw new Error(`Protocol is not active: ${input.protocolId}`);
   }
 
+  // Dose log is stored under the protocol owner's userId.
+  const subjectUserId = protocol.userId;
+
+  // Validate vialId ownership before any writes.
+  if (input.vialId) {
+    const valid = await validateVialOwnership(prisma, input.vialId, subjectUserId, protocol.compoundId);
+    if (!valid) {
+      throw new Error(`vial_not_found: vial ${input.vialId} does not belong to this user or compound`);
+    }
+  }
+
+  // Build idempotency key using the subject's userId (the record owner).
+  const idempotencyKey = buildIdempotencyKey(subjectUserId, input.protocolId, input.scheduledDate);
+  const existing = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, subjectUserId);
+
   // Always check inventory; warnings apply to both new logs and same-day edits to LOGGED.
   const warnings: SafetyWarning[] = [];
   if (input.status === 'LOGGED') {
-    const vialCount = await countActiveVialsForCompound(prisma, input.actorUserId, protocol.compoundId);
+    const vialCount = await countActiveVialsForCompound(prisma, subjectUserId, protocol.compoundId);
     if (vialCount === 0) {
       warnings.push({ code: 'insufficient_inventory', message: 'No reconstituted vials available for this compound.' });
     }
   }
-
-  // doseLog.userId is the protocol owner (the subject), not necessarily the actor.
-  const subjectUserId = protocol.userId;
 
   if (existing) {
     if (existing.status === input.status) {
@@ -141,8 +149,9 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
     return { doseLog, warnings };
   } catch (err) {
     // Concurrent create hit the @@unique([userId, protocolId, scheduledDate]) constraint.
+    // Use findDoseLogForDate (not idempotencyKey) so we find the record regardless of who won.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      const winner = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, subjectUserId);
+      const winner = await findDoseLogForDate(prisma, subjectUserId, input.protocolId, toUTCDay(input.scheduledDate));
       if (winner) return { doseLog: winner, warnings };
     }
     throw err;
