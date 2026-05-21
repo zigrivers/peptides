@@ -56,6 +56,7 @@ export async function logDoseAction(input: unknown): Promise<LogDoseActionResult
       injectionSite,
       note,
       vialId,
+      requireInjectionSite: true,
     });
 
     revalidatePath(`/tracker/protocols/${protocolId}`);

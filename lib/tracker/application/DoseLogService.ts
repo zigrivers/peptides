@@ -70,8 +70,9 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
       );
     }
   }
-  // Require a site for injectable routes when logging (not skipping).
-  if (input.status === 'LOGGED' && validSitesForRoute.length > 0 && !input.injectionSite) {
+  // Require a site for injectable routes when the caller opts in (individual logging flow only).
+  // Batch logging does not call logDose and is unaffected.
+  if (input.requireInjectionSite && input.status === 'LOGGED' && validSitesForRoute.length > 0 && !input.injectionSite) {
     throw new Error(`injection_site_required: injection site is required for route ${protocol.administrationRoute}`);
   }
 

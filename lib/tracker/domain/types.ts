@@ -91,6 +91,8 @@ export type LogDoseInput = {
   injectionSite?: InjectionSite;
   note?: string;
   vialId?: string;
+  /** When true, logDose enforces that a site is provided for injectable LOGGED doses. */
+  requireInjectionSite?: boolean;
 };
 
 export type LogDoseResult = {

@@ -127,6 +127,8 @@ export async function updateDoseLog(
   if (updates.amount !== undefined) data.amount = updates.amount as Prisma.InputJsonValue;
   if (updates.status !== undefined) data.status = updates.status;
   if (updates.injectionSite !== undefined) {
+    // null → Prisma.JsonNull (JSON null stored in the column, not SQL NULL/DbNull),
+    // consistent with the { not: Prisma.JsonNull } filter in findRecentLogsWithSitesForCompound.
     data.injectionSite = updates.injectionSite ? (updates.injectionSite as Prisma.InputJsonValue) : Prisma.JsonNull;
   }
   if (updates.note !== undefined) data.note = updates.note;
