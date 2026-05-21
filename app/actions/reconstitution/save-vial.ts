@@ -6,10 +6,18 @@ import Decimal from 'decimal.js';
 import { saveVial } from '@/lib/reconstitution/application/VialService';
 import { revalidatePath } from 'next/cache';
 
+function isPositiveDecimal(v: string): boolean {
+  try {
+    return new Decimal(v).gt(0);
+  } catch {
+    return false;
+  }
+}
+
 const schema = z.object({
   compoundId: z.string().min(1),
-  totalMg: z.string().refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, 'Must be positive'),
-  bacWaterMl: z.string().refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, 'Must be positive'),
+  totalMg: z.string().refine(isPositiveDecimal, 'Must be a positive number'),
+  bacWaterMl: z.string().refine(isPositiveDecimal, 'Must be a positive number'),
   expiresAt: z.string().date().optional(),
 });
 
