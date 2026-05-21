@@ -46,6 +46,7 @@ export async function createDoseLog(
     scheduledDate: Date;
     amount: DoseAmount;
     status: DoseLogStatus;
+    isBatchLog?: boolean;
     injectionSite?: InjectionSite;
     note?: string;
     vialId?: string;
@@ -61,7 +62,7 @@ export async function createDoseLog(
       amount: data.amount as Prisma.InputJsonValue,
       status: data.status,
       injectionSite: data.injectionSite ? (data.injectionSite as Prisma.InputJsonValue) : Prisma.JsonNull,
-      isBatchLog: false,
+      isBatchLog: data.isBatchLog ?? false,
       note: data.note ?? null,
       vialId: data.vialId ?? null,
       loggedByUserId: data.loggedByUserId ?? null,
@@ -93,6 +94,21 @@ export async function findDoseLogForDate(
   return raw ? mapDoseLog(raw as RawDoseLog) : null;
 }
 
+export async function findDoseLogsForDate(
+  client: PrismaClient_,
+  userId: string,
+  protocolIds: string[],
+  scheduledDate: Date
+): Promise<Record<string, DoseLog | null>> {
+  if (protocolIds.length === 0) return {};
+  const rows = await client.doseLog.findMany({
+    where: { userId, protocolId: { in: protocolIds }, scheduledDate },
+  });
+  const byProtocol: Record<string, DoseLog | null> = Object.fromEntries(protocolIds.map((id) => [id, null]));
+  for (const row of rows) byProtocol[row.protocolId] = mapDoseLog(row as RawDoseLog);
+  return byProtocol;
+}
+
 export async function updateDoseLog(
   tx: Prisma.TransactionClient,
   id: string,
@@ -103,6 +119,8 @@ export async function updateDoseLog(
     injectionSite: InjectionSite | null;
     note: string | null;
     vialId: string | null;
+    isBatchLog: boolean;
+    loggedByUserId: string | null;
   }>
 ): Promise<DoseLog> {
   const data: Record<string, unknown> = {};
@@ -113,6 +131,8 @@ export async function updateDoseLog(
   }
   if (updates.note !== undefined) data.note = updates.note;
   if (updates.vialId !== undefined) data.vialId = updates.vialId;
+  if (updates.isBatchLog !== undefined) data.isBatchLog = updates.isBatchLog;
+  if (updates.loggedByUserId !== undefined) data.loggedByUserId = updates.loggedByUserId;
 
   // updateMany allows non-unique fields (userId) in the where clause for ownership enforcement.
   const result = await tx.doseLog.updateMany({ where: { id, userId }, data });

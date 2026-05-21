@@ -8,6 +8,7 @@ const mockUserFindUnique = vi.fn();
 const mockUserFindMany = vi.fn();
 const mockDoseLogCreate = vi.fn();
 const mockDoseLogFindFirst = vi.fn();
+const mockDoseLogFindMany = vi.fn();
 const mockDoseLogUpdate = vi.fn();
 const mockVialCount = vi.fn();
 const mockVialFindFirst = vi.fn();
@@ -31,6 +32,7 @@ vi.mock('@/lib/shared/prisma', () => ({
     doseLog: {
       create: mockDoseLogCreate,
       findFirst: mockDoseLogFindFirst,
+      findMany: mockDoseLogFindMany,
       update: mockDoseLogUpdate,
     },
     vial: {
@@ -63,10 +65,11 @@ beforeEach(() => {
 const { createProtocol, updateProtocol, pauseProtocol, resumeProtocol, cloneProtocol, deactivateProtocol } = await import(
   '@/lib/tracker/application/ProtocolService'
 );
-const { generateScheduleDates } = await import(
+const { generateScheduleDates, isScheduledOn } = await import(
   '@/lib/tracker/domain/ScheduleGenerator'
 );
 const { logDose } = await import('@/lib/tracker/application/DoseLogService');
+const { batchLogDoses, getDueTodayForBatch } = await import('@/lib/tracker/application/BatchLogService');
 
 const actorUserId = 'user-1';
 const compoundId = 'compound-bpc157';
@@ -398,6 +401,42 @@ describe('ScheduleGenerator', () => {
     expect(dates[0].toISOString().slice(0, 10)).toBe('2026-06-02'); // first Tuesday
     expect(dates[1].toISOString().slice(0, 10)).toBe('2026-06-09');
   });
+
+  describe('isScheduledOn', () => {
+    const s = new Date(Date.UTC(2026, 5, 1)); // 2026-06-01 Monday
+
+    it('Daily: returns true for any day on/after start', () => {
+      expect(isScheduledOn({ frequency: 'Daily' }, s, null, new Date(Date.UTC(2026, 5, 5)))).toBe(true);
+    });
+    it('Daily: returns false before start', () => {
+      expect(isScheduledOn({ frequency: 'Daily' }, s, null, new Date(Date.UTC(2026, 4, 31)))).toBe(false);
+    });
+    it('EOD: returns true on even-offset days', () => {
+      expect(isScheduledOn({ frequency: 'EOD' }, s, null, new Date(Date.UTC(2026, 5, 3)))).toBe(true);
+    });
+    it('EOD: returns false on odd-offset days', () => {
+      expect(isScheduledOn({ frequency: 'EOD' }, s, null, new Date(Date.UTC(2026, 5, 2)))).toBe(false);
+    });
+    it('SpecificDaysOfWeek: returns true for matching day', () => {
+      // 2026-06-03 is Wednesday
+      expect(isScheduledOn({ frequency: 'SpecificDaysOfWeek', daysOfWeek: ['Wed'] }, s, null, new Date(Date.UTC(2026, 5, 3)))).toBe(true);
+    });
+    it('SpecificDaysOfWeek: returns false for non-matching day', () => {
+      // 2026-06-02 is Tuesday — not Wed
+      expect(isScheduledOn({ frequency: 'SpecificDaysOfWeek', daysOfWeek: ['Wed'] }, s, null, new Date(Date.UTC(2026, 5, 2)))).toBe(false);
+    });
+    it('CustomInterval: returns true when diff divisible by interval', () => {
+      expect(isScheduledOn({ frequency: 'CustomInterval', intervalDays: 3 }, s, null, new Date(Date.UTC(2026, 5, 7)))).toBe(true);
+    });
+    it('CustomInterval: returns false when diff not divisible by interval', () => {
+      // June 5 = offset 4 from June 1; 4 % 3 = 1 → not a scheduled day
+      expect(isScheduledOn({ frequency: 'CustomInterval', intervalDays: 3 }, s, null, new Date(Date.UTC(2026, 5, 5)))).toBe(false);
+    });
+    it('respects endDate', () => {
+      const end = new Date(Date.UTC(2026, 5, 5));
+      expect(isScheduledOn({ frequency: 'Daily' }, s, end, new Date(Date.UTC(2026, 5, 6)))).toBe(false);
+    });
+  });
 });
 
 /**
@@ -724,8 +763,204 @@ describe('US-TRK-03: Individual Dose Logging', () => {
  * Story: US-TRK-05 — Batch Log
  */
 describe('US-TRK-05: Batch Log', () => {
-  it.todo('AC-1: logs all scheduled doses in one action');
-  it.todo('AC-2: allows deselecting doses in review sheet');
+  const FROZEN_BATCH = new Date(Date.UTC(2026, 4, 21)); // 2026-05-21
+  beforeEach(() => { vi.setSystemTime(FROZEN_BATCH); });
+  afterAll(() => { vi.useRealTimers(); });
+
+  const batchActorUserId = 'user-batch';
+  const proto1Id = 'proto-batch-1';
+  const proto2Id = 'proto-batch-2';
+  const batchCompoundId = 'compound-bpc157';
+  const batchAmount = { amount: '250', unit: 'mcg' as const };
+
+  const makeProtocolRow = (id: string) => ({
+    id,
+    userId: batchActorUserId,
+    compoundId: batchCompoundId,
+    cycleId: null,
+    dose: batchAmount,
+    schedule: { frequency: 'Daily' },
+    administrationRoute: 'SubQ',
+    status: 'ACTIVE',
+    startDate: new Date(Date.UTC(2026, 4, 1)),
+    endDate: null,
+    notes: null,
+  });
+
+  const makeLogRow = (protocolId: string, id: string) => ({
+    id,
+    protocolId,
+    userId: batchActorUserId,
+    vialId: null,
+    idempotencyKey: `${batchActorUserId}:${protocolId}:2026-05-21`,
+    loggedAt: new Date(),
+    scheduledDate: FROZEN_BATCH,
+    amount: batchAmount,
+    status: 'LOGGED',
+    injectionSite: null,
+    isBatchLog: true,
+    note: null,
+    loggedByUserId: batchActorUserId,
+  });
+
+  it('AC-1: logs all selected ACTIVE protocols as LOGGED with isBatchLog=true', async () => {
+    // Protocol lookup: called per-protocol during batchLogDoses
+    mockProtocolFindFirst
+      .mockResolvedValueOnce(makeProtocolRow(proto1Id))
+      .mockResolvedValueOnce(makeProtocolRow(proto2Id));
+    // No existing logs
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    // Vials available
+    mockVialCount.mockResolvedValue(2);
+    mockDoseLogCreate
+      .mockResolvedValueOnce(makeLogRow(proto1Id, 'log-batch-1'))
+      .mockResolvedValueOnce(makeLogRow(proto2Id, 'log-batch-2'));
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id, proto2Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results).toHaveLength(2);
+    expect(result.results.every((r) => r.ok)).toBe(true);
+    const succeeded = result.results.filter((r) => r.ok) as Array<{ ok: true; doseLog: { isBatchLog: boolean } }>;
+    expect(succeeded.every((r) => r.doseLog.isBatchLog)).toBe(true);
+  });
+
+  it('AC-2 (partial): already-logged protocols are returned as ok=true with existing log (idempotent)', async () => {
+    const existingLog = makeLogRow(proto1Id, 'log-existing');
+    mockProtocolFindFirst.mockResolvedValue(makeProtocolRow(proto1Id));
+    // idempotency lookup: return existing — vial count is NOT checked for already-logged
+    mockDoseLogFindFirst.mockResolvedValue(existingLog);
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].ok).toBe(true);
+    expect(mockDoseLogCreate).not.toHaveBeenCalled();
+    expect(mockVialCount).not.toHaveBeenCalled(); // vials not checked for already-logged
+  });
+
+  it('zero vials: batchLogDoses returns ok=false when no inventory available', async () => {
+    mockProtocolFindFirst.mockResolvedValue(makeProtocolRow(proto1Id));
+    mockDoseLogFindFirst.mockResolvedValue(null); // no existing
+    mockVialCount.mockResolvedValue(0); // no vials
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results[0].ok).toBe(false);
+    expect((result.results[0] as { ok: false; error: string }).error).toMatch(/insufficient_inventory/i);
+    expect(mockDoseLogCreate).not.toHaveBeenCalled();
+  });
+
+  it('scope guard: batchLogDoses rejects managed-user protocols', async () => {
+    const managedProtocol = { ...makeProtocolRow(proto1Id), userId: 'managed-user-id' };
+    mockProtocolFindFirst.mockResolvedValue(managedProtocol);
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results[0].ok).toBe(false);
+    expect((result.results[0] as { ok: false; error: string }).error).toMatch(/batch_scope_violation/i);
+  });
+
+  it('AC-6: getDueTodayForBatch returns protocols with availability flags', async () => {
+    const proto2CompoundId = 'compound-tb500';
+    // proto2 uses a different compound so vial counts can differ
+    const proto2Row = { ...makeProtocolRow(proto2Id), compoundId: proto2CompoundId };
+    mockProtocolFindMany.mockResolvedValue([makeProtocolRow(proto1Id), proto2Row]);
+    // compound-bpc157: 0 vials; compound-tb500: 1 vial (one call per unique compound)
+    mockVialCount.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+    // No existing logs (bulk findMany returns empty array)
+    mockDoseLogFindMany.mockResolvedValue([]);
+
+    const items = await getDueTodayForBatch(batchActorUserId);
+
+    expect(items).toHaveLength(2);
+    const item1 = items.find((i) => i.protocol.id === proto1Id)!;
+    const item2 = items.find((i) => i.protocol.id === proto2Id)!;
+    expect(item1.isAvailable).toBe(false); // no vials for compound-bpc157
+    expect(item2.isAvailable).toBe(true);  // has vials for compound-tb500
+  });
+
+  it('schedule filter: getDueTodayForBatch excludes EOD protocols not due today', async () => {
+    // EOD protocol starting 2026-05-20 (yesterday) — next dose is 2026-05-22, not today
+    const eodProtocol = {
+      ...makeProtocolRow(proto1Id),
+      schedule: { frequency: 'EOD' },
+      startDate: new Date(Date.UTC(2026, 4, 20)), // yesterday
+    };
+    mockProtocolFindMany.mockResolvedValue([eodProtocol]);
+    // No bulk findMany calls expected (no due protocols after schedule filter)
+
+    const items = await getDueTodayForBatch(batchActorUserId);
+
+    expect(items).toHaveLength(0); // EOD not due today
+  });
+
+  it('schedule filter: logOneInBatch rejects protocols not scheduled for the given date', async () => {
+    const eodProtocol = {
+      ...makeProtocolRow(proto1Id),
+      schedule: { frequency: 'EOD' },
+      startDate: new Date(Date.UTC(2026, 4, 20)), // yesterday — next EOD dose is 2026-05-22
+    };
+    mockProtocolFindFirst.mockResolvedValue(eodProtocol);
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    mockVialCount.mockResolvedValue(1);
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH, // 2026-05-21 is not a scheduled day
+    });
+
+    expect(result.results[0].ok).toBe(false);
+    expect((result.results[0] as { ok: false; error: string }).error).toMatch(/no_dose_scheduled/i);
+  });
+
+  it('SKIPPED→LOGGED: batchLogDoses converts an existing SKIPPED log to LOGGED with isBatchLog=true', async () => {
+    const skippedLog = { ...makeLogRow(proto1Id, 'log-skipped'), status: 'SKIPPED', isBatchLog: false };
+    mockProtocolFindFirst.mockResolvedValue(makeProtocolRow(proto1Id));
+    mockDoseLogFindFirst
+      .mockResolvedValueOnce(skippedLog) // idempotency check returns SKIPPED
+      .mockResolvedValueOnce({ ...skippedLog, status: 'LOGGED', isBatchLog: true, loggedByUserId: batchActorUserId }); // post-update read
+    mockVialCount.mockResolvedValue(2); // vials required even for SKIPPED→LOGGED
+    mockDoseLogUpdate.mockResolvedValue({ count: 1 }); // updateMany result
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results[0].ok).toBe(true);
+    expect(mockDoseLogCreate).not.toHaveBeenCalled(); // updateMany, not create
+    expect(mockDoseLogUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'log-skipped' }),
+        data: expect.objectContaining({ status: 'LOGGED', isBatchLog: true, loggedByUserId: batchActorUserId }),
+      })
+    );
+    expect(mockVialCount).toHaveBeenCalled(); // vial check enforced for SKIPPED→LOGGED
+  });
+
+  // AC-3 (offline sync) deferred to Task 2.6
+  it.todo('AC-3: queues batch log while offline');
 });
 
 /**
