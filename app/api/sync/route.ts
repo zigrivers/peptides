@@ -19,11 +19,15 @@ export async function POST(req: Request): Promise<NextResponse> {
   }
 
   const actorUserId = session.user.id;
-  const body = await req.json() as { entries: SyncEntry[] };
+  const body = await req.json() as { entries?: unknown };
   const { entries } = body;
 
+  if (!Array.isArray(entries)) {
+    return NextResponse.json({ error: 'Invalid input: entries must be an array' }, { status: 400 });
+  }
+
   const results: EntryResult[] = await Promise.all(
-    entries.map(async (entry): Promise<EntryResult> => {
+    (entries as SyncEntry[]).map(async (entry): Promise<EntryResult> => {
       try {
         await logDose({
           actorUserId,
@@ -31,7 +35,6 @@ export async function POST(req: Request): Promise<NextResponse> {
           scheduledDate: new Date(`${entry.scheduledDate}T00:00:00Z`),
           amount: entry.amount,
           status: entry.status,
-          idempotencyKey: entry.id,
         });
         return { id: entry.id, ok: true };
       } catch (err) {

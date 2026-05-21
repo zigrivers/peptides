@@ -9,7 +9,7 @@ type QueueDB = {
   [STORE]: {
     key: string;
     value: QueuedDoseLog & { id: string };
-    indexes: { 'by-key': string };
+    indexes: Record<never, never>;
   };
 };
 
@@ -23,8 +23,7 @@ export class OfflineQueue {
   constructor() {
     this.dbPromise = openDB<QueueDB>(DB_NAME, DB_VERSION, {
       upgrade(db) {
-        const store = db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: false });
-        store.createIndex('by-key', 'id');
+        db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: false });
       },
     });
   }
@@ -46,6 +45,18 @@ export class OfflineQueue {
     };
 
     await db.add(STORE, entry);
+
+    // Request Background Sync so the SW can replay this entry when connectivity returns.
+    // Falls back silently on browsers that don't support the Background Sync API (e.g. iOS Safari).
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then((reg) => {
+        if ('sync' in reg) {
+          (reg as ServiceWorkerRegistration & { sync: { register(tag: string): Promise<void> } })
+            .sync.register('dose-sync').catch(() => null);
+        }
+      }).catch(() => null);
+    }
+
     return { ok: true, id: key };
   }
 
