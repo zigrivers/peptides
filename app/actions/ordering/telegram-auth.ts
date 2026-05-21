@@ -27,6 +27,7 @@ const CompleteSchema = z.object({
   phone: z.string().min(7).max(20),
   phoneCodeHash: z.string().min(1),
   code: z.string().min(4).max(8),
+  tempSession: z.string().min(1),
 });
 
 // 3 initiate requests per user per hour — prevents abuse of Telegram's SendCode API.
@@ -34,7 +35,7 @@ const initiateLimiter = createRateLimiter(3, 60 * 60 * 1000);
 
 export async function initiateTelegramLinkAction(
   rawInput: unknown
-): Promise<TelegramAuthResult<{ phoneCodeHash: string }>> {
+): Promise<TelegramAuthResult<{ phoneCodeHash: string; tempSession: string }>> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
@@ -71,7 +72,8 @@ export async function completeTelegramLinkAction(
       session.user.id,
       parsed.data.phone,
       parsed.data.phoneCodeHash,
-      parsed.data.code
+      parsed.data.code,
+      parsed.data.tempSession
     );
     return { ok: true, data: undefined };
   } catch (err) {

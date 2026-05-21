@@ -19,6 +19,7 @@ export function TelegramSetupForm({ linked }: Props) {
   const [step, setStep] = useState<Step>('idle');
   const [phone, setPhone] = useState('');
   const [phoneCodeHash, setPhoneCodeHash] = useState('');
+  const [tempSession, setTempSession] = useState('');
   const [code, setCode] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +35,7 @@ export function TelegramSetupForm({ linked }: Props) {
       return;
     }
     setPhoneCodeHash(result.data.phoneCodeHash);
+    setTempSession(result.data.tempSession);
     setStep('code');
   }
 
@@ -41,7 +43,7 @@ export function TelegramSetupForm({ linked }: Props) {
     e.preventDefault();
     setPending(true);
     setError(null);
-    const result = await completeTelegramLinkAction({ phone, phoneCodeHash, code });
+    const result = await completeTelegramLinkAction({ phone, phoneCodeHash, code, tempSession });
     setPending(false);
     if (!result.ok) {
       setError(result.message ?? result.error);

@@ -1,7 +1,16 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 
-export async function saveSession(userId: string, encryptedSession: string, serverIp?: string): Promise<void> {
-  await prisma.telegramSession.upsert({
+type PrismaTx = Prisma.TransactionClient;
+
+export async function saveSession(
+  userId: string,
+  encryptedSession: string,
+  serverIp?: string,
+  tx?: PrismaTx
+): Promise<void> {
+  const client = tx ?? prisma;
+  await client.telegramSession.upsert({
     where: { userId },
     create: { userId, sessionString: encryptedSession, isActive: true, lastConnectedIp: serverIp ?? null },
     update: { sessionString: encryptedSession, isActive: true, lastConnectedIp: serverIp ?? null },
@@ -17,6 +26,7 @@ export async function getSession(userId: string): Promise<{ sessionString: strin
   return { sessionString: row.sessionString, lastConnectedIp: row.lastConnectedIp };
 }
 
-export async function deactivateSession(userId: string): Promise<void> {
-  await prisma.telegramSession.delete({ where: { userId } });
+export async function deactivateSession(userId: string, tx?: PrismaTx): Promise<void> {
+  const client = tx ?? prisma;
+  await client.telegramSession.delete({ where: { userId } });
 }

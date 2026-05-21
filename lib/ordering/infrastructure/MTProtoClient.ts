@@ -15,32 +15,40 @@ function makeClient(sessionString = '') {
   });
 }
 
-export async function startPhoneAuth(phone: string): Promise<{ phoneCodeHash: string }> {
+// Returns phoneCodeHash AND a temporary session string (auth_key) that must be
+// passed to completePhoneAuth — GramJS requires the same auth_key for both steps.
+export async function startPhoneAuth(phone: string): Promise<{ phoneCodeHash: string; tempSession: string }> {
   const client = makeClient();
   await client.connect();
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { Api } = await import('telegram') as any;
+    const { apiId, apiHash } = getCredentials();
     const result = await client.invoke(
       new Api.auth.SendCode({
         phoneNumber: phone,
-        apiId: getCredentials().apiId,
-        apiHash: getCredentials().apiHash,
+        apiId,
+        apiHash,
         settings: new Api.CodeSettings({}),
       })
     );
-    return { phoneCodeHash: result.phoneCodeHash };
+    // Save auth_key in session so SignIn can reuse it.
+    const tempSession = client.session.save() as unknown as string;
+    return { phoneCodeHash: result.phoneCodeHash, tempSession };
   } finally {
     await client.disconnect();
   }
 }
 
+// tempSession is the auth_key-containing session from startPhoneAuth — required by Telegram
+// to authenticate the SignIn request using the same connection identity.
 export async function completePhoneAuth(
   phone: string,
   phoneCodeHash: string,
-  code: string
+  code: string,
+  tempSession: string
 ): Promise<{ sessionString: string }> {
-  const client = makeClient();
+  const client = makeClient(tempSession);
   await client.connect();
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,6 +58,20 @@ export async function completePhoneAuth(
     );
     const sessionString = client.session.save() as unknown as string;
     return { sessionString };
+  } finally {
+    await client.disconnect();
+  }
+}
+
+export async function logoutSession(plainSessionString: string): Promise<void> {
+  const client = makeClient(plainSessionString);
+  await client.connect();
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { Api } = await import('telegram') as any;
+    await client.invoke(new Api.auth.LogOut({}));
+  } catch {
+    // Session may already be invalid on Telegram's side — ignore, proceed with local cleanup.
   } finally {
     await client.disconnect();
   }

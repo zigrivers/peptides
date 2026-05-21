@@ -1,9 +1,9 @@
 import { withAudit } from '@/lib/audit/application/withAudit';
 import { encryptSession, decryptSession } from './SessionManager';
-import { startPhoneAuth, completePhoneAuth } from '@/lib/ordering/infrastructure/MTProtoClient';
-import { getSession } from '@/lib/ordering/infrastructure/TelegramSessionRepo';
+import { startPhoneAuth, completePhoneAuth, logoutSession } from '@/lib/ordering/infrastructure/MTProtoClient';
+import { saveSession, getSession, deactivateSession } from '@/lib/ordering/infrastructure/TelegramSessionRepo';
 
-export async function initiateTelegramLink(phone: string): Promise<{ phoneCodeHash: string }> {
+export async function initiateTelegramLink(phone: string): Promise<{ phoneCodeHash: string; tempSession: string }> {
   return startPhoneAuth(phone);
 }
 
@@ -11,18 +11,15 @@ export async function completeTelegramLink(
   userId: string,
   phone: string,
   phoneCodeHash: string,
-  code: string
+  code: string,
+  tempSession: string
 ): Promise<void> {
-  const { sessionString } = await completePhoneAuth(phone, phoneCodeHash, code);
+  const { sessionString } = await completePhoneAuth(phone, phoneCodeHash, code, tempSession);
   const encrypted = encryptSession(sessionString);
 
   await withAudit(
     async (tx) => {
-      await tx.telegramSession.upsert({
-        where: { userId },
-        create: { userId, sessionString: encrypted, isActive: true },
-        update: { sessionString: encrypted, isActive: true },
-      });
+      await saveSession(userId, encrypted, undefined, tx);
     },
     {
       actorUserId: userId,
@@ -35,9 +32,21 @@ export async function completeTelegramLink(
 }
 
 export async function unlinkTelegram(userId: string): Promise<void> {
+  // Attempt clean Telegram-side logout before removing the local record.
+  // Best-effort: session may already be invalid on Telegram's servers.
+  const existing = await getSession(userId);
+  if (existing) {
+    try {
+      const plain = decryptSession(existing.sessionString);
+      await logoutSession(plain);
+    } catch {
+      // Proceed with local cleanup regardless of Telegram-side errors.
+    }
+  }
+
   await withAudit(
     async (tx) => {
-      await tx.telegramSession.delete({ where: { userId } });
+      await deactivateSession(userId, tx);
     },
     {
       actorUserId: userId,
@@ -61,5 +70,6 @@ export async function getDecryptedSession(userId: string): Promise<string | null
 }
 
 export function buildFallbackDeepLink(vendorTelegramUsername: string): string {
-  return `tg://resolve?domain=${vendorTelegramUsername}`;
+  const normalized = vendorTelegramUsername.replace('@', '');
+  return `tg://resolve?domain=${encodeURIComponent(normalized)}`;
 }
