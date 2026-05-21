@@ -27,6 +27,8 @@ function isFutureCalendarDay(scheduledDate: Date): boolean {
 }
 
 export async function getTodaysDoseLog(userId: string, protocolId: string): Promise<DoseLog | null> {
+  const protocol = await findProtocolByIdForActor(prisma, protocolId, userId, []);
+  if (!protocol) return null;
   const now = new Date();
   const todayUTC = toUTCDay(now);
   return findDoseLogForDate(prisma, userId, protocolId, todayUTC);
