@@ -21,7 +21,7 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 | 12 | review-security | ✅ done | 12 (1×regression, 5×P1, 4×P2, 2×P3) | 12 | 0 |
 | 13 | platform-parity-review | ✅ done | 10 (5×P1 regression + 4×P2 + 1×P3 new) | 10 | 0 |
 | 14 | workflow-audit | ✅ done | 8 (6×P1, 2×P2) | 8 | 0 |
-| 15 | implementation-plan-review | pending | | | |
+| 15 | implementation-plan-review | ✅ done | 12 (1×P0, 8×P1, 2×P2, 1×P3) | 12 | 0 |
 | 16 | cross-phase-consistency | pending | | | |
 | 17 | decision-completeness | pending | | | |
 | 18 | critical-path-walkthrough | pending | | | |
@@ -273,6 +273,58 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 - `docs/adrs/ADR-012-scheduled-jobs.md` (+~22 lines)
 - `docs/adrs/ADR-014-object-storage.md` (+~18 lines)
 - `docs/reviews/review-adrs.md` (+~75 lines)
+
+---
+
+### Step 6: review-architecture
+(See step entry above for full details. 6 findings, all fixed.)
+
+### Step 7: review-database
+(See step entry above. 10 findings incl 2×P0 — schema compile blocker + doc drift.)
+
+### Step 8: review-api
+(See above. 12 new + 8 prior PENDING repaired.)
+
+### Step 9: review-ux
+(See above. 13 incl F-003 resolution-log regression.)
+
+### Step 10: review-testing
+(See above. 8 incl 4th resolution-log regression.)
+
+### Step 11: review-operations
+(See above. 12 findings.)
+
+### Step 12: review-security
+(See above. 12 incl 5th resolution-log regression. Doc expanded 83 → ~270 lines.)
+
+### Step 13: platform-parity-review
+(See above. 10 incl 6th resolution-log regression. Built the actual Feature Parity Matrix.)
+
+### Step 14: workflow-audit
+
+**Artifacts**: CLAUDE.md, docs/git-workflow.md, docs/coding-standards.md, docs/dev-setup.md, Makefile, package.json, .github/workflows/ci.yml, tasks/lessons.md.
+**Mode**: full audit
+**Gate result**: **Full Pass**
+
+**8 findings, all fixed:**
+
+1. **P1**: `tasks/lessons.md` was BROKEN (literal `\n` strings, no newlines). Rewrote with proper markdown + added a 4th lesson recording the resolution-log discipline issue observed across this batch.
+2. **P1**: `package.json` missing 7 scripts referenced throughout the docs (`check`, `format`, `format:check`, `db:setup`, `db:reset`, `prisma:generate`, `prisma:validate`). Added all of them. **Why critical:** `pnpm check` is the primary verification command per CLAUDE.md and was producing "no such script" errors silently.
+3. **P1**: CLAUDE.md + docs/git-workflow.md showed an 8-step workflow but scaffold expects 9 + step 4.5 (review-pr between push and create-PR). Added step 4.5 (review-pr post-push) and step 9 (log lessons to `tasks/lessons.md`).
+4. **P1**: `.github/workflows/ci.yml` missing schema-validate step; e2e was running BEFORE build; eval was blocking. Reordered + made eval non-blocking on failure-to-run.
+5. **P1**: dev-setup.md referenced `pnpm db:reset` — fixed by adding the script in #2 + cross-references to `make db-reset` equivalents.
+6. **P1**: CLAUDE.md didn't reference `tasks/lessons.md` despite scaffold expectation. Added under Project Rules & Memory.
+7. **P2**: docs/git-workflow.md §5 CI Pipeline section diverged from actual CI (no build, no schema validate). Rewrote with "source of truth: .github/workflows/ci.yml" + operations-runbook §1.1 cross-reference.
+8. **P2**: Makefile `check` target didn't include schema validate (vs. the new pnpm check script). Added.
+
+**Files modified:**
+- `tasks/lessons.md` (full rewrite, 1 broken line → 7 lines with structure)
+- `package.json` (+7 scripts)
+- `CLAUDE.md` (workflow section + Project Rules & Memory)
+- `docs/git-workflow.md` (§3 workflow + §5 CI pipeline)
+- `docs/dev-setup.md` (Daily Development table)
+- `.github/workflows/ci.yml` (reorder + add stages)
+- `Makefile` (check target includes prisma:validate)
 
 ---
 
