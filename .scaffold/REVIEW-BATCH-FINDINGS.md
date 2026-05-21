@@ -27,7 +27,7 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 | 18 | critical-path-walkthrough | ✅ done | 3 (1×P2 doc missing, 2×P3 ack) | 1 + 2 acknowledged | 2 acknowledged |
 | 19 | dependency-graph-validation | ✅ done | 3 (1×P2 cross-wave dep, 2×P3 ack) | 3 docs | 0 |
 | 20 | implementability-dry-run | ✅ done | 2 (2×P3 fixed) | 2 | 0 |
-| 21 | scope-creep-check | pending | | | |
+| 21 | scope-creep-check | ✅ done | 2 reversals documented + 4 new checks | 0 silent creep | 2 justified reversals + 4 ack |
 | 22 | traceability-matrix | pending | | | |
 
 ## Detailed findings
