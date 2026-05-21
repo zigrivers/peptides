@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getProtocolById } from '@/lib/tracker/application/ProtocolService';
-import { prisma } from '@/lib/shared/prisma';
+import { findCompoundById } from '@/lib/reference/infrastructure/CompoundRepo';
 import { ProtocolActions } from './_components/ProtocolActions';
 
 function formatSchedule(schedule: { frequency: string; daysOfWeek?: string[]; intervalDays?: number }): string {
@@ -24,15 +24,10 @@ export default async function ProtocolDetailPage({
   if (!session?.user?.id) redirect('/login');
 
   const { id } = await params;
-  const [protocol, compound] = await Promise.all([
-    getProtocolById(id, session.user.id),
-    getProtocolById(id, session.user.id).then(async (p) => {
-      if (!p) return null;
-      return prisma.compound.findFirst({ where: { id: p.compoundId }, select: { name: true, slug: true } });
-    }),
-  ]);
-
+  const protocol = await getProtocolById(id, session.user.id);
   if (!protocol) notFound();
+
+  const compound = await findCompoundById(protocol.compoundId);
 
   const statusColors: Record<string, string> = {
     ACTIVE: 'text-green-700 bg-green-50',

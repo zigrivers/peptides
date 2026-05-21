@@ -34,7 +34,7 @@ async function runLifecycle(
   } catch (err) {
     const msg = err instanceof Error ? err.message : '';
     if (/not found/i.test(msg)) return { ok: false, error: 'not_found' };
-    if (/paused|resumed|deactivated|already|not paused/i.test(msg)) {
+    if (/paused|resumed|deactivated|already|not paused|completed|cannot/i.test(msg)) {
       return { ok: false, error: 'invalid_transition', message: msg };
     }
     console.error('[protocol-lifecycle] error:', err);
@@ -85,6 +85,7 @@ export async function cloneProtocolAction(rawInput: unknown): Promise<LifecycleR
   } catch (err) {
     const msg = err instanceof Error ? err.message : '';
     if (/not found/i.test(msg)) return { ok: false, error: 'not_found' };
+    if (/cannot clone|deactivated/i.test(msg)) return { ok: false, error: 'invalid_transition', message: msg };
     console.error('[cloneProtocolAction] error:', err);
     return { ok: false, error: 'system_error' };
   }

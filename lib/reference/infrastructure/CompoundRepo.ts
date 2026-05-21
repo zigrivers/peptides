@@ -94,6 +94,13 @@ export async function findCompounds(
   return rows.map(mapCompound);
 }
 
+export async function findCompoundById(id: string): Promise<{ name: string; slug: string } | null> {
+  return prisma.compound.findFirst({
+    where: { id },
+    select: { name: true, slug: true },
+  });
+}
+
 export async function listCompounds(opts?: { includeArchived?: boolean }): Promise<Compound[]> {
   const where: Prisma.CompoundWhereInput = {};
 

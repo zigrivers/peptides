@@ -72,7 +72,7 @@ export function ProtocolActions({ protocol }: Props) {
           </button>
         )}
 
-        {!isTerminal && (
+        {status !== 'DEACTIVATED' && (
           <button
             disabled={isPending}
             onClick={() => setShowCloneForm((v) => !v)}
