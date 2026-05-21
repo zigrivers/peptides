@@ -100,6 +100,37 @@ export type LogDoseResult = {
   warnings: SafetyWarning[];
 };
 
+export type CycleStatus = 'ACTIVE' | 'COMPLETED';
+
+export type Cycle = {
+  id: string;
+  userId: string;
+  name: string;
+  startDate: Date;
+  endDate: Date | null;
+  status: CycleStatus;
+};
+
+export type CreateCycleInput = {
+  actorUserId: string;
+  name: string;
+  startDate: Date;
+  endDate?: Date;
+};
+
+export type RestartCycleInput = {
+  actorUserId: string;
+  cycleId: string;
+  newStartDate: Date;
+};
+
+export type CycleWeekInfo = {
+  cycleId: string;
+  cycleName: string;
+  weekNumber: number;
+  totalWeeks: number | null;
+};
+
 export type BatchDueItem = {
   protocol: Protocol;
   existingLog: DoseLog | null;
