@@ -830,9 +830,8 @@ describe('US-TRK-05: Batch Log', () => {
   it('AC-2 (partial): already-logged protocols are returned as ok=true with existing log (idempotent)', async () => {
     const existingLog = makeLogRow(proto1Id, 'log-existing');
     mockProtocolFindFirst.mockResolvedValue(makeProtocolRow(proto1Id));
-    // idempotency lookup: return existing
+    // idempotency lookup: return existing — vial count is NOT checked for already-logged
     mockDoseLogFindFirst.mockResolvedValue(existingLog);
-    mockVialCount.mockResolvedValue(1);
     mockAuditCreate.mockResolvedValue({});
 
     const result = await batchLogDoses({
@@ -844,6 +843,37 @@ describe('US-TRK-05: Batch Log', () => {
     expect(result.results).toHaveLength(1);
     expect(result.results[0].ok).toBe(true);
     expect(mockDoseLogCreate).not.toHaveBeenCalled();
+    expect(mockVialCount).not.toHaveBeenCalled(); // vials not checked for already-logged
+  });
+
+  it('zero vials: batchLogDoses returns ok=false when no inventory available', async () => {
+    mockProtocolFindFirst.mockResolvedValue(makeProtocolRow(proto1Id));
+    mockDoseLogFindFirst.mockResolvedValue(null); // no existing
+    mockVialCount.mockResolvedValue(0); // no vials
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results[0].ok).toBe(false);
+    expect((result.results[0] as { ok: false; error: string }).error).toMatch(/insufficient_inventory/i);
+    expect(mockDoseLogCreate).not.toHaveBeenCalled();
+  });
+
+  it('scope guard: batchLogDoses rejects managed-user protocols', async () => {
+    const managedProtocol = { ...makeProtocolRow(proto1Id), userId: 'managed-user-id' };
+    mockProtocolFindFirst.mockResolvedValue(managedProtocol);
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results[0].ok).toBe(false);
+    expect((result.results[0] as { ok: false; error: string }).error).toMatch(/batch_scope_violation/i);
   });
 
   it('AC-6: getDueTodayForBatch returns protocols with availability flags', async () => {

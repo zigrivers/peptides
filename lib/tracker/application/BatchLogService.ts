@@ -67,23 +67,28 @@ async function logOneInBatch(
 ): Promise<{ doseLog: DoseLog; warnings: SafetyWarning[] }> {
   const protocol = await findProtocolByIdForActor(prisma, protocolId, actorUserId, managedIds);
   if (!protocol) throw new Error(`Protocol not found: ${protocolId}`);
+  // Batch flow is scoped to the actor's own protocols — reject managed-user protocols.
+  if (protocol.userId !== actorUserId) {
+    throw new Error(`batch_scope_violation: Protocol ${protocolId} is not owned by the actor`);
+  }
   if (protocol.status !== 'ACTIVE') throw new Error(`Protocol is not active: ${protocolId}`);
   if (!isScheduledOn(protocol.schedule, protocol.startDate, protocol.endDate, scheduledDate)) {
     throw new Error(`no_dose_scheduled: No dose scheduled for this protocol on ${scheduledDate.toISOString().slice(0, 10)}`);
   }
 
-  const subjectUserId = protocol.userId;
+  const subjectUserId = protocol.userId; // always === actorUserId in batch flow
   const idempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, scheduledDate);
   const existing = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, subjectUserId);
 
-  const warnings: SafetyWarning[] = [];
-  const vialCount = await countActiveVialsForCompound(prisma, subjectUserId, protocol.compoundId);
-  if (vialCount === 0) {
-    warnings.push({ code: 'insufficient_inventory', message: 'No reconstituted vials available for this compound.' });
+  if (existing) {
+    return { doseLog: existing, warnings: [] };
   }
 
-  if (existing) {
-    return { doseLog: existing, warnings };
+  // Block batch log when no vials available — do not create a LOGGED dose without inventory.
+  const vialCount = await countActiveVialsForCompound(prisma, subjectUserId, protocol.compoundId);
+  const warnings: SafetyWarning[] = [];
+  if (vialCount === 0) {
+    throw new Error('insufficient_inventory: No reconstituted vials available for this compound');
   }
 
   const amount = protocol.dose;

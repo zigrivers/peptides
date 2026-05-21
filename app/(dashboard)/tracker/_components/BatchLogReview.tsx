@@ -65,15 +65,24 @@ export function BatchLogReview({ items, compoundNames }: Props) {
       setItemStates(nextStates);
       setWarnings(nextWarnings);
 
+      // Remove successfully logged protocols from the selected set so the Confirm
+      // button count stays accurate if the user retries after partial failures.
+      setSelected((prev) => {
+        const next = new Set(prev);
+        result.results.forEach((r) => { if (r.ok) next.delete(r.protocolId); });
+        return next;
+      });
+
       const allDone = items.every((i) => nextStates[i.protocol.id] === 'logged' || nextStates[i.protocol.id] === 'skipped');
       if (allDone) setDone(true);
     });
   }
 
   const pendingCount = items.filter((i) => itemStates[i.protocol.id] === 'pending').length;
+  const failedCount = items.filter((i) => itemStates[i.protocol.id] === 'failed').length;
   const loggedCount = items.filter((i) => itemStates[i.protocol.id] === 'logged').length;
 
-  if (done || (pendingCount === 0 && items.length > 0)) {
+  if (done || (pendingCount === 0 && failedCount === 0 && items.length > 0)) {
     return (
       <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center">
         <p className="text-sm font-medium text-green-700">
