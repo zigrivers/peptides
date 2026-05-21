@@ -168,7 +168,7 @@ export async function findRecentLogsWithSitesForCompound(
       userId,
       status: 'LOGGED',
       protocol: { compoundId },
-      // Exclude JSON-null sites so the limit applies only to logs that have an actual site.
+      // Filter JSON-null sites (we always write Prisma.JsonNull — never DbNull — for missing sites).
       injectionSite: { not: Prisma.JsonNull },
     },
     orderBy: [{ scheduledDate: 'desc' }, { loggedAt: 'desc' }],

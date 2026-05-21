@@ -59,16 +59,20 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
   const subjectUserId = protocol.userId;
 
   // Validate injectionSite against the protocol's administration route.
+  const validSitesForRoute = getSitesForRoute(protocol.administrationRoute);
   if (input.injectionSite) {
-    const validSites = getSitesForRoute(protocol.administrationRoute);
-    if (validSites.length === 0) {
+    if (validSitesForRoute.length === 0) {
       throw new Error(`invalid_injection_site: route ${protocol.administrationRoute} does not use injection sites`);
     }
-    if (!validSites.some((v) => sitesEqual(v, input.injectionSite!))) {
+    if (!validSitesForRoute.some((v) => sitesEqual(v, input.injectionSite!))) {
       throw new Error(
         `invalid_injection_site: ${input.injectionSite.side} ${input.injectionSite.bodyPart} is not valid for route ${protocol.administrationRoute}`
       );
     }
+  }
+  // Require a site for injectable routes when logging (not skipping).
+  if (input.status === 'LOGGED' && validSitesForRoute.length > 0 && !input.injectionSite) {
+    throw new Error(`injection_site_required: injection site is required for route ${protocol.administrationRoute}`);
   }
 
   // Validate vialId ownership before any writes.

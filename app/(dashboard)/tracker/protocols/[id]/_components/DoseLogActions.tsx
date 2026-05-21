@@ -10,6 +10,7 @@ type SiteData = {
   suggestion: InjectionSite | null;
   validSites: InjectionSite[];
   siteMeta: SiteWithMeta[];
+  recentSites: InjectionSite[];
 };
 
 type Props = {
@@ -35,7 +36,6 @@ function formatSiteLabel(site: InjectionSite): string {
   return `${side} ${part}`;
 }
 
-
 function SitePicker({
   siteData,
   selectedSite,
@@ -47,10 +47,12 @@ function SitePicker({
 }) {
   if (siteData.validSites.length === 0) return null;
 
+  const recentHistory = siteData.recentSites.slice(0, 7);
+
   return (
     <div className="space-y-2">
       <p className="text-xs font-medium text-gray-600">
-        Injection site
+        Injection site <span className="text-red-500">*</span>
         {siteData.suggestion && (
           <span className="ml-1 text-indigo-600">(suggested: {formatSiteLabel(siteData.suggestion)})</span>
         )}
@@ -94,6 +96,11 @@ function SitePicker({
           );
         })}
       </div>
+      {recentHistory.length > 0 && (
+        <p className="text-[10px] text-gray-400">
+          Recent: {recentHistory.map(formatSiteLabel).join(' → ')}
+        </p>
+      )}
     </div>
   );
 }
@@ -109,8 +116,15 @@ export function DoseLogActions({ protocolId, amount, existingStatus, existingInj
   const [error, setError] = useState<string | null>(null);
   const [showChangeOptions, setShowChangeOptions] = useState(false);
 
+  const requiresSite = (siteData?.validSites.length ?? 0) > 0;
+  const siteRequired = requiresSite && selectedSite === null;
+
   function handleLog(logStatus: 'LOGGED' | 'SKIPPED') {
     setError(null);
+    if (logStatus === 'LOGGED' && siteRequired) {
+      setError('Please select an injection site.');
+      return;
+    }
     const scheduledDate = todayUTCISO();
     startTransition(async () => {
       const result = await logDoseAction({
@@ -167,9 +181,10 @@ export function DoseLogActions({ protocolId, amount, existingStatus, existingInj
       )}
       <div className="flex gap-2">
         <button
-          disabled={isPending}
+          disabled={isPending || (siteRequired)}
           onClick={() => handleLog('LOGGED')}
           className="rounded-md bg-green-600 text-white px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-60 transition-colors"
+          title={siteRequired ? 'Select an injection site first' : undefined}
         >
           Log Dose
         </button>

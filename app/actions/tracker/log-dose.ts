@@ -79,6 +79,9 @@ export async function logDoseAction(input: unknown): Promise<LogDoseActionResult
     if (/invalid_injection_site/i.test(msg)) {
       return { ok: false, error: 'invalid_injection_site', message: 'Invalid injection site for this protocol route.' };
     }
+    if (/injection_site_required/i.test(msg)) {
+      return { ok: false, error: 'injection_site_required', message: 'Please select an injection site before logging.' };
+    }
     if (/protocol not found/i.test(msg)) {
       return { ok: false, error: 'protocol_not_found', message: msg };
     }

@@ -694,6 +694,7 @@ describe('US-TRK-03: Individual Dose Logging', () => {
       scheduledDate,
       amount,
       status: 'LOGGED',
+      injectionSite,
     });
 
     expect(result.warnings).toHaveLength(1);
@@ -712,6 +713,7 @@ describe('US-TRK-03: Individual Dose Logging', () => {
       scheduledDate,
       amount,
       status: 'LOGGED',
+      injectionSite,
     });
 
     expect(result.doseLog.id).toBe('log-1');
@@ -737,6 +739,7 @@ describe('US-TRK-03: Individual Dose Logging', () => {
       scheduledDate,
       amount,
       status: 'LOGGED',
+      injectionSite,
     });
 
     expect(result.doseLog.status).toBe('LOGGED');
@@ -784,7 +787,7 @@ describe('US-TRK-03: Individual Dose Logging', () => {
     };
     mockDoseLogFindFirst.mockResolvedValue(null);
     mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
-    mockDoseLogCreate.mockResolvedValue(skippedWithSiteRow);
+    mockDoseLogCreate.mockResolvedValueOnce(skippedWithSiteRow);
     mockAuditCreate.mockResolvedValue({});
 
     const result = await logDose({
