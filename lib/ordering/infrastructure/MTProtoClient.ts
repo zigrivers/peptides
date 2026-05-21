@@ -109,14 +109,16 @@ export async function logoutSession(plainSessionString: string): Promise<void> {
 }
 
 export async function checkSession(encryptedSession: string, decryptFn: (s: string) => string): Promise<boolean> {
+  let client: ReturnType<typeof makeClient> | null = null;
   try {
     const plain = decryptFn(encryptedSession);
-    const client = makeClient(plain);
+    client = makeClient(plain);
     await client.connect();
     await client.getMe();
-    await client.disconnect();
     return true;
   } catch {
     return false;
+  } finally {
+    await client?.disconnect();
   }
 }

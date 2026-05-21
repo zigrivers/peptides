@@ -55,6 +55,7 @@ vi.mock('@/lib/shared/prisma', () => ({
           upsert: mockPrismaTelegramSessionUpsert,
           findUnique: mockPrismaTelegramSessionFindUnique,
           delete: mockPrismaTelegramSessionDelete,
+          deleteMany: mockPrismaTelegramSessionDeleteMany,
         },
         auditEvent: { create: mockPrismaAuditEventCreate },
         // Expose $transaction on tx so withAudit can detect it as a PrismaClient
