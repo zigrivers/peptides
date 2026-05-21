@@ -522,6 +522,10 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
       await expect(deactivateProtocol({ actorUserId, protocolId })).rejects.toThrow(/completed/i);
     });
   });
+
+  // AC-4 (Restart Cycle) deferred to Task 2.5 — requires Cycle domain and
+  // cycleId FK infrastructure that does not exist yet in this wave.
+  it.todo('AC-4: restartCycle clones all cycle protocols to new start date and emits CycleRestarted event');
 });
 
 /**
