@@ -44,7 +44,7 @@ function mergeItems(items: OrderLineItemInput[]): OrderLineItemInput[] {
     if (existing) {
       existing.quantity += item.quantity;
     } else {
-      map.set(key, { ...item });
+      map.set(key, { ...item, vialSizeMg: normalizedSize });
     }
   }
   return Array.from(map.values());
@@ -82,6 +82,7 @@ export async function createDraftOrder(
   const existing = await prisma.order.findFirst({ where: { userId, idempotencyKey } });
   if (existing) return { orderId: existing.id };
 
+  if (items.some((i) => i.quantity <= 0)) throw new Error('invalid_quantity');
   const merged = mergeItems(items);
   if (merged.length === 0) throw new Error('order_items_required');
 
@@ -97,12 +98,19 @@ export async function createDraftOrder(
         const newOrder = await tx.order.create({
           data: { userId, vendorId, idempotencyKey, status: 'DRAFT' },
         });
-        const nonNullProductIds = merged.filter((i) => i.productId != null).map((i) => i.productId!);
-        if (nonNullProductIds.length > 0) {
-          const validCount = await tx.vendorProduct.count({
+        const itemsWithProduct = merged.filter((i) => i.productId != null);
+        if (itemsWithProduct.length > 0) {
+          const nonNullProductIds = itemsWithProduct.map((i) => i.productId!);
+          const products = await tx.vendorProduct.findMany({
             where: { id: { in: nonNullProductIds }, vendorId, vendor: { userId } },
+            select: { id: true, compoundId: true },
           });
-          if (validCount !== new Set(nonNullProductIds).size) throw new Error('product_not_found');
+          const productMap = new Map(products.map((p) => [p.id, p]));
+          for (const item of itemsWithProduct) {
+            const product = productMap.get(item.productId!);
+            if (!product) throw new Error('product_not_found');
+            if (product.compoundId !== item.compoundId) throw new Error('product_compound_mismatch');
+          }
         }
         await tx.orderItem.createMany({
           data: merged.map((item) => ({

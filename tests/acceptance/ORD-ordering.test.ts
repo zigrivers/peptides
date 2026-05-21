@@ -67,9 +67,9 @@ vi.mock('@/lib/shared/prisma', () => ({
         },
         vendorProduct: {
           create: mockPrismaVendorProductCreate,
+          findMany: mockPrismaVendorProductFindMany,
           findFirst: mockPrismaVendorProductFindFirst,
           update: mockPrismaVendorProductUpdate,
-          count: vi.fn().mockResolvedValue(0),
         },
         telegramSession: {
           upsert: mockPrismaTelegramSessionUpsert,
@@ -498,6 +498,7 @@ describe('US-ORD-02: Build Order', () => {
     const itemsArg = mockPrismaOrderItemCreateMany.mock.calls[0][0];
     expect(itemsArg.data).toHaveLength(1);
     expect(itemsArg.data[0].quantity).toBe(6);
+    expect(itemsArg.data[0].vialSizeMg).toBe('5'); // normalized form, not raw '5.0' or '5.000'
   });
 
   it('AC-1: createDraftOrder throws vendor_not_found when vendor does not belong to user', async () => {
@@ -541,6 +542,21 @@ describe('US-ORD-02: Build Order', () => {
     expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
   });
 
+  it('AC-1: createDraftOrder throws invalid_quantity when any item has quantity <= 0', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+
+    await expect(createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 0 },
+    ])).rejects.toThrow('invalid_quantity');
+    expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
+  });
+
   it('AC-1: createDraftOrder throws compound_not_found when compoundId does not exist', async () => {
     const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
 
@@ -555,6 +571,24 @@ describe('US-ORD-02: Build Order', () => {
       { compoundId: 'bad-id', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1 },
     ])).rejects.toThrow('compound_not_found');
     expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
+  });
+
+  it('AC-1: createDraftOrder throws product_compound_mismatch when productId maps to a different compound', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+    mockPrismaCompoundCount.mockResolvedValueOnce(1);
+    mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-1', createdAt: new Date() });
+    // Product exists but its compoundId doesn't match the line item's compoundId
+    mockPrismaVendorProductFindMany.mockResolvedValueOnce([{ id: 'prod-1', compoundId: 'different-compound' }]);
+
+    await expect(createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1, productId: 'prod-1' },
+    ])).rejects.toThrow('product_compound_mismatch');
   });
 
   it('AC-1: createDraftOrder recovers from P2002 race on idempotencyKey unique constraint', async () => {
