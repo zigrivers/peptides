@@ -78,10 +78,19 @@ describe('EmailChangeRepo.applyById', () => {
     );
   });
 
-  it('returns false and skips user.update when count === 0 (concurrent consumption)', async () => {
+  it('returns false and skips user.update when count === 0 (concurrent consumption or expiry)', async () => {
     mockUpdateMany.mockResolvedValue({ count: 0 });
     expect(await EmailChangeRepo.applyById(fakeTx, 'req-1', 'user-1', 'new@e.com')).toBe(false);
     expect(mockUserUpdate).not.toHaveBeenCalled();
+  });
+
+  it('includes expiresAt > now guard to prevent TOCTOU expiry bypass', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+    mockUserUpdate.mockResolvedValue({});
+    await EmailChangeRepo.applyById(fakeTx, 'req-1', 'user-1', 'new@e.com');
+    const whereArg = mockUpdateMany.mock.calls[0][0].where;
+    expect(whereArg).toHaveProperty('expiresAt');
+    expect(whereArg.expiresAt).toHaveProperty('gt');
   });
 
   it('throws email_already_in_use on Prisma P2002 unique violation', async () => {
@@ -111,10 +120,34 @@ describe('EmailChangeRepo.revertById', () => {
     );
   });
 
-  it('returns false and skips user.update when count === 0', async () => {
+  it('returns false and skips user.update when count === 0 (concurrent or expired)', async () => {
     mockUpdateMany.mockResolvedValue({ count: 0 });
     expect(await EmailChangeRepo.revertById(fakeTx, 'req-1', 'user-1', 'old@e.com')).toBe(false);
     expect(mockUserUpdate).not.toHaveBeenCalled();
+  });
+
+  it('includes revertibleUntil > now guard to prevent TOCTOU expiry bypass', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+    mockUserUpdate.mockResolvedValue({});
+    await EmailChangeRepo.revertById(fakeTx, 'req-1', 'user-1', 'old@e.com');
+    const whereArg = mockUpdateMany.mock.calls[0][0].where;
+    expect(whereArg).toHaveProperty('revertibleUntil');
+    expect(whereArg.revertibleUntil).toHaveProperty('gt');
+  });
+
+  it('cancels other APPLIED tokens to prevent state-machine chaining attack', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+    mockUserUpdate.mockResolvedValue({});
+    await EmailChangeRepo.revertById(fakeTx, 'req-1', 'user-1', 'old@e.com');
+    // Second updateMany call should cancel other APPLIED tokens
+    expect(mockUpdateMany).toHaveBeenCalledTimes(2);
+    const secondCall = mockUpdateMany.mock.calls[1][0];
+    expect(secondCall.where).toMatchObject({
+      userId: 'user-1',
+      status: 'APPLIED',
+      id: { not: 'req-1' },
+    });
+    expect(secondCall.data).toEqual({ status: 'CANCELLED' });
   });
 
   it('throws email_already_in_use on Prisma P2002 unique violation during revert', async () => {

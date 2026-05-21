@@ -73,8 +73,9 @@ export const EmailChangeRepo = {
     const now = new Date();
     const revertibleUntil = EmailChangeToken.revertExpiry(now);
 
+    // Include expiresAt guard to close the validation→update TOCTOU window
     const { count } = await tx.emailChangeRequest.updateMany({
-      where: { id, userId, status: 'PENDING' },
+      where: { id, userId, status: 'PENDING', expiresAt: { gt: now } },
       data: {
         status: 'APPLIED',
         verifiedAt: now,
@@ -103,11 +104,19 @@ export const EmailChangeRepo = {
     userId: string,
     oldEmail: string
   ): Promise<boolean> {
+    const now = new Date();
+    // Include revertibleUntil guard to close the validation→update TOCTOU window
     const { count } = await tx.emailChangeRequest.updateMany({
-      where: { id, userId, status: 'APPLIED' },
+      where: { id, userId, status: 'APPLIED', revertibleUntil: { gt: now } },
       data: { status: 'REVERTED' },
     });
     if (count !== 1) return false;
+
+    // Invalidate any other APPLIED tokens for this user to prevent state-machine chaining attacks
+    await tx.emailChangeRequest.updateMany({
+      where: { userId, status: 'APPLIED', id: { not: id } },
+      data: { status: 'CANCELLED' },
+    });
 
     try {
       await tx.user.update({
