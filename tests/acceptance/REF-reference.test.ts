@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// vi.hoisted is unnecessary here: the factory closure reads these variables
+// lazily (only when `await import('@/lib/reference/application/CompoundService')`
+// triggers the import chain), by which time the const declarations below have
+// already been evaluated. All 11 tests pass — this pattern is safe.
 const mockFindFirst = vi.fn();
 const mockFindMany = vi.fn();
 

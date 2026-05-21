@@ -28,7 +28,7 @@ export function CatalogSearch() {
         } else {
           params.delete('q');
         }
-        router.push(`/reference?${params.toString()}`);
+        router.replace(`/reference?${params.toString()}`, { scroll: false });
       }, DEBOUNCE_MS);
     },
     [router, searchParams]

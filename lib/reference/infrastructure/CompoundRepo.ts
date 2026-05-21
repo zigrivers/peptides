@@ -1,38 +1,30 @@
-// Auth-scoping exception (see CLAUDE.md): Compound/CompoundProfile/Citation
+// Auth-scoping exception (see CLAUDE.md + AGENTS.md): Compound/CompoundProfile/Citation
 // are admin-curated global reference data. No userId column exists on these
 // models. All authenticated users have full read access to the catalog.
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import type { Compound, DoseAmount } from '../domain/types';
 
-type PrismaCompoundResult = {
-  id: string;
-  name: string;
-  slug: string;
-  iupacName: string | null;
-  synonyms: string[];
-  mechanismOfAction: string | null;
-  administrationRoutes: string[];
-  status: string;
-  tags: string[];
-  archivedAt: Date | null;
-  profile: {
-    id: string;
-    compoundId: string;
-    dosingLow: unknown;
-    dosingTypical: unknown;
-    dosingHigh: unknown;
-    sideEffects: string | null;
-    stackingNotes: string | null;
-    citations: {
-      id: string;
-      profileId: string;
-      title: string;
-      url: string | null;
-      doi: string | null;
-      pmid: string | null;
-    }[];
-  } | null;
-};
+type PrismaCompoundResult = Prisma.CompoundGetPayload<{
+  include: {
+    profile: {
+      include: { citations: true };
+    };
+  };
+}>;
+
+function parseDoseAmount(value: Prisma.JsonValue, field: string): DoseAmount {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    typeof (value as Record<string, unknown>).amount === 'string' &&
+    typeof (value as Record<string, unknown>).unit === 'string'
+  ) {
+    return value as unknown as DoseAmount;
+  }
+  throw new Error(`CompoundProfile.${field} is not a valid DoseAmount: ${JSON.stringify(value)}`);
+}
 
 function mapCompound(raw: PrismaCompoundResult): Compound {
   return {
@@ -50,9 +42,9 @@ function mapCompound(raw: PrismaCompoundResult): Compound {
       ? {
           id: raw.profile.id,
           compoundId: raw.profile.compoundId,
-          dosingLow: raw.profile.dosingLow as DoseAmount,
-          dosingTypical: raw.profile.dosingTypical as DoseAmount,
-          dosingHigh: raw.profile.dosingHigh as DoseAmount,
+          dosingLow: parseDoseAmount(raw.profile.dosingLow, 'dosingLow'),
+          dosingTypical: parseDoseAmount(raw.profile.dosingTypical, 'dosingTypical'),
+          dosingHigh: parseDoseAmount(raw.profile.dosingHigh, 'dosingHigh'),
           sideEffects: raw.profile.sideEffects,
           stackingNotes: raw.profile.stackingNotes,
           citations: raw.profile.citations,
@@ -70,14 +62,14 @@ export async function findCompoundBySlug(slug: string): Promise<Compound | null>
     where: { slug: slug.toLowerCase() },
     include: { profile: profileInclude },
   });
-  return raw ? mapCompound(raw as PrismaCompoundResult) : null;
+  return raw ? mapCompound(raw) : null;
 }
 
 export async function findCompounds(
   query: string,
   category?: string
 ): Promise<Compound[]> {
-  const where: Record<string, unknown> = {
+  const where: Prisma.CompoundWhereInput = {
     status: 'PUBLISHED',
   };
 
@@ -99,11 +91,11 @@ export async function findCompounds(
     where,
     include: { profile: profileInclude },
   });
-  return (rows as PrismaCompoundResult[]).map(mapCompound);
+  return rows.map(mapCompound);
 }
 
 export async function listCompounds(opts?: { includeArchived?: boolean }): Promise<Compound[]> {
-  const where: Record<string, unknown> = {};
+  const where: Prisma.CompoundWhereInput = {};
 
   if (!opts?.includeArchived) {
     where.status = 'PUBLISHED';
@@ -114,5 +106,5 @@ export async function listCompounds(opts?: { includeArchived?: boolean }): Promi
     include: { profile: profileInclude },
     orderBy: { name: 'asc' },
   });
-  return (rows as PrismaCompoundResult[]).map(mapCompound);
+  return rows.map(mapCompound);
 }
