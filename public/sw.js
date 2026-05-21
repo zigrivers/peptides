@@ -1,4 +1,5 @@
-const CACHE_NAME = 'peptides-shell-v1';
+// v2: bumped from v1 to purge previously cached authenticated routes (/ and /tracker).
+const CACHE_NAME = 'peptides-shell-v2';
 // Only cache the offline fallback page — never cache authenticated routes.
 const OFFLINE_URL = '/offline.html';
 

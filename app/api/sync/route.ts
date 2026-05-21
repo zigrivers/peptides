@@ -27,7 +27,11 @@ export async function POST(req: Request): Promise<NextResponse> {
   }
 
   const results: EntryResult[] = await Promise.all(
-    (entries as SyncEntry[]).map(async (entry): Promise<EntryResult> => {
+    (entries as unknown[]).map(async (raw): Promise<EntryResult> => {
+      if (!raw || typeof raw !== 'object' || !('id' in raw)) {
+        return { id: String((raw as Record<string, unknown>)?.id ?? 'unknown'), ok: false, error: 'Invalid entry format' };
+      }
+      const entry = raw as SyncEntry;
       try {
         await logDose({
           actorUserId,
