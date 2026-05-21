@@ -33,6 +33,11 @@ export function CreateProtocolForm({ compounds, managedUsers, currentUserId, cyc
   const [startDate, setStartDate] = useState('');
   const [cycleId, setCycleId] = useState('');
   const [subjectUserId, setSubjectUserId] = useState(currentUserId);
+
+  function handleSubjectChange(newSubjectId: string) {
+    setSubjectUserId(newSubjectId);
+    if (newSubjectId !== currentUserId) setCycleId('');
+  }
   const [notes, setNotes] = useState('');
 
   function toggleDay(day: DayOfWeek) {
@@ -97,7 +102,7 @@ export function CreateProtocolForm({ compounds, managedUsers, currentUserId, cyc
           <select
             id="subject"
             value={subjectUserId}
-            onChange={(e) => setSubjectUserId(e.target.value)}
+            onChange={(e) => handleSubjectChange(e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             {allUsers.map((u) => (
@@ -255,7 +260,7 @@ export function CreateProtocolForm({ compounds, managedUsers, currentUserId, cyc
       </div>
 
       {/* Cycle */}
-      {cycles.length > 0 && (
+      {cycles.length > 0 && subjectUserId === currentUserId && (
         <div>
           <label htmlFor="cycle" className="block text-sm font-medium text-gray-700 mb-1">
             Cycle <span className="text-gray-400">(optional)</span>
