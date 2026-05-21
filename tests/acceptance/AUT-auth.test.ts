@@ -48,7 +48,7 @@ describe('US-AUT-03: User Registration and Login', () => {
     expect(authConfig.session.strategy).toBe('jwt');
     expect(authConfig.session.maxAge).toBe(30 * 24 * 60 * 60);
     expect(authConfig.cookies?.sessionToken?.options?.httpOnly).toBe(true);
-    expect(authConfig.cookies?.sessionToken?.options?.sameSite).toBe('strict');
+    expect(authConfig.cookies?.sessionToken?.options?.sameSite).toBe('lax');
   });
 });
 

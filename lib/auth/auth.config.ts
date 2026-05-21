@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from 'next-auth';
+import Credentials from 'next-auth/providers/credentials';
 
 // Edge-safe auth configuration — no Prisma, no Node.js-only modules.
 // Used by middleware.ts (Edge runtime) for JWT session verification.
@@ -8,7 +9,13 @@ import type { NextAuthConfig } from 'next-auth';
 const isProduction = process.env.NODE_ENV === 'production';
 
 export const authConfig = {
-  providers: [], // Credentials merged in lib/auth/index.ts (Node.js runtime only)
+  providers: [
+    // Edge-safe stub required to satisfy NextAuth initialization in middleware.
+    // authorize() always returns null — real auth logic lives in lib/auth/index.ts
+    // (Node.js runtime only, with Prisma + bcrypt). lib/auth/index.ts overrides
+    // this providers array entirely when constructing the server-side NextAuth instance.
+    Credentials({ credentials: {}, authorize: () => null }),
+  ],
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -18,7 +25,7 @@ export const authConfig = {
       name: isProduction ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
       options: {
         httpOnly: true,
-        sameSite: 'strict',
+        sameSite: 'lax',
         secure: isProduction,
         path: '/',
       },
@@ -34,8 +41,10 @@ export const authConfig = {
       return token;
     },
     session({ session, token }) {
-      // role is required — deny session if missing rather than defaulting to a privileged role.
-      if (!token.id || !token.role) return null as unknown as typeof session;
+      if (!token.id || !token.role) {
+        // Token is missing required claims — treat as an invalid session.
+        throw new Error('Session token is missing required claims');
+      }
       return {
         ...session,
         user: { ...session.user, id: token.id as string, role: token.role as string },
