@@ -1,0 +1,65 @@
+export type AuditCategory = 'Auth' | 'Admin' | 'Protocol' | 'Order' | 'Reconstitution' | 'Security';
+
+export type AuditAction =
+  // Auth
+  | 'USER_REGISTERED'
+  | 'USER_LOGGED_IN'
+  | 'USER_LOGGED_OUT'
+  | 'PASSWORD_RESET_REQUESTED'
+  | 'PASSWORD_RESET_COMPLETED'
+  | 'PASSWORD_CHANGED'
+  | 'OTHER_SESSIONS_INVALIDATED'
+  | 'EMAIL_CHANGE_REQUESTED'
+  | 'EMAIL_CHANGE_VERIFIED'
+  | 'EMAIL_CHANGE_APPLIED'
+  | 'EMAIL_CHANGE_REVERTED'
+  | 'ACCOUNT_DELETION_SCHEDULED'
+  | 'ACCOUNT_DELETION_CANCELLED'
+  | 'ACCOUNT_DELETED'
+  // Admin
+  | 'USER_INVITED'
+  | 'INVITE_RESENT'
+  | 'INVITE_ACCEPTED'
+  | 'MANAGED_USER_DEACTIVATED'
+  | 'MANAGED_USER_DELETION_REQUESTED'
+  | 'MANAGED_USER_DELETED'
+  | 'MANAGED_USER_PASSWORD_RESET_TRIGGERED'
+  // Protocol
+  | 'PROTOCOL_CREATED'
+  | 'PROTOCOL_UPDATED'
+  | 'PROTOCOL_PAUSED'
+  | 'PROTOCOL_RESUMED'
+  | 'PROTOCOL_CLONED'
+  | 'PROTOCOL_DEACTIVATED'
+  | 'CYCLE_CREATED'
+  | 'CYCLE_UPDATED'
+  | 'CYCLE_RESTARTED'
+  // Order
+  | 'ORDER_DRAFTED'
+  | 'ORDER_SENT'
+  | 'ORDER_CONFIRMED'
+  | 'PAYMENT_ACKNOWLEDGED'
+  | 'ORDER_PAYMENT_SENT'
+  | 'ORDER_RECEIVED'
+  | 'ORDER_CANCELLED'
+  | 'ORDER_MARKED_STALE'
+  | 'DUPLICATE_SEND_BLOCKED'
+  // Reconstitution
+  | 'VIAL_RECONSTITUTED'
+  | 'SAFETY_WARNING_TRIGGERED'
+  // Security
+  | 'TELEGRAM_SESSION_LINKED'
+  | 'TELEGRAM_SESSION_REVOKED'
+  | 'AUDIT_WRITE_FAILURE';
+
+export interface CreateAuditEventInput {
+  actorUserId: string;
+  subjectUserId?: string;
+  category: AuditCategory;
+  action: AuditAction;
+  resourceId: string;
+  resourceType: string;
+  metadata?: Record<string, unknown>;
+  oldValues?: Record<string, unknown>;
+  newValues?: Record<string, unknown>;
+}
