@@ -7,6 +7,15 @@ describe('PasswordHash', () => {
     await expect(PasswordHash.create('11character')).rejects.toThrow('password_too_short');
   });
 
+  it('rejects passwords exceeding 72 bytes (bcrypt truncation limit)', async () => {
+    const tooLong = 'a'.repeat(73);
+    await expect(PasswordHash.create(tooLong)).rejects.toThrow('password_too_long');
+    // 72 chars of ASCII = 72 bytes — should still be accepted
+    const exactly72 = 'a'.repeat(72);
+    const hash = await PasswordHash.create(exactly72);
+    expect(hash.toString()).toBeTruthy();
+  });
+
   it('accepts passwords of 12 or more characters', async () => {
     const hash = await PasswordHash.create('validpassword');
     expect(hash.toString()).toBeTruthy();

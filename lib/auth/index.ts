@@ -27,8 +27,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Identity Scoping exception: this is the authentication query that establishes
         // WHO the user is, so no userId scope exists yet. All other data queries must
         // include `where: { userId: session.user.id }` per the project identity-scoping rule.
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
+        // findFirst + insensitive handles any email casing stored at registration time.
+        // Registration MUST also normalize to lowercase to prevent duplicate accounts.
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: credentials.email.toLowerCase(), mode: 'insensitive' } },
           select: { id: true, email: true, passwordHash: true, role: true, status: true },
         });
         if (!user?.passwordHash || user.status !== 'ACTIVE') {

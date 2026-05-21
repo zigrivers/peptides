@@ -45,8 +45,10 @@ export default auth((req: NextRequest & { auth: { user?: { id?: string } } | nul
 });
 
 export const config = {
-  // Exclude NextAuth internal routes (/api/auth and its children), Next.js
-  // static assets, and favicon. The (?:/|$) boundary prevents /api/authz
-  // or /api/authorization from being incorrectly excluded.
-  matcher: ['/((?!api/auth(?:/|$)|_next/static|_next/image|favicon.ico).*)'],
+  // Exclude NextAuth internal routes (/api/auth/*), Next.js static assets,
+  // and common public files (favicon, robots, manifest, PWA icons).
+  // The (?:/|$) boundary on api/auth prevents /api/authz from being excluded.
+  matcher: [
+    '/((?!api/auth(?:/|$)|_next/static|_next/image|favicon\\.ico|robots\\.txt|manifest\\.json|sitemap\\.xml|icons/)..*)',
+  ],
 };

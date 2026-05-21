@@ -36,7 +36,7 @@ export const authConfig = {
       // Only runs on sign-in; subsequent calls return the existing token.
       if (user) {
         token.id = user.id;
-        token.role = (user as { id: string; role?: string }).role ?? null;
+        token.role = user.role ?? null;
       }
       return token;
     },
