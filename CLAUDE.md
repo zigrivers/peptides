@@ -5,6 +5,7 @@
 - **TDD Always**: Write pending test skeletons in `tests/acceptance/` first.
 - **Autonomous & Verified**: Prove every change with `pnpm check`.
 - **Identity Scoping**: Every DB query must include `where: { userId: session.user.id }`.
+  - **Exception**: `AuthRepository.findByEmailForAuth` in `lib/auth/infrastructure/AuthRepository.ts` is explicitly exempt — it queries the User table by email to establish identity and cannot be userId-scoped because userId is what is being established. It selects only authentication-required fields and never returns user-authored content.
 
 ### Key Commands
 | Task | Command |
