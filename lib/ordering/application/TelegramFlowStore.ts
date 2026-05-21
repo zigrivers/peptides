@@ -15,6 +15,8 @@ const store = new Map<string, FlowEntry>();
 export function createFlow(userId: string, tempSession: string): string {
   const flowId = randomUUID();
   store.set(flowId, { userId, tempSession, expiresAt: Date.now() + FLOW_TTL_MS });
+  // Self-evict when TTL expires so abandoned flows don't leak memory indefinitely.
+  setTimeout(() => store.delete(flowId), FLOW_TTL_MS);
   return flowId;
 }
 
