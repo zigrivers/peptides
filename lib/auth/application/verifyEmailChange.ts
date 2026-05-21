@@ -1,5 +1,6 @@
 import { unstable_after as after } from 'next/server';
 import { resend, FROM_ADDRESS } from '@/lib/shared/email';
+import { prisma } from '@/lib/shared/prisma';
 import { EmailChangeToken } from '@/lib/auth/domain/EmailChangeToken';
 import { EmailChangeRepo } from '@/lib/auth/infrastructure/EmailChangeRepo';
 import { withAudit } from '@/lib/audit/application/withAudit';
@@ -20,19 +21,32 @@ export async function verifyEmailChange(input: VerifyEmailChangeInput): Promise<
 
   EmailChangeToken.validateForVerify(record);
 
-  await withAudit(
-    async (tx) => {
-      const ok = await EmailChangeRepo.applyById(tx, record.id, record.userId, record.newEmail);
-      if (!ok) throw new Error('token_already_used');
-    },
-    {
-      actorUserId: record.userId,
-      category: 'Auth' as const,
-      action: 'EMAIL_CHANGE_APPLIED' as const,
-      resourceId: record.userId,
-      resourceType: 'User',
+  try {
+    await withAudit(
+      async (tx) => {
+        const ok = await EmailChangeRepo.applyById(tx, record.id, record.userId, record.newEmail);
+        if (!ok) throw new Error('token_already_used');
+      },
+      {
+        actorUserId: record.userId,
+        category: 'Auth' as const,
+        action: 'EMAIL_CHANGE_APPLIED' as const,
+        resourceId: record.userId,
+        resourceType: 'User',
+      }
+    );
+  } catch (err) {
+    // If the new email was claimed concurrently (P2002 → email_already_in_use), the
+    // transaction rolled back so the token is still PENDING. Cancel it so the user
+    // must request a fresh change rather than retrying the now-invalid token.
+    if (err instanceof Error && err.message === 'email_already_in_use') {
+      await prisma.emailChangeRequest.updateMany({
+        where: { id: record.id, userId: record.userId, status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      });
     }
-  );
+    throw err;
+  }
 
   // Send old-email notification with revert link after the response boundary (AC-4)
   after(async () => {

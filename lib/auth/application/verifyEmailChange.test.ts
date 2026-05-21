@@ -5,6 +5,7 @@ const mockApplyById = vi.fn();
 const mockWithAudit = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
 const mockSend = vi.fn();
+const mockEmailUpdateMany = vi.fn();
 
 vi.mock('next/server', () => ({ unstable_after: mockAfter }));
 vi.mock('@/lib/auth/infrastructure/EmailChangeRepo', () => ({
@@ -14,6 +15,9 @@ vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }
 vi.mock('@/lib/shared/email', () => ({
   resend: { emails: { send: mockSend } },
   FROM_ADDRESS: 'noreply@peptides.app',
+}));
+vi.mock('@/lib/shared/prisma', () => ({
+  prisma: { emailChangeRequest: { updateMany: mockEmailUpdateMany } },
 }));
 
 const { verifyEmailChange } = await import('./verifyEmailChange');
@@ -41,6 +45,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockFindByRawToken.mockResolvedValue(validRecord);
   mockApplyById.mockResolvedValue(true);
+  mockEmailUpdateMany.mockResolvedValue({ count: 1 });
   setupWithAudit();
 });
 
@@ -83,6 +88,17 @@ describe('verifyEmailChange', () => {
     );
     await verifyEmailChange({ rawToken: 'valid-token' });
     expect(mockApplyById).toHaveBeenCalledWith(fakeTx, 'req-1', 'user-1', 'new@e.com');
+  });
+
+  it('cancels token on email_already_in_use so user must request a fresh token', async () => {
+    mockWithAudit.mockRejectedValue(new Error('email_already_in_use'));
+    await expect(verifyEmailChange({ rawToken: 'valid-token' })).rejects.toThrow('email_already_in_use');
+    expect(mockEmailUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'req-1', userId: 'user-1', status: 'PENDING' }),
+        data: { status: 'CANCELLED' },
+      })
+    );
   });
 
   it('calls after() for old-address notification', async () => {
