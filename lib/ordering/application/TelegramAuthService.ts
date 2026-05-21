@@ -114,6 +114,6 @@ export async function getDecryptedSession(userId: string): Promise<string | null
 }
 
 export function buildFallbackDeepLink(vendorTelegramUsername: string): string {
-  const normalized = vendorTelegramUsername.replace('@', '');
+  const normalized = vendorTelegramUsername.trim().replace(/^@+/, '');
   return `tg://resolve?domain=${encodeURIComponent(normalized)}`;
 }

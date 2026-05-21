@@ -35,8 +35,11 @@ describe('SessionManager', () => {
     it('throws when TELEGRAM_SESSION_KEY env var is missing', () => {
       const original = process.env.TELEGRAM_SESSION_KEY;
       delete process.env.TELEGRAM_SESSION_KEY;
-      expect(() => encryptSession('session')).toThrow('TELEGRAM_SESSION_KEY');
-      process.env.TELEGRAM_SESSION_KEY = original;
+      try {
+        expect(() => encryptSession('session')).toThrow('TELEGRAM_SESSION_KEY');
+      } finally {
+        process.env.TELEGRAM_SESSION_KEY = original;
+      }
     });
 
     it('uses TELEGRAM_SESSION_KEY env var when no key arg is supplied', () => {
