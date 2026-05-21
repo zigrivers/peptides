@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@auth/prisma-adapter';
+// bcryptjs v3+ ships its own TypeScript definitions; @types/bcryptjs not needed.
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/shared/prisma';
 import { authConfig } from './auth.config';
@@ -11,12 +12,6 @@ import { AuthRepository } from './infrastructure/AuthRepository';
 // Prevents timing-based user enumeration: bcryptjs short-circuits on an obviously invalid
 // hash, so using a real 60-char hash ensures comparable work to a real verify() call.
 const DUMMY_HASH = '$2b$12$uBubSQ6J8844KtMFcKvLsuIqchm3gaZe0Jt3VEbqY7KWYKvZWKvgG';
-
-// Server-side user status is re-checked at most once per this interval (ms).
-// Known limitation: a user deactivated immediately after login may continue accessing
-// protected routes for up to STATUS_RECHECK_MS (15 min) on server-side auth calls.
-// Edge-middleware revocation (via Upstash KV — Task 1.4) will close this gap entirely.
-const STATUS_RECHECK_MS = 15 * 60 * 1000;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -46,37 +41,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    // Mirror the edge-safe session callback from authConfig (checks token.deactivated).
-    session: authConfig.callbacks.session,
-
-    // Override jwt to add server-side status revalidation that edge middleware cannot do.
-    // Runs in Node.js context only (lib/auth/index.ts); middleware uses authConfig.callbacks.jwt.
-    async jwt({ token, user, trigger }) {
-      // Sign-in: embed identity claims and record initial status check timestamp.
-      if (user) {
-        token.id = user.id;
-        token.role = user.role ?? null;
-        token.statusCheckedAt = Date.now();
-        return token;
-      }
-
-      // Periodic status recheck: only when a normal request fires the callback
-      // (trigger undefined) and the recheck interval has elapsed.
-      const needsCheck =
-        !trigger &&
-        !!token.id &&
-        (!token.statusCheckedAt || Date.now() - token.statusCheckedAt > STATUS_RECHECK_MS);
-
-      if (needsCheck) {
-        const currentUser = await AuthRepository.findStatusById(token.id as string);
-        token.statusCheckedAt = Date.now();
-        if (!currentUser || currentUser.status !== 'ACTIVE') {
-          token.deactivated = true;
-        }
-      }
-
-      return token;
-    },
-  },
+  // Note: jwt and session callbacks are inherited from authConfig (no server-side override).
+  // Token-based session revocation (Task 1.4) will be implemented via an edge-compatible
+  // KV store (Upstash) to avoid per-request DB calls that cannot persist tokens in
+  // Server Components.
 });

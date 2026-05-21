@@ -19,7 +19,6 @@ export const authConfig = {
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 15 * 60, // Token refresh interval — server-side jwt callback checks status every 15 min
   },
   cookies: {
     sessionToken: {
@@ -34,7 +33,7 @@ export const authConfig = {
   },
   callbacks: {
     jwt({ token, user }) {
-      // Only runs on sign-in; subsequent calls return the existing token.
+      // Only runs on sign-in; subsequent requests return the existing token.
       if (user) {
         token.id = user.id;
         token.role = user.role ?? null;
@@ -42,8 +41,8 @@ export const authConfig = {
       return token;
     },
     session({ session, token }) {
-      if (!token.id || !token.role || token.deactivated) {
-        // Missing claims, malformed token, or deactivated user — return base session
+      if (!token.id || !token.role) {
+        // Token predates required claims or is malformed — return base session
         // without id/role augmentation. Middleware denies access when user.id
         // is absent (checked via req.auth?.user?.id).
         return session;

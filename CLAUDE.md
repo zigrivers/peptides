@@ -5,10 +5,7 @@
 - **TDD Always**: Write pending test skeletons in `tests/acceptance/` first.
 - **Autonomous & Verified**: Prove every change with `pnpm check`.
 - **Identity Scoping**: Every DB query must include `where: { userId: session.user.id }`.
-  - **Exception**: Two query types in `lib/auth/infrastructure/AuthRepository.ts` are explicitly exempt:
-    1. **Email lookup** (`findByEmailForAuth`) — queries the User table by email to establish identity. Cannot be userId-scoped because userId is what we are trying to establish.
-    2. **Status revalidation** (`findStatusById`) — queries the User table by userId during JWT refresh. The User `id` column IS the userId; `where: { id: userId }` is the userId-scope on the User table itself.
-    All exempt queries must live in `AuthRepository`, select only authentication-required fields, and never return user-authored content.
+  - **Exception**: `AuthRepository.findByEmailForAuth` in `lib/auth/infrastructure/AuthRepository.ts` is explicitly exempt — it queries the User table by email to establish identity and cannot be userId-scoped because userId is what is being established. It selects only authentication-required fields and never returns user-authored content.
 
 ### Key Commands
 | Task | Command |
