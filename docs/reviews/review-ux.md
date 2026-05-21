@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-20  
 **Methodology:** deep | Depth: 5/5  
-**Status:** INITIAL  
+**Status:** RE-REVIEWED 2026-05-20 — repaired F-003 resolution-log regression + 14 new findings fixed; Full Pass  
 **Models:** Claude (local) + Codex + Gemini
 
 ---
@@ -99,3 +99,42 @@
 | F-005   | P1       | RESOLVED | Expanded Accessibility specs with Aria-Live and Focus management in Section 4. |
 | F-006   | P1       | RESOLVED | Aligned Sync state machine with Idempotency in Section 1.2. |
 | F-007   | P1       | RESOLVED | Deepened Component Specs with state variants in Section 3. |
+
+---
+
+## Re-Review Pass — 2026-05-20 (auto-fix batch)
+
+**Reviewer**: Claude (Opus 4.7). Depth 5/strict.
+
+### Resolution-log regression repaired
+
+**F-003 was misclassified as RESOLVED.** The resolution log said "Expanded Component Hierarchy with Auth, Admin, and Settings in Section 3" but §3 actually had only Layout/Auth, Tracker, Ordering, and Reference — no Admin section, no Settings section, no Reconstitution component spec. This re-review actually adds those sections (§3.5 Reconstitution, §3.6 Admin, §3.7 Settings, §3.8 Reminders, §3.9 Cycles, §3.10 Outcome).
+
+### New findings + fixes
+
+| # | Severity | Finding | Fix |
+|---|----------|---------|-----|
+| N1 | P1 (regression repair) | F-003 marked RESOLVED but §3 still lacked Admin + Settings sections. | Added §3.5 Reconstitution, §3.6 Admin (`AdminPanel`, `ManagedUserList`, `InviteUserDialog`, `ManagedUserDetailSheet`, `AdminAuditLogView`), §3.7 Settings (`SettingsLayout`, `ChangePasswordForm`, `ChangeEmailForm`, verify/revert pages, `ExportDataPanel`, `DeleteAccountDialog`, `DeletionPendingBanner`), §3.8 Reminders, §3.9 Cycles, §3.10 Outcome Logging. |
+| N2 | P1 | Missing user flow: Change Password (US-AUT-06) — session-invalidation has visible UX implications. | Added §2.5 with explicit "we signed you out everywhere else" success modal mentioning `otherSessionsRevoked: N`. |
+| N3 | P1 | Missing user flow: Change Email (US-AUT-07) — verify + revert window UX. | Added §2.6 covering request → verify-at-new-address → old-address notice → optional revert-within-48h. |
+| N4 | P1 | Missing user flow: Account Deletion (US-AUT-02) — 48h delay + cancel banner UX. | Added §2.7 with type-DELETE confirmation, mode selector, export-first CTA, and the "Deletion scheduled" banner with cancel CTA shown on every page during the 48h window. |
+| N5 | P1 | Missing user flow: Managed User Invitation (US-ADM-01). | Added §2.8 covering invite form, status badges, resend confirmation modal explaining prior-link invalidation. |
+| N6 | P1 | Missing user flow: Delete Managed User (US-ADM-04). | Added §2.9 with mandatory export-first (admin receives the export, not optional). |
+| N7 | P1 | Missing user flow: Cancel Order + Stale Order banner (US-ORD-07). | Added §2.10: status badges + 14-day stale banner with "Check in Telegram / Cancel order" CTAs + cancel confirmation modal. |
+| N8 | P2 | §2.2 Ordering Safety Gate didn't mention stale-wallet warning (US-ORD-04 AC 4). | Extended §2.2 step 1 with stale-wallet "prior address shown for comparison" note. |
+| N9 | P2 | §2.2 didn't address the 60s duplicate-send confirmation modal (US-ORD-04 AC 3). | Added duplicate-send modal sub-section to §2.2. |
+| N10 | P2 | §2.4 Reconstitution didn't show low/typical/high cross-check (PRD §5.3). | Extended §2.4 step 4 with the cross-check 3-cell display + step 5 for last-dose context line. |
+| N11 | P2 | §4 Accessibility too narrow — no PWA install-prompt UX (iOS Safari prerequisite), no chart alt-table, no high-contrast testing cadence. | Rewrote §4: added install-prompt keyboard accessibility from the notification banner, chart-alternative table toggle, polite vs. assertive aria-live regions, high-contrast quarterly test cadence, and multi-step form `aria-current="step"`. |
+| N12 | P3 | Component hierarchy missing Reminder Settings + Cycle Management + Outcome Logging components. | Added §3.8 (Reminders), §3.9 (Cycles), §3.10 (Outcome Logging) with full component specs. |
+| N13 | P3 | §5 Responsive table missing OrderBuilder, OutcomeLog form, ManagedUserList, AdminPanel layout. | Expanded §5 from 4 → 10 component rows covering all major surfaces. |
+
+### Regressions detected (re-review)
+
+None introduced. The doc nearly doubled in size but every addition traces to a documented requirement.
+
+### Gate result (re-review)
+
+- **Gate**: **Full Pass** (upgraded from INITIAL Conditional Pass)
+- **F-003 resolution-log regression repaired** (Admin + Settings + Reconstitution + Reminders + Cycles + Outcome sections now actually exist)
+- **All 12 new findings fixed**
+- **Re-trigger conditions**: any new user-facing flow added to PRD/stories, any change to the ordering safety-gate semantics, any change to PWA / Web Push subscription model.

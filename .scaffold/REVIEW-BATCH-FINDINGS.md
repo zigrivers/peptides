@@ -15,7 +15,7 @@ Mode: reset → run with `--instructions "Apply fixes directly to the reviewed a
 | 6 | review-architecture | ✅ done | 6 (4×P1, 2×P2) | 6 | 0 |
 | 7 | review-database | ✅ done | 10 (2×P0, 6×P1, 2×P2) | 10 | 0 |
 | 8 | review-api | ✅ done | 12 new + 8 PENDING repaired (1×P0 resolution-log regression, 10×P1, 2×P2) | 20 | 0 |
-| 9 | review-ux | pending | | | |
+| 9 | review-ux | ✅ done | 13 (1×P1 regression, 6×P1, 4×P2, 2×P3) | 13 | 0 |
 | 10 | review-testing | pending | | | |
 | 11 | review-operations | pending | | | |
 | 12 | review-security | pending | | | |
