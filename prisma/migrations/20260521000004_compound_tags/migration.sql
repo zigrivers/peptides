@@ -1,0 +1,1 @@
+ALTER TABLE "Compound" ADD COLUMN "tags" TEXT[] NOT NULL DEFAULT '{}';

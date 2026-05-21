@@ -175,8 +175,9 @@ model Compound {
   mechanismOfAction   String?
   administrationRoutes String[]
   status              String    @default("PUBLISHED")
+  tags                String[]  @default([]) // e.g. ["healing","weight-loss","longevity"]
   archivedAt          DateTime?
-  
+
   profile             CompoundProfile?
   products            VendorProduct[]
   protocols           Protocol[]

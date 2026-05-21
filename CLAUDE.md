@@ -29,6 +29,7 @@
 | Prisma Deploy Migration | `pnpm prisma:deploy` |
 | Prisma Generate | `pnpm prisma:generate` |
 | Prisma Validate | `pnpm prisma:validate` |
+| DB Seed | `pnpm db:seed` |
 
 ## Git & PR Workflow (9-step lifecycle + 4.5 PR review)
 1. **Commit**: `type(scope): desc`.
