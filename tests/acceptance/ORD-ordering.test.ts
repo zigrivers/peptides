@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Prisma } from '@prisma/client';
 
 const mockPrismaVendorCreate = vi.fn();
 const mockPrismaVendorFindMany = vi.fn();
@@ -628,7 +629,7 @@ describe('US-ORD-02: Build Order', () => {
       .mockResolvedValueOnce({ id: 'order-winner', userId: 'user-1', status: 'DRAFT' }); // re-read after P2002
     mockFindCompoundsByIds.mockResolvedValueOnce({ 'cmp-1': 'BPC-157' });
 
-    const p2002 = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+    const p2002 = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: '5.22.0' });
     mockPrismaOrderCreate.mockRejectedValueOnce(p2002);
 
     const dupeKey = '00000000-0000-0000-0000-000000000002' as `${string}-${string}-${string}-${string}-${string}`;

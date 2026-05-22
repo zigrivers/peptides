@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import Decimal from 'decimal.js';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import type { OrderLineItemInput, SendMethod } from '@/lib/ordering/domain/types';
@@ -40,10 +40,12 @@ function normalizeVialSize(vialSizeMg: string): string {
 function mergeItems(items: OrderLineItemInput[]): OrderLineItemInput[] {
   const map = new Map<string, OrderLineItemInput>();
   for (const item of items) {
-    // Include productId/price/currency in the key so items with different catalog
-    // links or prices are never collapsed into one entry.
+    // Key matches the DB unique constraint @@unique([orderId, compoundId, form, vialSizeMg])
+    // so merge is always collision-free at createMany time.
+    // When multiple items share the same compound/form/size, quantities are summed and
+    // the first item's productId/unitPrice/unitCurrency metadata is kept.
     const normalizedSize = normalizeVialSize(item.vialSizeMg);
-    const key = `${item.compoundId}:${item.form}:${normalizedSize}:${item.productId ?? ''}:${item.unitPrice ?? ''}:${item.unitCurrency ?? ''}`;
+    const key = `${item.compoundId}:${item.form}:${normalizedSize}`;
     const existing = map.get(key);
     if (existing) {
       existing.quantity += item.quantity;
@@ -143,7 +145,7 @@ export async function createDraftOrder(
     // If two concurrent requests race on the same idempotencyKey (which has a @unique
     // constraint), one will succeed and the other will get a P2002 unique-key violation.
     // Re-read the winner and return it rather than surfacing an internal error.
-    if (err instanceof Error && 'code' in err && (err as { code: string }).code === 'P2002') {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       const winner = await prisma.order.findFirst({ where: { userId, vendorId, idempotencyKey } });
       if (winner) return { orderId: winner.id };
     }
@@ -179,6 +181,10 @@ export async function sendOrder(
   // 60-second duplicate-send check — includes the current order so a crash-retry
   // (after Telegram sends but before the DB finalize) is also blocked by the
   // pre-send sentAt reservation written below.
+  // Note: there is a small race window between this check and the reservation updateMany.
+  // That is intentional and acceptable: the reservation itself is the primary guard
+  // (a CAS on sentAt with a 60s expiry). The pre-check is a fast-path that avoids
+  // an unnecessary Telegram send when a duplicate is already known.
   const cutoff = new Date(Date.now() - 60_000);
   const duplicate = await prisma.order.findFirst({
     where: {
