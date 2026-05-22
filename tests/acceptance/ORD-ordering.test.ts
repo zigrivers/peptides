@@ -815,6 +815,33 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     expect(mockSendTelegramMessage).toHaveBeenCalledWith('plain-session', 'qsc_vendor', expect.any(String));
   });
 
+  it('AC-2: sendOrder throws when telegramMessageId DB write fails after confirmed Telegram delivery (no silent fallback)', async () => {
+    const { sendOrder } = await import('@/lib/ordering/application/OrderService');
+    const { encryptSession } = await import('@/lib/ordering/application/SessionManager');
+
+    const encryptedSession = encryptSession('plain-session');
+    const orderWithDetails = {
+      id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
+      idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null, status: 'ACTIVE' },
+      items: [
+        { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
+      ],
+    };
+
+    mockPrismaOrderFindFirst
+      .mockResolvedValueOnce(orderWithDetails)
+      .mockResolvedValueOnce(null);
+    mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce({ sessionString: encryptedSession, isActive: true, userId: 'user-1' });
+    mockSendTelegramMessage.mockResolvedValueOnce({ messageId: 'tg-id-confirmed' });
+    mockPrismaOrderUpdateMany
+      .mockResolvedValueOnce({ count: 1 })        // reservation
+      .mockRejectedValueOnce(new Error('db_error')); // telegramMessageId pre-write fails
+
+    // Must throw — silently falling back to MANUAL_FALLBACK would risk a duplicate send
+    await expect(sendOrder('user-1', 'order-1')).rejects.toThrow('db_error');
+  });
+
   it('AC-2: sendOrder recovers from dual-write gap when telegramMessageId is already set on DRAFT order', async () => {
     const { sendOrder } = await import('@/lib/ordering/application/OrderService');
 

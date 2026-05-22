@@ -272,17 +272,21 @@ export async function sendOrder(
       if (sessionString) {
         const result = await sendTelegramMessage(sessionString, order.vendor.telegramUsername, messageText);
         telegramMessageId = result.messageId;
-        // Write telegramMessageId before the status finalize so that if finalize fails,
-        // the next retry detects it and skips re-sending (dual-write gap mitigation).
-        await prisma.order.updateMany({
-          where: { id: orderId, userId, status: 'DRAFT' },
-          data: { telegramMessageId },
-        });
-        sendMethod = 'AUTOMATED';
-        console.info('[OrderService] Telegram send succeeded', { orderId, messageId: telegramMessageId });
       }
     } catch (err) {
       console.error('[OrderService] Telegram send failed, falling back to manual:', err);
+    }
+
+    // Persist messageId outside the catch scope: a DB failure after confirmed Telegram
+    // delivery must throw rather than silently fall back, because the user would
+    // attempt a re-send for a message Telegram already delivered.
+    if (telegramMessageId) {
+      await prisma.order.updateMany({
+        where: { id: orderId, userId, status: 'DRAFT' },
+        data: { telegramMessageId },
+      });
+      sendMethod = 'AUTOMATED';
+      console.info('[OrderService] Telegram send succeeded', { orderId, messageId: telegramMessageId });
     }
   }
 

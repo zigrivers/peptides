@@ -111,7 +111,10 @@ export async function sendTelegramMessage(
     const result = await client.sendMessage(recipientUsername, { message: text });
     return { messageId: String(result.id) };
   } finally {
-    await client.disconnect();
+    // Catch disconnect errors separately: a disconnect failure must not mask a successful
+    // sendMessage, which would cause OrderService to offer manual fallback for a
+    // message that Telegram already delivered (duplicate-send risk).
+    try { await client.disconnect(); } catch (err) { console.error('[MTProtoClient] disconnect error (non-fatal):', err); }
   }
 }
 
