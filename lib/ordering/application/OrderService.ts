@@ -315,10 +315,11 @@ export async function sendOrder(
   // orders must check sendMethod to distinguish "fallback pending" from "not yet sent".
   await withAudit(
     async (tx) => {
-      await tx.order.updateMany({
+      const { count } = await tx.order.updateMany({
         where: { id: orderId, userId, status: 'DRAFT' },
         data: { sendMethod },
       });
+      if (count === 0) throw new Error('invalid_order_transition');
     },
     () => ({
       actorUserId: userId,

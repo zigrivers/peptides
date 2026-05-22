@@ -503,6 +503,49 @@ describe('US-ORD-02: Build Order', () => {
     expect(itemsArg.data[0].vialSizeMg).toBe('5.000'); // canonical DECIMAL(10,3) form
   });
 
+  it('AC-1: createDraftOrder promotes productId from later item when first has no productId (manual+catalog merge)', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+    mockFindCompoundsByIds.mockResolvedValueOnce({ 'cmp-1': 'BPC-157' });
+    mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-merge', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-merge', createdAt: new Date() });
+    mockPrismaVendorProductFindMany.mockResolvedValueOnce([
+      { id: 'prod-1', compoundId: 'cmp-1', priceUsd: { toString: () => '15.00' }, form: null, vialSizeMg: null },
+    ]);
+    mockPrismaOrderItemCreateMany.mockResolvedValueOnce({ count: 1 });
+
+    await createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1 },
+      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 2, productId: 'prod-1', unitPrice: '15.00', unitCurrency: 'USD' },
+    ]);
+
+    const itemsArg = mockPrismaOrderItemCreateMany.mock.calls[0][0];
+    expect(itemsArg.data).toHaveLength(1);
+    expect(itemsArg.data[0].quantity).toBe(3);
+    expect(itemsArg.data[0].productId).toBe('prod-1');
+    expect(itemsArg.data[0].unitPrice).toBe('15.00'); // catalog price from product
+    expect(itemsArg.data[0].unitCurrency).toBe('USD');
+  });
+
+  it('AC-1: createDraftOrder throws product_id_conflict when same compound+form+size has conflicting productIds', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+
+    await expect(createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1, productId: 'prod-1' },
+      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1, productId: 'prod-2' },
+    ])).rejects.toThrow('product_id_conflict');
+  });
+
   it('AC-1: createDraftOrder throws vendor_not_found when vendor does not belong to user', async () => {
     const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
 

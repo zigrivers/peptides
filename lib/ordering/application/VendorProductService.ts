@@ -5,12 +5,13 @@ import { withAudit } from '@/lib/audit/application/withAudit';
 import { ITEM_FORMS } from '@/lib/ordering/domain/types';
 import type { VendorProduct } from '@/lib/ordering/domain/types';
 
-function validateProductForm(form: string | undefined): void {
-  if (form !== undefined && !(ITEM_FORMS as readonly string[]).includes(form)) throw new Error('invalid_form');
+function validateProductForm(form: string | null | undefined): void {
+  if (form == null) return;
+  if (!(ITEM_FORMS as readonly string[]).includes(form)) throw new Error('invalid_form');
 }
 
-function validateProductVialSize(vialSizeMg: string | undefined): void {
-  if (vialSizeMg === undefined) return;
+function validateProductVialSize(vialSizeMg: string | null | undefined): void {
+  if (vialSizeMg == null) return;
   let d: Decimal;
   try { d = new Decimal(vialSizeMg); } catch { throw new Error(`invalid_vial_size: ${vialSizeMg}`); }
   if (!d.isFinite() || d.lte(0)) throw new Error(`invalid_vial_size: ${vialSizeMg}`);
@@ -33,8 +34,8 @@ export interface UpdateVendorProductInput {
   name?: string;
   priceUsd?: string;
   inStock?: boolean;
-  form?: string;
-  vialSizeMg?: string;
+  form?: string | null;
+  vialSizeMg?: string | null;
 }
 
 function toVendorProduct(row: PrismaVendorProduct): VendorProduct {
@@ -108,8 +109,8 @@ export async function updateVendorProduct(input: UpdateVendorProductInput): Prom
       if (input.name !== undefined) data.name = input.name;
       if (input.priceUsd !== undefined) data.priceUsd = new Decimal(input.priceUsd);
       if (input.inStock !== undefined) data.inStock = input.inStock;
-      if (input.form !== undefined) data.form = input.form;
-      if (input.vialSizeMg !== undefined) data.vialSizeMg = new Decimal(input.vialSizeMg);
+      if (input.form !== undefined) data.form = input.form ?? null;
+      if (input.vialSizeMg !== undefined) data.vialSizeMg = input.vialSizeMg != null ? new Decimal(input.vialSizeMg) : null;
 
       const row = await tx.vendorProduct.update({ where: { id: existing.id }, data });
       return toVendorProduct(row);
