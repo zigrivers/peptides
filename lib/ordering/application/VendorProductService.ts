@@ -15,6 +15,9 @@ function validateProductVialSize(vialSizeMg: string | null | undefined): void {
   let d: Decimal;
   try { d = new Decimal(vialSizeMg); } catch { throw new Error(`invalid_vial_size: ${vialSizeMg}`); }
   if (!d.isFinite() || d.lte(0)) throw new Error(`invalid_vial_size: ${vialSizeMg}`);
+  // Mirror the 3-decimal precision limit from OrderService.normalizeVialSize — products with
+  // more precision can't be matched against normalized order line items (DECIMAL(10,3)).
+  if (d.decimalPlaces() > 3) throw new Error(`invalid_vial_size: ${vialSizeMg}`);
 }
 
 export interface CreateVendorProductInput {

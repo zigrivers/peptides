@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 import Decimal from 'decimal.js';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
@@ -217,16 +217,24 @@ export async function sendOrder(
     console.info('[OrderService] Dual-write gap recovery — skipping Telegram re-send', { orderId, messageId: telegramMessageId });
   } else {
     // Normal path: duplicate check + reservation in a single atomic transaction.
-    // Running both inside withAudit narrows the race window vs. a separate pre-check.
-    // Note: READ COMMITTED isolation means two concurrent transactions can still both
-    // observe "no duplicate" before either commits. Advisory locks would fully close
-    // this gap; this design accepts that residual risk for simplicity.
-    type CheckAndReserveResult = { blocked: true; duplicateOrderId: string } | { blocked: false };
+    // pg_try_advisory_xact_lock on hash(userId:vendorId:messageText) serializes concurrent
+    // requests with the same content, fully closing the READ COMMITTED race window where
+    // two transactions could otherwise both pass the findFirst dup check before either commits.
+    type CheckAndReserveResult = { blocked: true; duplicateOrderId: string | null } | { blocked: false };
 
     const sentAt = new Date();
     const checkAndReserve = await withAudit<CheckAndReserveResult>(
       async (tx) => {
         if (!force) {
+          const lockHash = createHash('sha256').update(`${userId}:${order.vendorId}:${messageText}`).digest();
+          const key1 = lockHash.readInt32BE(0);
+          const key2 = lockHash.readInt32BE(4);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const [{ acquired }] = (await (tx as any).$queryRaw(
+            Prisma.sql`SELECT pg_try_advisory_xact_lock(${key1}::int4, ${key2}::int4) AS acquired`
+          )) as [{ acquired: boolean }];
+          if (!acquired) return { blocked: true, duplicateOrderId: null };
+
           const dup = await tx.order.findFirst({
             where: { userId, vendorId: order.vendorId, messageText, sentAt: { gte: cutoff }, id: { not: orderId } },
           });

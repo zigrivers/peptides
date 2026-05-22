@@ -14,6 +14,7 @@ const mockPrismaTelegramSessionFindUnique = vi.fn();
 const mockPrismaTelegramSessionDelete = vi.fn();
 const mockPrismaTelegramSessionDeleteMany = vi.fn();
 const mockPrismaAuditEventCreate = vi.fn();
+const mockPrismaQueryRaw = vi.fn().mockResolvedValue([{ acquired: true }]);
 const mockFindCompoundsByIds = vi.fn();
 const mockPrismaOrderCreate = vi.fn();
 const mockPrismaOrderFindFirst = vi.fn();
@@ -84,6 +85,7 @@ vi.mock('@/lib/shared/prisma', () => ({
           createMany: mockPrismaOrderItemCreateMany,
         },
         auditEvent: { create: mockPrismaAuditEventCreate },
+        $queryRaw: mockPrismaQueryRaw,
       };
       return fn(tx);
     }),
@@ -240,6 +242,20 @@ describe('US-ORD-06: Manage Vendor Catalog', () => {
         priceUsd: '10.00',
         inStock: true,
       })).rejects.toThrow('vendor_not_found');
+    });
+
+    it('AC-1: throws invalid_vial_size when vialSizeMg has more than 3 decimal places', async () => {
+      const { createVendorProduct } = await import('@/lib/ordering/application/VendorProductService');
+
+      await expect(createVendorProduct({
+        userId: 'user-1',
+        vendorId: 'vendor-1',
+        compoundId: 'c-1',
+        name: 'Test',
+        priceUsd: '10.00',
+        inStock: true,
+        vialSizeMg: '5.0001',
+      })).rejects.toThrow('invalid_vial_size');
     });
   });
 
@@ -760,6 +776,7 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPrismaAuditEventCreate.mockResolvedValue({});
+    mockPrismaQueryRaw.mockResolvedValue([{ acquired: true }]); // advisory lock: default acquired
     process.env.TELEGRAM_SESSION_KEY = 'a'.repeat(64);
     process.env.TELEGRAM_APP_ID = '12345';
     process.env.TELEGRAM_APP_HASH = 'abc123hash';
@@ -974,6 +991,26 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
 
     await expect(sendOrder('user-1', 'order-1')).rejects.toThrow('possible_duplicate_send');
     // Audit DUPLICATE_SEND_BLOCKED should be written
+    const auditActions = mockPrismaAuditEventCreate.mock.calls.map((c: unknown[]) => (c[0] as { data: { action: string } }).data.action);
+    expect(auditActions).toContain('DUPLICATE_SEND_BLOCKED');
+  });
+
+  it('AC-3: sendOrder blocks when advisory lock is not acquired (concurrent send of same content)', async () => {
+    const { sendOrder } = await import('@/lib/ordering/application/OrderService');
+
+    const orderWithDetails = {
+      id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
+      idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null, status: 'ACTIVE' },
+      items: [
+        { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
+      ],
+    };
+
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(orderWithDetails); // get order
+    mockPrismaQueryRaw.mockResolvedValueOnce([{ acquired: false }]); // lock not acquired
+
+    await expect(sendOrder('user-1', 'order-1')).rejects.toThrow('possible_duplicate_send');
     const auditActions = mockPrismaAuditEventCreate.mock.calls.map((c: unknown[]) => (c[0] as { data: { action: string } }).data.action);
     expect(auditActions).toContain('DUPLICATE_SEND_BLOCKED');
   });
