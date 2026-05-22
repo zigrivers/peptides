@@ -56,6 +56,7 @@ export type AuditAction =
   | 'ORDER_DRAFTED'
   | 'ORDER_SEND_ATTEMPTED'
   | 'ORDER_SENT'
+  | 'ORDER_MANUAL_FALLBACK_PROVIDED'  // written when no Telegram session; order stays DRAFT
   | 'ORDER_CONFIRMED'
   | 'PAYMENT_ACKNOWLEDGED'
   | 'ORDER_PAYMENT_SENT'

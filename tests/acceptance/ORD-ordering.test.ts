@@ -544,6 +544,26 @@ describe('US-ORD-02: Build Order', () => {
   });
 
   it.each([
+    { vialSizeMg: '0', label: 'zero' },
+    { vialSizeMg: '-5', label: 'negative' },
+    { vialSizeMg: 'NaN', label: 'NaN string' },
+    { vialSizeMg: 'Infinity', label: 'Infinity string' },
+  ])('AC-1: createDraftOrder throws invalid_vial_size for $label vialSizeMg', async ({ vialSizeMg }) => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+
+    await expect(createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg, quantity: 1 },
+    ])).rejects.toThrow('invalid_vial_size');
+    expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
+  });
+
+  it.each([
     { quantity: 0, label: 'zero' },
     { quantity: -1, label: 'negative' },
     { quantity: 1.5, label: 'fractional' },
@@ -691,7 +711,7 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     expect(mockSendTelegramMessage).not.toHaveBeenCalled();
   });
 
-  it('AC-3: sendOrder archives messageText to the order record on success', async () => {
+  it('AC-3: sendOrder archives messageText to the order record on reservation', async () => {
     const { sendOrder } = await import('@/lib/ordering/application/OrderService');
 
     const orderWithDetails = {
@@ -709,7 +729,7 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce(null);
     mockPrismaOrderUpdateMany
       .mockResolvedValueOnce({ count: 1 }) // pre-send reserve
-      .mockResolvedValueOnce({ count: 1 }); // finalize inside withAudit tx
+      .mockResolvedValueOnce({ count: 1 }); // MANUAL_FALLBACK: stamp sendMethod on DRAFT
 
     await sendOrder('user-1', 'order-1');
 
@@ -717,9 +737,39 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     const reserveCall = mockPrismaOrderUpdateMany.mock.calls[0][0];
     expect(reserveCall.data.messageText).toBeTruthy();
     expect(reserveCall.data.sentAt).toBeInstanceOf(Date);
-    // Second updateMany call = finalize (status + sendMethod)
-    const finalizeCall = mockPrismaOrderUpdateMany.mock.calls[1][0];
-    expect(finalizeCall.data.status).toBe('SENT');
+    // Second updateMany call = MANUAL_FALLBACK path: stamps sendMethod, does NOT set SENT
+    const fallbackCall = mockPrismaOrderUpdateMany.mock.calls[1][0];
+    expect(fallbackCall.data.sendMethod).toBe('MANUAL_FALLBACK');
+    expect(fallbackCall.data.status).toBeUndefined();
+  });
+
+  it('AC-3: sendOrder writes ORDER_MANUAL_FALLBACK_PROVIDED (not ORDER_SENT) on fallback path', async () => {
+    const { sendOrder } = await import('@/lib/ordering/application/OrderService');
+
+    const orderWithDetails = {
+      id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
+      idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null },
+      items: [
+        { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
+      ],
+    };
+
+    mockPrismaOrderFindFirst
+      .mockResolvedValueOnce(orderWithDetails)
+      .mockResolvedValueOnce(null);
+    mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce(null);
+    mockPrismaOrderUpdateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+
+    await sendOrder('user-1', 'order-1');
+
+    const auditActions = mockPrismaAuditEventCreate.mock.calls.map(
+      (c: unknown[]) => (c[0] as { data: { action: string } }).data.action
+    );
+    expect(auditActions).toContain('ORDER_MANUAL_FALLBACK_PROVIDED');
+    expect(auditActions).not.toContain('ORDER_SENT');
   });
 
   it('AC-3: sendOrder blocks duplicate send within 60 seconds without force', async () => {

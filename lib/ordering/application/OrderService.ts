@@ -27,11 +27,14 @@ export interface SendOrderResult {
 }
 
 function normalizeVialSize(vialSizeMg: string): string {
+  let d: Decimal;
   try {
-    return new Decimal(vialSizeMg).toString();
+    d = new Decimal(vialSizeMg);
   } catch {
     throw new Error(`invalid_vial_size: ${vialSizeMg}`);
   }
+  if (!d.isFinite() || d.lte(0)) throw new Error(`invalid_vial_size: ${vialSizeMg}`);
+  return d.toString();
 }
 
 function mergeItems(items: OrderLineItemInput[]): OrderLineItemInput[] {
@@ -63,8 +66,9 @@ function composeMessage(
     .join('\n');
 
   if (vendor.messageTemplate) {
+    // Use .replace with /g flag for Node <15 compatibility (replaceAll is Node 15+)
     return vendor.messageTemplate.includes('{ITEMS}')
-      ? vendor.messageTemplate.replaceAll('{ITEMS}', itemLines)
+      ? vendor.messageTemplate.replace(/{ITEMS}/g, itemLines)
       : `${vendor.messageTemplate}\n\n${itemLines}`;
   }
 
@@ -244,36 +248,50 @@ export async function sendOrder(
     console.error('[OrderService] Telegram send failed, falling back to manual:', err);
   }
 
-  // Both AUTOMATED and MANUAL_FALLBACK transition to 'SENT'. The order is finalized
-  // regardless of delivery method; sendMethod distinguishes automated from manual dispatch.
+  if (sendMethod === 'AUTOMATED') {
+    // Telegram delivered the message — transition the order to SENT.
+    await withAudit(
+      async (tx) => {
+        const { count } = await tx.order.updateMany({
+          where: { id: orderId, userId, status: 'DRAFT' },
+          data: { status: 'SENT', sendMethod, telegramMessageId: telegramMessageId! },
+        });
+        if (count === 0) throw new Error('invalid_order_transition');
+      },
+      () => ({
+        actorUserId: userId,
+        category: 'Order' as const,
+        action: 'ORDER_SENT' as const,
+        resourceId: orderId,
+        resourceType: 'Order',
+        newValues: { sendMethod, telegramMessageId: telegramMessageId ?? null },
+      })
+    );
+    return { sendMethod, telegramMessageId };
+  }
+
+  // MANUAL_FALLBACK: the user receives the pre-composed message and deep link.
+  // The order stays DRAFT — ORDER_SENT is only written after actual delivery.
+  // sendMethod is stamped on the DRAFT record so the UI can surface "Complete manual send".
   await withAudit(
     async (tx) => {
-      const { count } = await tx.order.updateMany({
+      await tx.order.updateMany({
         where: { id: orderId, userId, status: 'DRAFT' },
-        data: {
-          status: 'SENT',
-          sendMethod,
-          telegramMessageId: telegramMessageId ?? null,
-        },
+        data: { sendMethod },
       });
-      if (count === 0) throw new Error('invalid_order_transition');
     },
     () => ({
       actorUserId: userId,
       category: 'Order' as const,
-      action: 'ORDER_SENT' as const,
+      action: 'ORDER_MANUAL_FALLBACK_PROVIDED' as const,
       resourceId: orderId,
       resourceType: 'Order',
-      newValues: { sendMethod, telegramMessageId: telegramMessageId ?? null },
+      newValues: { sendMethod },
     })
   );
-
-  if (sendMethod === 'MANUAL_FALLBACK') {
-    return {
-      sendMethod,
-      fallbackText: messageText,
-      fallbackDeepLink: buildFallbackDeepLink(order.vendor.telegramUsername),
-    };
-  }
-  return { sendMethod, telegramMessageId };
+  return {
+    sendMethod,
+    fallbackText: messageText,
+    fallbackDeepLink: buildFallbackDeepLink(order.vendor.telegramUsername),
+  };
 }
