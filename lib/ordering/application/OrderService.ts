@@ -3,7 +3,7 @@ import Decimal from 'decimal.js';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
-import { ITEM_FORMS } from '@/lib/ordering/domain/types';
+import { ITEM_FORMS, VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
 import type { OrderLineItemInput, SendMethod } from '@/lib/ordering/domain/types';
 import { sendTelegramMessage } from '@/lib/ordering/infrastructure/MTProtoClient';
 import { getDecryptedSession, buildFallbackDeepLink } from './TelegramAuthService';
@@ -77,7 +77,8 @@ function composeMessage(
     .map(
       (i) =>
         // 'mg' is intentional — the vialSizeMg field name defines the unit; all vial sizes are in milligrams.
-        `- ${i.quantity}x ${i.compoundName} ${i.vialSizeMg.toString()}mg (${i.form === 'LYOPHILIZED_POWDER' ? 'lyophilized' : 'solution'})`
+        // new Decimal(...).toString() strips trailing zeros so '5.000' renders as '5mg', not '5.000mg'.
+        `- ${i.quantity}x ${i.compoundName} ${new Decimal(i.vialSizeMg.toString()).toString()}mg (${i.form === 'LYOPHILIZED_POWDER' ? 'lyophilized' : 'solution'})`
     )
     .join('\n');
 
@@ -107,6 +108,18 @@ export async function createDraftOrder(
   if (items.some((i) => i.quantity <= 0 || !Number.isInteger(i.quantity))) throw new Error('invalid_quantity');
   const merged = mergeItems(items);
   if (merged.length === 0) throw new Error('order_items_required');
+
+  // Validate manual pricing fields for non-product items before hitting the DB.
+  for (const item of merged) {
+    if (item.productId == null) {
+      if (item.unitPrice != null) {
+        try { new Decimal(item.unitPrice); } catch { throw new Error('invalid_unit_price'); }
+      }
+      if (item.unitCurrency != null && !(VENDOR_CURRENCIES as readonly string[]).includes(item.unitCurrency)) {
+        throw new Error('invalid_unit_currency');
+      }
+    }
+  }
 
   const uniqueCompoundIds = [...new Set(merged.map((i) => i.compoundId))];
   const foundCompounds = await findCompoundsByIds(uniqueCompoundIds);
@@ -194,6 +207,13 @@ export async function sendOrder(
   if (order.status !== 'DRAFT') throw new Error('invalid_order_transition');
   if (order.vendor.status !== 'ACTIVE') throw new Error('vendor_disabled');
   if (!order.vendor.telegramUsername) throw new Error('vendor_missing_telegram_username');
+  // Indeterminate state: a prior automated send reached Telegram but the telegramMessageId
+  // pre-write failed (process crash in the ~1ms window). sendMethod is null because the
+  // MANUAL_FALLBACK path never ran. Re-sending after the 60s cooldown would duplicate the
+  // Telegram message. Require manual reconciliation before retrying.
+  if (order.messageText && !order.telegramMessageId && !order.sendMethod) {
+    throw new Error('send_state_indeterminate');
+  }
 
   const itemsForMessage = order.items.map((i) => ({
     compoundName: i.compound?.name ?? i.compoundId,
@@ -203,6 +223,7 @@ export async function sendOrder(
   }));
 
   const messageText = composeMessage(order.vendor, itemsForMessage);
+  if (messageText.length > 4096) throw new Error('message_too_long');
 
   const cutoff = new Date(Date.now() - 60_000);
 

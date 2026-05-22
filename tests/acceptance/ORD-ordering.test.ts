@@ -657,6 +657,36 @@ describe('US-ORD-02: Build Order', () => {
     expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
   });
 
+  it('AC-1: createDraftOrder throws invalid_unit_price when manual item has malformed unitPrice', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+
+    await expect(createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1, unitPrice: 'abc' },
+    ])).rejects.toThrow('invalid_unit_price');
+    expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
+  });
+
+  it('AC-1: createDraftOrder throws invalid_unit_currency when manual item has unrecognized currency', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+
+    await expect(createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1, unitCurrency: 'GBP' },
+    ])).rejects.toThrow('invalid_unit_currency');
+    expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
+  });
+
   it('AC-1: createDraftOrder throws compound_not_found when compoundId does not exist', async () => {
     const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
 
@@ -780,6 +810,44 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     process.env.TELEGRAM_SESSION_KEY = 'a'.repeat(64);
     process.env.TELEGRAM_APP_ID = '12345';
     process.env.TELEGRAM_APP_HASH = 'abc123hash';
+  });
+
+  it('AC-2: sendOrder throws message_too_long when composed message exceeds Telegram 4096-char limit', async () => {
+    const { sendOrder } = await import('@/lib/ordering/application/OrderService');
+
+    const orderWithManyItems = {
+      id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
+      idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
+      telegramMessageId: null, sendMethod: null,
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: 'x'.repeat(4097), status: 'ACTIVE' },
+      items: [
+        { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
+      ],
+    };
+
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(orderWithManyItems);
+
+    await expect(sendOrder('user-1', 'order-1')).rejects.toThrow('message_too_long');
+    expect(mockPrismaOrderUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('AC-2: sendOrder throws send_state_indeterminate when prior automated send reached Telegram but telegramMessageId was not persisted', async () => {
+    const { sendOrder } = await import('@/lib/ordering/application/OrderService');
+
+    const orderWithUnknownSendState = {
+      id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
+      idempotencyKey: 'key-1', createdAt: new Date(), sentAt: new Date(Date.now() - 120_000),
+      messageText: 'prior message text', telegramMessageId: null, sendMethod: null,
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null, status: 'ACTIVE' },
+      items: [
+        { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
+      ],
+    };
+
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(orderWithUnknownSendState);
+
+    await expect(sendOrder('user-1', 'order-1')).rejects.toThrow('send_state_indeterminate');
+    expect(mockPrismaOrderUpdateMany).not.toHaveBeenCalled();
   });
 
   it('AC-2: sendOrder throws vendor_disabled when vendor is not ACTIVE', async () => {
