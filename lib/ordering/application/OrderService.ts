@@ -35,7 +35,10 @@ function normalizeVialSize(vialSizeMg: string): string {
     throw new Error(`invalid_vial_size: ${vialSizeMg}`);
   }
   if (!d.isFinite() || d.lte(0)) throw new Error(`invalid_vial_size: ${vialSizeMg}`);
-  return d.toString();
+  // Reject precision beyond DECIMAL(10,3) — prevents values like 5.0001 from silently
+  // rounding to 5.000 in the DB while appearing distinct in merge keys.
+  if (d.decimalPlaces() > 3) throw new Error(`invalid_vial_size: ${vialSizeMg}`);
+  return d.toFixed(3);  // canonical form matching DB DECIMAL(10,3) column precision
 }
 
 function mergeItems(items: OrderLineItemInput[]): OrderLineItemInput[] {
@@ -43,13 +46,22 @@ function mergeItems(items: OrderLineItemInput[]): OrderLineItemInput[] {
   for (const item of items) {
     // Key matches the DB unique constraint @@unique([orderId, compoundId, form, vialSizeMg])
     // so merge is always collision-free at createMany time.
-    // When multiple items share the same compound/form/size, quantities are summed and
-    // the first item's productId/unitPrice/unitCurrency metadata is kept.
     const normalizedSize = normalizeVialSize(item.vialSizeMg);
     const key = `${item.compoundId}:${item.form}:${normalizedSize}`;
     const existing = map.get(key);
     if (existing) {
       existing.quantity += item.quantity;
+      // Promote productId metadata if current item has one and existing doesn't — prevents
+      // productId from being silently dropped when items arrive in non-productId-first order,
+      // which would bypass catalog price validation. Conflicting productIds are rejected.
+      if (item.productId != null) {
+        if (existing.productId != null && existing.productId !== item.productId) throw new Error('product_id_conflict');
+        if (existing.productId == null) {
+          existing.productId = item.productId;
+          existing.unitPrice = item.unitPrice;
+          existing.unitCurrency = item.unitCurrency;
+        }
+      }
     } else {
       map.set(key, { ...item, vialSizeMg: normalizedSize });
     }
@@ -113,7 +125,7 @@ export async function createDraftOrder(
         const productMap = new Map<string, { compoundId: string; priceUsd: { toString(): string }; form: string | null; vialSizeMg: { toString(): string } | null }>();
         if (itemsWithProduct.length > 0) {
           const products = await tx.vendorProduct.findMany({
-            where: { id: { in: itemsWithProduct.map((i) => i.productId!) }, vendorId, vendor: { userId }, inStock: true },
+            where: { id: { in: [...new Set(itemsWithProduct.map((i) => i.productId!))] }, vendorId, vendor: { userId }, inStock: true },
             select: { id: true, compoundId: true, priceUsd: true, form: true, vialSizeMg: true },
           });
           for (const p of products) productMap.set(p.id, p);
@@ -192,80 +204,86 @@ export async function sendOrder(
 
   const messageText = composeMessage(order.vendor, itemsForMessage);
 
-  // 60-second duplicate-send check — includes the current order so a crash-retry
-  // (after Telegram sends but before the DB finalize) is also blocked by the
-  // pre-send sentAt reservation written below.
-  // Note: there is a small race window between this check and the reservation updateMany.
-  // That is intentional and acceptable: the reservation itself is the primary guard
-  // (a CAS on sentAt with a 60s expiry). The pre-check is a fast-path that avoids
-  // an unnecessary Telegram send when a duplicate is already known.
   const cutoff = new Date(Date.now() - 60_000);
-  const duplicate = await prisma.order.findFirst({
-    where: {
-      userId,
-      vendorId: order.vendorId,
-      messageText,
-      sentAt: { gte: cutoff },
-    },
-  });
 
-  if (duplicate && !force) {
-    await withAudit(
-      async () => { /* audit-only — no DB mutation */ },
-      () => ({
-        actorUserId: userId,
-        category: 'Order' as const,
-        action: 'DUPLICATE_SEND_BLOCKED' as const,
-        resourceId: orderId,
-        resourceType: 'Order',
-        metadata: { duplicateOrderId: duplicate.id },
-      })
-    );
-    throw new Error('possible_duplicate_send');
-  }
-
-  // Reserve the send slot inside withAudit so the reservation and its audit trail
-  // are atomic. When force=true, skip the sentAt constraint to allow deliberate retries.
-  // When not forced, allow re-reservation if the prior lock has expired (>60s ago).
-  const sentAt = new Date();
-  await withAudit(
-    async (tx) => {
-      const { count } = await tx.order.updateMany({
-        where: {
-          id: orderId,
-          userId,
-          status: 'DRAFT',
-          ...(force ? {} : { OR: [{ sentAt: null }, { sentAt: { lt: cutoff } }] }),
-        },
-        data: { messageText, sentAt },
-      });
-      if (count === 0) throw new Error('order_not_found_or_not_draft');
-    },
-    () => ({
-      actorUserId: userId,
-      category: 'Order' as const,
-      action: 'ORDER_SEND_ATTEMPTED' as const,
-      resourceId: orderId,
-      resourceType: 'Order',
-    })
-  );
-
-  // Attempt Telegram send
+  // Dual-write gap recovery: if telegramMessageId is already set on this DRAFT order,
+  // a prior Telegram send succeeded but the DB finalize failed. Skip re-sending and
+  // go directly to finalize using the recorded messageId.
   let sendMethod: SendMethod = 'MANUAL_FALLBACK';
-  let telegramMessageId: string | undefined;
+  let telegramMessageId: string | undefined = order.telegramMessageId ?? undefined;
 
-  try {
-    const sessionString = await getDecryptedSession(userId);
-    if (sessionString) {
-      const result = await sendTelegramMessage(sessionString, order.vendor.telegramUsername, messageText);
-      telegramMessageId = result.messageId;
-      sendMethod = 'AUTOMATED';
-      // Recovery trail: if the DB finalize below fails, this log confirms delivery
-      // so the user can check their Telegram history (dual-write gap mitigation).
-      console.info('[OrderService] Telegram send succeeded', { orderId, messageId: telegramMessageId });
+  if (telegramMessageId) {
+    sendMethod = 'AUTOMATED';
+    console.info('[OrderService] Dual-write gap recovery — skipping Telegram re-send', { orderId, messageId: telegramMessageId });
+  } else {
+    // Normal path: duplicate check + reservation in a single atomic transaction.
+    // Running both inside withAudit narrows the race window vs. a separate pre-check.
+    // Note: READ COMMITTED isolation means two concurrent transactions can still both
+    // observe "no duplicate" before either commits. Advisory locks would fully close
+    // this gap; this design accepts that residual risk for simplicity.
+    type CheckAndReserveResult = { blocked: true; duplicateOrderId: string } | { blocked: false };
+
+    const sentAt = new Date();
+    const checkAndReserve = await withAudit<CheckAndReserveResult>(
+      async (tx) => {
+        if (!force) {
+          const dup = await tx.order.findFirst({
+            where: { userId, vendorId: order.vendorId, messageText, sentAt: { gte: cutoff }, id: { not: orderId } },
+          });
+          if (dup) return { blocked: true, duplicateOrderId: dup.id };
+        }
+        const { count } = await tx.order.updateMany({
+          where: {
+            id: orderId,
+            userId,
+            status: 'DRAFT',
+            ...(force ? {} : { OR: [{ sentAt: null }, { sentAt: { lt: cutoff } }] }),
+          },
+          data: { messageText, sentAt },
+        });
+        if (count === 0) throw new Error('order_not_found_or_not_draft');
+        return { blocked: false };
+      },
+      (result) => {
+        if (result.blocked) {
+          return {
+            actorUserId: userId,
+            category: 'Order' as const,
+            action: 'DUPLICATE_SEND_BLOCKED' as const,
+            resourceId: orderId,
+            resourceType: 'Order',
+            metadata: { duplicateOrderId: result.duplicateOrderId },
+          };
+        }
+        return {
+          actorUserId: userId,
+          category: 'Order' as const,
+          action: 'ORDER_SEND_ATTEMPTED' as const,
+          resourceId: orderId,
+          resourceType: 'Order',
+        };
+      }
+    );
+
+    if (checkAndReserve.blocked) throw new Error('possible_duplicate_send');
+
+    try {
+      const sessionString = await getDecryptedSession(userId);
+      if (sessionString) {
+        const result = await sendTelegramMessage(sessionString, order.vendor.telegramUsername, messageText);
+        telegramMessageId = result.messageId;
+        // Write telegramMessageId before the status finalize so that if finalize fails,
+        // the next retry detects it and skips re-sending (dual-write gap mitigation).
+        await prisma.order.updateMany({
+          where: { id: orderId, userId, status: 'DRAFT' },
+          data: { telegramMessageId },
+        });
+        sendMethod = 'AUTOMATED';
+        console.info('[OrderService] Telegram send succeeded', { orderId, messageId: telegramMessageId });
+      }
+    } catch (err) {
+      console.error('[OrderService] Telegram send failed, falling back to manual:', err);
     }
-  } catch (err) {
-    console.error('[OrderService] Telegram send failed, falling back to manual:', err);
   }
 
   if (sendMethod === 'AUTOMATED') {

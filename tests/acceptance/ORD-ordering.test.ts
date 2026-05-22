@@ -500,7 +500,7 @@ describe('US-ORD-02: Build Order', () => {
     const itemsArg = mockPrismaOrderItemCreateMany.mock.calls[0][0];
     expect(itemsArg.data).toHaveLength(1);
     expect(itemsArg.data[0].quantity).toBe(6);
-    expect(itemsArg.data[0].vialSizeMg).toBe('5'); // normalized form, not raw '5.0' or '5.000'
+    expect(itemsArg.data[0].vialSizeMg).toBe('5.000'); // canonical DECIMAL(10,3) form
   });
 
   it('AC-1: createDraftOrder throws vendor_not_found when vendor does not belong to user', async () => {
@@ -756,19 +756,44 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
 
     mockPrismaOrderFindFirst
       .mockResolvedValueOnce(orderWithDetails) // get order for sendOrder
-      .mockResolvedValueOnce(null);            // no recent duplicate
+      .mockResolvedValueOnce(null);            // no recent duplicate (inside check+reserve tx)
 
     mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce({ sessionString: encryptedSession, isActive: true, userId: 'user-1' });
     mockSendTelegramMessage.mockResolvedValueOnce({ messageId: 'tg-msg-123' });
     mockPrismaOrderUpdateMany
-      .mockResolvedValueOnce({ count: 1 }) // pre-send reserve
-      .mockResolvedValueOnce({ count: 1 }); // finalize inside withAudit tx
+      .mockResolvedValueOnce({ count: 1 }) // reservation (inside check+reserve withAudit tx)
+      .mockResolvedValueOnce({ count: 1 }) // telegramMessageId pre-finalize write
+      .mockResolvedValueOnce({ count: 1 }); // finalize (inside ORDER_SENT withAudit tx)
 
     const result = await sendOrder('user-1', 'order-1');
 
     expect(result.sendMethod).toBe('AUTOMATED');
     expect(result.telegramMessageId).toBe('tg-msg-123');
     expect(mockSendTelegramMessage).toHaveBeenCalledWith('plain-session', 'qsc_vendor', expect.any(String));
+  });
+
+  it('AC-2: sendOrder recovers from dual-write gap when telegramMessageId is already set on DRAFT order', async () => {
+    const { sendOrder } = await import('@/lib/ordering/application/OrderService');
+
+    const orderWithPriorSend = {
+      id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
+      idempotencyKey: 'key-1', createdAt: new Date(), sentAt: new Date(), messageText: 'prior-msg',
+      telegramMessageId: 'prior-tg-id', // set by previous attempt before finalize failed
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null, status: 'ACTIVE' },
+      items: [
+        { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
+      ],
+    };
+
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(orderWithPriorSend);
+    // No duplicate check or reservation — skipped in recovery path
+    mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 }); // finalize only
+
+    const result = await sendOrder('user-1', 'order-1');
+
+    expect(result.sendMethod).toBe('AUTOMATED');
+    expect(result.telegramMessageId).toBe('prior-tg-id');
+    expect(mockSendTelegramMessage).not.toHaveBeenCalled(); // Telegram not re-sent
   });
 
   it('AC-2: sendOrder falls back to MANUAL_FALLBACK when no Telegram session is linked', async () => {
@@ -897,12 +922,11 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     const recentDuplicate = { id: 'order-0', sentAt: new Date(), messageText: 'same' };
 
     mockPrismaOrderFindFirst
-      .mockResolvedValueOnce(orderWithDetails)
-      .mockResolvedValueOnce(recentDuplicate); // duplicate found, but force=true
+      .mockResolvedValueOnce(orderWithDetails); // force=true skips dup check — no second findFirst call
     mockPrismaTelegramSessionFindUnique.mockResolvedValueOnce(null);
     mockPrismaOrderUpdateMany
-      .mockResolvedValueOnce({ count: 1 }) // pre-send reserve
-      .mockResolvedValueOnce({ count: 1 }); // finalize inside withAudit tx
+      .mockResolvedValueOnce({ count: 1 }) // reservation (check+reserve tx, force skips dup check)
+      .mockResolvedValueOnce({ count: 1 }); // MANUAL_FALLBACK stamp
 
     const result = await sendOrder('user-1', 'order-1', true);
     expect(result.sendMethod).toBe('MANUAL_FALLBACK');
