@@ -104,14 +104,17 @@ export async function createDraftOrder(
         const newOrder = await tx.order.create({
           data: { userId, vendorId, idempotencyKey, status: 'DRAFT' },
         });
+        // Build a catalog map for product-backed items; validates ownership, inStock, and
+        // compound consistency. Pricing is populated server-side from the catalog to prevent
+        // stale or tampered client input.
         const itemsWithProduct = merged.filter((i) => i.productId != null);
+        const productMap = new Map<string, { compoundId: string; priceUsd: { toString(): string } }>();
         if (itemsWithProduct.length > 0) {
-          const nonNullProductIds = itemsWithProduct.map((i) => i.productId!);
           const products = await tx.vendorProduct.findMany({
-            where: { id: { in: nonNullProductIds }, vendorId, vendor: { userId } },
-            select: { id: true, compoundId: true },
+            where: { id: { in: itemsWithProduct.map((i) => i.productId!) }, vendorId, vendor: { userId }, inStock: true },
+            select: { id: true, compoundId: true, priceUsd: true },
           });
-          const productMap = new Map(products.map((p) => [p.id, p]));
+          for (const p of products) productMap.set(p.id, p);
           for (const item of itemsWithProduct) {
             const product = productMap.get(item.productId!);
             if (!product) throw new Error('product_not_found');
@@ -119,16 +122,21 @@ export async function createDraftOrder(
           }
         }
         await tx.orderItem.createMany({
-          data: merged.map((item) => ({
-            orderId: newOrder.id,
-            compoundId: item.compoundId,
-            form: item.form,
-            vialSizeMg: item.vialSizeMg,
-            quantity: item.quantity,
-            productId: item.productId ?? null,
-            unitPrice: item.unitPrice ?? null,
-            unitCurrency: item.unitCurrency ?? null,
-          })),
+          data: merged.map((item) => {
+            const product = item.productId ? productMap.get(item.productId) : undefined;
+            return {
+              orderId: newOrder.id,
+              compoundId: item.compoundId,
+              form: item.form,
+              vialSizeMg: item.vialSizeMg,
+              quantity: item.quantity,
+              productId: item.productId ?? null,
+              // Catalog price/currency take precedence over caller-supplied values for
+              // product-backed items to prevent tampered pricing.
+              unitPrice: product ? product.priceUsd.toString() : (item.unitPrice ?? null),
+              unitCurrency: product ? vendor.preferredCurrency : (item.unitCurrency ?? null),
+            };
+          }),
         });
         return newOrder;
       },
@@ -248,10 +256,8 @@ export async function sendOrder(
       const result = await sendTelegramMessage(sessionString, order.vendor.telegramUsername, messageText);
       telegramMessageId = result.messageId;
       sendMethod = 'AUTOMATED';
-      // Log provides a recovery trail: if the DB finalize below fails, this confirms
-      // the message was delivered and the ORDER_SEND_ATTEMPTED audit has sentAt set.
       // Recovery trail: if the DB finalize below fails, this log confirms delivery
-      // so the user can verify in Telegram history (dual-write gap mitigation).
+      // so the user can check their Telegram history (dual-write gap mitigation).
       console.info('[OrderService] Telegram send succeeded', { orderId, messageId: telegramMessageId });
     }
   } catch (err) {

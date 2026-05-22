@@ -610,11 +610,29 @@ describe('US-ORD-02: Build Order', () => {
     mockFindCompoundsByIds.mockResolvedValueOnce({ 'cmp-1': 'BPC-157' });
     mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-1', createdAt: new Date() });
     // Product exists but its compoundId doesn't match the line item's compoundId
-    mockPrismaVendorProductFindMany.mockResolvedValueOnce([{ id: 'prod-1', compoundId: 'different-compound' }]);
+    mockPrismaVendorProductFindMany.mockResolvedValueOnce([{ id: 'prod-1', compoundId: 'different-compound', priceUsd: { toString: () => '45.00' } }]);
 
     await expect(createDraftOrder('user-1', 'vendor-1', [
       { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1, productId: 'prod-1' },
     ])).rejects.toThrow('product_compound_mismatch');
+  });
+
+  it('AC-1: createDraftOrder throws product_not_found when productId references an archived (inStock=false) product', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+    mockFindCompoundsByIds.mockResolvedValueOnce({ 'cmp-1': 'BPC-157' });
+    mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-1', createdAt: new Date() });
+    // findMany returns empty because inStock: true filter excludes the archived product
+    mockPrismaVendorProductFindMany.mockResolvedValueOnce([]);
+
+    await expect(createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1, productId: 'prod-archived' },
+    ])).rejects.toThrow('product_not_found');
   });
 
   it('AC-1: createDraftOrder recovers from P2002 race on idempotencyKey unique constraint', async () => {
