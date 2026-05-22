@@ -68,7 +68,7 @@ function composeMessage(
     )
     .join('\n');
 
-  if (vendor.messageTemplate) {
+  if (vendor.messageTemplate?.trim()) {
     // Use .replace with /g flag for Node <15 compatibility (replaceAll is Node 15+)
     return vendor.messageTemplate.includes('{ITEMS}')
       ? vendor.messageTemplate.replace(/{ITEMS}/g, itemLines)
@@ -250,9 +250,8 @@ export async function sendOrder(
       sendMethod = 'AUTOMATED';
       // Log provides a recovery trail: if the DB finalize below fails, this confirms
       // the message was delivered and the ORDER_SEND_ATTEMPTED audit has sentAt set.
-      // Log provides a recovery trail: if the DB finalize below fails (dual-write gap),
-      // this confirms the message was delivered so the user can verify in Telegram history.
-      // The sentAt reservation in ORDER_SEND_ATTEMPTED also aids manual recovery.
+      // Recovery trail: if the DB finalize below fails, this log confirms delivery
+      // so the user can verify in Telegram history (dual-write gap mitigation).
       console.info('[OrderService] Telegram send succeeded', { orderId, messageId: telegramMessageId });
     }
   } catch (err) {
@@ -283,14 +282,14 @@ export async function sendOrder(
 
   // MANUAL_FALLBACK: the user receives the pre-composed message and deep link.
   // The order stays DRAFT — ORDER_SENT is only written after actual delivery.
-  // sentAt is cleared so stale-detection and history queries don't mistake this
-  // DRAFT order for a sent order. The 60s duplicate guard already fired; clearing
-  // sentAt allows the user to retry after 60s without confusion.
+  // sentAt is kept populated (set during the reservation) so the 60-second duplicate
+  // guard remains effective for repeated fallback calls. Consumers of sentAt on DRAFT
+  // orders must check sendMethod to distinguish "fallback pending" from "not yet sent".
   await withAudit(
     async (tx) => {
       await tx.order.updateMany({
         where: { id: orderId, userId, status: 'DRAFT' },
-        data: { sendMethod, sentAt: null },
+        data: { sendMethod },
       });
     },
     () => ({

@@ -756,10 +756,9 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     const reserveCall = mockPrismaOrderUpdateMany.mock.calls[0][0];
     expect(reserveCall.data.messageText).toBeTruthy();
     expect(reserveCall.data.sentAt).toBeInstanceOf(Date);
-    // Second updateMany call = MANUAL_FALLBACK path: stamps sendMethod, clears sentAt, does NOT set SENT
+    // Second updateMany call = MANUAL_FALLBACK path: stamps sendMethod (sentAt stays for 60s guard), does NOT set SENT
     const fallbackCall = mockPrismaOrderUpdateMany.mock.calls[1][0];
     expect(fallbackCall.data.sendMethod).toBe('MANUAL_FALLBACK');
-    expect(fallbackCall.data.sentAt).toBeNull();
     expect(fallbackCall.data.status).toBeUndefined();
   });
 
