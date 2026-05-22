@@ -71,7 +71,7 @@ function composeMessage(
   if (vendor.messageTemplate?.trim()) {
     // Use .replace with /g flag for Node <15 compatibility (replaceAll is Node 15+)
     return vendor.messageTemplate.includes('{ITEMS}')
-      ? vendor.messageTemplate.replace(/{ITEMS}/g, itemLines)
+      ? vendor.messageTemplate.replace(/{ITEMS}/g, () => itemLines)
       : `${vendor.messageTemplate}\n\n${itemLines}`;
   }
 
@@ -108,17 +108,19 @@ export async function createDraftOrder(
         // compound consistency. Pricing is populated server-side from the catalog to prevent
         // stale or tampered client input.
         const itemsWithProduct = merged.filter((i) => i.productId != null);
-        const productMap = new Map<string, { compoundId: string; priceUsd: { toString(): string } }>();
+        const productMap = new Map<string, { compoundId: string; priceUsd: { toString(): string }; form: string | null; vialSizeMg: { toString(): string } | null }>();
         if (itemsWithProduct.length > 0) {
           const products = await tx.vendorProduct.findMany({
             where: { id: { in: itemsWithProduct.map((i) => i.productId!) }, vendorId, vendor: { userId }, inStock: true },
-            select: { id: true, compoundId: true, priceUsd: true },
+            select: { id: true, compoundId: true, priceUsd: true, form: true, vialSizeMg: true },
           });
           for (const p of products) productMap.set(p.id, p);
           for (const item of itemsWithProduct) {
             const product = productMap.get(item.productId!);
             if (!product) throw new Error('product_not_found');
             if (product.compoundId !== item.compoundId) throw new Error('product_compound_mismatch');
+            if (product.form && product.form !== item.form) throw new Error('product_form_mismatch');
+            if (product.vialSizeMg != null && normalizeVialSize(product.vialSizeMg.toString()) !== item.vialSizeMg) throw new Error('product_vial_size_mismatch');
           }
         }
         await tx.orderItem.createMany({
@@ -132,9 +134,9 @@ export async function createDraftOrder(
               quantity: item.quantity,
               productId: item.productId ?? null,
               // Catalog price/currency take precedence over caller-supplied values for
-              // product-backed items to prevent tampered pricing.
+              // product-backed items to prevent tampered pricing. priceUsd is always USD.
               unitPrice: product ? product.priceUsd.toString() : (item.unitPrice ?? null),
-              unitCurrency: product ? vendor.preferredCurrency : (item.unitCurrency ?? null),
+              unitCurrency: product ? 'USD' : (item.unitCurrency ?? null),
             };
           }),
         });

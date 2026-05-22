@@ -36,4 +36,6 @@ export interface VendorProduct {
   name: string;
   priceUsd: string;
   inStock: boolean;
+  form?: string | null;
+  vialSizeMg?: string | null;
 }

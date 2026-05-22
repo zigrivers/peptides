@@ -610,7 +610,7 @@ describe('US-ORD-02: Build Order', () => {
     mockFindCompoundsByIds.mockResolvedValueOnce({ 'cmp-1': 'BPC-157' });
     mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-1', createdAt: new Date() });
     // Product exists but its compoundId doesn't match the line item's compoundId
-    mockPrismaVendorProductFindMany.mockResolvedValueOnce([{ id: 'prod-1', compoundId: 'different-compound', priceUsd: { toString: () => '45.00' } }]);
+    mockPrismaVendorProductFindMany.mockResolvedValueOnce([{ id: 'prod-1', compoundId: 'different-compound', priceUsd: { toString: () => '45.00' }, form: null, vialSizeMg: null }]);
 
     await expect(createDraftOrder('user-1', 'vendor-1', [
       { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1, productId: 'prod-1' },
@@ -633,6 +633,42 @@ describe('US-ORD-02: Build Order', () => {
     await expect(createDraftOrder('user-1', 'vendor-1', [
       { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1, productId: 'prod-archived' },
     ])).rejects.toThrow('product_not_found');
+  });
+
+  it('AC-1: createDraftOrder throws product_form_mismatch when productId catalog form differs from line item form', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+    mockFindCompoundsByIds.mockResolvedValueOnce({ 'cmp-1': 'BPC-157' });
+    mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-1', createdAt: new Date() });
+    // Product specifies LYOPHILIZED_POWDER but line item requests SOLUTION
+    mockPrismaVendorProductFindMany.mockResolvedValueOnce([{ id: 'prod-1', compoundId: 'cmp-1', priceUsd: { toString: () => '45.00' }, form: 'LYOPHILIZED_POWDER', vialSizeMg: null }]);
+
+    await expect(createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', form: 'SOLUTION', vialSizeMg: '5', quantity: 1, productId: 'prod-1' },
+    ])).rejects.toThrow('product_form_mismatch');
+  });
+
+  it('AC-1: createDraftOrder throws product_vial_size_mismatch when productId catalog vialSizeMg differs from line item', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+    mockFindCompoundsByIds.mockResolvedValueOnce({ 'cmp-1': 'BPC-157' });
+    mockPrismaOrderCreate.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT', idempotencyKey: 'key-1', createdAt: new Date() });
+    // Product specifies 5mg but line item requests 10mg
+    mockPrismaVendorProductFindMany.mockResolvedValueOnce([{ id: 'prod-1', compoundId: 'cmp-1', priceUsd: { toString: () => '45.00' }, form: null, vialSizeMg: { toString: () => '5' } }]);
+
+    await expect(createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '10', quantity: 1, productId: 'prod-1' },
+    ])).rejects.toThrow('product_vial_size_mismatch');
   });
 
   it('AC-1: createDraftOrder recovers from P2002 race on idempotencyKey unique constraint', async () => {

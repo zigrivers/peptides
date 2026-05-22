@@ -11,6 +11,8 @@ export interface CreateVendorProductInput {
   name: string;
   priceUsd: string;
   inStock: boolean;
+  form?: string;
+  vialSizeMg?: string;
 }
 
 export interface UpdateVendorProductInput {
@@ -19,6 +21,8 @@ export interface UpdateVendorProductInput {
   name?: string;
   priceUsd?: string;
   inStock?: boolean;
+  form?: string;
+  vialSizeMg?: string;
 }
 
 function toVendorProduct(row: PrismaVendorProduct): VendorProduct {
@@ -29,6 +33,8 @@ function toVendorProduct(row: PrismaVendorProduct): VendorProduct {
     name: row.name,
     priceUsd: new Decimal(row.priceUsd).toFixed(2),
     inStock: row.inStock,
+    form: row.form ?? null,
+    vialSizeMg: row.vialSizeMg != null ? new Decimal(row.vialSizeMg).toString() : null,
   };
 }
 
@@ -48,6 +54,8 @@ export async function createVendorProduct(input: CreateVendorProductInput): Prom
           name: input.name,
           priceUsd: new Decimal(input.priceUsd),
           inStock: input.inStock,
+          ...(input.form !== undefined ? { form: input.form } : {}),
+          ...(input.vialSizeMg !== undefined ? { vialSizeMg: new Decimal(input.vialSizeMg) } : {}),
         },
       });
       return toVendorProduct(row);
@@ -84,6 +92,8 @@ export async function updateVendorProduct(input: UpdateVendorProductInput): Prom
       if (input.name !== undefined) data.name = input.name;
       if (input.priceUsd !== undefined) data.priceUsd = new Decimal(input.priceUsd);
       if (input.inStock !== undefined) data.inStock = input.inStock;
+      if (input.form !== undefined) data.form = input.form;
+      if (input.vialSizeMg !== undefined) data.vialSizeMg = new Decimal(input.vialSizeMg);
 
       const row = await tx.vendorProduct.update({ where: { id: existing.id }, data });
       return toVendorProduct(row);
