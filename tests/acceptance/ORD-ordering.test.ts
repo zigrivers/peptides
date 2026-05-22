@@ -544,6 +544,21 @@ describe('US-ORD-02: Build Order', () => {
     expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
   });
 
+  it('AC-1: createDraftOrder throws invalid_form when item form is not a valid ItemForm value', async () => {
+    const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaVendorFindFirst.mockResolvedValueOnce({
+      id: 'vendor-1', userId: 'user-1', name: 'QSC', telegramUsername: 'qsc_vendor',
+      messageTemplate: null, preferredCurrency: 'USDT', status: 'ACTIVE', createdAt: new Date(),
+    });
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+
+    await expect(createDraftOrder('user-1', 'vendor-1', [
+      { compoundId: 'cmp-1', form: 'PILLS' as 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 1 },
+    ])).rejects.toThrow('invalid_form');
+    expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
+  });
+
   it.each([
     { vialSizeMg: '0', label: 'zero' },
     { vialSizeMg: '-5', label: 'negative' },

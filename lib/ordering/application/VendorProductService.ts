@@ -2,7 +2,19 @@ import Decimal from 'decimal.js';
 import type { VendorProduct as PrismaVendorProduct } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
+import { ITEM_FORMS } from '@/lib/ordering/domain/types';
 import type { VendorProduct } from '@/lib/ordering/domain/types';
+
+function validateProductForm(form: string | undefined): void {
+  if (form !== undefined && !(ITEM_FORMS as readonly string[]).includes(form)) throw new Error('invalid_form');
+}
+
+function validateProductVialSize(vialSizeMg: string | undefined): void {
+  if (vialSizeMg === undefined) return;
+  let d: Decimal;
+  try { d = new Decimal(vialSizeMg); } catch { throw new Error(`invalid_vial_size: ${vialSizeMg}`); }
+  if (!d.isFinite() || d.lte(0)) throw new Error(`invalid_vial_size: ${vialSizeMg}`);
+}
 
 export interface CreateVendorProductInput {
   userId: string;
@@ -39,6 +51,8 @@ function toVendorProduct(row: PrismaVendorProduct): VendorProduct {
 }
 
 export async function createVendorProduct(input: CreateVendorProductInput): Promise<VendorProduct> {
+  validateProductForm(input.form);
+  validateProductVialSize(input.vialSizeMg);
   return withAudit(
     async (tx) => {
       const vendor = await tx.vendor.findFirst({
@@ -80,6 +94,8 @@ export async function listVendorProducts(userId: string, vendorId: string): Prom
 }
 
 export async function updateVendorProduct(input: UpdateVendorProductInput): Promise<VendorProduct> {
+  validateProductForm(input.form);
+  validateProductVialSize(input.vialSizeMg);
   return withAudit(
     async (tx) => {
       // Verify ownership inside the same transaction (eliminates TOCTOU); update by verified ID

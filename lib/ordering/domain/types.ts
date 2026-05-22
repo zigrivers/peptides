@@ -1,6 +1,7 @@
 export type OrderStatus = 'DRAFT' | 'SENT' | 'CONFIRMED' | 'PAYMENT_SENT' | 'RECEIVED' | 'CANCELLED' | 'STALE';
 export type SendMethod = 'AUTOMATED' | 'MANUAL_FALLBACK';
-export type ItemForm = 'LYOPHILIZED_POWDER' | 'SOLUTION';
+export const ITEM_FORMS = ['LYOPHILIZED_POWDER', 'SOLUTION'] as const;
+export type ItemForm = (typeof ITEM_FORMS)[number];
 
 export interface OrderLineItemInput {
   compoundId: string;

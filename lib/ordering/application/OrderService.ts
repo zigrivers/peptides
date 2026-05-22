@@ -3,6 +3,7 @@ import Decimal from 'decimal.js';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
+import { ITEM_FORMS } from '@/lib/ordering/domain/types';
 import type { OrderLineItemInput, SendMethod } from '@/lib/ordering/domain/types';
 import { sendTelegramMessage } from '@/lib/ordering/infrastructure/MTProtoClient';
 import { getDecryptedSession, buildFallbackDeepLink } from './TelegramAuthService';
@@ -90,6 +91,7 @@ export async function createDraftOrder(
   const existing = await prisma.order.findFirst({ where: { userId, vendorId, idempotencyKey } });
   if (existing) return { orderId: existing.id };
 
+  if (items.some((i) => !(ITEM_FORMS as readonly string[]).includes(i.form))) throw new Error('invalid_form');
   if (items.some((i) => i.quantity <= 0 || !Number.isInteger(i.quantity))) throw new Error('invalid_quantity');
   const merged = mergeItems(items);
   if (merged.length === 0) throw new Error('order_items_required');
