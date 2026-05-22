@@ -63,6 +63,7 @@ function composeMessage(
   const itemLines = items
     .map(
       (i) =>
+        // 'mg' is intentional — the vialSizeMg field name defines the unit; all vial sizes are in milligrams.
         `- ${i.quantity}x ${i.compoundName} ${i.vialSizeMg.toString()}mg (${i.form === 'LYOPHILIZED_POWDER' ? 'lyophilized' : 'solution'})`
     )
     .join('\n');
@@ -167,6 +168,7 @@ export async function sendOrder(
   });
   if (!order) throw new Error('order_not_found');
   if (order.status !== 'DRAFT') throw new Error('invalid_order_transition');
+  if (order.vendor.status !== 'ACTIVE') throw new Error('vendor_disabled');
   if (!order.vendor.telegramUsername) throw new Error('vendor_missing_telegram_username');
 
   const itemsForMessage = order.items.map((i) => ({
@@ -248,6 +250,9 @@ export async function sendOrder(
       sendMethod = 'AUTOMATED';
       // Log provides a recovery trail: if the DB finalize below fails, this confirms
       // the message was delivered and the ORDER_SEND_ATTEMPTED audit has sentAt set.
+      // Log provides a recovery trail: if the DB finalize below fails (dual-write gap),
+      // this confirms the message was delivered so the user can verify in Telegram history.
+      // The sentAt reservation in ORDER_SEND_ATTEMPTED also aids manual recovery.
       console.info('[OrderService] Telegram send succeeded', { orderId, messageId: telegramMessageId });
     }
   } catch (err) {
@@ -278,12 +283,14 @@ export async function sendOrder(
 
   // MANUAL_FALLBACK: the user receives the pre-composed message and deep link.
   // The order stays DRAFT — ORDER_SENT is only written after actual delivery.
-  // sendMethod is stamped on the DRAFT record so the UI can surface "Complete manual send".
+  // sentAt is cleared so stale-detection and history queries don't mistake this
+  // DRAFT order for a sent order. The 60s duplicate guard already fired; clearing
+  // sentAt allows the user to retry after 60s without confusion.
   await withAudit(
     async (tx) => {
       await tx.order.updateMany({
         where: { id: orderId, userId, status: 'DRAFT' },
-        data: { sendMethod },
+        data: { sendMethod, sentAt: null },
       });
     },
     () => ({

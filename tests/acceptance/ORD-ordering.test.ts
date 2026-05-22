@@ -653,6 +653,24 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     process.env.TELEGRAM_APP_HASH = 'abc123hash';
   });
 
+  it('AC-2: sendOrder throws vendor_disabled when vendor is not ACTIVE', async () => {
+    const { sendOrder } = await import('@/lib/ordering/application/OrderService');
+
+    const orderWithDisabledVendor = {
+      id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
+      idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null, status: 'DISABLED' },
+      items: [
+        { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
+      ],
+    };
+
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(orderWithDisabledVendor);
+
+    await expect(sendOrder('user-1', 'order-1')).rejects.toThrow('vendor_disabled');
+    expect(mockPrismaOrderUpdateMany).not.toHaveBeenCalled();
+  });
+
   it('AC-2: sendOrder sends via AUTOMATED when Telegram session is linked', async () => {
     const { sendOrder } = await import('@/lib/ordering/application/OrderService');
     const { encryptSession } = await import('@/lib/ordering/application/SessionManager');
@@ -661,7 +679,7 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     const orderWithDetails = {
       id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
       idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
-      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null },
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null, status: 'ACTIVE' },
       items: [
         { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 2 },
       ],
@@ -690,7 +708,7 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     const orderWithDetails = {
       id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
       idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
-      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null },
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null, status: 'ACTIVE' },
       items: [
         { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
       ],
@@ -718,7 +736,7 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     const orderWithDetails = {
       id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
       idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
-      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null },
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null, status: 'ACTIVE' },
       items: [
         { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 2 },
       ],
@@ -738,9 +756,10 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     const reserveCall = mockPrismaOrderUpdateMany.mock.calls[0][0];
     expect(reserveCall.data.messageText).toBeTruthy();
     expect(reserveCall.data.sentAt).toBeInstanceOf(Date);
-    // Second updateMany call = MANUAL_FALLBACK path: stamps sendMethod, does NOT set SENT
+    // Second updateMany call = MANUAL_FALLBACK path: stamps sendMethod, clears sentAt, does NOT set SENT
     const fallbackCall = mockPrismaOrderUpdateMany.mock.calls[1][0];
     expect(fallbackCall.data.sendMethod).toBe('MANUAL_FALLBACK');
+    expect(fallbackCall.data.sentAt).toBeNull();
     expect(fallbackCall.data.status).toBeUndefined();
   });
 
@@ -750,7 +769,7 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     const orderWithDetails = {
       id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
       idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
-      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null },
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null, status: 'ACTIVE' },
       items: [
         { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
       ],
@@ -779,7 +798,7 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     const orderWithDetails = {
       id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
       idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
-      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null },
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null, status: 'ACTIVE' },
       items: [
         { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
       ],
@@ -802,7 +821,7 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
     const orderWithDetails = {
       id: 'order-1', userId: 'user-1', vendorId: 'vendor-1', status: 'DRAFT',
       idempotencyKey: 'key-1', createdAt: new Date(), sentAt: null, messageText: null,
-      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null },
+      vendor: { id: 'vendor-1', telegramUsername: 'qsc_vendor', name: 'QSC', preferredCurrency: 'USDT', messageTemplate: null, status: 'ACTIVE' },
       items: [
         { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
       ],
