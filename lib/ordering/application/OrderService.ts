@@ -83,7 +83,7 @@ export async function createDraftOrder(
   const existing = await prisma.order.findFirst({ where: { userId, vendorId, idempotencyKey } });
   if (existing) return { orderId: existing.id };
 
-  if (items.some((i) => i.quantity <= 0)) throw new Error('invalid_quantity');
+  if (items.some((i) => i.quantity <= 0 || !Number.isInteger(i.quantity))) throw new Error('invalid_quantity');
   const merged = mergeItems(items);
   if (merged.length === 0) throw new Error('order_items_required');
 

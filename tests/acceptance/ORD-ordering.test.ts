@@ -543,7 +543,11 @@ describe('US-ORD-02: Build Order', () => {
     expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
   });
 
-  it('AC-1: createDraftOrder throws invalid_quantity when any item has quantity <= 0', async () => {
+  it.each([
+    { quantity: 0, label: 'zero' },
+    { quantity: -1, label: 'negative' },
+    { quantity: 1.5, label: 'fractional' },
+  ])('AC-1: createDraftOrder throws invalid_quantity for $label quantity', async ({ quantity }) => {
     const { createDraftOrder } = await import('@/lib/ordering/application/OrderService');
 
     mockPrismaVendorFindFirst.mockResolvedValueOnce({
@@ -553,7 +557,7 @@ describe('US-ORD-02: Build Order', () => {
     mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
 
     await expect(createDraftOrder('user-1', 'vendor-1', [
-      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity: 0 },
+      { compoundId: 'cmp-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: '5', quantity },
     ])).rejects.toThrow('invalid_quantity');
     expect(mockPrismaOrderCreate).not.toHaveBeenCalled();
   });
