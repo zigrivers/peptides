@@ -40,6 +40,9 @@ export async function deactivateManagedUserAction(
     if (err instanceof Error && err.message === 'managed_user_not_found') {
       return { error: 'User not found.' };
     }
+    if (err instanceof Error && err.message === 'user_pending_deletion') {
+      return { error: 'User has a pending deletion. Cancel deletion first.' };
+    }
     return { error: 'Something went wrong.' };
   }
 }

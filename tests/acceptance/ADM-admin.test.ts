@@ -350,6 +350,12 @@ describe('US-ADM-03: deactivateManagedUser', () => {
     await expect(deactivateManagedUser('pu-1', 'stranger', true)).rejects.toThrow('managed_user_not_found');
   });
 
+  it('AC-1: throws user_pending_deletion when user is DELETION_PENDING (cannot revert to DEACTIVATED)', async () => {
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', status: 'DELETION_PENDING' });
+    await expect(deactivateManagedUser('pu-1', 'mu-1', true)).rejects.toThrow('user_pending_deletion');
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
   it('AC-3: returns needs_confirmation when user has active protocols and confirmed=false', async () => {
     mockUserFindFirst.mockResolvedValueOnce(activeUser);
     mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }, { id: 'p-2' }]);

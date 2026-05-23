@@ -176,6 +176,8 @@ export async function deactivateManagedUser(
   });
   if (!user) throw new Error('managed_user_not_found');
   if (user.status === 'DEACTIVATED') return { status: 'deactivated' };
+  // DELETION_PENDING is a terminal state — must cancel deletion first to restore to DEACTIVATED
+  if (user.status === 'DELETION_PENDING') throw new Error('user_pending_deletion');
 
   if (!confirmed) {
     const activeProtocols = await prisma.protocol.findMany({
@@ -190,7 +192,7 @@ export async function deactivateManagedUser(
   await withAudit(
     async (tx) => {
       const { count } = await tx.user.updateMany({
-        where: { id: managedUserId, managedBy: powerUserId, status: { not: 'DEACTIVATED' } },
+        where: { id: managedUserId, managedBy: powerUserId, status: 'ACTIVE' },
         data: { status: 'DEACTIVATED', passwordVersion: { increment: 1 } },
       });
       if (count === 0) throw new Error('managed_user_not_found');
@@ -417,7 +419,8 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
             where: { userId: req.userId, status: 'PENDING', scheduledFor: { lte: now } },
           });
           if (adrCount === 0) throw new Error('already_cancelled');
-          await tx.user.deleteMany({ where: { id: req.userId, status: 'DELETION_PENDING' } });
+          const { count: userCount } = await tx.user.deleteMany({ where: { id: req.userId, status: 'DELETION_PENDING' } });
+          if (userCount === 0) throw new Error('user_not_in_deletion_pending');
         },
         {
           actorUserId: user.managedBy ?? req.userId,
