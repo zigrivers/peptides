@@ -33,9 +33,20 @@ async function getClient(): Promise<WebPushModule> {
     _initError = new Error('web_push_not_configured');
     throw _initError;
   }
-  // Dynamic require so the dep is not pulled in by the bundler for routes
-  // that don't actually push (e.g. /settings page render).
-  const mod = (await import('web-push')) as unknown as WebPushModule;
+  // Dynamic import so the dep is not pulled in by the bundler for routes
+  // that don't actually push (e.g. /settings page render). `web-push` is a
+  // CommonJS module, so under Next/Vitest's ESM runtime its exports may be
+  // wrapped under `.default` — normalise both shapes.
+  const imported = (await import('web-push')) as unknown as
+    | WebPushModule
+    | { default: WebPushModule };
+  const mod = (
+    (imported as { default?: WebPushModule }).default ?? (imported as WebPushModule)
+  );
+  if (typeof mod.setVapidDetails !== 'function' || typeof mod.sendNotification !== 'function') {
+    _initError = new Error('web_push_module_shape_unexpected');
+    throw _initError;
+  }
   mod.setVapidDetails(VAPID_SUBJECT, publicKey, privateKey);
   _client = mod;
   return _client;

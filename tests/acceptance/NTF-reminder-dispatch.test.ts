@@ -231,6 +231,23 @@ describe('US-TRK-09: dispatchDoseReminders', () => {
     expect(summary.dispatched).toBe(1);
   });
 
+  it('AC-13b: channel=BOTH, push succeeds + email fails → partialDelivery flagged in audit + summary', async () => {
+    mockPrefFindMany.mockResolvedValueOnce([{ ...basePref, channel: 'BOTH' }]);
+    mockSendReminderEmail.mockResolvedValueOnce({ ok: false, error: 'resend_unreachable' });
+
+    const summary = await dispatchDoseReminders(NOW);
+    expect(summary.dispatched).toBe(1);
+    expect(summary.partialDeliveries).toBe(1);
+    expect(summary.emailFailed).toBe(1);
+    expect(summary.pushSent).toBe(1);
+
+    const auditCall = mockAuditCreate.mock.calls.at(-1)?.[0];
+    expect(auditCall.data.metadata.partialDelivery).toBe(true);
+    expect(auditCall.data.metadata.emailAttempted).toBe(true);
+    expect(auditCall.data.metadata.emailDelivered).toBe(false);
+    expect(auditCall.data.metadata.emailError).toBe('resend_unreachable');
+  });
+
   it('AC-14: writes REMINDER_DISPATCHED audit on success', async () => {
     mockPrefFindMany.mockResolvedValueOnce([basePref]);
     await dispatchDoseReminders(NOW);

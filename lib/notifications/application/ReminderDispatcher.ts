@@ -21,9 +21,12 @@ import { isScheduledOn } from '@/lib/tracker/domain/ScheduleGenerator';
 export interface DispatchSummary {
   examined: number;
   dispatched: number;
+  /** Subset of `dispatched` where at least one configured channel did not deliver. */
+  partialDeliveries: number;
   pushSent: number;
   pushExpired: number;
   emailSent: number;
+  emailFailed: number;
   skippedNoDoses: number;
   errors: number;
 }
@@ -39,9 +42,11 @@ function emptySummary(): DispatchSummary {
   return {
     examined: 0,
     dispatched: 0,
+    partialDeliveries: 0,
     pushSent: 0,
     pushExpired: 0,
     emailSent: 0,
+    emailFailed: 0,
     skippedNoDoses: 0,
     errors: 0,
   };
@@ -158,7 +163,9 @@ export async function dispatchDoseReminders(now: Date): Promise<DispatchSummary>
         summary.pushSent += pushSentCount;
       }
 
+      let emailAttempted = false;
       let emailSent = false;
+      let emailError: string | undefined;
       // Email semantics: explicit EMAIL/BOTH channel always emails. For
       // PUSH-only, the fallback fires when *any* push attempt failed to
       // deliver OR when the user has no active push subscriptions —
@@ -171,12 +178,15 @@ export async function dispatchDoseReminders(now: Date): Promise<DispatchSummary>
         wantsEmail || (pushHasGap && pref.emailFallbackEnabled);
 
       if (shouldEmail && pref.user.email) {
+        emailAttempted = true;
         const result = await sendReminderEmail(pref.user.email);
         if (result.ok) {
           emailSent = true;
           summary.emailSent += 1;
         } else {
+          summary.emailFailed += 1;
           summary.errors += 1;
+          emailError = result.error;
         }
       }
 
@@ -188,6 +198,17 @@ export async function dispatchDoseReminders(now: Date): Promise<DispatchSummary>
         // next tick.
         continue;
       }
+
+      // Partial delivery semantics: when a channel was configured (or required
+      // as a fallback) AND its delivery failed, classify the dispatch as
+      // partial. We still update lastDispatchedAt — the user did get one of
+      // the configured channels, and retrying would re-send the successful
+      // channel and produce a duplicate notification. The partial state is
+      // surfaced in both the summary and the audit metadata so ops can review.
+      const pushPartialFailure = wantsPush && pushHasGap;
+      const emailPartialFailure = emailAttempted && !emailSent;
+      const partialDelivery = pushPartialFailure || emailPartialFailure;
+      if (partialDelivery) summary.partialDeliveries += 1;
 
       await prisma.$transaction(async (tx) => {
         await tx.reminderPreference.update({
@@ -205,7 +226,10 @@ export async function dispatchDoseReminders(now: Date): Promise<DispatchSummary>
             channel,
             pushAttempted: pushAttemptCount,
             pushDelivered: pushSentCount,
+            emailAttempted,
             emailDelivered: emailSent,
+            emailError: emailError ?? null,
+            partialDelivery,
           },
         });
       });
