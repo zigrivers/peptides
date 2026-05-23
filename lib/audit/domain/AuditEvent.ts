@@ -1,4 +1,11 @@
-export type AuditCategory = 'Auth' | 'Admin' | 'Protocol' | 'Order' | 'Reconstitution' | 'Security';
+export type AuditCategory =
+  | 'Auth'
+  | 'Admin'
+  | 'Protocol'
+  | 'Order'
+  | 'Reconstitution'
+  | 'Security'
+  | 'Notification';
 
 // Recursive JSON-serializable type — excludes functions, symbols, and undefined.
 // Callers must use this type for metadata/oldValues/newValues to prevent non-serializable
@@ -75,7 +82,12 @@ export type AuditAction =
   | 'TELEGRAM_SESSION_LINK_INITIATED'
   | 'TELEGRAM_SESSION_LINKED'
   | 'TELEGRAM_SESSION_REVOKED'
-  | 'AUDIT_WRITE_FAILURE';
+  | 'AUDIT_WRITE_FAILURE'
+  // Notification
+  | 'REMINDER_PREFERENCE_UPDATED'
+  | 'PUSH_PERMISSION_STATE_CHANGED'
+  | 'PUSH_SUBSCRIPTION_REGISTERED'
+  | 'PUSH_SUBSCRIPTION_REMOVED';
 
 export interface CreateAuditEventInput {
   actorUserId: string;

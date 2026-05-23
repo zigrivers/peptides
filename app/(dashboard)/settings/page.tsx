@@ -4,6 +4,10 @@ import { auth } from '@/lib/auth';
 import { isOrderingDisabled } from '@/lib/shared/featureFlags';
 import { requestExportAction } from '@/app/actions/account/request-export';
 import { RequestExportButton } from './_components/RequestExportButton';
+import { getReminderPreference } from '@/lib/notifications/application/ReminderService';
+import { updateReminderPreferencesAction } from '@/app/actions/notifications/update-reminder-preferences';
+import { RemindersForm } from './_components/RemindersForm';
+import { PushSubscriptionPanel } from './_components/PushSubscriptionPanel';
 
 /**
  * Account settings index. Surfaces the data-export request button (Task 6.2,
@@ -13,9 +17,30 @@ export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
 
+  const reminderPreference = await getReminderPreference(session.user.id);
+  // Server-side default timezone falls back to the deployment's TZ env (or 'UTC'
+  // when unset) so first-time users get a sensible non-empty value to edit.
+  const defaultTimezone = process.env.TZ || 'UTC';
+
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
       <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
+
+      <section aria-labelledby="reminders-heading" className="rounded-lg border border-gray-200 bg-white p-5">
+        <h2 id="reminders-heading" className="text-sm font-semibold text-gray-900 mb-1">Dose reminders</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Choose when to be reminded about today&apos;s doses and how the reminder reaches you.
+        </p>
+        <RemindersForm
+          action={updateReminderPreferencesAction}
+          initial={reminderPreference}
+          defaultTimezone={defaultTimezone}
+        />
+        <div className="mt-6 border-t border-gray-100 pt-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">Web push on this device</h3>
+          <PushSubscriptionPanel />
+        </div>
+      </section>
 
       <section aria-labelledby="data-export-heading" className="rounded-lg border border-gray-200 bg-white p-5">
         <h2 id="data-export-heading" className="text-sm font-semibold text-gray-900 mb-1">Your data</h2>
