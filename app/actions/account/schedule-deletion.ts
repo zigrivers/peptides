@@ -41,21 +41,29 @@ export async function scheduleDeletionAction(
 
   const confirmEmail = String(formData.get('confirmEmail') ?? '');
   try {
-    const { scheduledFor } = await requestSelfDeletion({
+    await requestSelfDeletion({
       userId: session.user.id,
       confirmEmail,
     });
     revalidatePath('/settings');
     revalidatePath('/dashboard');
-    return {
-      success:
-        'Your account is scheduled for deletion in 48 hours. We emailed you a full data export. Sign in any time within the window to cancel.',
-      scheduledFor: scheduledFor.toISOString(),
-    };
   } catch (err) {
     const code = err instanceof Error ? err.message : 'unknown_error';
     return { error: humanError(code) };
   }
+  // Sign the user out so the next request is forced through fresh
+  // authentication, which surfaces the new DELETION_PENDING status. The
+  // JWT cookie embeds `status`, and middleware uses it to constrain
+  // navigation. Without this sign-out, the user's existing JWT would
+  // still claim `status: 'ACTIVE'` until the next jwt-callback refresh,
+  // allowing a brief window of normal dashboard access right after the
+  // export email was generated. signOut throws a redirect — let it.
+  await signOut({ redirectTo: '/login?deletionScheduled=1' });
+  // Unreachable in practice; satisfies the return-type contract.
+  return {
+    success:
+      'Your account is scheduled for deletion in 48 hours. We emailed you a full data export. Sign in any time within the window to cancel.',
+  };
 }
 
 export async function deleteImmediatelyAction(
