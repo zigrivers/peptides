@@ -7,8 +7,27 @@ const mockUpdate = vi.fn();
 const mockUpdateMany = vi.fn();
 const mockUserFindFirst = vi.fn();
 const mockUserFindMany = vi.fn();
+const mockUserDelete = vi.fn();
+const mockUserDeleteMany = vi.fn();
 const mockDoseLogFindMany = vi.fn();
 const mockProtocolFindMany = vi.fn();
+const mockOutcomeLogFindMany = vi.fn();
+const mockVialFindMany = vi.fn();
+const mockADRCreate = vi.fn();
+const mockADRFindFirst = vi.fn();
+const mockADRFindMany = vi.fn();
+const mockADRDelete = vi.fn();
+const mockADRDeleteMany = vi.fn();
+const mockCycleFindMany = vi.fn();
+const mockVendorFindMany = vi.fn();
+const mockReminderFindMany = vi.fn();
+const mockPushSubFindMany = vi.fn();
+const mockTelegramFindMany = vi.fn();
+const mockEmailChangeFindMany = vi.fn();
+const mockDataExportFindMany = vi.fn();
+const mockAuditEventFindMany = vi.fn();
+const mockOrderFindMany = vi.fn();
+const mockOrderDeleteMany = vi.fn();
 const mockWithAudit = vi.fn();
 const mockSend = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
@@ -22,10 +41,21 @@ vi.mock('next/server', () => ({ unstable_after: mockAfter }));
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
     invite: { create: mockCreate, findFirst: mockFindFirst, findMany: mockFindMany, updateMany: mockUpdateMany },
-    user: { findFirst: mockUserFindFirst, findMany: mockUserFindMany, update: mockUpdate },
+    user: { findFirst: mockUserFindFirst, findMany: mockUserFindMany, update: mockUpdate, delete: mockUserDelete, deleteMany: mockUserDeleteMany },
     doseLog: { findMany: mockDoseLogFindMany },
     protocol: { findMany: mockProtocolFindMany },
-    auditEvent: { create: mockAuditEventCreate },
+    outcomeLog: { findMany: mockOutcomeLogFindMany },
+    vial: { findMany: mockVialFindMany },
+    accountDeletionRequest: { create: mockADRCreate, findFirst: mockADRFindFirst, findMany: mockADRFindMany, delete: mockADRDelete, deleteMany: mockADRDeleteMany },
+    auditEvent: { create: mockAuditEventCreate, findMany: mockAuditEventFindMany },
+    cycle: { findMany: mockCycleFindMany },
+    vendor: { findMany: mockVendorFindMany },
+    order: { findMany: mockOrderFindMany },
+    reminderPreference: { findMany: mockReminderFindMany },
+    pushSubscription: { findMany: mockPushSubFindMany },
+    telegramSession: { findMany: mockTelegramFindMany },
+    emailChangeRequest: { findMany: mockEmailChangeFindMany },
+    dataExportRequest: { findMany: mockDataExportFindMany },
   },
 }));
 vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }));
@@ -38,7 +68,10 @@ function setupWithAudit() {
   mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>) =>
     mutation({
       invite: { create: mockCreate, updateMany: mockUpdateMany },
-      user: { update: mockUpdate, updateMany: mockUpdateMany },
+      user: { update: mockUpdate, updateMany: mockUpdateMany, delete: mockUserDelete, deleteMany: mockUserDeleteMany },
+      accountDeletionRequest: { create: mockADRCreate, delete: mockADRDelete, deleteMany: mockADRDeleteMany },
+      vendor: { findMany: mockVendorFindMany },
+      order: { deleteMany: mockOrderDeleteMany },
     })
   );
 }
@@ -56,6 +89,25 @@ beforeEach(() => {
   mockAuditEventCreate.mockResolvedValue({});
   mockPasswordResetCreate.mockResolvedValue('raw-token-test');
   mockUpdateMany.mockResolvedValue({ count: 1 });
+  mockUserDelete.mockResolvedValue({});
+  mockUserDeleteMany.mockResolvedValue({ count: 1 });
+  mockADRCreate.mockResolvedValue({});
+  mockADRFindFirst.mockResolvedValue(null);
+  mockADRFindMany.mockResolvedValue([]);
+  mockADRDelete.mockResolvedValue({});
+  mockADRDeleteMany.mockResolvedValue({ count: 1 });
+  mockOutcomeLogFindMany.mockResolvedValue([]);
+  mockVialFindMany.mockResolvedValue([]);
+  mockCycleFindMany.mockResolvedValue([]);
+  mockVendorFindMany.mockResolvedValue([]);
+  mockReminderFindMany.mockResolvedValue([]);
+  mockPushSubFindMany.mockResolvedValue([]);
+  mockTelegramFindMany.mockResolvedValue([]);
+  mockEmailChangeFindMany.mockResolvedValue([]);
+  mockDataExportFindMany.mockResolvedValue([]);
+  mockAuditEventFindMany.mockResolvedValue([]);
+  mockOrderFindMany.mockResolvedValue([]);
+  mockOrderDeleteMany.mockResolvedValue({ count: 0 });
 });
 
 const { createInvite } = await import('@/lib/auth/application/createInvite');
@@ -65,6 +117,9 @@ const {
   getManagedUserDoseHistory,
   deactivateManagedUser,
   triggerManagedUserPasswordReset,
+  requestManagedUserDeletion,
+  cancelManagedUserDeletion,
+  processPendingDeletions,
 } = await import('@/lib/admin/application/AdminService');
 
 /**
@@ -325,6 +380,12 @@ describe('US-ADM-03: deactivateManagedUser', () => {
     await expect(deactivateManagedUser('pu-1', 'stranger', true)).rejects.toThrow('managed_user_not_found');
   });
 
+  it('AC-1: throws user_pending_deletion when user is DELETION_PENDING (cannot revert to DEACTIVATED)', async () => {
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', status: 'DELETION_PENDING' });
+    await expect(deactivateManagedUser('pu-1', 'mu-1', true)).rejects.toThrow('user_pending_deletion');
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
   it('AC-3: returns needs_confirmation when user has active protocols and confirmed=false', async () => {
     mockUserFindFirst.mockResolvedValueOnce(activeUser);
     mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }, { id: 'p-2' }]);
@@ -408,5 +469,210 @@ describe('US-ADM-03: triggerManagedUserPasswordReset', () => {
     mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', email: 'user@e.com' });
     await triggerManagedUserPasswordReset('pu-1', 'mu-1');
     expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_PASSWORD_RESET_TRIGGERED', actorUserId: 'pu-1' });
+  });
+});
+
+/**
+ * Story: US-ADM-04 - Managed User Deletion with Export-First
+ */
+describe('US-ADM-04: requestManagedUserDeletion', () => {
+  const activeUser = { id: 'mu-1', email: 'user@e.com', status: 'ACTIVE' };
+  const deactivatedUser = { id: 'mu-1', email: 'user@e.com', status: 'DEACTIVATED' };
+  const powerUser = { id: 'pu-1', email: 'admin@e.com' };
+
+  it('AC-1: throws managed_user_not_found when user does not belong to powerUser', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(null);
+    await expect(requestManagedUserDeletion('pu-1', 'stranger', 'user@e.com')).rejects.toThrow('managed_user_not_found');
+  });
+
+  it('AC-1: throws user_must_be_deactivated when user is not DEACTIVATED', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+    await expect(requestManagedUserDeletion('pu-1', 'mu-1', 'user@e.com')).rejects.toThrow('user_must_be_deactivated');
+  });
+
+  it('AC-1: throws email_confirmation_mismatch when typed email does not match', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
+    await expect(requestManagedUserDeletion('pu-1', 'mu-1', 'wrong@e.com')).rejects.toThrow('email_confirmation_mismatch');
+    expect(mockADRCreate).not.toHaveBeenCalled();
+  });
+
+  it('AC-1: sends export email synchronously before scheduling DB write', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockDoseLogFindMany.mockResolvedValueOnce([]);
+    mockVialFindMany.mockResolvedValueOnce([]);
+    mockOutcomeLogFindMany.mockResolvedValueOnce([]);
+
+    await requestManagedUserDeletion('pu-1', 'mu-1', 'user@e.com');
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'admin@e.com', subject: expect.stringContaining('user@e.com') })
+    );
+  });
+
+  it('AC-1: export queries for secret-bearing tables use explicit select allowlists', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
+
+    await requestManagedUserDeletion('pu-1', 'mu-1', 'user@e.com');
+
+    // PushSubscription: auth + p256dh keys must NOT be in select
+    expect(mockPushSubFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.not.objectContaining({ auth: true, p256dh: true }),
+      })
+    );
+    // Invite (sent): tokenHash must NOT be in select
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { powerUserId: 'mu-1' },
+        select: expect.not.objectContaining({ tokenHash: true }),
+      })
+    );
+    // TelegramSession: sessionString must NOT be in select
+    expect(mockTelegramFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.not.objectContaining({ sessionString: true }),
+      })
+    );
+  });
+
+  it('AC-1: throws export_email_failed and aborts when Resend returns error', async () => {
+    mockSend.mockResolvedValueOnce({ error: { message: 'resend-down' } });
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockDoseLogFindMany.mockResolvedValueOnce([]);
+    mockVialFindMany.mockResolvedValueOnce([]);
+    mockOutcomeLogFindMany.mockResolvedValueOnce([]);
+
+    await expect(requestManagedUserDeletion('pu-1', 'mu-1', 'user@e.com')).rejects.toThrow('export_email_failed');
+    expect(mockADRCreate).not.toHaveBeenCalled();
+  });
+
+  it('AC-2: schedules deletion 48h in future and returns scheduled status', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockDoseLogFindMany.mockResolvedValueOnce([]);
+    mockVialFindMany.mockResolvedValueOnce([]);
+    mockOutcomeLogFindMany.mockResolvedValueOnce([]);
+
+    const before = Date.now();
+    const result = await requestManagedUserDeletion('pu-1', 'mu-1', 'user@e.com');
+    expect(result.status).toBe('scheduled');
+    expect(result.scheduledFor.getTime()).toBeGreaterThan(before + 47 * 3_600_000);
+    expect(mockADRCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ userId: 'mu-1', status: 'PENDING' }) })
+    );
+  });
+
+  it('AC-3: writes MANAGED_USER_DELETION_REQUESTED audit event', async () => {
+    let capturedAudit: unknown = null;
+    mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+      const result = await mutation({ accountDeletionRequest: { create: mockADRCreate }, user: { updateMany: mockUpdateMany } });
+      capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
+      return result;
+    });
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockDoseLogFindMany.mockResolvedValueOnce([]);
+    mockVialFindMany.mockResolvedValueOnce([]);
+    mockOutcomeLogFindMany.mockResolvedValueOnce([]);
+
+    await requestManagedUserDeletion('pu-1', 'mu-1', 'user@e.com');
+    expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DELETION_REQUESTED', actorUserId: 'pu-1', subjectUserId: 'mu-1' });
+  });
+});
+
+describe('US-ADM-04: cancelManagedUserDeletion', () => {
+  it('throws managed_user_not_found when user does not belong to powerUser', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(null);
+    await expect(cancelManagedUserDeletion('pu-1', 'stranger')).rejects.toThrow('managed_user_not_found');
+  });
+
+  it('throws no_pending_deletion when no PENDING request exists', async () => {
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1' });
+    mockADRFindFirst.mockResolvedValueOnce(null);
+    await expect(cancelManagedUserDeletion('pu-1', 'mu-1')).rejects.toThrow('no_pending_deletion');
+  });
+
+  it('cancels deletion and restores user status to DEACTIVATED', async () => {
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1' });
+    mockADRFindFirst.mockResolvedValueOnce({ id: 'adr-1' });
+
+    await cancelManagedUserDeletion('pu-1', 'mu-1');
+    expect(mockADRDeleteMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'adr-1', userId: 'mu-1', status: 'PENDING' } })
+    );
+    expect(mockUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'mu-1', managedBy: 'pu-1', status: 'DELETION_PENDING' }, data: { status: 'DEACTIVATED' } })
+    );
+  });
+
+  it('writes MANAGED_USER_DELETION_CANCELLED audit event', async () => {
+    let capturedAudit: unknown = null;
+    mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+      const result = await mutation({ accountDeletionRequest: { deleteMany: mockADRDeleteMany }, user: { updateMany: mockUpdateMany } });
+      capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
+      return result;
+    });
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1' });
+    mockADRFindFirst.mockResolvedValueOnce({ id: 'adr-1' });
+
+    await cancelManagedUserDeletion('pu-1', 'mu-1');
+    expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DELETION_CANCELLED', actorUserId: 'pu-1', subjectUserId: 'mu-1' });
+  });
+});
+
+describe('US-ADM-04: processPendingDeletions', () => {
+  it('returns 0 deleted when no pending deletions are due', async () => {
+    mockADRFindMany.mockResolvedValueOnce([]);
+    const result = await processPendingDeletions();
+    expect(result.deleted).toBe(0);
+    expect(mockUserDeleteMany).not.toHaveBeenCalled();
+  });
+
+  it('deletes users whose scheduled deletion time has passed', async () => {
+    mockADRFindMany.mockResolvedValueOnce([{ id: 'adr-1', userId: 'mu-1', requestedByUserId: 'pu-1' }]);
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', managedBy: 'pu-1' });
+
+    const result = await processPendingDeletions();
+    expect(result.deleted).toBe(1);
+    expect(mockUserDeleteMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'mu-1', status: 'DELETION_PENDING', managedBy: 'pu-1' } }));
+  });
+
+  it('aborts and cleans up stale ADR when current user.managedBy no longer matches recorded requestedByUserId', async () => {
+    mockADRFindMany.mockResolvedValueOnce([{ id: 'adr-1', userId: 'mu-1', requestedByUserId: 'pu-1' }]);
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', managedBy: 'pu-different' });
+
+    const result = await processPendingDeletions();
+    expect(result.deleted).toBe(0);
+    expect(mockUserDeleteMany).not.toHaveBeenCalled();
+    expect(mockADRDelete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'adr-1' } }));
+  });
+
+  it('cleans up orphaned ADR when user no longer exists', async () => {
+    mockADRFindMany.mockResolvedValueOnce([{ id: 'adr-orphan', userId: 'mu-orphan', requestedByUserId: 'pu-1' }]);
+    mockUserFindFirst.mockResolvedValueOnce(null);
+
+    const result = await processPendingDeletions();
+    expect(result.deleted).toBe(0);
+    expect(mockADRDelete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'adr-orphan' } }));
+  });
+
+  it('writes MANAGED_USER_DELETED audit event for each processed deletion', async () => {
+    let capturedAudit: unknown = null;
+    mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+      const result = await mutation({
+        user: { deleteMany: mockUserDeleteMany },
+        accountDeletionRequest: { deleteMany: mockADRDeleteMany },
+        vendor: { findMany: mockVendorFindMany },
+        order: { deleteMany: mockOrderDeleteMany },
+      });
+      capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
+      return result;
+    });
+    mockADRFindMany.mockResolvedValueOnce([{ id: 'adr-1', userId: 'mu-1', requestedByUserId: 'pu-1' }]);
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', managedBy: 'pu-1' });
+
+    await processPendingDeletions();
+    expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DELETED', actorUserId: 'SYSTEM', subjectUserId: 'mu-1' });
   });
 });
