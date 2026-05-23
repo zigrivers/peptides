@@ -87,7 +87,8 @@ export type AuditAction =
   | 'REMINDER_PREFERENCE_UPDATED'
   | 'PUSH_PERMISSION_STATE_CHANGED'
   | 'PUSH_SUBSCRIPTION_REGISTERED'
-  | 'PUSH_SUBSCRIPTION_REMOVED';
+  | 'PUSH_SUBSCRIPTION_REMOVED'
+  | 'REMINDER_DISPATCHED';
 
 export interface CreateAuditEventInput {
   actorUserId: string;
