@@ -614,10 +614,16 @@ export async function receiveOrder(userId: string, orderId: string): Promise<voi
 
 export async function getPriorWalletAddress(
   userId: string,
-  vendorId: string
+  vendorId: string,
+  excludeOrderId?: string
 ): Promise<string | null> {
   const orders = await prisma.order.findMany({
-    where: { userId, vendorId, paymentConfirmation: { not: Prisma.JsonNull } },
+    where: {
+      userId,
+      vendorId,
+      paymentConfirmation: { not: Prisma.JsonNull },
+      ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}),
+    },
     select: { paymentConfirmation: true },
     orderBy: { confirmedAt: 'desc' },
     take: 1,

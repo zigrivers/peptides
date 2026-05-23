@@ -10,7 +10,7 @@ interface Props {
 }
 
 function chunkAddress(address: string, chunkSize = 4): string {
-  return address.replace(/\S{1,4}/g, (m) => m).match(/.{1,4}/g)?.join(' ') ?? address;
+  return address.match(new RegExp(`.{1,${chunkSize}}`, 'g'))?.join(' ') ?? address;
 }
 
 export default async function ConfirmPage({ params }: Props) {
@@ -28,7 +28,7 @@ export default async function ConfirmPage({ params }: Props) {
   const conf = order.paymentConfirmation as { walletAddress: string; amount: string; currency: string } | null;
   if (!conf) redirect(`/ordering/orders/${orderId}/payment`);
 
-  const priorWallet = await getPriorWalletAddress(session.user.id, order.vendorId);
+  const priorWallet = await getPriorWalletAddress(session.user.id, order.vendorId, orderId);
   const hasPrior = !!priorWallet && priorWallet !== conf.walletAddress;
 
   return (

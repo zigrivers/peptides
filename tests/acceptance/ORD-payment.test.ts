@@ -293,4 +293,17 @@ describe('getPriorWalletAddress', () => {
 
     expect(result).toBeNull();
   });
+
+  it('AC-3: excludes the current order so the stale-wallet warning is not suppressed', async () => {
+    const { getPriorWalletAddress } = await import('@/lib/ordering/application/OrderService');
+    mockPrismaOrderFindMany.mockResolvedValueOnce([
+      { paymentConfirmation: { walletAddress: 'TAddr_old', amount: '40', currency: 'USDT' } },
+    ]);
+
+    const result = await getPriorWalletAddress('user-1', 'vendor-1', 'current-order-id');
+
+    const findCall = mockPrismaOrderFindMany.mock.calls[0][0];
+    expect(findCall.where.id).toEqual({ not: 'current-order-id' });
+    expect(result).toBe('TAddr_old');
+  });
 });

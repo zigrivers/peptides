@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getOrderWithDetails, getPriorWalletAddress } from '@/lib/ordering/application/OrderService';
 import { confirmQuoteAction } from '../../_actions';
+import { CaptureVendorReplyForm } from './_components/CaptureVendorReplyForm';
 
 interface Props {
   params: Promise<{ orderId: string }>;
@@ -22,7 +23,7 @@ export default async function PaymentPage({ params }: Props) {
 
   const priorWallet = await getPriorWalletAddress(session.user.id, order.vendorId);
 
-  const action = confirmQuoteAction.bind(null, orderId);
+  const boundAction = confirmQuoteAction.bind(null, orderId);
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -44,61 +45,7 @@ export default async function PaymentPage({ params }: Props) {
         </div>
       )}
 
-      <form action={action} className="space-y-4">
-        <div>
-          <label htmlFor="walletAddress" className="block text-sm font-medium text-gray-700 mb-1">
-            Wallet Address
-          </label>
-          <input
-            id="walletAddress"
-            name="walletAddress"
-            type="text"
-            required
-            placeholder="e.g. TQn9Y2khDD2bHM4dK..."
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
-              Amount
-            </label>
-            <input
-              id="amount"
-              name="amount"
-              type="text"
-              required
-              inputMode="decimal"
-              placeholder="0.00"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div className="w-32">
-            <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">
-              Currency
-            </label>
-            <select
-              id="currency"
-              name="currency"
-              defaultValue="USDT"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option>USDT</option>
-              <option>BTC</option>
-              <option>ETH</option>
-              <option>USDC</option>
-            </select>
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          className="w-full rounded-md bg-indigo-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-indigo-700 transition-colors"
-        >
-          Review Payment →
-        </button>
-      </form>
+      <CaptureVendorReplyForm action={boundAction} />
     </main>
   );
 }
