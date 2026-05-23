@@ -634,13 +634,14 @@ describe('US-ADM-04: processPendingDeletions', () => {
     expect(mockUserDeleteMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'mu-1', status: 'DELETION_PENDING', managedBy: 'pu-1' } }));
   });
 
-  it('aborts when current user.managedBy no longer matches recorded requestedByUserId', async () => {
+  it('aborts and cleans up stale ADR when current user.managedBy no longer matches recorded requestedByUserId', async () => {
     mockADRFindMany.mockResolvedValueOnce([{ id: 'adr-1', userId: 'mu-1', requestedByUserId: 'pu-1' }]);
     mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', managedBy: 'pu-different' });
 
     const result = await processPendingDeletions();
     expect(result.deleted).toBe(0);
     expect(mockUserDeleteMany).not.toHaveBeenCalled();
+    expect(mockADRDelete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'adr-1' } }));
   });
 
   it('cleans up orphaned ADR when user no longer exists', async () => {

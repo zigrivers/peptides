@@ -491,12 +491,13 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
       }
 
       // Verify the user's current managedBy matches the recorded requestedByUserId.
-      // If ownership has changed since the request, abort — this deletion is no
-      // longer authorized by the current owner.
+      // If ownership has changed since the request, the original authorization is
+      // void — delete the stale ADR and skip (avoids infinite retry loop).
       if (req.requestedByUserId && user.managedBy !== req.requestedByUserId) {
-        console.error('[processPendingDeletions] requestedByUserId mismatch — aborting', {
+        console.error('[processPendingDeletions] requestedByUserId mismatch — aborting and cleaning up ADR', {
           adrId: req.id, userId: req.userId, recordedRequestor: req.requestedByUserId, currentManagedBy: user.managedBy,
         });
+        await prisma.accountDeletionRequest.delete({ where: { id: req.id } }).catch(() => {});
         continue;
       }
 
@@ -505,7 +506,7 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
           // Atomically claim the specific ADR row by id inside the transaction
           // userId is @unique on AccountDeletionRequest so there can be at most one pending row per user
           const { count: adrCount } = await tx.accountDeletionRequest.deleteMany({
-            where: { id: req.id, status: 'PENDING' },
+            where: { id: req.id, userId: req.userId, status: 'PENDING' },
           });
           if (adrCount === 0) throw new Error('already_cancelled');
           // Scope the user delete with managedBy = recorded requestor (if set) so the
@@ -529,6 +530,16 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
       deleted++;
     } catch (err) {
       if (err instanceof Error && err.message === 'already_cancelled') continue;
+      if (err instanceof Error && err.message === 'user_not_in_deletion_pending') {
+        // The user is no longer in DELETION_PENDING (e.g. raced with a cancel or
+        // an earlier cron run). The withAudit transaction rolled back so the ADR
+        // still exists — delete it explicitly to avoid an infinite retry loop.
+        console.error('[processPendingDeletions] user not in DELETION_PENDING — cleaning up stale ADR', {
+          adrId: req.id, userId: req.userId,
+        });
+        await prisma.accountDeletionRequest.delete({ where: { id: req.id } }).catch(() => {});
+        continue;
+      }
       console.error('[processPendingDeletions] failed for userId', req.userId, err);
     }
   }
