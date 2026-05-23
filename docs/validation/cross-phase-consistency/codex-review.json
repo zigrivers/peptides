@@ -1,7 +1,7 @@
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Documents/dev-projects/peptides
+workdir: /Users/kenallred/Developer/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -880,7 +880,7 @@ This log tracks the significant architectural decisions made for the Peptides ap
 codex
 I’ll use the superpowers startup guidance, then read the docs from the repo so the audit is based on the actual files rather than only the pasted excerpt.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && pwd && rg --files docs | sort" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && pwd && rg --files docs | sort" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 ---
 name: using-superpowers
@@ -999,7 +999,7 @@ The skill itself tells you which.
 ## User Instructions
 
 Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
-/Users/kenallred/Documents/dev-projects/peptides
+/Users/kenallred/Developer/peptides
 docs/adrs/ADR-001-nextjs-monolith.md
 docs/adrs/ADR-002-postgresql-prisma.md
 docs/adrs/ADR-003-tailwind-shadcn.md
@@ -1121,9 +1121,9 @@ docs/vision.md
 codex
 I found the repo has the expected ADR, domain, architecture, database, API, UX, and planning docs. I’m going to compare the core phase documents directly and use targeted searches for entity and field drift.
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Developer/peptides
 exec
-/bin/zsh -lc "sed -n '1,280p' docs/database-schema.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,280p' docs/database-schema.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # System Architecture
 
@@ -1547,9 +1547,9 @@ We use **Prisma Migrate** for all schema changes.
 
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/ux-spec.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/ux-spec.md" in /Users/kenallred/Developer/peptides
 exec
-/bin/zsh -lc "sed -n '1,300p' docs/api-contracts.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,300p' docs/api-contracts.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # UX Specification
 
@@ -1809,7 +1809,7 @@ type SyncEvent = {
 ```
 
 exec
-/bin/zsh -lc "sed -n '1,320p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,320p' docs/plan.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 <!-- scaffold:create-prd v1 2026-05-20 -->
 <!-- scaffold:review-prd v1 2026-05-20 -->
@@ -2133,7 +2133,7 @@ Notifies the user (or managed user) at a configured time to open the app and log
 **Reminder configuration:**
 
 exec
-/bin/zsh -lc "sed -n '1,340p' docs/user-stories.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,340p' docs/user-stories.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # User Stories
 
@@ -2477,7 +2477,7 @@ exec
 **As a** Power User,  
 
 exec
-/bin/zsh -lc "sed -n '1,320p' docs/implementation-plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,320p' docs/implementation-plan.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # Implementation Plan
 
@@ -2618,7 +2618,7 @@ exec
 4. **TDD First**: Implementation is incomplete without a passing test in `tests/acceptance/`.
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/tech-stack.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/tech-stack.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 <!-- scaffold:tech-stack v1 2026-05-20 -->
 # Technology Stack
@@ -2884,7 +2884,7 @@ Zod schema (shared) → React Hook Form (client) + Server Action (server)
 codex
 The first pass already shows several cross-phase drifts: audit naming/shape, offline sync endpoints, numeric precision, and tracker fields that appear in UX/API but not schema/domain. I’m checking targeted terms now so the final list stays specific and de-duplicated.
 exec
-/bin/zsh -lc 'rg -n "AuditLog|AuditEvent|audit_events|withAudit|oldValues|newValues|subjectUserId|signed" docs/*.md docs/domain-models/*.md docs/adrs/*.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'rg -n "AuditLog|AuditEvent|audit_events|withAudit|oldValues|newValues|subjectUserId|signed" docs/*.md docs/domain-models/*.md docs/adrs/*.md' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 docs/implementation-plan.md:36:- **Description**: Implement `AuditEvent` aggregate root and a shared `withAudit` transaction helper for Server Actions.
 docs/implementation-plan.md:134:1. **Transactional Audit**: Every Server Action MUST use the `withAudit` helper to wrap mutations and audit writes in a single Prisma transaction.
@@ -2917,9 +2917,9 @@ docs/review-standards.md:30:- **Audit**: Mutations must record an `AuditEvent`.
 docs/domain-models/index.md:14:| **Audit** | Immutable system-wide record of sensitive mutations. | `AuditEvent` |
 
 exec
-/bin/zsh -lc 'rg -n "Float|Decimal|totalMg|remainingMg|bacWaterMl|priceUsd|confirmedTotal|DoseAmount|dose math|Never use" docs/*.md docs/domain-models/*.md docs/adrs/*.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'rg -n "Float|Decimal|totalMg|remainingMg|bacWaterMl|priceUsd|confirmedTotal|DoseAmount|dose math|Never use" docs/*.md docs/domain-models/*.md docs/adrs/*.md' in /Users/kenallred/Developer/peptides
 exec
-/bin/zsh -lc 'rg -n "OutcomeLog|outcome log|wellbeing|Reminder|reminder|OnboardingState|onboarding|Invite|invitation|name and email|managed user" docs/*.md docs/domain-models/*.md docs/adrs/*.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'rg -n "OutcomeLog|outcome log|wellbeing|Reminder|reminder|OnboardingState|onboarding|Invite|invitation|name and email|managed user" docs/*.md docs/domain-models/*.md docs/adrs/*.md' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 docs/implementation-plan.md:41:- **Description**: Implement `Decimal`-based calculator and `WarningPolicy` for high volumes/doses.
 docs/implementation-plan.md:135:2. **Decimal Precision**: Never use `Float` for doses or volumes.
@@ -3082,7 +3082,7 @@ docs/domain-models/auth.md:78:- `InviteAccepted`: A Managed User completes regis
 docs/adrs/ADR-006-railway-hosting.md:7:The application requires an always-on server for MTProto persistent sessions and cron-triggered dose reminders. Serverless platforms (Vercel, AWS Lambda) are unsuitable due to cold starts and lack of persistence.
 
 exec
-/bin/zsh -lc 'rg -n "idempotencyKey|Idempotency-Key|eventId|/api/sync|/api/dose-logs|LOG_DOSE|EDIT_LOG|EDIT_DOSE|SKIP_DOSE|user:protocol:date|UUID v4" docs/*.md docs/domain-models/*.md docs/adrs/*.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'rg -n "idempotencyKey|Idempotency-Key|eventId|/api/sync|/api/dose-logs|LOG_DOSE|EDIT_LOG|EDIT_DOSE|SKIP_DOSE|user:protocol:date|UUID v4" docs/*.md docs/domain-models/*.md docs/adrs/*.md' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 docs/implementation-plan.md:65:- **Description**: Implement IndexedDB event queue and background sync replay to `/api/sync`.
 docs/implementation-plan.md:67:- **AC**: Doses logged offline sync on reconnection using `idempotencyKey`.
@@ -3106,7 +3106,7 @@ docs/domain-models/ordering.md:20:  - `idempotencyKey`: string (UUID)
 docs/domain-models/ordering.md:46:- `order.idempotencyKey` is unique per order attempt.
 
 exec
-/bin/zsh -lc "sed -n '520,680p' docs/plan.md && sed -n '880,930p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '520,680p' docs/plan.md && sed -n '880,930p' docs/plan.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 The wallet address and payment amount must be visible on screen at the moment the user clicks "Mark payment sent." This step cannot be bypassed. If no wallet address has been entered, the "Mark payment sent" button is greyed with tooltip: "Enter vendor's wallet address first."
 
@@ -3322,7 +3322,7 @@ All user-created data is retained until explicit account deletion. No automatic 
 2. Data export (JSON) and full account deletion
 
 exec
-/bin/zsh -lc 'rg -n "app/ordering|/ordering|DISABLE_ORDERING|ordering/|dashboard.*ordering|/api/ordering|feature flag|Managed user|Power User|RBAC|status|PaymentSent|Payment Sent|unitsPerDose|syringeUnitsPerDose" docs/*.md docs/domain-models/*.md docs/adrs/*.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'rg -n "app/ordering|/ordering|DISABLE_ORDERING|ordering/|dashboard.*ordering|/api/ordering|feature flag|Managed user|Power User|RBAC|status|PaymentSent|Payment Sent|unitsPerDose|syringeUnitsPerDose" docs/*.md docs/domain-models/*.md docs/adrs/*.md' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 docs/implementation-plan.md:33:- **AC**: Invite link sent via Resend. Power User sees 3-step wizard; Managed User sees walkthrough.
 docs/implementation-plan.md:105:- **AC**: Power User can deactivate family accounts. Charts show Dosed vs Not Dosed days.
@@ -3527,7 +3527,7 @@ docs/domain-models/reconstitution.md:21:  - `status`: enum (Dry, Reconstituted, 
 docs/domain-models/reconstitution.md:31:  - `syringeUnitsPerDose`: number
 
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/project-structure.md && sed -n '1,180p' docs/operations-runbook.md && sed -n '1,140p' docs/security-review.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/project-structure.md && sed -n '1,180p' docs/operations-runbook.md && sed -n '1,140p' docs/security-review.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # Project Structure
 
@@ -3818,7 +3818,7 @@ We maintain a 100% immutable audit log for:
 - All `Admin` actions on managed users.
 
 exec
-/bin/zsh -lc "for f in docs/domain-models/*.md docs/adrs/*.md; do printf '\\n--- %s ---\\n' \""'$f"; sed -n '"'1,220p' \""'$f"; done' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "for f in docs/domain-models/*.md docs/adrs/*.md; do printf '\\n--- %s ---\\n' \""'$f"; sed -n '"'1,220p' \""'$f"; done' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 
 --- docs/domain-models/audit.md ---

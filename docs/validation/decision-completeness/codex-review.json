@@ -1,7 +1,7 @@
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Documents/dev-projects/peptides
+workdir: /Users/kenallred/Developer/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -878,7 +878,7 @@ This log tracks the significant architectural decisions made for the Peptides ap
 | ADR-015 | Implement Bounded Context Isolation for Ordering | Accepted | 2026-05-20 |
 </stdin>
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 ---
 name: using-superpowers
@@ -999,7 +999,7 @@ The skill itself tells you which.
 Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
 
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 ---
 name: coding-skill

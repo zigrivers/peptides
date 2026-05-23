@@ -1,7 +1,7 @@
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Documents/dev-projects/peptides
+workdir: /Users/kenallred/Developer/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -189,7 +189,7 @@ We will implement a system-wide `audit_events` table in PostgreSQL to store immu
 codex
 I’ll use the `superpowers:using-superpowers` workflow first, then read the PRD and domain model docs to ground the ADR review in the repo’s actual requirements.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && rg --files docs" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && rg --files docs" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 ---
 name: using-superpowers
@@ -366,7 +366,7 @@ docs/audits/audit-2026-05-20-192234855-fast-all-d131fa.md
 codex
 I’ve loaded the required skill guidance. Next I’m reading the PRD, domain models, and actual ADR files so the findings are tied to documented requirements rather than assumptions from the pasted ADR text.
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 <!-- scaffold:create-prd v1 2026-05-20 -->
 <!-- scaffold:review-prd v1 2026-05-20 -->
@@ -630,7 +630,7 @@ Manages multi-compound stacks for the Power User and their managed users. Replac
 - Per-compound site history (peptides with route requirements respect the correct site group)
 
 exec
-/bin/zsh -lc "sed -n '1,240p' docs/domain-models/index.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,240p' docs/domain-models/index.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # Domain Models Overview
 
@@ -665,7 +665,7 @@ This directory contains the domain models for the Peptides application, organize
 - [Auth Domain](auth.md)
 
 exec
-/bin/zsh -lc "for f in docs/domain-models/*.md; do printf '\\nFILE %s\\n' \""'$f"; sed -n '"'1,260p' \""'$f"; done' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "for f in docs/domain-models/*.md; do printf '\\nFILE %s\\n' \""'$f"; sed -n '"'1,260p' \""'$f"; done' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 
 FILE docs/domain-models/audit.md
@@ -1079,7 +1079,7 @@ Calculates the next suggested injection site based on a user's `DoseLog` history
 - `cycle.startDate <= cycle.endDate` (if exists)
 
 exec
-/bin/zsh -lc "for f in docs/adrs/*.md; do printf '\\nFILE %s\\n' \""'$f"; sed -n '"'1,220p' \""'$f"; done' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "for f in docs/adrs/*.md; do printf '\\nFILE %s\\n' \""'$f"; sed -n '"'1,220p' \""'$f"; done' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 
 FILE docs/adrs/ADR-001-nextjs-monolith.md
@@ -1291,9 +1291,9 @@ This log tracks the significant architectural decisions made for the Peptides ap
 codex
 The first pass shows the ADR set covers the obvious framework/database/auth/testing choices, but the PRD is much broader than those nine records. I’m checking the later PRD sections now because gaps often live in non-functional requirements, compliance, export/deletion, background jobs, and integration details.
 exec
-/bin/zsh -lc "sed -n '620,1040p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '620,1040p' docs/plan.md" in /Users/kenallred/Developer/peptides
 exec
-/bin/zsh -lc "sed -n '260,620p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '260,620p' docs/plan.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 - Per-compound site history (peptides with route requirements respect the correct site group)
 - On each dose log entry, app suggests the next site in rotation based on history (round-robin)
@@ -2032,7 +2032,7 @@ Specific tooling is a tech-stack decision. All monitoring tooling must fall with
 *This PRD is the requirements baseline. Architecture decisions (`tech-stack`), user stories, and implementation planning all reference this document. If a requirement changes, update this document first — not the downstream artifact.*
 
 exec
-/bin/zsh -lc 'rg -n "Hard Gate|audit|export|delete|deletion|reminder|notification|crypto|wallet|Telegram|offline|idempot|encryption|2FA|rate|WCAG|accessibility|PWA|cron|background|CSV|seed|catalog|QSC|100%|coverage|legal|compliance|security|session|password|managed|role|Railway|Postgres|Prisma|Auth|Next|Serwist|service worker" docs/plan.md docs/domain-models/*.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'rg -n "Hard Gate|audit|export|delete|deletion|reminder|notification|crypto|wallet|Telegram|offline|idempot|encryption|2FA|rate|WCAG|accessibility|PWA|cron|background|CSV|seed|catalog|QSC|100%|coverage|legal|compliance|security|session|password|managed|role|Railway|Postgres|Prisma|Auth|Next|Serwist|service worker" docs/plan.md docs/domain-models/*.md' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 docs/domain-models/reference.md:3:The Reference Domain manages the static knowledge base of compounds, their physiological profiles, and the vendor product catalog.
 docs/domain-models/reference.md:34:  - `stackingNotes`: text (curated)
@@ -2283,7 +2283,7 @@ docs/plan.md:977:| PRD discovery | Reference catalog depth | QSC catalog only (~
 codex
 The later PRD confirms several tech decisions are explicitly still open or required outside the current ADR set: transactional email, export storage, monitoring/alerting, scheduled/background work, security controls for MTProto sessions, and feasibility gates. I’m checking the tech-stack document now as a cross-reference for what should have been reflected in ADRs.
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/tech-stack.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/tech-stack.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 <!-- scaffold:tech-stack v1 2026-05-20 -->
 # Technology Stack
@@ -2547,7 +2547,7 @@ Zod schema (shared) → React Hook Form (client) + Server Action (server)
 ### 5.2 Telegram MTProto Client: GramJS
 
 exec
-/bin/zsh -lc "nl -ba docs/plan.md | sed -n '400,860p'" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "nl -ba docs/plan.md | sed -n '400,860p'" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
    400	### 5.4 Pillar 4 — Ordering (Telegram + Crypto)
    401	
@@ -3012,13 +3012,13 @@ exec
    860	- Currency: USD for vendor price catalog display; crypto labels shown as-is (USDT, BTC, ETH)
 
 exec
-/bin/zsh -lc 'nl -ba docs/domain-models/audit.md docs/domain-models/auth.md docs/domain-models/ordering.md docs/domain-models/reconstitution.md docs/domain-models/tracker.md docs/domain-models/reference.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'nl -ba docs/domain-models/audit.md docs/domain-models/auth.md docs/domain-models/ordering.md docs/domain-models/reconstitution.md docs/domain-models/tracker.md docs/domain-models/reference.md' in /Users/kenallred/Developer/peptides
  exited 1 in 0ms:
 usage: nl [-p] [-b type] [-d delim] [-f type] [-h type] [-i incr] [-l num]
           [-n format] [-s sep] [-v startnum] [-w width] [file]
 
 exec
-/bin/zsh -lc 'nl -ba docs/adrs/ADR-004-authjs.md && nl -ba docs/adrs/ADR-005-gramjs.md && nl -ba docs/adrs/ADR-006-railway-hosting.md && nl -ba docs/adrs/ADR-007-pwa-offline.md && nl -ba docs/adrs/ADR-008-testing-strategy.md && nl -ba docs/adrs/ADR-009-audit-logging.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'nl -ba docs/adrs/ADR-004-authjs.md && nl -ba docs/adrs/ADR-005-gramjs.md && nl -ba docs/adrs/ADR-006-railway-hosting.md && nl -ba docs/adrs/ADR-007-pwa-offline.md && nl -ba docs/adrs/ADR-008-testing-strategy.md && nl -ba docs/adrs/ADR-009-audit-logging.md' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
      1	# ADR-004: Use Auth.js v5 for Authentication
      2	
@@ -3136,9 +3136,9 @@ exec
     19	- **Costs**: Database storage growth (mitigated by 90-day rolling purge); additional latency on writes to record the audit event.
 
 exec
-/bin/zsh -lc "sed -n '260,620p' docs/tech-stack.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '260,620p' docs/tech-stack.md" in /Users/kenallred/Developer/peptides
 exec
-/bin/zsh -lc "sed -n '620,1040p' docs/tech-stack.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '620,1040p' docs/tech-stack.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 
 | PRD Feature | Stack Component(s) | Capability Gap? |
@@ -3715,7 +3715,7 @@ Every PRD Must Have and Should Have feature cross-referenced against the stack t
 
 
 exec
-/bin/zsh -lc 'nl -ba docs/domain-models/ordering.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'nl -ba docs/domain-models/ordering.md' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
      1	# Ordering Domain
      2	
@@ -3765,7 +3765,7 @@ exec
     46	- `order.idempotencyKey` is unique per order attempt.
 
 exec
-/bin/zsh -lc 'nl -ba docs/domain-models/audit.md && nl -ba docs/domain-models/auth.md && nl -ba docs/domain-models/reconstitution.md && nl -ba docs/domain-models/tracker.md && nl -ba docs/domain-models/reference.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'nl -ba docs/domain-models/audit.md && nl -ba docs/domain-models/auth.md && nl -ba docs/domain-models/reconstitution.md && nl -ba docs/domain-models/tracker.md && nl -ba docs/domain-models/reference.md' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
      1	# Audit Domain
      2	

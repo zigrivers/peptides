@@ -1,6 +1,6 @@
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Documents/dev-projects/peptides
+workdir: /Users/kenallred/Developer/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -14,7 +14,7 @@ Perform a deep review of the user stories in docs/user-stories.md against the PR
 codex
 I’ll use the `superpowers:using-superpowers` guidance first, then read the PRD and user stories closely and return only the requested JSON findings.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 ---
 name: using-superpowers
@@ -137,7 +137,7 @@ Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
 codex
 I’m also checking the lightweight coding review guidance because this is a review task, even though I won’t modify files.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 ---
 name: coding-skill
@@ -241,7 +241,7 @@ The test: Can you draw the state diagram from memory before you touch code?
 codex
 I’m going to read both documents with line numbers so the findings can point to exact sections instead of broad impressions.
 exec
-/bin/zsh -lc "nl -ba docs/plan.md | sed -n '1,260p'" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "nl -ba docs/plan.md | sed -n '1,260p'" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
      1	<!-- scaffold:create-prd v1 2026-05-20 -->
      2	<!-- scaffold:review-prd v1 2026-05-20 -->
@@ -505,7 +505,7 @@ exec
    260	- Per-compound site history (peptides with route requirements respect the correct site group)
 
 exec
-/bin/zsh -lc "nl -ba docs/user-stories.md | sed -n '1,320p'" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "nl -ba docs/user-stories.md | sed -n '1,320p'" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
      1	# User Stories
      2	
@@ -824,7 +824,7 @@ exec
    315	- `US-ADM-01` (Managed User) -> depends on `US-AUT-01` (Auth)
 
 exec
-/bin/zsh -lc 'wc -l docs/plan.md docs/user-stories.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'wc -l docs/plan.md docs/user-stories.md' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
      991 docs/plan.md
      315 docs/user-stories.md
@@ -833,7 +833,7 @@ exec
 codex
 The user stories are much shorter than the PRD, so I’m reading the remaining PRD sections now to catch feature and acceptance-detail gaps that may not be obvious from the scope table.
 exec
-/bin/zsh -lc "nl -ba docs/plan.md | sed -n '256,520p'" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "nl -ba docs/plan.md | sed -n '256,520p'" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
    256	#### 5.2.3 Injection Site Rotation
    257	
@@ -1102,7 +1102,7 @@ exec
    520	The wallet address and payment amount must be visible on screen at the moment the user clicks "Mark payment sent." This step cannot be bypassed. If no wallet address has been entered, the "Mark payment sent" button is greyed with tooltip: "Enter vendor's wallet address first."
 
 exec
-/bin/zsh -lc "nl -ba docs/plan.md | sed -n '521,760p'" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "nl -ba docs/plan.md | sed -n '521,760p'" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
    521	
    522	**Inventory update on delivery:**
@@ -1346,7 +1346,7 @@ exec
    760	### 7.5 Regulatory & Legal
 
 exec
-/bin/zsh -lc "nl -ba docs/plan.md | sed -n '761,991p'" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "nl -ba docs/plan.md | sed -n '761,991p'" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
    761	- **Legal review trigger:** Required before charging any money for a license. Family/friend use is free until legal review is complete and cleared.
    762	- **Product framing:** Honestly described as a peptide tracker and reference web app. Ordering = opt-in advanced module. No misrepresentation to payment processors.

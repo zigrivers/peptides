@@ -1,7 +1,7 @@
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Documents/dev-projects/peptides
+workdir: /Users/kenallred/Developer/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -681,7 +681,7 @@ We follow a Pyramid strategy:
 codex
 I’ll use the required superpowers startup skill, then read the referenced docs locally so the review is based on the repo’s actual PRD/contracts rather than only the pasted excerpt.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 ---
 name: using-superpowers
@@ -804,7 +804,7 @@ Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
 codex
 Using `superpowers:using-superpowers` for required workflow setup, and `coding-skill` for a surgical review posture focused on contract defects.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 ---
 name: coding-skill
@@ -908,7 +908,7 @@ The test: Can you draw the state diagram from memory before you touch code?
 codex
 I’m going to compare the contract against the repo’s PRD, domain files, and architecture, then return only the JSON findings the prompt asks for.
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/api-contracts.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/api-contracts.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # API Contracts
 
@@ -1039,7 +1039,7 @@ sequenceDiagram
 ```
 
 exec
-/bin/zsh -lc "sed -n '1,280p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,280p' docs/plan.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 <!-- scaffold:create-prd v1 2026-05-20 -->
 <!-- scaffold:review-prd v1 2026-05-20 -->
@@ -1323,7 +1323,7 @@ Manages multi-compound stacks for the Power User and their managed users. Replac
 - Current cycle week for each active cycle (e.g., "Week 3 of BPC-157 healing cycle")
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # System Architecture
 
@@ -1465,7 +1465,7 @@ We follow a Pyramid strategy:
   - **Auth**: Managed user invitation and permission isolation.
 
 exec
-/bin/zsh -lc 'rg --files docs/domain-models docs | sort' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'rg --files docs/domain-models docs | sort' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 docs/adrs/ADR-001-nextjs-monolith.md
 docs/adrs/ADR-002-postgresql-prisma.md
@@ -1560,9 +1560,9 @@ docs/vision.md
 codex
 The contract file is very short relative to the PRD scope. I’m pulling the detailed PRD sections for tracker, reconstitution, ordering, multi-user, auth, and acceptance criteria so the findings can distinguish launch-blocking omissions from lower-severity gaps.
 exec
-/bin/zsh -lc "sed -n '260,620p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '260,620p' docs/plan.md" in /Users/kenallred/Developer/peptides
 exec
-/bin/zsh -lc 'rg -n "''^### 5'"\\.|"'^#### 5'"\\.|"'^## 6|''^## 7|''^## 8|''^## 9|''^## 10|Must Have|Acceptance|Error scenarios|Data Export|password reset|account deletion|onboarding|reminder|outcome|vial|inventory|order|Telegram|MTProto|managed user|admin" docs/plan.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'rg -n "''^### 5'"\\.|"'^#### 5'"\\.|"'^## 6|''^## 7|''^## 8|''^## 9|''^## 10|Must Have|Acceptance|Error scenarios|Data Export|password reset|account deletion|onboarding|reminder|outcome|vial|inventory|order|Telegram|MTProto|managed user|admin" docs/plan.md' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 - Per-compound site history (peptides with route requirements respect the correct site group)
 - On each dose log entry, app suggests the next site in rotation based on history (round-robin)
@@ -2170,7 +2170,7 @@ Triggered on first login after account creation (or invite acceptance for manage
 978:| PRD discovery | Tracker v1 features | All four confirmed as Must Have: dose logging, injection site rotation, cycle management, subjective outcome logging |
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/user-stories.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/user-stories.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # User Stories
 
@@ -2434,7 +2434,7 @@ exec
 ### US-ORD-04: Payment Confirmation Safety Gate
 
 exec
-/bin/zsh -lc "sed -n '620,980p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '620,980p' docs/plan.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 | Step | Power User | Delegated Participant |
 |------|------------|----------------------|
@@ -2799,9 +2799,9 @@ Specific tooling is a tech-stack decision. All monitoring tooling must fall with
 **Still open (tech-stack step):**
 
 exec
-/bin/zsh -lc "sed -n '260,620p' docs/user-stories.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '260,620p' docs/user-stories.md" in /Users/kenallred/Developer/peptides
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/domain-models/tracker.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/domain-models/tracker.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # Tracker Domain
 
@@ -3067,7 +3067,7 @@ Calculates the next suggested injection site based on a user's `DoseLog` history
 - `US-ADM-01` (Managed User) -> depends on `US-AUT-03` (Auth)
 
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/domain-models/ordering.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/domain-models/ordering.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # Ordering Domain
 
@@ -3117,7 +3117,7 @@ The safety gate for crypto payments.
 - `order.idempotencyKey` is unique per order attempt.
 
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/domain-models/reconstitution.md && sed -n '1,220p' docs/domain-models/auth.md && sed -n '1,180p' docs/domain-models/audit.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/domain-models/reconstitution.md && sed -n '1,220p' docs/domain-models/auth.md && sed -n '1,180p' docs/domain-models/audit.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # Reconstitution Domain
 
@@ -3291,7 +3291,7 @@ An immutable log entry.
 codex
 The PRD/user stories confirm several Must Have operations have no contract at all, especially protocol lifecycle, reconstitution/vials, Telegram setup, order receipt, exports, and password reset. I’m checking schema/docs one more time for field-level shape mismatches before I produce the JSON array.
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/database-schema.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/database-schema.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # Database Schema Design
 
@@ -3555,7 +3555,7 @@ model AuditEvent {
 | `Invite` | `token` (Unique) | Link resolution. |
 
 exec
-/bin/zsh -lc "sed -n '260,620p' docs/database-schema.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '260,620p' docs/database-schema.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 | `Invite` | `token` (Unique) | Link resolution. |
 | `DoseLog` | `userId`, `scheduledDate` | Dashboard schedule rendering. |
@@ -3595,7 +3595,7 @@ We use **Prisma Migrate** for all schema changes.
 - **Local Dev**: Docker-compose Postgres instance to match production version (PG 16).
 
 exec
-/bin/zsh -lc 'rg -n "idempot|Idempot|error|Error|auth|Auth|403|401|422|409|Server Action|/actions|/api" docs/api-contracts.md docs/system-architecture.md docs/plan.md docs/domain-models/*.md' in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc 'rg -n "idempot|Idempot|error|Error|auth|Auth|403|401|422|409|Server Action|/actions|/api" docs/api-contracts.md docs/system-architecture.md docs/plan.md docs/domain-models/*.md' in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 docs/domain-models/tracker.md:44:  - `idempotencyKey`: string (UUID, unique per user-scheduledDate-protocolId)
 docs/domain-models/ordering.md:20:  - `idempotencyKey`: string (UUID)
@@ -3704,12 +3704,12 @@ docs/plan.md:901:> **Note on data export:** Account deletion with full data expo
 docs/plan.md:957:| Telegram MTProto session fragility (v1 critical path) | HIGH | MEDIUM | Graceful manual fallback in every ordering flow; explicit error states; session re-auth flow |
 
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/reviews/api/codex-review.json && sed -n '1,220p' docs/reviews/api/gemini-review.json" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/reviews/api/codex-review.json && sed -n '1,220p' docs/reviews/api/gemini-review.json" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Documents/dev-projects/peptides
+workdir: /Users/kenallred/Developer/peptides
 model: gpt-5.5
 provider: openai
 approval: never

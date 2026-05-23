@@ -1,7 +1,7 @@
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Documents/dev-projects/peptides
+workdir: /Users/kenallred/Developer/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -878,7 +878,7 @@ This log tracks the significant architectural decisions made for the Peptides ap
 | ADR-015 | Implement Bounded Context Isolation for Ordering | Accepted | 2026-05-20 |
 </stdin>
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 ---
 name: using-superpowers
@@ -1001,9 +1001,9 @@ Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
 codex
 Using `superpowers:using-superpowers` to follow the required skill workflow before auditing. I’m going to compare the supplied architecture/domain/ADR artifacts against the PRD in `docs/plan.md` and return only the requested JSON findings.
 exec
-/bin/zsh -lc "rg -n \"Phase|v1|Must|Should|Could|Won't|MVP|ordering|Telegram|AI|LLM|export|deletion|reminder|cron|Sentry|Cloudflare|R2|managed|delegate|participant|offline|audit|reconstitution|cycle|outcome|injection|site|rotation|PubMed|digest|SMS|Discord\" docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "rg -n \"Phase|v1|Must|Should|Could|Won't|MVP|ordering|Telegram|AI|LLM|export|deletion|reminder|cron|Sentry|Cloudflare|R2|managed|delegate|participant|offline|audit|reconstitution|cycle|outcome|injection|site|rotation|PubMed|digest|SMS|Discord\" docs/plan.md" in /Users/kenallred/Developer/peptides
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 <!-- scaffold:create-prd v1 2026-05-20 -->
 <!-- scaffold:review-prd v1 2026-05-20 -->
@@ -1522,9 +1522,9 @@ Manages multi-compound stacks for the Power User and their managed users. Replac
 codex
 I’ve loaded the PRD and am checking the supplied architecture for items that exceed v1 scope, duplicate deferred v2 bets, or add framework-level extensibility before there is a concrete requirement. The main pattern so far is not extra UI features, but premature provider abstractions and deferred AI/multi-vendor paths being promoted into accepted architecture.
 exec
-/bin/zsh -lc "sed -n '883,936p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '883,936p' docs/plan.md" in /Users/kenallred/Developer/peptides
 exec
-/bin/zsh -lc "sed -n '720,865p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '720,865p' docs/plan.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 ## 10. Phased Delivery Plan
 
@@ -1730,7 +1730,7 @@ Specific tooling is a tech-stack decision. All monitoring tooling must fall with
 
 
 exec
-/bin/zsh -lc "sed -n '534,670p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '534,670p' docs/plan.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 - **Stale detection:** If an order remains in "Sent" status for 14 days without a manual status update, it is auto-flagged "Stale — check Telegram." A banner prompts the user to check their Telegram chat and either update the status or cancel the order.
 - Status transitions are forward-only except Cancel, which can be applied from any non-terminal status.

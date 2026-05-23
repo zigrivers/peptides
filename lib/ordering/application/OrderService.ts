@@ -369,3 +369,96 @@ export async function sendOrder(
     fallbackDeepLink: buildFallbackDeepLink(order.vendor.telegramUsername),
   };
 }
+
+// ---------------------------------------------------------------------------
+// State machine helpers
+// ---------------------------------------------------------------------------
+
+const TERMINAL_STATUSES = ['RECEIVED', 'CANCELLED'] as const;
+
+export interface OrderSummary {
+  id: string;
+  status: string;
+  vendorName: string;
+  itemCount: number;
+  createdAt: Date;
+  sentAt: Date | null;
+  cancelledAt: Date | null;
+  staleFlaggedAt: Date | null;
+}
+
+export async function cancelOrder(userId: string, orderId: string): Promise<void> {
+  const order = await prisma.order.findFirst({ where: { id: orderId, userId } });
+  if (!order) throw new Error('order_not_found');
+  if ((TERMINAL_STATUSES as readonly string[]).includes(order.status)) {
+    throw new Error('invalid_order_transition');
+  }
+  const now = new Date();
+  await withAudit(
+    async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: { id: orderId, userId, status: { notIn: [...TERMINAL_STATUSES] } },
+        data: { status: 'CANCELLED', cancelledAt: now, cancelledByUserId: userId },
+      });
+      if (count === 0) throw new Error('invalid_order_transition');
+    },
+    () => ({
+      actorUserId: userId,
+      category: 'Order' as const,
+      action: 'ORDER_CANCELLED' as const,
+      resourceId: orderId,
+      resourceType: 'Order',
+      oldValues: { status: order.status },
+      newValues: { status: 'CANCELLED' },
+    })
+  );
+}
+
+export async function markOrdersStale(now: Date): Promise<number> {
+  const cutoff = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  const staleOrders = await prisma.order.findMany({
+    where: { status: 'SENT', sentAt: { lt: cutoff }, staleFlaggedAt: null },
+    select: { id: true, userId: true },
+  });
+  for (const order of staleOrders) {
+    await withAudit(
+      async (tx) => {
+        await tx.order.updateMany({
+          where: { id: order.id, status: 'SENT' },
+          data: { status: 'STALE', staleFlaggedAt: now },
+        });
+      },
+      () => ({
+        actorUserId: order.userId,
+        category: 'Order' as const,
+        action: 'ORDER_MARKED_STALE' as const,
+        resourceId: order.id,
+        resourceType: 'Order',
+        oldValues: { status: 'SENT' },
+        newValues: { status: 'STALE' },
+      })
+    );
+  }
+  return staleOrders.length;
+}
+
+export async function listOrders(userId: string): Promise<OrderSummary[]> {
+  const orders = await prisma.order.findMany({
+    where: { userId },
+    include: {
+      vendor: { select: { name: true } },
+      items: { select: { id: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  return orders.map((o) => ({
+    id: o.id,
+    status: o.status,
+    vendorName: o.vendor.name,
+    itemCount: o.items.length,
+    createdAt: o.createdAt,
+    sentAt: o.sentAt,
+    cancelledAt: o.cancelledAt,
+    staleFlaggedAt: o.staleFlaggedAt,
+  }));
+}

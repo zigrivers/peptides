@@ -1,7 +1,7 @@
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Documents/dev-projects/peptides
+workdir: /Users/kenallred/Developer/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -687,7 +687,7 @@ type SyncEvent = {
 codex
 I’ll use the `superpowers:using-superpowers` guidance first, then review the UX spec against the provided stories/contracts and the local PRD where available.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && pwd && rg --files docs | sort" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && pwd && rg --files docs | sort" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 ---
 name: using-superpowers
@@ -806,7 +806,7 @@ The skill itself tells you which.
 ## User Instructions
 
 Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
-/Users/kenallred/Documents/dev-projects/peptides
+/Users/kenallred/Developer/peptides
 docs/adrs/ADR-001-nextjs-monolith.md
 docs/adrs/ADR-002-postgresql-prisma.md
 docs/adrs/ADR-003-tailwind-shadcn.md
@@ -898,7 +898,7 @@ docs/vision.md
 codex
 I have the relevant docs in the workspace. I’m reading the UX spec, PRD, stories, API contracts, and architecture notes so the findings are grounded in the actual local sources, not just the pasted excerpt.
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/ux-spec.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/ux-spec.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # UX Specification
 
@@ -1004,7 +1004,7 @@ SYNCING -> CONFLICT (show conflict resolution dialog)
 - **Calculation**: Instant update for results; no loading states for pure-math fields.
 
 exec
-/bin/zsh -lc "sed -n '1,320p' docs/user-stories.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,320p' docs/user-stories.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # User Stories
 
@@ -1328,7 +1328,7 @@ exec
 - **AC 1 (Invite):** I can enter a name and email to send an invite link (valid for 72 hours).
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 <!-- scaffold:create-prd v1 2026-05-20 -->
 <!-- scaffold:review-prd v1 2026-05-20 -->
@@ -1592,7 +1592,7 @@ Manages multi-compound stacks for the Power User and their managed users. Replac
 - Per-compound site history (peptides with route requirements respect the correct site group)
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/api-contracts.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/api-contracts.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # API Contracts
 
@@ -1734,7 +1734,7 @@ type SyncEvent = {
 ```
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 # System Architecture
 
@@ -1878,7 +1878,7 @@ We follow a Pyramid strategy:
 codex
 The UX spec is much shorter than the PRD/stories: it covers the morning dose routine and payment gate, but most pillars currently have no flow or component detail. I’m checking the remaining PRD sections so the severity calls are proportional to what v1 says is required.
 exec
-/bin/zsh -lc "sed -n '260,620p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '260,620p' docs/plan.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 - Per-compound site history (peptides with route requirements respect the correct site group)
 - On each dose log entry, app suggests the next site in rotation based on history (round-robin)
@@ -2243,7 +2243,7 @@ Triggered on first login after account creation (or invite acceptance for manage
 | Step | Power User | Delegated Participant |
 
 exec
-/bin/zsh -lc "sed -n '320,700p' docs/user-stories.md" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "sed -n '320,700p' docs/user-stories.md" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
 - **AC 1 (Invite):** I can enter a name and email to send an invite link (valid for 72 hours).
 - **AC 2 (Access):** Managed users see a simplified dashboard with only their own schedule and reference info.
@@ -2357,7 +2357,7 @@ exec
 - `US-ADM-01` (Managed User) -> depends on `US-AUT-03` (Auth)
 
 exec
-/bin/zsh -lc "nl -ba docs/ux-spec.md | sed -n '1,220p'" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "nl -ba docs/ux-spec.md | sed -n '1,220p'" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
      1	# UX Specification
      2	
@@ -2463,7 +2463,7 @@ exec
    102	- **Calculation**: Instant update for results; no loading states for pure-math fields.
 
 exec
-/bin/zsh -lc "nl -ba docs/user-stories.md | sed -n '1,430p'" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "nl -ba docs/user-stories.md | sed -n '1,430p'" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
      1	# User Stories
      2	
@@ -2896,7 +2896,7 @@ exec
    429	- `US-ADM-01` (Managed User) -> depends on `US-AUT-03` (Auth)
 
 exec
-/bin/zsh -lc "nl -ba docs/api-contracts.md | sed -n '1,220p'" in /Users/kenallred/Documents/dev-projects/peptides
+/bin/zsh -lc "nl -ba docs/api-contracts.md | sed -n '1,220p'" in /Users/kenallred/Developer/peptides
  succeeded in 0ms:
      1	# API Contracts
      2	
