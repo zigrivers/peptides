@@ -40,8 +40,11 @@ export default auth((req: NextRequest & { auth: { user?: { id?: string; status?:
   // data after the export was generated; the cron would then silently
   // delete that data without it appearing in the export. The session
   // carries `status` (embedded in the JWT and surfaced by the session
-  // callback in `lib/auth/auth.config.ts`), so this is a pure JWT read
-  // — no DB hop in middleware.
+  // callback in `lib/auth/auth.config.ts`), so the middleware decision
+  // is made from the JWT alone — no edge-runtime DB call. Note: the
+  // Node-runtime jwt callback in `lib/auth/index.ts` does refresh
+  // `status` from the DB on each auth() call, so after a status change
+  // the cookie updates and the next middleware pass sees the new value.
   const status = req.auth?.user?.status;
   if (
     isAuthenticated &&

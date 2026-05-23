@@ -77,7 +77,14 @@ export async function requestSelfDeletion(
 ): Promise<{ scheduledFor: Date }> {
   const user = await prisma.user.findUnique({
     where: { id: input.userId },
-    select: { id: true, email: true, name: true, status: true, managedBy: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      status: true,
+      managedBy: true,
+      _count: { select: { managedUsers: true } },
+    },
   });
   if (!user) throw new Error('user_not_found');
   // Managed users cannot self-delete. Their account is governed by the
@@ -86,6 +93,13 @@ export async function requestSelfDeletion(
   // rejects as malformed (and would restore the user to DEACTIVATED
   // mid-flow). Refuse up-front so the UI can show a meaningful message.
   if (user.managedBy !== null) throw new Error('managed_user_cannot_self_delete');
+  // Power Users with active managed accounts cannot self-delete: the FK
+  // would null-out their managedUsers' managedBy, orphaning those accounts
+  // outside the admin ownership model. The user must transfer or delete
+  // their managed users through the admin path first.
+  if (user._count.managedUsers > 0) {
+    throw new Error('has_managed_users');
+  }
   if (normaliseEmail(input.confirmEmail) !== normaliseEmail(user.email)) {
     throw new Error('email_mismatch');
   }
@@ -201,10 +215,17 @@ export async function requestImmediateDeletion(
   if (!input.acknowledged) throw new Error('acknowledgment_required');
   const user = await prisma.user.findUnique({
     where: { id: input.userId },
-    select: { id: true, email: true, name: true, managedBy: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      managedBy: true,
+      _count: { select: { managedUsers: true } },
+    },
   });
   if (!user) throw new Error('user_not_found');
   if (user.managedBy !== null) throw new Error('managed_user_cannot_self_delete');
+  if (user._count.managedUsers > 0) throw new Error('has_managed_users');
   if (normaliseEmail(input.confirmEmail) !== normaliseEmail(user.email)) {
     throw new Error('email_mismatch');
   }

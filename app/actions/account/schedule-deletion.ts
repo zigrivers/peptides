@@ -26,6 +26,8 @@ const HUMAN_ERRORS: Record<string, string> = {
   user_not_in_eligible_state: 'Your account is no longer eligible for immediate deletion. Please refresh.',
   managed_user_cannot_self_delete:
     'Managed accounts cannot be deleted directly. Please contact the Power User who manages your account.',
+  has_managed_users:
+    'You manage other accounts on this app. Please transfer or delete them in the Admin panel before deleting your own account.',
 };
 
 function humanError(code: string): string {

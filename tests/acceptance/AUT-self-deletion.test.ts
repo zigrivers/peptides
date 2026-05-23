@@ -67,6 +67,7 @@ beforeEach(() => {
     name: 'Alice',
     status: 'ACTIVE',
     managedBy: null,
+    _count: { managedUsers: 0 },
   });
   mockAdrFindUnique.mockResolvedValue(null);
   mockAdrUpsert.mockResolvedValue({ id: 'adr-1' });
@@ -151,10 +152,27 @@ describe('US-AUT-02: requestSelfDeletion (delayed)', () => {
       name: 'Alice',
       status: 'ACTIVE',
       managedBy: 'pu-1',
+      _count: { managedUsers: 0 },
     });
     await expect(
       requestSelfDeletion({ userId: USER_ID, confirmEmail: USER_EMAIL })
     ).rejects.toThrow('managed_user_cannot_self_delete');
+    expect(mockGenerateExport).not.toHaveBeenCalled();
+    expect(mockAdrUpsert).not.toHaveBeenCalled();
+  });
+
+  it('AC-1d: rejects Power Users who manage other accounts (prevent orphaning)', async () => {
+    mockUserFindUnique.mockResolvedValueOnce({
+      id: USER_ID,
+      email: USER_EMAIL,
+      name: 'Alice',
+      status: 'ACTIVE',
+      managedBy: null,
+      _count: { managedUsers: 2 },
+    });
+    await expect(
+      requestSelfDeletion({ userId: USER_ID, confirmEmail: USER_EMAIL })
+    ).rejects.toThrow('has_managed_users');
     expect(mockGenerateExport).not.toHaveBeenCalled();
     expect(mockAdrUpsert).not.toHaveBeenCalled();
   });
