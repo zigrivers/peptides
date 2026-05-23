@@ -45,9 +45,27 @@ describe('draftCompoundProfile', () => {
     ).rejects.toThrow('disallowed_output');
   });
 
-  it('rejects output claiming FDA approval', async () => {
+  it('rejects output claiming FDA approval (verbose form)', async () => {
     mockCallText.mockResolvedValueOnce(
       'This compound is approved by the FDA for therapeutic use.'
+    );
+    await expect(
+      draftCompoundProfile({ compoundName: 'BPC-157', citations: [] })
+    ).rejects.toThrow('disallowed_output');
+  });
+
+  it('rejects output containing "FDA-approved" (compound-adjective form)', async () => {
+    mockCallText.mockResolvedValueOnce(
+      'BPC-157 is an FDA-approved drug used in animal studies.'
+    );
+    await expect(
+      draftCompoundProfile({ compoundName: 'BPC-157', citations: [] })
+    ).rejects.toThrow('disallowed_output');
+  });
+
+  it('rejects output containing "EMA approved"', async () => {
+    mockCallText.mockResolvedValueOnce(
+      'It is EMA approved in several European countries.'
     );
     await expect(
       draftCompoundProfile({ compoundName: 'BPC-157', citations: [] })

@@ -114,6 +114,21 @@ async function getModelFor(
   return getGeminiModel(attempt.modelId);
 }
 
+/**
+ * Coarse error code classifier — emits ONLY one of these fixed labels in
+ * audit metadata. Raw SDK error messages can include response fragments
+ * (provider hints, schema-validation snippets), which would violate the
+ * operations §7 rule that audits must not store prompt/response content.
+ */
+function classifyError(err: unknown): 'timeout' | 'aborted' | 'invalid_schema' | 'provider_error' {
+  if (!(err instanceof Error)) return 'provider_error';
+  const msg = err.message;
+  if (msg === 'ai_timeout') return 'timeout';
+  if (msg === 'aborted' || err.name === 'AbortError') return 'aborted';
+  if (msg === 'ai_invalid_response' || err.name === 'ZodError') return 'invalid_schema';
+  return 'provider_error';
+}
+
 async function runWithRetry<T>(
   attempt: ProviderAttempt,
   task: (
@@ -128,12 +143,12 @@ async function runWithRetry<T>(
   try {
     return await withTimeout((signal) => task(model, signal), timeoutMs);
   } catch (err) {
-    errors.push(`${attempt.provider}_1:${(err as Error).message ?? 'unknown'}`);
+    errors.push(`${attempt.provider}_1:${classifyError(err)}`);
     await new Promise((r) => setTimeout(r, RETRY_BACKOFF_MS));
     try {
       return await withTimeout((signal) => task(model, signal), timeoutMs);
     } catch (err2) {
-      errors.push(`${attempt.provider}_2:${(err2 as Error).message ?? 'unknown'}`);
+      errors.push(`${attempt.provider}_2:${classifyError(err2)}`);
       return null;
     }
   }

@@ -9,19 +9,20 @@ export const citationSchema = z.object({
   pmid: z.string().nullable().default(null),
 });
 
-export const profileDraftSchema = z.object({
-  draft: z.string().min(20, { message: 'profile_draft_too_short' }),
-});
-
 /**
  * Phrases the AI must NOT include in any output. Enforced post-hoc so a
  * model that strays out of ADR-010's allowed-uses scope is caught before
  * the output reaches a human reviewer.
+ *
+ * Patterns cover both common phrasings ("approved by the FDA") and the
+ * compound-adjective form ("FDA-approved" / "EMA approved") that an LLM
+ * is likely to emit.
  */
 export const DISALLOWED_PHRASES = [
   /safety[\s-]*clearance/i,
   /clinically\s+approved/i,
   /\bapproved\s+by\s+the\s+(fda|ema)\b/i,
+  /\b(fda|ema)[\s-]*approved\b/i,
   /\brecommended\s+dose\s+for\s+you\b/i,
 ] as const;
 

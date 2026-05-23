@@ -116,6 +116,30 @@ describe('AIClient.callObject — provider fail-over', () => {
     expect(meta.errors.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('AC-5b: audit error codes are sanitised to fixed labels (no raw SDK messages)', async () => {
+    // Reject with a message containing a fake "prompt fragment" — this must
+    // NOT appear in audit metadata, per operations §7.
+    mockGenerateObject.mockRejectedValue(
+      new Error('Schema validation error: response was {prompt: "user data"}')
+    );
+    await expect(
+      callObject({ operation: 'extract_citation', system: 's', prompt: 'p', schema })
+    ).rejects.toThrow('ai_unavailable');
+    const failedAudit = mockAuditCreate.mock.calls.find(
+      (call) => call[0]?.data?.action === 'AI_REQUEST_FAILED'
+    );
+    const meta = failedAudit?.[0].data.metadata;
+    expect(meta.errors).toBeDefined();
+    for (const code of meta.errors as string[]) {
+      // Each code is `${provider}_${attemptN}:${classifierLabel}`.
+      const label = code.split(':')[1];
+      expect(['timeout', 'aborted', 'invalid_schema', 'provider_error']).toContain(label);
+      // Never leak the raw message content.
+      expect(code).not.toContain('prompt');
+      expect(code).not.toContain('user data');
+    }
+  });
+
   it('AC-1c: no API keys → both getModel functions return null → throws AIUnavailableError', async () => {
     mockGetAnthropicModel.mockResolvedValue(null);
     mockGetGeminiModel.mockResolvedValue(null);
