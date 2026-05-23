@@ -32,7 +32,10 @@ export async function deactivateManagedUserAction(
     revalidatePath('/admin', 'layout');
     return { success: 'User deactivated.' };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : 'Something went wrong.' };
+    if (err instanceof Error && err.message === 'managed_user_not_found') {
+      return { error: 'User not found.' };
+    }
+    return { error: 'Something went wrong.' };
   }
 }
 
@@ -49,6 +52,9 @@ export async function triggerPasswordResetAction(
     await triggerManagedUserPasswordReset(session.user.id, managedUserId);
     return { success: 'Password reset email sent.' };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : 'Something went wrong.' };
+    if (err instanceof Error && err.message === 'managed_user_not_found') {
+      return { error: 'User not found.' };
+    }
+    return { error: 'Something went wrong.' };
   }
 }

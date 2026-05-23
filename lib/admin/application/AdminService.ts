@@ -193,6 +193,7 @@ export async function deactivateManagedUser(
     },
     () => ({
       actorUserId: powerUserId,
+      subjectUserId: managedUserId,
       category: 'Admin' as const,
       action: 'MANAGED_USER_DEACTIVATED' as const,
       resourceId: managedUserId,
@@ -229,7 +230,11 @@ export async function triggerManagedUserPasswordReset(
   const { email } = user;
   after(async () => {
     const appUrl = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL;
-    if (!appUrl) return;
+    if (!appUrl) {
+      console.error('[triggerManagedUserPasswordReset] APP_URL_NOT_CONFIGURED');
+      return;
+    }
+    // /reset-password route convention is shared with requestPasswordReset (lib/auth)
     const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
     const { error } = await resend.emails.send({
       from: FROM_ADDRESS,
