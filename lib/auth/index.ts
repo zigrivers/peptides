@@ -30,7 +30,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // See lib/auth/infrastructure/AuthRepository.ts, CLAUDE.md, and AGENTS.md for the
         // documented exception to the Identity Scoping rule.
         const user = await AuthRepository.findByEmailForAuth(credentials.email.toLowerCase());
-        if (!user?.passwordHash || user.status !== 'ACTIVE') {
+        // Allow ACTIVE users normally; also allow DELETION_PENDING users to
+        // sign in during their 48h cancellation window so they can reach
+        // the cancel flow at /settings. Task 6.1 / US-AUT-02.
+        const canAuthenticate =
+          user?.status === 'ACTIVE' || user?.status === 'DELETION_PENDING';
+        if (!user?.passwordHash || !canAuthenticate) {
           // Constant-time guard: prevents timing-based user enumeration.
           await bcrypt.compare(credentials.password, DUMMY_HASH);
           return null;
@@ -38,7 +43,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ph = PasswordHash.fromHash(user.passwordHash);
         const valid = await ph.verify(credentials.password);
         if (!valid) return null;
-        return { id: user.id, email: user.email, role: user.role, passwordVersion: user.passwordVersion };
+        return {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          passwordVersion: user.passwordVersion,
+          status: user.status,
+        };
       },
     }),
   ],
@@ -54,6 +65,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.role = user.role ?? null;
         token.passwordVersion = user.passwordVersion ?? 1;
+        // Task 6.1 — embed user status so edge middleware can route
+        // DELETION_PENDING users to /settings without a DB roundtrip.
+        token.status = (user as { status?: string }).status ?? 'ACTIVE';
         return token;
       }
 
@@ -64,7 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id },
-          select: { passwordVersion: true },
+          select: { passwordVersion: true, status: true },
         });
         const shouldRevoke =
           !dbUser ||
@@ -75,7 +89,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           delete stripped.id;
           delete stripped.role;
           delete stripped.passwordVersion;
+          delete stripped.status;
           return stripped;
+        }
+        // Refresh status so a transition (DELETION_PENDING ↔ ACTIVE) made
+        // since sign-in propagates to the next request's middleware check.
+        if (dbUser && dbUser.status !== token.status) {
+          token.status = dbUser.status;
         }
       }
 

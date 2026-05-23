@@ -48,6 +48,7 @@ export const authConfig = {
         token.id = user.id;
         token.role = user.role ?? null;
         token.passwordVersion = (user as { passwordVersion?: number }).passwordVersion ?? 1;
+        token.status = (user as { status?: string }).status ?? 'ACTIVE';
       }
       return token;
     },
@@ -60,7 +61,13 @@ export const authConfig = {
       }
       return {
         ...session,
-        user: { ...session.user, id: token.id as string, role: token.role as string },
+        user: {
+          ...session.user,
+          id: token.id as string,
+          role: token.role as string,
+          // status surfaced for middleware routing (Task 6.1).
+          status: (token.status as string | undefined) ?? 'ACTIVE',
+        },
       };
     },
   },

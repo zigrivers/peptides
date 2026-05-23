@@ -7,12 +7,14 @@ declare module 'next-auth' {
     user: {
       id?: string;
       role?: string;
+      status?: string;
     } & DefaultSession['user'];
   }
 
   interface User {
     role?: string;
     passwordVersion?: number;
+    status?: string;
   }
 }
 
@@ -22,5 +24,7 @@ declare module 'next-auth/jwt' {
     role?: string | null;
     /** Incremented on password change to invalidate stale JWT sessions (Task 1.4). */
     passwordVersion?: number;
+    /** User.status — embedded so edge middleware can route DELETION_PENDING users (Task 6.1). */
+    status?: string;
   }
 }

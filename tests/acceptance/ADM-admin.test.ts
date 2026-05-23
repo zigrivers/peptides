@@ -657,6 +657,46 @@ describe('US-ADM-04: processPendingDeletions', () => {
     expect(mockADRDelete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'adr-orphan' } }));
   });
 
+  it('Task 6.1: deletes self-deletion ADRs (requestedByUserId=null AND user.managedBy=null) → ACCOUNT_DELETED audit (delayed_self)', async () => {
+    let capturedAudit: unknown = null;
+    mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+      const result = await mutation({
+        user: { deleteMany: mockUserDeleteMany },
+        accountDeletionRequest: { deleteMany: mockADRDeleteMany },
+        vendor: { findMany: mockVendorFindMany },
+        order: { deleteMany: mockOrderDeleteMany },
+      });
+      capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
+      return result;
+    });
+    mockADRFindMany.mockResolvedValueOnce([
+      { id: 'adr-self', userId: 'user-self', requestedByUserId: null },
+    ]);
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'user-self', managedBy: null });
+
+    const result = await processPendingDeletions();
+    expect(result.deleted).toBe(1);
+    expect(capturedAudit).toMatchObject({
+      action: 'ACCOUNT_DELETED',
+      actorUserId: 'SYSTEM',
+      subjectUserId: 'user-self',
+      category: 'Auth',
+      metadata: expect.objectContaining({ mode: 'delayed_self' }),
+    });
+  });
+
+  it('Task 6.1: rejects malformed combo (requestedByUserId=null but user has managedBy) as stale', async () => {
+    mockADRFindMany.mockResolvedValueOnce([
+      { id: 'adr-broken', userId: 'mu-leaked', requestedByUserId: null },
+    ]);
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-leaked', managedBy: 'pu-1' });
+
+    const result = await processPendingDeletions();
+    expect(result.deleted).toBe(0);
+    expect(mockUserDeleteMany).not.toHaveBeenCalled();
+    expect(mockADRDelete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'adr-broken' } }));
+  });
+
   it('writes MANAGED_USER_DELETED audit event for each processed deletion', async () => {
     let capturedAudit: unknown = null;
     mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
