@@ -1,6 +1,6 @@
 # Phase 2 Legal Gate — Self-Review (Task 4.5)
 
-**Status:** **CONDITIONAL — BLOCKED for Phase 2 ship until items 1 and 3 are remediated.** Items 2, 4, 5, 6 PASS.
+**Status:** **CONDITIONAL — BLOCKED for Phase 2 ship until item 3 (standalone data export) is remediated.** Items 1, 2, 4, 5, 6 PASS as of Task 1.6c.
 **Reviewed by:** Power User (solo dev) — Ken Allred (<zigrivers@gmail.com>)
 **Review date:** 2026-05-23
 **Next review:** 2027-05-23 (annual cadence per PRD §7.5), OR earlier whenever a blocking item is remediated.
@@ -16,7 +16,7 @@
 
 | # | Item (verbatim from PRD §7.5) | Status | Evidence / Remediation |
 |---|------|--------|----------------------|
-| 1 | Each managed user signs (or clicks-through) a written acknowledgment that the Power User is configuring their protocols and can view their adherence data. | **BLOCKED** | See [Item 1 detail](#item-1-managed-user-acknowledgment-blocked) below. The invite email links to `/accept-invite?token=...` (`lib/auth/application/createInvite.ts`), the `INVITE_ACCEPTED` audit action is defined, and `Invite.acceptedAt` / `Invite.acceptedByUserId` columns exist in the schema — but **no route or `acceptInvite` server action implements the acknowledgment + account-creation flow yet**. Per the AGENTS.md known design decisions note, the route was intentionally deferred. **Remediation:** a new task (call it Task 1.6c) must ship `/accept-invite` with the consent copy, click-through capture, and the `INVITE_ACCEPTED` audit write before any managed user beyond the Power User's own household is invited. Until then, this checklist item fails. |
+| 1 | Each managed user signs (or clicks-through) a written acknowledgment that the Power User is configuring their protocols and can view their adherence data. | **PASS** (as of Task 1.6c) | Task 1.6c shipped `/accept-invite` page + `acceptInvite` server action (`lib/auth/application/acceptInvite.ts`, `app/(auth)/accept-invite/page.tsx`, `app/actions/auth/accept-invite.ts`). Invitees land at `/accept-invite?token=...`, see the consent copy verbatim above the form, must tick an explicit acknowledgment checkbox, and on submit the action writes the `INVITE_ACCEPTED` audit event (with the new user as both actor and subject) atomically with the user-create and `Invite.acceptedAt` / `acceptedByUserId` updates inside a single `withAudit` transaction. 12-test acceptance suite at `tests/acceptance/AUT-accept-invite.test.ts`. **Out-of-band signed copies** (if a family member prefers paper): file at R2 `legal/acks/{userId}.pdf` with 7y retention. |
 | 2 | No managed user is a minor; no managed user lacks legal capacity to consent. | **PASS** (Power User attestation) | Attested by the Power User: every invited managed user in the v1 family circle is an adult of sound mind. No automated age verification — relies on Power User knowing the invitees personally. Operational gate: Power User re-attests at each new invite by self-checking before sending. |
 | 3 | The data-export and account-deletion flows in §5.6 + §5.7 are verified working end-to-end for managed users (a managed user can request their data and have their account deleted by the Power User on demand). | **CONDITIONAL — deletion PASS, standalone export BLOCKED** | <ul><li>**Deletion side: PASS.** Task 4.3 (PR #30) ships `requestManagedUserDeletion` with typed-email confirmation, exhaustive cascade-table export emailed to the Power User before any DB write, 48h delayed deletion via `AccountDeletionRequest`, atomic cancel, and the `processPendingDeletions` cron (`lib/admin/application/AdminService.ts`). 25-test acceptance suite at `tests/acceptance/ADM-admin.test.ts`.</li><li>**Standalone export side: BLOCKED.** The PRD wording is *"a managed user can request their data … on demand"*. The deletion-time export does not satisfy this on its own — it requires the Power User to schedule a deletion (and either commit to it or cancel within 48h). That is operational kludge, not an end-to-end user-facing request. **Remediation:** Task 6.2 (Async Data Export Pipeline, `docs/implementation-plan.md` line 261) ships the standalone request-export flow. Until 6.2 is merged, this item fails and Phase 2 should not ship.</li></ul> |
 | 4 | The audit log (§5.7) records every admin action taken on a managed user's data, with the actor identity preserved. | **PASS** | `lib/audit/domain/AuditEvent.ts` enumerates every audit action; `lib/audit/application/withAudit.ts` wraps every Server Action mutation in a transaction that writes the mutation and the AuditEvent atomically (mutation aborts on audit-write failure). `actorUserId` and `subjectUserId` are stored as plain strings with no FK constraint per ADR-009 — they survive user deletion so historical attribution is permanent. Admin actions in production: `MANAGED_USER_DEACTIVATED`, `MANAGED_USER_DELETION_REQUESTED`, `MANAGED_USER_DELETION_CANCELLED`, `MANAGED_USER_DELETED`, `MANAGED_USER_PASSWORD_RESET_TRIGGERED`, `USER_INVITED`, `INVITE_RESENT`, `INVITE_ACCEPTED`. System-actor pattern (`actorUserId: 'SYSTEM'`) used for cron-driven deletions (`processPendingDeletions`) with `originalRequestor` recorded in metadata. |
@@ -25,30 +25,23 @@
 
 ---
 
-## Item 1 — Managed User Acknowledgment (BLOCKED)
+## Item 1 — Managed User Acknowledgment (PASS — Task 1.6c)
 
-**Current state:** The invite-emit infrastructure is in place (PR #6 / Task 1.6a). `createInvite` and `resendInvite` send emails containing `/accept-invite?token=<rawToken>` URLs. The `Invite` model has `acceptedAt`, `acceptedByUserId`, and the related schema fields. The `INVITE_ACCEPTED` audit action is defined.
+**Implementation:** Task 1.6c shipped the missing acceptance flow:
 
-**Gap:** The `/accept-invite` page and its `acceptInvite` server action do not exist in this codebase. An invitee clicking the link today would hit a 404. Per AGENTS.md "Known Design Decisions": *"The acceptance page (hashing the raw token, looking up by tokenHash, creating the managed user account, marking the invite ACCEPTED) is the next deliverable and is intentionally deferred."*
+- `app/(auth)/accept-invite/page.tsx` — public server component reads `?token=`, SHA-256-hashes the raw token, looks up the `Invite` by `tokenHash`, validates `status === 'PENDING'` and `expiresAt > now()`, and renders the acceptance form. Invalid links (expired, revoked, already-used, not-found, missing-token) render a non-distinguishing "Invitation no longer valid" page.
+- `app/(auth)/accept-invite/_components/AcceptInviteForm.tsx` — client form with name + password + confirm-password + an explicit acknowledgment checkbox (default unchecked). Submit is disabled until the checkbox is ticked, passwords match, and password meets the 8-character minimum.
+- `app/actions/auth/accept-invite.ts` — server action wrapping `lib/auth/application/acceptInvite` (the domain function). Maps every domain error to a user-facing message; on success returns `{}` and the form navigates to `/login?email=<email>&accepted=1` for sign-in.
+- `lib/auth/application/acceptInvite.ts` — the transaction: validate token, validate form, check email-not-taken, then `withAudit` wraps `user.create` + `invite.update(status=ACCEPTED, acceptedAt, acceptedByUserId)` and writes the `INVITE_ACCEPTED` audit event with the new user as actor + subject and the invite as `resourceId`.
+- `middleware.ts` — `/accept-invite` added to `PUBLIC_ROUTES` so unauthenticated invitees can reach it without redirect-to-login.
 
-**Remediation (new Task 1.6c — must ship before any non-household managed user is invited):**
+**Acknowledgment copy** (rendered above the form):
 
-1. `app/(public)/accept-invite/page.tsx` — server component that reads `?token=...`, hashes it with SHA-256, looks up the `Invite` by `tokenHash`, validates `status === 'PENDING'` and `expiresAt > now()`, and renders a form with:
-   - User's email pre-filled from `Invite.email` (read-only)
-   - Password + confirm-password inputs
-   - Display name input
-   - **Acknowledgment text:**
-     > *"By accepting this invitation you acknowledge that [Power User name] is configuring your protocols and can view your adherence data. You can request a data export or account deletion at any time. By clicking 'Accept invitation' you consent to this arrangement."*
-   - "Accept invitation" submit button
-2. `app/actions/auth/accept-invite.ts` — server action that:
-   - Re-validates the token (TOCTOU defense)
-   - Creates the User row with `role: 'MANAGED_USER'`, `managedBy: invite.powerUserId`, `passwordHash`, `name`, `email: invite.email`
-   - Updates the Invite atomically: `acceptedAt: now()`, `acceptedByUserId: newUser.id`, `status: 'ACCEPTED'`
-   - Writes `INVITE_ACCEPTED` audit event with `actorUserId: newUser.id`, `subjectUserId: newUser.id`, `resourceId: invite.id`
-   - Signs the user in (NextAuth credentials sign-in) and redirects to `/dashboard`
-3. **Out-of-band signed copies** (rare — only if a family member prefers paper): file the signed copy at R2 `legal/acks/{userId}.pdf` (Cloudflare R2 bucket `peptides-acks-prod`), 7-year retention via R2 lifecycle rule.
+> *"[Power User] configures your protocols and can view your adherence data. You can request a data export or account deletion at any time. Submitting this form confirms you agree to this arrangement."*
 
-Until Task 1.6c ships, item 1 fails and Phase 2 entry is blocked.
+**Audit record:** every acceptance writes a permanent `INVITE_ACCEPTED` row to the AuditEvent table (`actorUserId = newUserId`, `subjectUserId = newUserId`, `resourceId = invite.id`, metadata includes `managedBy` and `email`). Per ADR-009, this row survives user deletion as the durable consent record.
+
+**Out-of-band signed copies** (rare — only if a family member prefers paper): file at R2 `legal/acks/{userId}.pdf` (Cloudflare R2 bucket `peptides-acks-prod`), 7-year retention via R2 lifecycle rule.
 
 ---
 
@@ -82,12 +75,12 @@ These are not blocking for Phase 2 entry directly, but must be maintained as the
 
 ## Phase 2 Ship Decision
 
-**Phase 2 does NOT ship until items 1 and 3 are remediated.** Concretely:
+**Phase 2 does NOT ship until item 3 is remediated.** Concretely:
 
-- ❌ **Task 1.6c** (new — accept-invite + acknowledgment) — required for item 1.
+- ✅ **Task 1.6c** (accept-invite + acknowledgment) — SHIPPED. Item 1 PASS.
 - ❌ **Task 6.2** (Async Data Export Pipeline) — required for item 3.
 
-When both ship, return to this document and update the table; once all six items show `PASS`, file an updated revision-history row stating Phase 2 entry granted.
+When 6.2 ships, return to this document and update the table; once all six items show `PASS`, file an updated revision-history row stating Phase 2 entry granted.
 
 ---
 
@@ -96,3 +89,4 @@ When both ship, return to this document and update the table; once all six items
 | Date | Reviewer | Summary |
 |------|----------|---------|
 | 2026-05-23 | Power User | Initial review — items 2/4/5/6 PASS, items 1/3 BLOCKED. Phase 2 entry NOT yet granted; remediation requires Task 1.6c (accept-invite) and Task 6.2 (standalone export). |
+| 2026-05-23 | Power User | Task 1.6c shipped — item 1 now PASS. Item 3 (standalone export) still BLOCKED on Task 6.2. Phase 2 entry remains gated. |

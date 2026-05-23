@@ -11,7 +11,7 @@ const { auth } = NextAuth(authConfig);
 
 // Exact-prefix matching: /login matches /login and /login/* but NOT /loginAdmin.
 // '/' is public so middleware does not intercept it; app/page.tsx redirects based on auth.
-const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password', '/reset-password'];
+const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/accept-invite'];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
