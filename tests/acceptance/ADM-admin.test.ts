@@ -8,16 +8,22 @@ const mockUpdateMany = vi.fn();
 const mockUserFindFirst = vi.fn();
 const mockUserFindMany = vi.fn();
 const mockDoseLogFindMany = vi.fn();
+const mockProtocolFindMany = vi.fn();
 const mockWithAudit = vi.fn();
 const mockSend = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
+const mockAuditEventCreate = vi.fn();
 
+const mockRequestPasswordReset = vi.fn();
+vi.mock('@/lib/auth/application/requestPasswordReset', () => ({ requestPasswordReset: mockRequestPasswordReset }));
 vi.mock('next/server', () => ({ unstable_after: mockAfter }));
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
     invite: { create: mockCreate, findFirst: mockFindFirst, findMany: mockFindMany, updateMany: mockUpdateMany },
     user: { findFirst: mockUserFindFirst, findMany: mockUserFindMany, update: mockUpdate },
     doseLog: { findMany: mockDoseLogFindMany },
+    protocol: { findMany: mockProtocolFindMany },
+    auditEvent: { create: mockAuditEventCreate },
   },
 }));
 vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }));
@@ -44,12 +50,20 @@ beforeEach(() => {
   mockUserFindFirst.mockResolvedValue(null);
   mockUserFindMany.mockResolvedValue([]);
   mockDoseLogFindMany.mockResolvedValue([]);
+  mockProtocolFindMany.mockResolvedValue([]);
+  mockAuditEventCreate.mockResolvedValue({});
+  mockRequestPasswordReset.mockResolvedValue(undefined);
   mockUpdateMany.mockResolvedValue({ count: 1 });
 });
 
 const { createInvite } = await import('@/lib/auth/application/createInvite');
 const { resendInvite } = await import('@/lib/auth/application/resendInvite');
-const { getManagedUsersWithAdherence, getManagedUserDoseHistory } = await import('@/lib/admin/application/AdminService');
+const {
+  getManagedUsersWithAdherence,
+  getManagedUserDoseHistory,
+  deactivateManagedUser,
+  triggerManagedUserPasswordReset,
+} = await import('@/lib/admin/application/AdminService');
 
 /**
  * Story: US-ADM-01 - Create Managed User
@@ -294,5 +308,79 @@ describe('US-ADM-02: getManagedUserDoseHistory', () => {
     const windowDays = (call.where.scheduledDate.lt.getTime() - call.where.scheduledDate.gte.getTime()) / 86400_000;
     expect(windowDays).toBe(7);
     expect(call.where.status).toEqual({ in: ['LOGGED', 'SKIPPED'] });
+  });
+});
+
+/**
+ * Story: US-ADM-03 - Manage Managed Users
+ */
+describe('US-ADM-03: deactivateManagedUser', () => {
+
+  const activeUser = { id: 'mu-1', email: 'user@e.com', status: 'ACTIVE' };
+
+  it('AC-1: throws managed_user_not_found when user does not belong to powerUser', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(null);
+    await expect(deactivateManagedUser('pu-1', 'stranger', true)).rejects.toThrow('managed_user_not_found');
+  });
+
+  it('AC-3: returns needs_confirmation when user has active protocols and confirmed=false', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(activeUser);
+    mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }, { id: 'p-2' }]);
+
+    const result = await deactivateManagedUser('pu-1', 'mu-1', false);
+    expect(result.status).toBe('needs_confirmation');
+    expect(result.activeProtocolCount).toBe(2);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('AC-1: deactivates user (sets status=DEACTIVATED) when confirmed=true', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(activeUser);
+    mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }]);
+    mockUpdate.mockResolvedValueOnce({ id: 'mu-1', status: 'DEACTIVATED' });
+
+    const result = await deactivateManagedUser('pu-1', 'mu-1', true);
+    expect(result.status).toBe('deactivated');
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'mu-1' }, data: { status: 'DEACTIVATED' } })
+    );
+  });
+
+  it('AC-1: deactivates user with no active protocols without confirmation prompt', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(activeUser);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockUpdate.mockResolvedValueOnce({ id: 'mu-1', status: 'DEACTIVATED' });
+
+    const result = await deactivateManagedUser('pu-1', 'mu-1', false);
+    expect(result.status).toBe('deactivated');
+  });
+
+  it('writes USER_DEACTIVATED audit event on deactivation', async () => {
+    let capturedAudit: unknown = null;
+    mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+      const result = await mutation({ user: { update: mockUpdate } });
+      capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
+      return result;
+    });
+    mockUserFindFirst.mockResolvedValueOnce(activeUser);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockUpdate.mockResolvedValueOnce({ id: 'mu-1', status: 'DEACTIVATED' });
+
+    await deactivateManagedUser('pu-1', 'mu-1', false);
+    expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DEACTIVATED', actorUserId: 'pu-1' });
+  });
+});
+
+describe('US-ADM-03: triggerManagedUserPasswordReset', () => {
+
+  it('AC-2: throws managed_user_not_found when user does not belong to powerUser', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(null);
+    await expect(triggerManagedUserPasswordReset('pu-1', 'stranger')).rejects.toThrow('managed_user_not_found');
+  });
+
+  it('AC-2: calls requestPasswordReset with the managed user email', async () => {
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', email: 'user@e.com' });
+
+    await triggerManagedUserPasswordReset('pu-1', 'mu-1');
+    expect(mockRequestPasswordReset).toHaveBeenCalledWith('user@e.com');
   });
 });

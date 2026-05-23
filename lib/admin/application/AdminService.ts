@@ -1,5 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
+import { withAudit } from '@/lib/audit/application/withAudit';
+import { requestPasswordReset } from '@/lib/auth/application/requestPasswordReset';
 
 export type InviteStatus = 'ACTIVE' | 'DEACTIVATED' | 'INVITED' | 'INVITE_EXPIRED';
 
@@ -148,4 +150,59 @@ export async function getManagedUserDoseHistory(
     status: l.status,
     amount: l.amount,
   }));
+}
+
+export type DeactivateStatus = 'deactivated' | 'needs_confirmation';
+
+export interface DeactivateResult {
+  status: DeactivateStatus;
+  activeProtocolCount?: number;
+}
+
+export async function deactivateManagedUser(
+  powerUserId: string,
+  managedUserId: string,
+  confirmed: boolean
+): Promise<DeactivateResult> {
+  const user = await prisma.user.findFirst({
+    where: { id: managedUserId, managedBy: powerUserId },
+    select: { id: true },
+  });
+  if (!user) throw new Error('managed_user_not_found');
+
+  const activeProtocols = await prisma.protocol.findMany({
+    where: { userId: managedUserId, status: 'ACTIVE' },
+    select: { id: true },
+  });
+
+  if (!confirmed && activeProtocols.length > 0) {
+    return { status: 'needs_confirmation', activeProtocolCount: activeProtocols.length };
+  }
+
+  await withAudit(
+    (tx) => tx.user.update({ where: { id: managedUserId }, data: { status: 'DEACTIVATED' } }),
+    () => ({
+      actorUserId: powerUserId,
+      category: 'Admin' as const,
+      action: 'MANAGED_USER_DEACTIVATED' as const,
+      resourceId: managedUserId,
+      resourceType: 'User',
+      newValues: { status: 'DEACTIVATED' },
+    })
+  );
+
+  return { status: 'deactivated' };
+}
+
+export async function triggerManagedUserPasswordReset(
+  powerUserId: string,
+  managedUserId: string
+): Promise<void> {
+  const user = await prisma.user.findFirst({
+    where: { id: managedUserId, managedBy: powerUserId },
+    select: { id: true, email: true },
+  });
+  if (!user) throw new Error('managed_user_not_found');
+
+  await requestPasswordReset(user.email);
 }
