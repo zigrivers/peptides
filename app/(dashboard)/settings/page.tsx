@@ -38,16 +38,30 @@ export default async function SettingsPage() {
   });
   const isDeletionPending = pendingDeletion?.status === 'PENDING';
 
-  return (
-    <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
-      <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
-
-      {isDeletionPending && pendingDeletion && (
+  // DELETION_PENDING users see ONLY the cancel banner — every other
+  // settings surface is hidden so they cannot create or mutate data
+  // post-export that the cron would later silently delete. Mutation
+  // server actions still have their own DB-driven status guards (the
+  // service layer rejects on next jwt-callback refresh), but hiding
+  // the UI is the more defensive layer.
+  if (isDeletionPending && pendingDeletion) {
+    return (
+      <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+        <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
         <CancelDeletionBanner
           action={cancelDeletionAction}
           scheduledForISO={pendingDeletion.scheduledFor.toISOString()}
         />
-      )}
+        <p className="text-sm text-gray-600">
+          Other settings are temporarily disabled while your account is scheduled for deletion. Cancel the deletion above to restore full access.
+        </p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+      <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
 
       <section aria-labelledby="reminders-heading" className="rounded-lg border border-gray-200 bg-white p-5">
         <h2 id="reminders-heading" className="text-sm font-semibold text-gray-900 mb-1">Dose reminders</h2>
@@ -86,21 +100,19 @@ export default async function SettingsPage() {
         </section>
       )}
 
-      {!isDeletionPending && (
-        <section
-          aria-labelledby="delete-account-heading"
-          className="rounded-lg border border-red-200 bg-red-50/30 p-5"
-        >
-          <h2 id="delete-account-heading" className="text-sm font-semibold text-red-900 mb-1">
-            Danger zone
-          </h2>
-          <DeleteAccountSection
-            scheduleAction={scheduleDeletionAction}
-            immediateAction={deleteImmediatelyAction}
-            userEmail={session.user.email ?? ''}
-          />
-        </section>
-      )}
+      <section
+        aria-labelledby="delete-account-heading"
+        className="rounded-lg border border-red-200 bg-red-50/30 p-5"
+      >
+        <h2 id="delete-account-heading" className="text-sm font-semibold text-red-900 mb-1">
+          Danger zone
+        </h2>
+        <DeleteAccountSection
+          scheduleAction={scheduleDeletionAction}
+          immediateAction={deleteImmediatelyAction}
+          userEmail={session.user.email ?? ''}
+        />
+      </section>
     </main>
   );
 }
