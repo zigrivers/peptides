@@ -38,13 +38,15 @@ export default async function OrderDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {order.status === 'SENT' && (
-        <section className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
-          <p className="text-sm font-semibold text-blue-800 mb-1">
-            Sent — waiting for vendor confirmation
+      {(order.status === 'SENT' || order.status === 'STALE') && (
+        <section className={`rounded-xl border px-5 py-4 ${order.status === 'STALE' ? 'border-amber-300 bg-amber-50' : 'border-blue-200 bg-blue-50'}`}>
+          <p className={`text-sm font-semibold mb-1 ${order.status === 'STALE' ? 'text-amber-800' : 'text-blue-800'}`}>
+            {order.status === 'STALE'
+              ? 'No vendor reply after 14 days — check Telegram or capture a late reply'
+              : 'Sent — waiting for vendor confirmation'}
           </p>
           {order.sentAt && (
-            <p className="text-xs text-blue-600 mb-3">
+            <p className={`text-xs mb-3 ${order.status === 'STALE' ? 'text-amber-600' : 'text-blue-600'}`}>
               Sent on {order.sentAt.toLocaleString(undefined, { timeZone: 'UTC' })}
             </p>
           )}
@@ -63,12 +65,6 @@ export default async function OrderDetailPage({ params }: Props) {
             </Link>
           </div>
         </section>
-      )}
-
-      {order.status === 'STALE' && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          ⚠ This order is stale — no vendor reply received within 14 days. Check Telegram and update or cancel.
-        </div>
       )}
 
       <section className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
