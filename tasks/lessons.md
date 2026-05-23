@@ -82,9 +82,28 @@ This file tracks architectural and process learnings for future agents. Append a
 - **`vi.useFakeTimers()` and `vi.useRealTimers()` must be paired in beforeEach/afterEach**: Calling only `vi.useFakeTimers()` in `beforeEach` without `vi.useRealTimers()` in `afterEach` leaks fake timers into subsequent describe blocks. The `replace_all` edit strategy can accidentally remove the `afterEach` body — always verify after mass replacements.
 - **Reconstitution inventory badge: prefer percentage threshold over absolute dose count**: `remainingMg / totalMg < 0.20` is compound-agnostic and doesn't require knowing the per-dose volume. The old `doseVolumeEstimate.times(10)` heuristic assumed 0.1 mL/dose for all compounds, which is wrong for high-concentration or large-volume peptides.
 
+## 2026-05-21 (Task 3.2)
+
+- **GramJS requires the same auth_key for both auth steps**: `SendCode` initialises an `auth_key` that GramJS embeds in the session. The session string from that call must be passed to `SignIn` — a fresh client will be rejected by Telegram. Save `client.session.save()` after `SendCode` and pass it back to `completePhoneAuth` as `tempSession`.
+- **Keep the updated session after `SESSION_PASSWORD_NEEDED`**: After a failed `SignIn` throws `SESSION_PASSWORD_NEEDED`, GramJS has updated the session with new auth state. Save `client.session.save()` again at that point; using the original `tempSession` for `CheckPassword` will fail.
+- **Never hold `tempSession` on the client**: Use a server-side TTL store (`TelegramFlowStore`) keyed by an opaque `flowId` UUID bound to `userId`. The client only ever holds the `flowId`; the raw GramJS session string never leaves the server.
+- **`.unref()` TTL timers to prevent test hangs**: `setTimeout(() => store.delete(id), FLOW_TTL_MS).unref()` is required so the timer doesn't pin the Node.js event loop after all other work is done — without it, vitest hangs in teardown.
+- **`deleteFlow` after `withAudit`, not before**: Deleting the flow before the DB write commits means a failed write leaves no retry path. Delete only after `withAudit` returns successfully; this also allows password retries within the TTL.
+- **Static imports beat dynamic imports for `telegram`**: `await import('telegram')` with `as any` bypasses TypeScript and triggers MMR P1 findings. Use static `import { TelegramClient, Api } from 'telegram'` — the package ships complete type definitions.
+- **Audit `TELEGRAM_SESSION_LINK_INITIATED` on the initiate step**: Security-sensitive flows (phone auth, 2FA, link, revoke) must each emit an audit event. The initiate step was previously unaudited; add `TELEGRAM_SESSION_LINK_INITIATED` to `AuditAction` and call `withAudit` with an empty mutation callback.
+- **MMR stale-diff false positives accumulate**: After 12 rounds, MMR channels repeatedly re-flagged already-fixed issues due to caching. Document each confirmed false positive in `AGENTS.md > Known False Positives` with the round number — it signals to human reviewers that the finding is known and prevents re-analysis.
+
 ## 2026-05-21 (Task 2.8)
 
 - **Deferred ACs must be documented in both AGENTS.md and code**: When a dashboard acceptance criterion (e.g., AC-8 managed-user Confirm/Skip card) is explicitly deferred, add an entry to `## Known Design Decisions` in AGENTS.md and a short comment above the interim implementation. Without both, MMR reviewers will flag it as a P1 missing feature every round.
 - **Use `Math.floor`, not `Math.round`, for full-star display**: `Math.round(4.5)` renders 5 full stars for an average that hasn't quite reached 5, misleading users. Floor ensures only a complete star is filled; the numeric label provides precision.
 - **Extract date-boundary helpers to `lib/shared/date.ts`**: Computing `nowUtcMidnight` inline in multiple page files leads to duplication flagged by multi-channel reviewers. A single `utcMidnightToday()` export is the canonical source of truth and can be tested in isolation.
 - **Capture a single `now = new Date()` at the top of each service function**: Multiple `new Date()` calls within one async function risk inconsistent boundaries if a millisecond boundary is crossed mid-execution. One `const now = new Date()` passed through all helpers eliminates the race and is idiomatic.
+
+## 2026-05-22 (Task 3.3)
+
+- **Split catch scope after Telegram send**: Only catch Telegram send failures; persist `telegramMessageId` outside the try-catch so a DB failure after confirmed delivery throws rather than silently offering MANUAL_FALLBACK. This prevents data loss when Telegram succeeds but the follow-up write fails.
+- **Advisory lock for duplicate-send race**: `pg_try_advisory_xact_lock(key1::int4, key2::int4)` inside a Prisma `$transaction` with `(tx as any).$queryRaw` fully closes the READ COMMITTED window for concurrent duplicate sends. Hash `userId:vendorId:messageText` with SHA-256 and use the first two 32-bit words as lock keys.
+- **Type assertion on `$queryRaw` result, not generic arg**: Casting via `(tx as any).$queryRaw<T>(...)` fails TypeScript (`error TS2347`). Instead use `(await (tx as any).$queryRaw(...)) as T` — the assertion moves to the result expression.
+- **Trailing-zero stripping in composeMessage**: `new Decimal('5.000').toString()` gives `'5.000'`; wrap with `new Decimal(i.vialSizeMg.toString()).toString()` to strip normalized decimals for human-readable messages.
+- **`send_state_indeterminate` guard**: Detect DRAFT orders where `messageText` is set but `telegramMessageId` and `sendMethod` are both null — indicates a crash after Telegram success but before the pre-write. Throw `send_state_indeterminate` to block re-send rather than silently duplicating the message.

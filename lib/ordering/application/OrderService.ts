@@ -3,13 +3,14 @@ import Decimal from 'decimal.js';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
+import { PrismaAuditRepo } from '@/lib/audit/infrastructure/PrismaAuditRepo';
 import { ITEM_FORMS, VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
 import type { OrderLineItemInput, SendMethod } from '@/lib/ordering/domain/types';
 import { sendTelegramMessage } from '@/lib/ordering/infrastructure/MTProtoClient';
 import { getDecryptedSession, buildFallbackDeepLink } from './TelegramAuthService';
 import { findCompoundsByIds } from '@/lib/reference/infrastructure/CompoundRepo';
 
-type OrderWithDetails = Prisma.OrderGetPayload<{
+type OrderForSend = Prisma.OrderGetPayload<{
   include: {
     vendor: true;
     items: { include: { compound: { select: { name: true } } } };
@@ -196,7 +197,7 @@ export async function sendOrder(
   orderId: string,
   force = false
 ): Promise<SendOrderResult> {
-  const order: OrderWithDetails | null = await prisma.order.findFirst({
+  const order: OrderForSend | null = await prisma.order.findFirst({
     where: { id: orderId, userId },
     include: {
       vendor: true,
@@ -368,4 +369,133 @@ export async function sendOrder(
     fallbackText: messageText,
     fallbackDeepLink: buildFallbackDeepLink(order.vendor.telegramUsername),
   };
+}
+
+// ---------------------------------------------------------------------------
+// State machine helpers
+// ---------------------------------------------------------------------------
+
+const TERMINAL_STATUSES = ['RECEIVED', 'CANCELLED'] as const;
+export const NON_TERMINAL_STATUSES = ['DRAFT', 'SENT', 'CONFIRMED', 'PAYMENT_SENT', 'STALE'] as const;
+const STALE_ORDER_THRESHOLD_DAYS = 14;
+
+export interface OrderSummary {
+  id: string;
+  status: string;
+  vendorName: string;
+  itemCount: number;
+  createdAt: Date;
+  sentAt: Date | null;
+  cancelledAt: Date | null;
+  staleFlaggedAt: Date | null;
+}
+
+export async function cancelOrder(userId: string, orderId: string): Promise<void> {
+  const order = await prisma.order.findFirst({ where: { id: orderId, userId } });
+  if (!order) throw new Error('order_not_found');
+  if ((TERMINAL_STATUSES as readonly string[]).includes(order.status)) {
+    throw new Error('invalid_order_transition');
+  }
+  const now = new Date();
+  await withAudit(
+    async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: { id: orderId, userId, status: { notIn: [...TERMINAL_STATUSES] } },
+        data: { status: 'CANCELLED', cancelledAt: now, cancelledByUserId: userId },
+      });
+      if (count === 0) throw new Error('invalid_order_transition');
+    },
+    () => ({
+      actorUserId: userId,
+      category: 'Order' as const,
+      action: 'ORDER_CANCELLED' as const,
+      resourceId: orderId,
+      resourceType: 'Order',
+      oldValues: { status: order.status },
+      newValues: { status: 'CANCELLED' },
+    })
+  );
+}
+
+// markOrdersStale is a system-level cron operation (ADR-012, POST /api/cron/stale-orders).
+// It intentionally queries orders across all users — approved exception in AGENTS.md.
+// Each per-order updateMany includes both id AND userId for defence-in-depth, and audit
+// events are only written for rows where count === 1 (guarding against TOCTOU races where
+// the order status changed between the initial findMany and the transaction).
+export async function markOrdersStale(now: Date): Promise<number> {
+  const cutoff = new Date(now.getTime() - STALE_ORDER_THRESHOLD_DAYS * 24 * 60 * 60 * 1000);
+  const staleOrders = await prisma.order.findMany({
+    where: { status: 'SENT', sentAt: { lt: cutoff }, staleFlaggedAt: null },
+    select: { id: true, userId: true },
+  });
+  if (staleOrders.length === 0) return 0;
+
+  let actuallyStaled = 0;
+  await prisma.$transaction(async (tx) => {
+    for (const order of staleOrders) {
+      const { count } = await tx.order.updateMany({
+        where: { id: order.id, userId: order.userId, status: 'SENT' },
+        data: { status: 'STALE', staleFlaggedAt: now },
+      });
+      if (count === 1) {
+        actuallyStaled++;
+        await PrismaAuditRepo.create(tx, {
+          actorUserId: 'SYSTEM',
+          subjectUserId: order.userId,
+          category: 'Order',
+          action: 'ORDER_MARKED_STALE',
+          resourceId: order.id,
+          resourceType: 'Order',
+          oldValues: { status: 'SENT' },
+          newValues: { status: 'STALE' },
+        });
+      }
+    }
+  });
+  return actuallyStaled;
+}
+
+export async function getStaleOrderCount(userId: string): Promise<number> {
+  return prisma.order.count({ where: { userId, status: 'STALE' } });
+}
+
+export async function listOrders(userId: string): Promise<OrderSummary[]> {
+  const orders = await prisma.order.findMany({
+    where: { userId },
+    include: {
+      vendor: { select: { name: true } },
+      items: { select: { id: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  return orders.map((o) => ({
+    id: o.id,
+    status: o.status,
+    vendorName: o.vendor.name,
+    itemCount: o.items.length,
+    createdAt: o.createdAt,
+    sentAt: o.sentAt,
+    cancelledAt: o.cancelledAt,
+    staleFlaggedAt: o.staleFlaggedAt,
+  }));
+}
+
+export type OrderWithDetails = Prisma.OrderGetPayload<{
+  include: {
+    vendor: { select: { name: true; telegramUsername: true } };
+    items: { include: { compound: { select: { name: true } } } };
+  };
+}>;
+
+export async function getOrderWithDetails(
+  userId: string,
+  orderId: string
+): Promise<OrderWithDetails | null> {
+  return prisma.order.findFirst({
+    where: { id: orderId, userId },
+    include: {
+      vendor: { select: { name: true, telegramUsername: true } },
+      items: { include: { compound: { select: { name: true } } } },
+    },
+  });
 }

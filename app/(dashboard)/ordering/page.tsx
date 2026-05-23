@@ -14,12 +14,20 @@ export default async function OrderingPage() {
     <main className="max-w-2xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Vendors</h1>
-        <Link
-          href="/ordering/new"
-          className="rounded-md bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 transition-colors"
-        >
-          + Add Vendor
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/ordering/orders"
+            className="text-sm font-medium text-indigo-600 hover:underline"
+          >
+            Order History
+          </Link>
+          <Link
+            href="/ordering/new"
+            className="rounded-md bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 transition-colors"
+          >
+            + Add Vendor
+          </Link>
+        </div>
       </div>
 
       {vendors.length === 0 ? (
