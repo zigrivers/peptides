@@ -83,7 +83,7 @@ export async function requestDeletionAction(
     const result = await requestManagedUserDeletion(session.user.id, managedUserId, confirmEmail);
     const dateStr = result.scheduledFor.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
     revalidatePath('/admin', 'layout');
-    return { success: `Deletion scheduled for ${dateStr}. A data export has been emailed to you.` };
+    return { success: `Deletion scheduled for ${dateStr} (UTC). A data export has been emailed to you.` };
   } catch (err) {
     if (err instanceof Error && err.message === 'managed_user_not_found') {
       return { error: 'User not found.' };
@@ -96,6 +96,9 @@ export async function requestDeletionAction(
     }
     if (err instanceof Error && err.message === 'export_email_failed') {
       return { error: 'Failed to deliver data export email. Deletion aborted — please try again.' };
+    }
+    if (err instanceof Error && err.message === 'export_too_large') {
+      return { error: 'Data export exceeds the 20MB email limit. Contact support for a manual export.' };
     }
     return { error: 'Something went wrong.' };
   }

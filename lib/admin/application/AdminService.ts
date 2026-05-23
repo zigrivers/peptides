@@ -360,13 +360,21 @@ export async function requestManagedUserDeletion(
 
   // Export-first: generate and synchronously deliver the export before any scheduling.
   // If email delivery fails, we throw before the DB write so no deletion is scheduled.
+  // Email language deliberately avoids claiming scheduling has succeeded — that
+  // happens in the transaction below; the admin only sees confirmation in the UI.
   const exportJson = await generateManagedUserExport(managedUserId, managedUser.email);
+  const exportBuffer = Buffer.from(exportJson);
+  // Resend hard limit is ~25MB for attachments; bail early to surface a clear error
+  if (exportBuffer.byteLength > 20 * 1024 * 1024) {
+    console.error('[requestManagedUserDeletion] export too large:', exportBuffer.byteLength);
+    throw new Error('export_too_large');
+  }
   const { error: emailError } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: powerUser.email,
-    subject: `Data export for ${managedUser.email} — before account deletion`,
-    html: `<p>The deletion of managed user <strong>${managedUser.email}</strong> has been scheduled. Their data export is attached.</p>`,
-    attachments: [{ filename: `export-${managedUserId}.json`, content: Buffer.from(exportJson).toString('base64') }],
+    subject: `Data export for ${managedUser.email} — deletion requested`,
+    html: `<p>You have requested deletion of managed user <strong>${managedUser.email}</strong>. Their full data export is attached for your records. The deletion will be confirmed in the admin UI once scheduling completes.</p>`,
+    attachments: [{ filename: `export-${managedUserId}.json`, content: exportBuffer.toString('base64') }],
   });
   if (emailError) {
     console.error('[requestManagedUserDeletion] export email failed:', emailError.message);
