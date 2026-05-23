@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import { resend, FROM_ADDRESS } from '@/lib/shared/email';
+import { generateUserDataExport, INLINE_EXPORT_MAX_BYTES } from '@/lib/shared/userDataExport';
 import { PasswordResetRepo } from '@/lib/auth/infrastructure/PasswordResetRepo';
 
 export type InviteStatus = 'ACTIVE' | 'DEACTIVATED' | 'DELETION_PENDING' | 'INVITED' | 'INVITE_EXPIRED';
@@ -252,104 +253,11 @@ export async function triggerManagedUserPasswordReset(
   });
 }
 
+// Local alias kept for call-site stability. The implementation moved to a
+// shared module (Task 6.2) so the user-self-serve export and the admin
+// deletion export use the same exhaustive helper.
 async function generateManagedUserExport(managedUserId: string, managedUserEmail: string): Promise<string> {
-  // Exhaustive export of every user-owned table that cascades on user deletion
-  // (per prisma/schema.prisma onDelete: Cascade relations). Secret fields excluded.
-  const [
-    protocols,
-    cycles,
-    doseLogs,
-    outcomeLogs,
-    vials,
-    vendors,
-    orders,
-    reminderPreferences,
-    pushSubscriptions,
-    telegramSessions,
-    emailChangeRequests,
-    dataExportRequests,
-    invitesSent,
-  ] = await Promise.all([
-    prisma.protocol.findMany({ where: { userId: managedUserId } }),
-    prisma.cycle.findMany({ where: { userId: managedUserId } }),
-    prisma.doseLog.findMany({ where: { userId: managedUserId } }),
-    prisma.outcomeLog.findMany({
-      where: { userId: managedUserId },
-      include: { protocolRatings: true },
-    }),
-    prisma.vial.findMany({ where: { userId: managedUserId } }),
-    prisma.vendor.findMany({
-      where: { userId: managedUserId },
-      include: {
-        products: true,
-        // Only include orders owned by this user — Order has its own userId so
-        // a vendor MAY (defensively) have orders from other users
-        orders: { where: { userId: managedUserId }, include: { items: true } },
-      },
-    }),
-    // Top-level Order query as a backstop in case any Order rows have userId set
-    // but vendor ownership has diverged — Order is its own cascade target.
-    prisma.order.findMany({ where: { userId: managedUserId }, include: { items: true } }),
-    prisma.reminderPreference.findMany({ where: { userId: managedUserId } }),
-    // PushSubscription `auth` and `p256dh` are cryptographic keys for sending notifications — exclude
-    prisma.pushSubscription.findMany({
-      where: { userId: managedUserId },
-      select: { id: true, userId: true, endpoint: true, createdAt: true },
-    }),
-    prisma.telegramSession.findMany({
-      where: { userId: managedUserId },
-      select: { id: true, userId: true, isActive: true, lastConnectedIp: true, updatedAt: true },
-    }),
-    prisma.emailChangeRequest.findMany({
-      where: { userId: managedUserId },
-      select: { id: true, userId: true, oldEmail: true, newEmail: true, status: true, expiresAt: true, createdAt: true, verifiedAt: true, appliedAt: true, revertibleUntil: true },
-    }),
-    // DataExportRequest.downloadUrl may be a signed URL — exclude
-    prisma.dataExportRequest.findMany({
-      where: { userId: managedUserId },
-      select: { id: true, userId: true, format: true, status: true, expiresAt: true, createdAt: true },
-    }),
-    // Invite.tokenHash is a credential — exclude
-    prisma.invite.findMany({
-      where: { powerUserId: managedUserId },
-      select: { id: true, email: true, powerUserId: true, status: true, expiresAt: true, createdAt: true, acceptedAt: true, acceptedByUserId: true },
-    }),
-  ]);
-  // Original Invite that created this user account (acceptedByUserId match) and full audit history.
-  const [originalInvite, auditEvents] = await Promise.all([
-    prisma.invite.findFirst({
-      where: { acceptedByUserId: managedUserId },
-      select: { id: true, email: true, powerUserId: true, status: true, expiresAt: true, createdAt: true, acceptedAt: true, acceptedByUserId: true },
-    }),
-    prisma.auditEvent.findMany({
-      where: { OR: [{ subjectUserId: managedUserId }, { actorUserId: managedUserId }] },
-      orderBy: { timestamp: 'asc' },
-    }),
-  ]);
-  return JSON.stringify(
-    {
-      userId: managedUserId,
-      email: managedUserEmail,
-      exportedAt: new Date().toISOString(),
-      originalInvite,
-      protocols,
-      cycles,
-      doseLogs,
-      outcomeLogs,
-      vials,
-      vendors,
-      orders,
-      reminderPreferences,
-      pushSubscriptions,
-      telegramSessions,
-      emailChangeRequests,
-      dataExportRequests,
-      invitesSent,
-      auditEvents,
-    },
-    null,
-    2
-  );
+  return generateUserDataExport(managedUserId, managedUserEmail);
 }
 
 export interface DeletionRequestResult {
@@ -390,7 +298,7 @@ export async function requestManagedUserDeletion(
   const exportBuffer = Buffer.from(exportJson);
   // Resend hard limit is 25MB for attachments. Base64 encoding inflates size by
   // ~33%, so the raw payload threshold is ~18MB to stay safely under the limit.
-  if (exportBuffer.byteLength > 17 * 1024 * 1024) {
+  if (exportBuffer.byteLength > INLINE_EXPORT_MAX_BYTES) {
     console.error('[requestManagedUserDeletion] export too large:', exportBuffer.byteLength);
     throw new Error('export_too_large');
   }
