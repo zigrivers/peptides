@@ -52,6 +52,14 @@ export default auth((req: NextRequest & { auth: { user?: { id?: string; status?:
     !pathname.startsWith('/settings') &&
     !pathname.startsWith('/api/auth')
   ) {
+    // API calls return JSON 403, mirroring the unauthenticated-API handling
+    // below. Only browser navigations get the /settings redirect.
+    if (pathname.startsWith('/api/')) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Account is scheduled for deletion' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
     return NextResponse.redirect(new URL('/settings', req.nextUrl.origin));
   }
 
