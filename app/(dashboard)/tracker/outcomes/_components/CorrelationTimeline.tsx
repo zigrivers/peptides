@@ -51,6 +51,14 @@ export function CorrelationTimeline({ buckets }: Props) {
         aria-label={`Dose events and outcome rating for the past ${buckets.length} days`}
         className="w-full h-40 border border-gray-200 rounded bg-gray-50"
       >
+        {/*
+          `preserveAspectRatio="none"` lets the chart stretch responsively to
+          the container width but would otherwise distort stroked geometry
+          (line thickness, circle aspect). `vector-effect: non-scaling-stroke`
+          on stroked shapes keeps the line widths uniform, and the data-point
+          circles are rendered as small ellipses-by-design to share the
+          stretching with the polyline.
+        */}
         {/* Dose-event bars */}
         {buckets.map((b, i) => {
           const x = i * barWidth;
@@ -68,10 +76,24 @@ export function CorrelationTimeline({ buckets }: Props) {
           );
         })}
         {/* Divider between bar area and line area */}
-        <line x1={0} y1={BAR_AREA_HEIGHT} x2={width} y2={BAR_AREA_HEIGHT} stroke="#d1d5db" strokeWidth={0.2} />
+        <line
+          x1={0}
+          y1={BAR_AREA_HEIGHT}
+          x2={width}
+          y2={BAR_AREA_HEIGHT}
+          stroke="#d1d5db"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
         {/* Outcome rating line */}
         {ratingPoints.length > 1 && (
-          <polyline points={polylinePoints} fill="none" stroke="#10b981" strokeWidth={0.4} />
+          <polyline
+            points={polylinePoints}
+            fill="none"
+            stroke="#10b981"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+          />
         )}
         {ratingPoints.map((p) => (
           <circle key={`pt-${p.date}`} cx={p.x} cy={p.y} r={0.6} fill="#10b981" />

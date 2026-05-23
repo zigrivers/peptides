@@ -140,12 +140,17 @@ export const OutcomeLogRepo = {
       });
     }
     if (input.protocolRatings.length > 0) {
+      // `skipDuplicates` plus the DB-level unique index on
+      // (outcomeLogId, protocolId) guards against concurrent submissions
+      // both inserting the same rating after passing the delete step.
+      // The losing transaction silently no-ops; the winning rating wins.
       await client.protocolRating.createMany({
         data: input.protocolRatings.map((r) => ({
           outcomeLogId: upserted.id,
           protocolId: r.protocolId,
           rating: r.rating,
         })),
+        skipDuplicates: true,
       });
     }
     return { id: upserted.id, created: existingForAudit === null };

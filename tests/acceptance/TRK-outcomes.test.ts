@@ -236,12 +236,15 @@ describe('US-TRK-06: upsertOutcome', () => {
       ],
     });
 
-    expect(mockProtocolRatingCreateMany).toHaveBeenCalledWith({
-      data: [
-        { outcomeLogId: 'ol-2', protocolId: 'p-1', rating: 4 },
-        { outcomeLogId: 'ol-2', protocolId: 'p-2', rating: 3 },
-      ],
-    });
+    expect(mockProtocolRatingCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          { outcomeLogId: 'ol-2', protocolId: 'p-1', rating: 4 },
+          { outcomeLogId: 'ol-2', protocolId: 'p-2', rating: 3 },
+        ],
+        skipDuplicates: true,
+      })
+    );
   });
 
   it('AC-8c: emits one PROTOCOL_RATED audit per submitted rating', async () => {
@@ -282,9 +285,12 @@ describe('US-TRK-06: upsertOutcome', () => {
       ],
     });
 
-    expect(mockProtocolRatingCreateMany).toHaveBeenCalledWith({
-      data: [{ outcomeLogId: 'ol-4', protocolId: 'p-1', rating: 5 }],
-    });
+    expect(mockProtocolRatingCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [{ outcomeLogId: 'ol-4', protocolId: 'p-1', rating: 5 }],
+        skipDuplicates: true,
+      })
+    );
     const ratedCalls = mockAuditCreate.mock.calls.filter(
       (call) => call[0]?.data?.action === 'PROTOCOL_RATED'
     );
