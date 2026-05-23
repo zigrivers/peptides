@@ -1,5 +1,6 @@
-// v2: bumped from v1 to purge previously cached authenticated routes (/ and /tracker).
-const CACHE_NAME = 'peptides-shell-v2';
+// v3: bumped to invalidate caches when push + notificationclick handlers were
+// added in Task 5.1 (no behavioural change to caching strategy itself).
+const CACHE_NAME = 'peptides-shell-v3';
 // Only cache the offline fallback page — never cache authenticated routes.
 const OFFLINE_URL = '/offline.html';
 
@@ -59,6 +60,47 @@ self.addEventListener('sync', (event) => {
   if (event.tag === 'dose-sync') {
     event.waitUntil(syncDoses());
   }
+});
+
+// --- Web Push (Task 5.1) ---
+// Push payload contract (Task 5.2 dispatcher):
+// {
+//   "title": string,            // notification title
+//   "body": string,              // notification body — never include peptide names or dose values per operations §7
+//   "url"?: string,              // click destination, defaults to /tracker
+//   "tag"?: string               // dedupe key, default "peptides-reminder"
+// }
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { title: 'Peptides reminder', body: 'Open the app to view your reminders.' };
+  }
+  const title = payload.title || 'Peptides reminder';
+  const options = {
+    body: payload.body || '',
+    icon: '/icon.svg',
+    badge: '/icon.svg',
+    tag: payload.tag || 'peptides-reminder',
+    data: { url: payload.url || '/tracker' },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || '/tracker';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      for (const win of windows) {
+        if (win.url.endsWith(target) && 'focus' in win) return win.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+      return null;
+    })
+  );
 });
 
 function openOfflineDB() {
