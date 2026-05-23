@@ -1,7 +1,7 @@
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Developer/peptides
+workdir: /Users/kenallred/Documents/dev-projects/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -401,7 +401,7 @@ A subjective daily wellbeing record.
 codex
 I’ll use the `superpowers:using-superpowers` guidance first, then read the PRD and compare it against the supplied domain model text for coverage, language, and DDD modeling issues.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && sed -n '1,260p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && sed -n '1,260p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 ---
 name: using-superpowers
@@ -784,7 +784,7 @@ Manages multi-compound stacks for the Power User and their managed users. Replac
 codex
 I have the top-level PRD scope and the model text. I’m going deeper into the feature specs now so the findings are tied to concrete PRD requirements instead of just the summary table.
 exec
-/bin/zsh -lc "sed -n '220,520p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '220,520p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 - Protocol start date in the past → allowed; no back-fill of historical dose logs
 - Clone of a paused or deactivated protocol → allowed; clone starts as active (with user-set start date)
@@ -1089,7 +1089,7 @@ When the user opens the order builder, the app calculates days-to-depletion for 
 The wallet address and payment amount must be visible on screen at the moment the user clicks "Mark payment sent." This step cannot be bypassed. If no wallet address has been entered, the "Mark payment sent" button is greyed with tooltip: "Enter vendor's wallet address first."
 
 exec
-/bin/zsh -lc "sed -n '520,920p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '520,920p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 The wallet address and payment amount must be visible on screen at the moment the user clicks "Mark payment sent." This step cannot be bypassed. If no wallet address has been entered, the "Mark payment sent" button is greyed with tooltip: "Enter vendor's wallet address first."
 
@@ -1494,7 +1494,7 @@ Specific tooling is a tech-stack decision. All monitoring tooling must fall with
 > **Legal gate:** Before Phase 2 ships, complete the Phase 2 legal review (see §7.5) covering managed user data stewardship obligations.
 
 exec
-/bin/zsh -lc 'rg -n "Must Have|Should Have|Acceptance|domain|entity|data|audit|export|reminder|PWA|password|delete|setup|Telegram|Coinbase|inventory|correlation|site|wizard|offline|manual fallback" docs/plan.md' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc 'rg -n "Must Have|Should Have|Acceptance|domain|entity|data|audit|export|reminder|PWA|password|delete|setup|Telegram|Coinbase|inventory|correlation|site|wizard|offline|manual fallback" docs/plan.md' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 15:**User group:** Advanced biohackers who self-direct multi-compound protocols (peptides, and in the near term TRT/anabolics) using grey-market vendors operating via Telegram.
 17:**Pain:** Each of the four critical weekly tasks — researching a compound, placing an order, reconstituting a vial, and logging a dose — requires a different tool (browser/Obsidian, Telegram/PDF, a calculator, a spreadsheet). None of these tools know about each other. The user is the integration layer, and errors at any step translate to real harm: wrong reconstitution dose, lost crypto payment, or a missed injection.
@@ -1680,7 +1680,7 @@ exec
 codex
 The main gap pattern is now clear: the model has the four pillars, but it mostly captures static records and misses several workflow/audit entities the PRD treats as launch blockers. I’m checking the remaining PRD sections for account/export/PWA/security requirements before I return the findings JSON.
 exec
-/bin/zsh -lc "sed -n '920,1010p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '920,1010p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 > **Legal gate:** Before Phase 2 ships, complete the Phase 2 legal review (see §7.5) covering managed user data stewardship obligations.
 
@@ -1756,7 +1756,7 @@ exec
 *This PRD is the requirements baseline. Architecture decisions (`tech-stack`), user stories, and implementation planning all reference this document. If a requirement changes, update this document first — not the downstream artifact.*
 
 exec
-/bin/zsh -lc "sed -n '150,210p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '150,210p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 ---
 
@@ -1821,7 +1821,7 @@ Manages multi-compound stacks for the Power User and their managed users. Replac
 **Protocol status lifecycle:** active | paused | completed | deactivated
 
 exec
-/bin/zsh -lc "sed -n '600,680p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '600,680p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 - Deactivating a managed user with active protocols: protocols are not auto-deleted; admin sees a warning "This user has N active protocols. Deactivating their account will prevent them from logging doses. Continue?"
 

@@ -1,7 +1,7 @@
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Developer/peptides
+workdir: /Users/kenallred/Documents/dev-projects/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -880,7 +880,7 @@ This log tracks the significant architectural decisions made for the Peptides ap
 codex
 I’ll audit the repo artifacts end-to-end and keep the final response to the requested JSON array only. First I’m loading the relevant workflow guidance, then I’ll map PRD, stories, tasks, and tests.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 ---
 name: using-superpowers
@@ -1105,7 +1105,7 @@ Using `superpowers:using-superpowers` for required workflow setup and `coding-sk
   • Identify coverage gaps and orphans
   • Return JSON findings only
 exec
-/bin/zsh -lc 'find docs -maxdepth 4 -type f | sort' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc 'find docs -maxdepth 4 -type f | sort' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 docs/adrs/ADR-001-nextjs-monolith.md
 docs/adrs/ADR-002-postgresql-prisma.md
@@ -1230,7 +1230,7 @@ docs/validation/traceability-matrix/gemini-review.json
 docs/vision.md
 
 exec
-/bin/zsh -lc "rg --files -g '"'!*node_modules*'"' -g '"'!*.png'"' -g '"'!*.jpg'"' -g '"'!*.jpeg'"' -g '"'!*.gif'"' -g '"'!*.ico'"'" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "rg --files -g '"'!*node_modules*'"' -g '"'!*.png'"' -g '"'!*.jpg'"' -g '"'!*.jpeg'"' -g '"'!*.gif'"' -g '"'!*.ico'"'" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 CLAUDE.md
 AGENTS.md
@@ -1380,7 +1380,7 @@ tests/acceptance/REC-reconstitution.test.ts
 tests/acceptance/REF-reference.test.ts
 
 exec
-/bin/zsh -lc 'find tests -maxdepth 5 -type f | sort' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc 'find tests -maxdepth 5 -type f | sort' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 tests/acceptance/ADM-admin.test.ts
 tests/acceptance/AUT-auth.test.ts
@@ -1401,7 +1401,7 @@ tests/evals/security.test.ts
 tests/evals/structure.test.ts
 
 exec
-/bin/zsh -lc "find . -maxdepth 4 \\( -iname '*story*' -o -iname '*stories*' -o -iname '*task*' -o -iname '*acceptance*' -o -iname '*prd*' -o -iname '*plan*' \\) -print | sort" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "find . -maxdepth 4 \\( -iname '*story*' -o -iname '*stories*' -o -iname '*task*' -o -iname '*acceptance*' -o -iname '*prd*' -o -iname '*plan*' \\) -print | sort" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 ./.scaffold/tmp/prd-innovation-prompt.md
 ./.scaffold/tmp/prd-review-prompt.md
@@ -1424,7 +1424,7 @@ exec
 codex
 The project has explicit traceability artifacts: `docs/plan.md`, `docs/user-stories.md`, `docs/implementation-plan.md`, `docs/story-tests-map.md`, and acceptance tests. I’m reading those next and comparing them against the architecture/domain material included in the prompt.
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 <!-- scaffold:create-prd v1 2026-05-20 -->
 <!-- scaffold:review-prd v1 2026-05-20 -->
@@ -1688,9 +1688,9 @@ Manages multi-compound stacks for the Power User and their managed users. Replac
 - Per-compound site history (peptides with route requirements respect the correct site group)
 
 exec
-/bin/zsh -lc "sed -n '1,320p' docs/user-stories.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,320p' docs/user-stories.md" in /Users/kenallred/Documents/dev-projects/peptides
 exec
-/bin/zsh -lc "sed -n '1,360p' docs/implementation-plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,360p' docs/implementation-plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # Implementation Plan
 
@@ -2153,7 +2153,7 @@ exec
 - **AC 1 (Invite):** I can enter a name and email to send an invite link (valid for 72 hours).
 
 exec
-/bin/zsh -lc "sed -n '1,320p' docs/story-tests-map.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,320p' docs/story-tests-map.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # Story Tests Traceability Matrix
 
@@ -2219,7 +2219,7 @@ This document maps user story acceptance criteria to their corresponding test ca
 - **Coverage**: 100%
 
 exec
-/bin/zsh -lc "sed -n '261,620p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '261,620p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 - On each dose log entry, app suggests the next site in rotation based on history (round-robin)
 - User can override the suggestion before confirming
@@ -2583,7 +2583,7 @@ Triggered on first login after account creation (or invite acceptance for manage
 | Step | Power User | Delegated Participant |
 
 exec
-/bin/zsh -lc "sed -n '321,760p' docs/user-stories.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '321,760p' docs/user-stories.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 - **AC 2 (Access):** Managed users see a simplified dashboard with only their own schedule and reference info.
 
@@ -2696,9 +2696,9 @@ exec
 - `US-ADM-01` (Managed User) -> depends on `US-AUT-03` (Auth)
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/reviews/user-stories/coverage.json" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/reviews/user-stories/coverage.json" in /Users/kenallred/Documents/dev-projects/peptides
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/reviews/implementation-plan/task-coverage.json" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/reviews/implementation-plan/task-coverage.json" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 {
   "REQ-001": ["US-REF-01"],
@@ -2762,7 +2762,7 @@ exec
 codex
 The generated coverage files claim full coverage, but the raw matrix already omits several stories/ACs while the implementation-plan coverage claims mappings that the task text does not always include. I’m checking the acceptance test files to separate documentation-only gaps from actual test-map gaps.
 exec
-/bin/zsh -lc "sed -n '621,1040p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '621,1040p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 |------|------------|----------------------|
 | 1 | "Browse your first compound" → reference catalog with "Start protocol" shortcut | "Here's your schedule" → shows protocols configured by admin (read-only) |
@@ -3137,7 +3137,7 @@ Specific tooling is a tech-stack decision. All monitoring tooling must fall with
 *This PRD is the requirements baseline. Architecture decisions (`tech-stack`), user stories, and implementation planning all reference this document. If a requirement changes, update this document first — not the downstream artifact.*
 
 exec
-/bin/zsh -lc "sed -n '1,260p' tests/acceptance/TRK-tracker.test.ts" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' tests/acceptance/TRK-tracker.test.ts" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 import { describe, it } from 'vitest';
 
@@ -3239,7 +3239,7 @@ describe('US-TRK-08: Manage Cycles', () => {
 });
 
 exec
-/bin/zsh -lc "sed -n '1,260p' tests/acceptance/ORD-ordering.test.ts" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' tests/acceptance/ORD-ordering.test.ts" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 import { describe, it } from 'vitest';
 
@@ -3304,7 +3304,7 @@ describe('US-ORD-07: Track Order Status', () => {
 });
 
 exec
-/bin/zsh -lc "sed -n '1,260p' tests/acceptance/AUT-auth.test.ts" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' tests/acceptance/AUT-auth.test.ts" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 import { describe, it } from 'vitest';
 
@@ -3361,7 +3361,7 @@ describe('US-AUT-05: PWA & Offline Support', () => {
 });
 
 exec
-/bin/zsh -lc "sed -n '1,260p' tests/acceptance/REF-reference.test.ts" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' tests/acceptance/REF-reference.test.ts" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 import { describe, it } from 'vitest';
 
@@ -3412,7 +3412,7 @@ describe('US-REF-02: Search & Browse Catalog', () => {
 });
 
 exec
-/bin/zsh -lc "sed -n '1,260p' tests/acceptance/REC-reconstitution.test.ts" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' tests/acceptance/REC-reconstitution.test.ts" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 import { describe, it } from 'vitest';
 
@@ -3456,7 +3456,7 @@ describe('US-REC-02: Record Reconstitution', () => {
 });
 
 exec
-/bin/zsh -lc "sed -n '1,260p' tests/acceptance/ADM-admin.test.ts" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' tests/acceptance/ADM-admin.test.ts" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 import { describe, it } from 'vitest';
 
@@ -3483,7 +3483,7 @@ describe('US-ADM-02: Monitor Adherence', () => {
 });
 
 exec
-/bin/zsh -lc "rg -n \"US-[A-Z]+-[0-9]+|REQ-[0-9]+|it\\.todo|it\\(\" docs tests -g '"'!docs/audits/**'"'" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "rg -n \"US-[A-Z]+-[0-9]+|REQ-[0-9]+|it\\.todo|it\\(\" docs tests -g '"'!docs/audits/**'"'" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 tests/acceptance/ADM-admin.test.ts:4: * Story: US-ADM-01 - Create Managed User
 tests/acceptance/ADM-admin.test.ts:6:describe('US-ADM-01: Create Managed User', () => {
@@ -4245,7 +4245,7 @@ docs/reviews/implementation-plan/codex-review.json:1656:- **Story**: US-ORD-04
 docs/reviews/implementation-plan/codex-review.json:1667:- **Story**: US-ADM-02, US-ADM-03
 docs/reviews/implementation-plan/codex-review.json:1674:- **Story**: US-TRK-03, US-TRK-05
 docs/reviews/implementation-plan/codex-review.json:1681:- **Story**: US-AUT-02
-docs/reviews/implementation-plan/codex-review.json:1813:/bin/zsh -lc 'rg -n "US-TRK-04|US-TRK-06|US-TRK-07|US-TRK-09|US-ORD-02|US-ORD-05|US-ORD-07|US-AUT-01|REC-02|Dose Reminder|Stale Order" docs/implementation-plan.md docs/system-architecture.md docs/user-stories.md docs/story-tests-map.md' in /Users/kenallred/Developer/peptides
+docs/reviews/implementation-plan/codex-review.json:1813:/bin/zsh -lc 'rg -n "US-TRK-04|US-TRK-06|US-TRK-07|US-TRK-09|US-ORD-02|US-ORD-05|US-ORD-07|US-AUT-01|REC-02|Dose Reminder|Stale Order" docs/implementation-plan.md docs/system-architecture.md docs/user-stories.md docs/story-tests-map.md' in /Users/kenallred/Documents/dev-projects/peptides
 docs/reviews/implementation-plan/codex-review.json:1817:docs/story-tests-map.md:34:| **US-REC-02** | AC-1 | creates vial record with expiry date | Integration | `tests/acceptance/REC-reconstitution.test.ts` |
 docs/reviews/implementation-plan/codex-review.json:1818:docs/story-tests-map.md:44:| **US-ORD-07** | AC-1 | transitions through state machine | Unit | `tests/acceptance/ORD-ordering.test.ts` |
 docs/reviews/implementation-plan/codex-review.json:1819:docs/story-tests-map.md:49:| **US-AUT-01** | AC-1 | guides power user through 3-step setup | E2E | `tests/acceptance/AUT-auth.test.ts` |
@@ -4397,7 +4397,7 @@ docs/reviews/review-ux.md:27:- **Trace:** PRD §5.6, US-AUT-01
 docs/reviews/review-ux.md:42:- **Issue:** Admin Panel (US-ADM-02) and Account Settings (Export/Delete) are missing from the hierarchy.
 
 exec
-/bin/zsh -lc "sed -n '1,220p' tests/evals/coverage.test.ts" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' tests/evals/coverage.test.ts" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
@@ -4416,7 +4416,7 @@ describe('Coverage Eval', () => {
 });
 
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/reviews/user-stories/requirements-index.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/reviews/user-stories/requirements-index.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # Requirements Index
 
@@ -4448,7 +4448,7 @@ exec
 | REQ-024 | PRD §8.7 | Monitoring: Telegram send failure alert; audit log integrity assertions |
 
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/reviews/implementation-plan/review-summary.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/reviews/implementation-plan/review-summary.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # Multi-Model Review Summary: Implementation Plan
 
@@ -4482,12 +4482,12 @@ exec
 - The addition of explicit Audit requirements to all Server Action tasks ensures PRD compliance.
 
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/validation/traceability-matrix/codex-review.json" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/validation/traceability-matrix/codex-review.json" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Developer/peptides
+workdir: /Users/kenallred/Documents/dev-projects/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -4708,7 +4708,7 @@ A single-use token for password recovery.
 codex
 One important issue is emerging: the traceability eval looks for `AC-\d+`, but the story file uses `AC 1` with a space, so the eval can pass without validating any acceptance criteria. I’m doing a concrete extraction now to list what is actually missing from the test map and acceptance placeholders.
 exec
-/bin/zsh -lc "node -e \"const fs=require('fs');const stories=fs.readFileSync('docs/user-stories.md','utf8');const map=fs.readFileSync('docs/story-tests-map.md','utf8');let current=null,storyAcs=[];stories.split(/\\n/).forEach((line,i)=>{const sm=line.match(/"'^### (US-[A-Z]+-'"\\d+):/);if(sm)current=sm[1];const am=line.match(/\\*\\*AC\\s+(\\d+)\\s*\\(/);if(current&&am)storyAcs.push({story:current,ac:'AC-'+am[1],loc:i+1});});let mapped=[],cur=null;for(const line of map.split(/\\n/)){const sm=line.match(/\\*\\*(US-[A-Z]+-\\d+)\\*\\*/);if(sm)cur=sm[1];const cells=line.split('|').map(s=>s.trim());if(cells.length>=5){const story=(cells[1].match(/US-[A-Z]+-\\d+/)||[])[0]||cur;const ac=(cells[2].match(/AC-\\d+/)||[])[0];if(story&&ac)mapped.push(story+':'+ac);}}const set=new Set(mapped);console.log('story AC count',storyAcs.length);console.log('mapped AC count',mapped.length);console.log('missing mapped ACs');for(const x of storyAcs)if("'!set.has(x.story+'"':'+x.ac))console.log(x.story+':'+x.ac+' line '+x.loc);console.log('stories with no mapped AC');for(const s of [...new Set(storyAcs.map(x=>x.story))])if("'![...set].some(k=>k.startsWith(s+'"':')))console.log(s);\"" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "node -e \"const fs=require('fs');const stories=fs.readFileSync('docs/user-stories.md','utf8');const map=fs.readFileSync('docs/story-tests-map.md','utf8');let current=null,storyAcs=[];stories.split(/\\n/).forEach((line,i)=>{const sm=line.match(/"'^### (US-[A-Z]+-'"\\d+):/);if(sm)current=sm[1];const am=line.match(/\\*\\*AC\\s+(\\d+)\\s*\\(/);if(current&&am)storyAcs.push({story:current,ac:'AC-'+am[1],loc:i+1});});let mapped=[],cur=null;for(const line of map.split(/\\n/)){const sm=line.match(/\\*\\*(US-[A-Z]+-\\d+)\\*\\*/);if(sm)cur=sm[1];const cells=line.split('|').map(s=>s.trim());if(cells.length>=5){const story=(cells[1].match(/US-[A-Z]+-\\d+/)||[])[0]||cur;const ac=(cells[2].match(/AC-\\d+/)||[])[0];if(story&&ac)mapped.push(story+':'+ac);}}const set=new Set(mapped);console.log('story AC count',storyAcs.length);console.log('mapped AC count',mapped.length);console.log('missing mapped ACs');for(const x of storyAcs)if("'!set.has(x.story+'"':'+x.ac))console.log(x.story+':'+x.ac+' line '+x.loc);console.log('stories with no mapped AC');for(const s of [...new Set(storyAcs.map(x=>x.story))])if("'![...set].some(k=>k.startsWith(s+'"':')))console.log(s);\"" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 story AC count 70
 mapped AC count 50
@@ -4745,7 +4745,7 @@ US-ADM-03
 US-AUT-04
 
 exec
-/bin/zsh -lc 'rg -n "US-TRK-04|US-TRK-05|US-TRK-06|US-TRK-07|US-TRK-09|US-ORD-02|US-ORD-05|US-ORD-06|US-ADM-03|US-AUT-04|US-REC-01|US-REC-02|US-ADM-01|US-AUT-01|US-AUT-03" docs/implementation-plan.md docs/story-tests-map.md tests/acceptance' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc 'rg -n "US-TRK-04|US-TRK-05|US-TRK-06|US-TRK-07|US-TRK-09|US-ORD-02|US-ORD-05|US-ORD-06|US-ADM-03|US-AUT-04|US-REC-01|US-REC-02|US-ADM-01|US-AUT-01|US-AUT-03" docs/implementation-plan.md docs/story-tests-map.md tests/acceptance' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 docs/story-tests-map.md:25:| **US-TRK-05** | AC-1 | logs all scheduled doses in one action | Integration | `tests/acceptance/TRK-tracker.test.ts` |
 docs/story-tests-map.md:30:| **US-REC-01** | AC-1 | calculates correct concentration for 5mg vial | Unit | `tests/acceptance/REC-reconstitution.test.ts` |
@@ -4777,7 +4777,7 @@ tests/acceptance/REC-reconstitution.test.ts:30: * Story: US-REC-02 - Record Reco
 tests/acceptance/REC-reconstitution.test.ts:32:describe('US-REC-02: Record Reconstitution', () => {
 
 exec
-/bin/zsh -lc "rg -n \"Task [0-9]\\.[0-9]|Story|Description|AC\" docs/implementation-plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "rg -n \"Task [0-9]\\.[0-9]|Story|Description|AC\" docs/implementation-plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 24:#### Task 1.1: Auth.js Infrastructure & Hardening
 25:- **Description**: Setup Auth.js v5 with standard adapter tables. Implement secure httpOnly cookies with 30-day rolling expiry.
@@ -4849,7 +4849,7 @@ exec
 120:- **AC**: Export link expires after 24h. All records scrubbed on deletion.
 
 exec
-/bin/zsh -lc 'rg -n "Stack overview|stack overview|vial inventory|expiry|Low Inventory|Running low|dashboard|export|CSV|same calendar day|editable|missed dose|not logged|silent|error state|monitoring|Sentry|Uptime|backup|accessibility|WCAG|performance|Lighthouse|k6|legal gate|Phase 2 legal|feature flag|DISABLE_ORDERING|disable" docs/user-stories.md docs/implementation-plan.md docs/story-tests-map.md' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc 'rg -n "Stack overview|stack overview|vial inventory|expiry|Low Inventory|Running low|dashboard|export|CSV|same calendar day|editable|missed dose|not logged|silent|error state|monitoring|Sentry|Uptime|backup|accessibility|WCAG|performance|Lighthouse|k6|legal gate|Phase 2 legal|feature flag|DISABLE_ORDERING|disable" docs/user-stories.md docs/implementation-plan.md docs/story-tests-map.md' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 docs/story-tests-map.md:24:| | AC-4 | shows warning if vial inventory is empty | Integration | `tests/acceptance/TRK-tracker.test.ts` |
 docs/story-tests-map.md:29:| | AC-3 | displays current week number on dashboard | Unit | `tests/acceptance/TRK-tracker.test.ts` |
@@ -4874,7 +4874,7 @@ docs/user-stories.md:373:- **AC 1 (Export):** I can request a full JSON export a
 docs/user-stories.md:387:- **AC 2 (Sessions):** Sessions use secure httpOnly cookies with 30-day rolling expiry.
 
 exec
-/bin/zsh -lc "rg -n \"it\\.todo|describe\\('US-|Negative:\" tests/acceptance" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "rg -n \"it\\.todo|describe\\('US-|Negative:\" tests/acceptance" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 tests/acceptance/ADM-admin.test.ts:6:describe('US-ADM-01: Create Managed User', () => {
 tests/acceptance/ADM-admin.test.ts:7:  it.todo('AC-1: sends invite link valid for 72 hours', () => {
@@ -4950,14 +4950,14 @@ tests/acceptance/REF-reference.test.ts:39:  it.todo('AC-1: filters catalog by na
 tests/acceptance/REF-reference.test.ts:44:  it.todo('AC-2: filters catalog by goal category', () => {
 
 exec
-/bin/zsh -lc "node -e \"const fs=require('fs');const plan=fs.readFileSync('docs/implementation-plan.md','utf8');const coverage=JSON.parse(fs.readFileSync('docs/reviews/implementation-plan/task-coverage.json','utf8'));const actual=new Set([...plan.matchAll(/US-[A-Z]+-\\d+/g)].map(m=>m[0]));const claimed=new Set(Object.keys(coverage));console.log('actual story refs', [...actual].sort().join(' '));console.log('claimed but not in plan refs', [...claimed].filter(s=>"'!actual.has(s)).sort().join('"' '));console.log('in plan but not claimed', [...actual].filter(s=>"'!claimed.has(s)).sort().join('"' '));\"" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "node -e \"const fs=require('fs');const plan=fs.readFileSync('docs/implementation-plan.md','utf8');const coverage=JSON.parse(fs.readFileSync('docs/reviews/implementation-plan/task-coverage.json','utf8'));const actual=new Set([...plan.matchAll(/US-[A-Z]+-\\d+/g)].map(m=>m[0]));const claimed=new Set(Object.keys(coverage));console.log('actual story refs', [...actual].sort().join(' '));console.log('claimed but not in plan refs', [...claimed].filter(s=>"'!actual.has(s)).sort().join('"' '));console.log('in plan but not claimed', [...actual].filter(s=>"'!claimed.has(s)).sort().join('"' '));\"" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 actual story refs US-ADM-01 US-ADM-02 US-ADM-03 US-AUT-01 US-AUT-02 US-AUT-03 US-AUT-05 US-ORD-01 US-ORD-03 US-ORD-04 US-ORD-05 US-ORD-06 US-ORD-07 US-REC-01 US-REC-02 US-REF-01 US-REF-02 US-TRK-01 US-TRK-02 US-TRK-03 US-TRK-04 US-TRK-06 US-TRK-07 US-TRK-09
 claimed but not in plan refs US-AUT-04 US-ORD-02 US-TRK-05 US-TRK-08
 in plan but not claimed 
 
 exec
-/bin/zsh -lc "sed -n '1,220p' tests/e2e/smoke.spec.ts" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' tests/e2e/smoke.spec.ts" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 import { test, expect } from '@playwright/test';
 
@@ -4982,7 +4982,7 @@ test.describe('Smoke Test', () => {
 });
 
 exec
-/bin/zsh -lc "sed -n '1,220p' package.json" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' package.json" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 {
   "name": "peptides",
@@ -5023,7 +5023,7 @@ exec
 }
 
 exec
-/bin/zsh -lc "sed -n '1,260p' prisma/schema.prisma" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' prisma/schema.prisma" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
@@ -5287,7 +5287,7 @@ model Vial {
   totalMg               Decimal   @db.Decimal(10, 3)
 
 exec
-/bin/zsh -lc 'rg -n "DISABLE_ORDERING|AuditEvent|audit|Sentry|sentinel|monitor|reminder|cron|CRON_SECRET|accessibility|axe|Lighthouse|k6|Float|Decimal" docs/user-stories.md docs/implementation-plan.md docs/story-tests-map.md tests prisma/schema.prisma' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc 'rg -n "DISABLE_ORDERING|AuditEvent|audit|Sentry|sentinel|monitor|reminder|cron|CRON_SECRET|accessibility|axe|Lighthouse|k6|Float|Decimal" docs/user-stories.md docs/implementation-plan.md docs/story-tests-map.md tests prisma/schema.prisma' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 docs/story-tests-map.md:16:| | AC-4 | records audit log on creation/modification | Integration | `tests/acceptance/TRK-tracker.test.ts` |
 docs/implementation-plan.md:36:- **Description**: Implement `AuditEvent` aggregate root and a shared `withAudit` transaction helper for Server Actions.
@@ -5311,7 +5311,7 @@ prisma/schema.prisma:345:  reminderTime  String   // e.g. "07:00"
 prisma/schema.prisma:363:model AuditEvent {
 
 exec
-/bin/zsh -lc "sed -n '261,430p' prisma/schema.prisma" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '261,430p' prisma/schema.prisma" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
   bacWaterMl            Decimal?  @db.Decimal(10, 3)
   remainingMg           Decimal   @db.Decimal(10, 3)
@@ -5440,7 +5440,7 @@ I’ve got the main trace breaks: missing AC mappings, task coverage drift, PRD 
   → Identify coverage gaps and orphans
   • Return JSON findings only
 exec
-/bin/zsh -lc "node -e \"const fs=require('fs');const files=fs.readdirSync('tests/acceptance').map(f=>'tests/acceptance/'+f);let todo=0,it=0;for(const f of files){const s=fs.readFileSync(f,'utf8');todo+=(s.match(/it\\.todo\\(/g)||[]).length;it+=(s.match(/\\bit\\(/g)||[]).length;}console.log({acceptanceFiles:files.length,itTodo:todo,executableIt:it});\"" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "node -e \"const fs=require('fs');const files=fs.readdirSync('tests/acceptance').map(f=>'tests/acceptance/'+f);let todo=0,it=0;for(const f of files){const s=fs.readFileSync(f,'utf8');todo+=(s.match(/it\\.todo\\(/g)||[]).length;it+=(s.match(/\\bit\\(/g)||[]).length;}console.log({acceptanceFiles:files.length,itTodo:todo,executableIt:it});\"" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 { acceptanceFiles: 6, itTodo: 53, executableIt: 0 }
 

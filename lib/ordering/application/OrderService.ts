@@ -3,6 +3,7 @@ import Decimal from 'decimal.js';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
+import { PrismaAuditRepo } from '@/lib/audit/infrastructure/PrismaAuditRepo';
 import { ITEM_FORMS, VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
 import type { OrderLineItemInput, SendMethod } from '@/lib/ordering/domain/types';
 import { sendTelegramMessage } from '@/lib/ordering/infrastructure/MTProtoClient';
@@ -415,33 +416,42 @@ export async function cancelOrder(userId: string, orderId: string): Promise<void
   );
 }
 
+// markOrdersStale is a system-level cron operation (ADR-012, POST /api/cron/stale-orders).
+// It intentionally queries orders across all users — this is an approved exception to the
+// userId-scoping rule, documented in AGENTS.md § Cross-User Exceptions. The mutation still
+// includes userId in the WHERE predicate for defence-in-depth.
 export async function markOrdersStale(now: Date): Promise<number> {
   const cutoff = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
   const staleOrders = await prisma.order.findMany({
     where: { status: 'SENT', sentAt: { lt: cutoff }, staleFlaggedAt: null },
     select: { id: true, userId: true },
   });
-  for (const order of staleOrders) {
-    await withAudit(
-      async (tx) => {
-        const { count } = await tx.order.updateMany({
-          where: { id: order.id, userId: order.userId, status: 'SENT' },
-          data: { status: 'STALE', staleFlaggedAt: now },
-        });
-        if (count === 0) throw new Error('stale_transition_conflict');
-      },
-      () => ({
-        actorUserId: order.userId,
-        category: 'Order' as const,
-        action: 'ORDER_MARKED_STALE' as const,
+  if (staleOrders.length === 0) return 0;
+
+  const orderIds = staleOrders.map((o) => o.id);
+  await prisma.$transaction(async (tx) => {
+    await tx.order.updateMany({
+      where: { id: { in: orderIds }, status: 'SENT' },
+      data: { status: 'STALE', staleFlaggedAt: now },
+    });
+    for (const order of staleOrders) {
+      await PrismaAuditRepo.create(tx, {
+        actorUserId: 'SYSTEM',
+        subjectUserId: order.userId,
+        category: 'Order',
+        action: 'ORDER_MARKED_STALE',
         resourceId: order.id,
         resourceType: 'Order',
         oldValues: { status: 'SENT' },
         newValues: { status: 'STALE' },
-      })
-    );
-  }
+      });
+    }
+  });
   return staleOrders.length;
+}
+
+export async function getStaleOrderCount(userId: string): Promise<number> {
+  return prisma.order.count({ where: { userId, status: 'STALE' } });
 }
 
 export async function listOrders(userId: string): Promise<OrderSummary[]> {

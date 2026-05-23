@@ -1,7 +1,7 @@
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Developer/peptides
+workdir: /Users/kenallred/Documents/dev-projects/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -880,7 +880,7 @@ This log tracks the significant architectural decisions made for the Peptides ap
 codex
 I’ll use the review-oriented workflow and read the relevant source docs so the findings are tied to the actual repository, not just the pasted draft.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 ---
 name: using-superpowers
@@ -1101,7 +1101,7 @@ The test: Can you draw the state diagram from memory before you touch code?
 codex
 Using `coding-skill` for a review pass: I’m going to ground the critique in explicit coverage/constraint/data-flow checks and return only the JSON findings the user requested.
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # System Architecture
 
@@ -1249,7 +1249,7 @@ Used for the offline dose log queue. Managed by Serwist.
 - **Handling**: Idempotency keys (`user-protocol-date`) ensure only one log persists.
 
 exec
-/bin/zsh -lc "sed -n '1,280p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,280p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 <!-- scaffold:create-prd v1 2026-05-20 -->
 <!-- scaffold:review-prd v1 2026-05-20 -->
@@ -1533,7 +1533,7 @@ Manages multi-compound stacks for the Power User and their managed users. Replac
 - Current cycle week for each active cycle (e.g., "Week 3 of BPC-157 healing cycle")
 
 exec
-/bin/zsh -lc 'rg --files docs | sort' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc 'rg --files docs | sort' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 docs/adrs/ADR-001-nextjs-monolith.md
 docs/adrs/ADR-002-postgresql-prisma.md
@@ -1604,7 +1604,7 @@ docs/vision.md
 codex
 I’ve confirmed the architecture file matches the pasted draft. Next I’m checking the PRD feature details and domain model files for aggregates/data flows the architecture may have missed.
 exec
-/bin/zsh -lc "sed -n '280,620p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '280,620p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 - Current cycle week for each active cycle (e.g., "Week 3 of BPC-157 healing cycle")
 - Break indicator when in a scheduled break period
@@ -1949,7 +1949,7 @@ Triggered on first login after account creation (or invite acceptance for manage
 | Step | Power User | Delegated Participant |
 
 exec
-/bin/zsh -lc "sed -n '620,980p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '620,980p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 | Step | Power User | Delegated Participant |
 |------|------------|----------------------|
@@ -2314,7 +2314,7 @@ Specific tooling is a tech-stack decision. All monitoring tooling must fall with
 **Still open (tech-stack step):**
 
 exec
-/bin/zsh -lc "for f in docs/domain-models/*.md; do printf '\\n### %s\\n' \""'$f"; sed -n '"'1,240p' \""'$f"; done' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "for f in docs/domain-models/*.md; do printf '\\n### %s\\n' \""'$f"; sed -n '"'1,240p' \""'$f"; done' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 
 ### docs/domain-models/audit.md
@@ -2730,7 +2730,7 @@ Calculates the next suggested injection site based on a user's `DoseLog` history
 - `cycle.startDate <= cycle.endDate` (if exists)
 
 exec
-/bin/zsh -lc "for f in docs/adrs/*.md; do printf '\\n### %s\\n' \""'$f"; sed -n '"'1,220p' \""'$f"; done' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "for f in docs/adrs/*.md; do printf '\\n### %s\\n' \""'$f"; sed -n '"'1,220p' \""'$f"; done' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 
 ### docs/adrs/ADR-001-nextjs-monolith.md
@@ -3088,12 +3088,12 @@ This log tracks the significant architectural decisions made for the Peptides ap
 codex
 The PRD adds several operational flows that the architecture only names at a high level: reminders/cron, export/deletion, admin invites, payment status transitions, and inventory receipt. I’m doing one more pass against existing architecture reviews to avoid missing prior high-severity gaps.
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/reviews/architecture/codex-review.json" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/reviews/architecture/codex-review.json" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Developer/peptides
+workdir: /Users/kenallred/Documents/dev-projects/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -3312,7 +3312,7 @@ An account entity.
 A single-use token for password recovery.
 
 exec
-/bin/zsh -lc "sed -n '1,240p' docs/reviews/architecture/gemini-review.json" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,240p' docs/reviews/architecture/gemini-review.json" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 YOLO mode is enabled. All tool calls will be automatically approved.
 YOLO mode is enabled. All tool calls will be automatically approved.
@@ -3432,7 +3432,7 @@ Ripgrep is not available. Falling back to GrepTool.
   }
 }
 exec
-/bin/zsh -lc 'rg -n "Outcome|Invite|DataExport|Deletion|Reminder|Payment|Vendor|Cron|DISABLE_ORDERING|Webhook|push|sync|audit|stale" docs/system-architecture.md docs/plan.md docs/domain-models docs/adrs' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc 'rg -n "Outcome|Invite|DataExport|Deletion|Reminder|Payment|Vendor|Cron|DISABLE_ORDERING|Webhook|push|sync|audit|stale" docs/system-architecture.md docs/plan.md docs/domain-models docs/adrs' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 docs/system-architecture.md:33:| **Ordering** | Vendor Catalog, Telegram MTProto | GramJS, Server Actions |
 docs/system-architecture.md:52:3. **PWA Sync**: Service Worker detects connectivity, replays queued events to `/api/sync`.

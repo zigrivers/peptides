@@ -1,7 +1,7 @@
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Developer/peptides
+workdir: /Users/kenallred/Documents/dev-projects/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -849,7 +849,7 @@ We follow a Pyramid strategy:
 codex
 I’ll use the superpowers workflow first as required, then read the source docs directly so the review is anchored to the repo rather than only the pasted excerpt.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 ---
 name: using-superpowers
@@ -972,7 +972,7 @@ Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
 codex
 Using `coding-skill` because this is a schema/design review and the output needs to be surgical, evidence-based, and limited to actionable issues.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/skills/coding-skill/SKILL.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 ---
 name: coding-skill
@@ -1076,7 +1076,7 @@ The test: Can you draw the state diagram from memory before you touch code?
 codex
 I’m going to compare the schema against the repo PRD, domain model files, and architecture doc, then return only the requested JSON findings.
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 <!-- scaffold:create-prd v1 2026-05-20 -->
 <!-- scaffold:review-prd v1 2026-05-20 -->
@@ -1340,7 +1340,7 @@ Manages multi-compound stacks for the Power User and their managed users. Replac
 - Per-compound site history (peptides with route requirements respect the correct site group)
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # System Architecture
 
@@ -1482,7 +1482,7 @@ We follow a Pyramid strategy:
   - **Auth**: Managed user invitation and permission isolation.
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/database-schema.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/database-schema.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # Database Schema Design
 
@@ -1746,7 +1746,7 @@ model AuditEvent {
 | `Invite` | `token` (Unique) | Link resolution. |
 
 exec
-/bin/zsh -lc 'rg --files docs/domain-models docs/adrs' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc 'rg --files docs/domain-models docs/adrs' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 docs/adrs/ADR-008-testing-strategy.md
 docs/adrs/ADR-013-observability.md
@@ -1775,9 +1775,9 @@ docs/domain-models/tracker.md
 codex
 The first pass already shows the schema omits several PRD/domain objects, but I’m reading the remaining PRD feature detail and ADR constraints before ranking severity.
 exec
-/bin/zsh -lc "sed -n '180,320p' docs/database-schema.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '180,320p' docs/database-schema.md" in /Users/kenallred/Documents/dev-projects/peptides
 exec
-/bin/zsh -lc "sed -n '261,620p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '261,620p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 }
 
@@ -2259,7 +2259,7 @@ Triggered on first login after account creation (or invite acceptance for manage
 | Step | Power User | Delegated Participant |
 
 exec
-/bin/zsh -lc "sed -n '1,240p' docs/domain-models/auth.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,240p' docs/domain-models/auth.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # Auth Domain
 
@@ -2346,7 +2346,7 @@ Securely hashed password.
 - `passwordResetToken.expiresAt == passwordResetToken.createdAt + 1h`
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/domain-models/tracker.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/domain-models/tracker.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # Tracker Domain
 
@@ -2440,7 +2440,7 @@ Calculates the next suggested injection site based on a user's `DoseLog` history
 - `cycle.startDate <= cycle.endDate` (if exists)
 
 exec
-/bin/zsh -lc "sed -n '1,240p' docs/adrs/ADR-002-postgresql-prisma.md && sed -n '1,220p' docs/adrs/ADR-007-pwa-offline.md && sed -n '1,220p' docs/adrs/ADR-009-audit-logging.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,240p' docs/adrs/ADR-002-postgresql-prisma.md && sed -n '1,220p' docs/adrs/ADR-007-pwa-offline.md && sed -n '1,220p' docs/adrs/ADR-009-audit-logging.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # ADR-002: Use PostgreSQL with Prisma ORM
 
@@ -2504,7 +2504,7 @@ We will implement a system-wide `audit_events` table in PostgreSQL to store immu
 Audit events will be retained for 90 days. A daily background job will delete events older than 90 days to manage database size.
 
 exec
-/bin/zsh -lc "sed -n '621,1040p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '621,1040p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 |------|------------|----------------------|
 | 1 | "Browse your first compound" → reference catalog with "Start protocol" shortcut | "Here's your schedule" → shows protocols configured by admin (read-only) |
@@ -2879,7 +2879,7 @@ Specific tooling is a tech-stack decision. All monitoring tooling must fall with
 *This PRD is the requirements baseline. Architecture decisions (`tech-stack`), user stories, and implementation planning all reference this document. If a requirement changes, update this document first — not the downstream artifact.*
 
 exec
-/bin/zsh -lc "sed -n '1,240p' docs/domain-models/reference.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,240p' docs/domain-models/reference.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # Reference Domain
 
@@ -2946,9 +2946,9 @@ A research reference.
 - `count(compound.administrationRoutes) > 0` if `status == Published`
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/domain-models/ordering.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/domain-models/ordering.md" in /Users/kenallred/Documents/dev-projects/peptides
 exec
-/bin/zsh -lc "sed -n '1,240p' docs/domain-models/reconstitution.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,240p' docs/domain-models/reconstitution.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # Ordering Domain
 
@@ -3050,7 +3050,7 @@ Performs safe reconstitution math with warning policy evaluation.
 - `bacWaterMl > 0` (once reconstituted)
 
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/domain-models/audit.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/domain-models/audit.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # Audit Domain
 
@@ -3089,9 +3089,9 @@ An immutable log entry.
 - `auditEvent.action.length > 0`
 
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/adrs/ADR-012-scheduled-jobs.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/adrs/ADR-012-scheduled-jobs.md" in /Users/kenallred/Documents/dev-projects/peptides
 exec
-/bin/zsh -lc "sed -n '1,240p' docs/adrs/ADR-004-authjs.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,240p' docs/adrs/ADR-004-authjs.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # ADR-012: Use Railway Cron for Scheduled Jobs
 
@@ -3135,9 +3135,9 @@ We will use Auth.js v5 (NextAuth) with the Credentials provider and Prisma adapt
 - **Costs**: Learning curve for v5 beta patterns; some friction with custom "password reset" flows which must be implemented manually.
 
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/tech-stack.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/tech-stack.md" in /Users/kenallred/Documents/dev-projects/peptides
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/adrs/ADR-015-module-isolation.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/adrs/ADR-015-module-isolation.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # ADR-015: Implement Bounded Context Isolation for Ordering
 

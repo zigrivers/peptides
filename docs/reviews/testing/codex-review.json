@@ -1,7 +1,7 @@
 Reading additional input from stdin...
 OpenAI Codex v0.130.0
 --------
-workdir: /Users/kenallred/Developer/peptides
+workdir: /Users/kenallred/Documents/dev-projects/peptides
 model: gpt-5.5
 provider: openai
 approval: never
@@ -650,7 +650,7 @@ We follow a Pyramid strategy:
 codex
 I’m using `superpowers:using-superpowers` first as required, then I’ll cross-check the TDD draft against the local PRD/domain/architecture docs and return only the requested JSON.
 exec
-/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && rg --files docs | sort" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' /Users/kenallred/.codex/superpowers/skills/using-superpowers/SKILL.md && rg --files docs | sort" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 ---
 name: using-superpowers
@@ -844,7 +844,7 @@ docs/vision.md
 codex
 I’ve confirmed the relevant docs are present locally. I’m reading the PRD, architecture, tech stack, and domain model files now so the findings are grounded in the repo docs rather than only the pasted excerpt.
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/plan.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 <!-- scaffold:create-prd v1 2026-05-20 -->
 <!-- scaffold:review-prd v1 2026-05-20 -->
@@ -1108,7 +1108,7 @@ Manages multi-compound stacks for the Power User and their managed users. Replac
 - Per-compound site history (peptides with route requirements respect the correct site group)
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/system-architecture.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # System Architecture
 
@@ -1250,7 +1250,7 @@ We follow a Pyramid strategy:
   - **Auth**: Managed user invitation and permission isolation.
 
 exec
-/bin/zsh -lc "sed -n '1,240p' docs/tech-stack.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,240p' docs/tech-stack.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 <!-- scaffold:tech-stack v1 2026-05-20 -->
 # Technology Stack
@@ -1494,7 +1494,7 @@ Zod schema (shared) → React Hook Form (client) + Server Action (server)
 - AI compatibility: Auth.js/NextAuth is the most widely documented auth library in the Next.js ecosystem; Claude Code generates accurate boilerplate.
 
 exec
-/bin/zsh -lc "sed -n '1,260p' docs/tdd-standards.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,260p' docs/tdd-standards.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # TDD Standards
 
@@ -1594,7 +1594,7 @@ All checks must pass in CI before a Pull Request can be merged.
 - **Visual Regression**: Critical dashboard layouts (Dose list, charts) use Playwright screenshots.
 
 exec
-/bin/zsh -lc "for f in docs/domain-models/*.md; do printf '\\nFILE %s\\n' \""'$f"; sed -n '"'1,220p' \""'$f"; done' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "for f in docs/domain-models/*.md; do printf '\\nFILE %s\\n' \""'$f"; sed -n '"'1,220p' \""'$f"; done' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 
 FILE docs/domain-models/audit.md
@@ -2012,7 +2012,7 @@ Calculates the next suggested injection site based on a user's `DoseLog` history
 codex
 The first pass shows several gaps around offline sync, scheduled jobs, RSC/Server Action testing, and domain invariant traceability. I’m doing one targeted search through the PRD/ADRs for acceptance criteria and testing decisions so the severity levels are calibrated.
 exec
-/bin/zsh -lc "sed -n '1,240p' docs/adrs/ADR-008-testing-strategy.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,240p' docs/adrs/ADR-008-testing-strategy.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # ADR-008: Use Vitest and Playwright for Automated Testing
 
@@ -2035,7 +2035,7 @@ We will use Vitest for unit and integration testing and Playwright for end-to-en
 - **Costs**: Time investment to maintain the E2E suite; potential flakiness in complex PWA sync tests.
 
 exec
-/bin/zsh -lc "sed -n '1,240p' docs/adrs/ADR-007-pwa-offline.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,240p' docs/adrs/ADR-007-pwa-offline.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # ADR-007: Implement PWA with Serwist for Offline Dose Logging
 
@@ -2058,7 +2058,7 @@ We will implement the application as a Progressive Web App (PWA) using Serwist t
 - **Costs**: Service worker complexity; IndexedDB management for the offline queue; potential sync conflicts (mitigated by idempotency keys).
 
 exec
-/bin/zsh -lc 'rg -n "acceptance|test|offline|idempotency|cron|reminder|audit|deletion|export|managed|permission|payment|wallet|timezone|DST|coverage|CI|Playwright|Vitest|mock|Prisma|pnpm|Node.js|Node 22|Node 20" docs/plan.md docs/adrs/ADR-008-testing-strategy.md docs/adrs/ADR-007-pwa-offline.md docs/adrs/ADR-009-audit-logging.md docs/adrs/ADR-012-scheduled-jobs.md docs/adrs/ADR-004-authjs.md docs/adrs/ADR-005-gramjs.md docs/system-architecture.md docs/tech-stack.md' in /Users/kenallred/Developer/peptides
+/bin/zsh -lc 'rg -n "acceptance|test|offline|idempotency|cron|reminder|audit|deletion|export|managed|permission|payment|wallet|timezone|DST|coverage|CI|Playwright|Vitest|mock|Prisma|pnpm|Node.js|Node 22|Node 20" docs/plan.md docs/adrs/ADR-008-testing-strategy.md docs/adrs/ADR-007-pwa-offline.md docs/adrs/ADR-009-audit-logging.md docs/adrs/ADR-012-scheduled-jobs.md docs/adrs/ADR-004-authjs.md docs/adrs/ADR-005-gramjs.md docs/system-architecture.md docs/tech-stack.md' in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 docs/adrs/ADR-005-gramjs.md:16:3. **Excluded**: Never returned in API responses or included in data exports.
 docs/adrs/ADR-005-gramjs.md:17:4. **Revocable**: Immediately deleted from the DB on account deletion or manual request.
@@ -2384,9 +2384,9 @@ docs/plan.md:963:| Managed user non-adoption | LOW | HIGH | Don't force adoption
 docs/plan.md:974:| Vision Q5 | Multi-user architecture | Distinct accounts; Power User = super admin; managed users see own data only |
 
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/adrs/ADR-012-scheduled-jobs.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/adrs/ADR-012-scheduled-jobs.md" in /Users/kenallred/Documents/dev-projects/peptides
 exec
-/bin/zsh -lc "sed -n '1,220p' docs/adrs/ADR-009-audit-logging.md" in /Users/kenallred/Developer/peptides
+/bin/zsh -lc "sed -n '1,220p' docs/adrs/ADR-009-audit-logging.md" in /Users/kenallred/Documents/dev-projects/peptides
  succeeded in 0ms:
 # ADR-012: Use Railway Cron for Scheduled Jobs
 

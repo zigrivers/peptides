@@ -5,7 +5,7 @@ import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
 import { getCurrentWeekInfo } from '@/lib/tracker/application/CycleService';
 import { getSevenDayRatingAverage, getSevenDayAdherence, hasDoseTodayForUser } from '@/lib/tracker/application/OutcomeLogService';
 import { getVialsForUser, serializeVial } from '@/lib/reconstitution/application/VialService';
-import { listOrders } from '@/lib/ordering/application/OrderService';
+import { getStaleOrderCount } from '@/lib/ordering/application/OrderService';
 import { utcMidnightToday } from '@/lib/shared/date';
 import { GettingStartedChecklist } from './_components/GettingStartedChecklist';
 import { StackOverview } from './_components/StackOverview';
@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   const userId = session.user.id;
   const userRole = session.user.role as 'POWER_USER' | 'MANAGED_USER';
 
-  const [onboardingState, protocols, weekInfo, ratingAvg, adherence, vials, hasDoseToday, orders] = await Promise.all([
+  const [onboardingState, protocols, weekInfo, ratingAvg, adherence, vials, hasDoseToday, staleOrderCount] = await Promise.all([
     getOnboardingState(userId),
     getProtocolsForUser(userId),
     getCurrentWeekInfo(userId),
@@ -25,9 +25,8 @@ export default async function DashboardPage() {
     getSevenDayAdherence(userId),
     getVialsForUser(userId),
     hasDoseTodayForUser(userId),
-    listOrders(userId),
+    getStaleOrderCount(userId),
   ]);
-  const staleOrderCount = orders.filter((o) => o.status === 'STALE').length;
 
   const showChecklist = onboardingState !== null && onboardingState.step !== 'completed';
   const hasActiveProtocols = protocols.some((p) => p.status === 'ACTIVE');
