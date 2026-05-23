@@ -141,6 +141,35 @@ describe('AIClient.callObject — provider fail-over', () => {
   });
 });
 
+describe('AIClient.callObject — timeout & abort', () => {
+  it('AC-7: aborts a hung Anthropic call after timeoutMs and falls through to retry/Gemini', async () => {
+    // First Anthropic attempt: never resolves until the abort signal fires.
+    // Second Anthropic attempt: succeeds immediately.
+    let attempts = 0;
+    mockGenerateObject.mockImplementation(async (opts: { abortSignal?: AbortSignal }) => {
+      attempts++;
+      if (attempts === 1) {
+        return new Promise((_resolve, reject) => {
+          opts.abortSignal?.addEventListener('abort', () => reject(new Error('aborted')));
+        });
+      }
+      return { object: { ok: true } };
+    });
+
+    const result = await callObject({
+      operation: 'extract_citation',
+      system: 's',
+      prompt: 'p',
+      schema,
+      timeoutMs: 50,
+    });
+    expect(result).toEqual({ ok: true });
+    // First attempt should have been aborted; second succeeded → Gemini untouched.
+    expect(attempts).toBeGreaterThanOrEqual(2);
+    expect(mockGetGeminiModel).not.toHaveBeenCalled();
+  });
+});
+
 describe('AIClient.callText', () => {
   it('returns the model text on success', async () => {
     const result = await callText({ operation: 'draft_compound_profile', system: 's', prompt: 'p' });

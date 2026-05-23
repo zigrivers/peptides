@@ -22,7 +22,10 @@ export async function draftProfileAction(input: {
 }): Promise<DraftProfileResult> {
   const session = await auth();
   if (!session?.user?.id) return { error: 'unauthorized' };
-  if (session.user.role === 'MANAGED_USER') return { error: 'forbidden' };
+  // Positive role gate (defense-in-depth): the UserRole enum is currently
+  // POWER_USER | MANAGED_USER, but a future addition would otherwise grant
+  // the new role unintended access if we only blocked MANAGED_USER.
+  if (session.user.role !== 'POWER_USER') return { error: 'forbidden' };
 
   try {
     const result = await draftCompoundProfile({

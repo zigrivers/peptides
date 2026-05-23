@@ -7,6 +7,7 @@ import {
   AIUnavailableError,
   MODEL_IDS,
   type AIOperation,
+  type ModelId,
 } from '../domain/types';
 import { prisma } from '@/lib/shared/prisma';
 import { PrismaAuditRepo } from '@/lib/audit/infrastructure/PrismaAuditRepo';
@@ -57,14 +58,21 @@ function attemptsFor(operation: AIOperation): ProviderAttempt[] {
   ];
 }
 
-async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+async function withTimeout<T>(
+  task: (signal: AbortSignal) => Promise<T>,
+  ms: number
+): Promise<T> {
+  const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | null = null;
   const timeoutPromise = new Promise<T>((_resolve, reject) => {
-    timer = setTimeout(() => reject(new Error('ai_timeout')), ms);
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error('ai_timeout'));
+    }, ms);
     if (timer && typeof timer.unref === 'function') timer.unref();
   });
   try {
-    return await Promise.race([p, timeoutPromise]);
+    return await Promise.race([task(controller.signal), timeoutPromise]);
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -102,25 +110,28 @@ async function emitAuditFailed(opts: {
 async function getModelFor(
   attempt: ProviderAttempt
 ): Promise<Awaited<ReturnType<typeof getAnthropicModel>> | null> {
-  if (attempt.provider === 'anthropic') return getAnthropicModel(attempt.modelId as never);
+  if (attempt.provider === 'anthropic') return getAnthropicModel(attempt.modelId as ModelId);
   return getGeminiModel(attempt.modelId);
 }
 
 async function runWithRetry<T>(
   attempt: ProviderAttempt,
-  task: (model: NonNullable<Awaited<ReturnType<typeof getModelFor>>>) => Promise<T>,
+  task: (
+    model: NonNullable<Awaited<ReturnType<typeof getModelFor>>>,
+    signal: AbortSignal
+  ) => Promise<T>,
   timeoutMs: number,
   errors: string[]
 ): Promise<T | null> {
   const model = await getModelFor(attempt);
   if (!model) return null;
   try {
-    return await withTimeout(task(model), timeoutMs);
+    return await withTimeout((signal) => task(model, signal), timeoutMs);
   } catch (err) {
     errors.push(`${attempt.provider}_1:${(err as Error).message ?? 'unknown'}`);
     await new Promise((r) => setTimeout(r, RETRY_BACKOFF_MS));
     try {
-      return await withTimeout(task(model), timeoutMs);
+      return await withTimeout((signal) => task(model, signal), timeoutMs);
     } catch (err2) {
       errors.push(`${attempt.provider}_2:${(err2 as Error).message ?? 'unknown'}`);
       return null;
@@ -137,12 +148,13 @@ export async function callObject<T>(opts: CallObjectOptions<T>): Promise<T> {
   for (const attempt of attemptsFor(opts.operation)) {
     const result = await runWithRetry(
       attempt,
-      async (model) => {
+      async (model, signal) => {
         const { object } = await generateObject({
           model,
           system: opts.system,
           prompt: opts.prompt,
           schema: opts.schema,
+          abortSignal: signal,
         });
         // Defense-in-depth: re-validate the SDK's parsed object against the
         // Zod schema before returning. The SDK already validates, but a
@@ -167,11 +179,12 @@ export async function callText(opts: CallOptions): Promise<string> {
   for (const attempt of attemptsFor(opts.operation)) {
     const result = await runWithRetry(
       attempt,
-      async (model) => {
+      async (model, signal) => {
         const { text } = await generateText({
           model,
           system: opts.system,
           prompt: opts.prompt,
+          abortSignal: signal,
         });
         if (typeof text !== 'string' || text.length === 0) {
           throw new AIInvalidResponseError();
