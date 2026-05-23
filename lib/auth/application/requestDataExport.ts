@@ -7,16 +7,24 @@ import { generateUserDataExport, INLINE_EXPORT_MAX_BYTES } from '@/lib/shared/us
  * Self-serve data export for the signed-in user. Generates the same
  * exhaustive JSON used by the admin deletion flow (Task 4.3) but scoped to
  * the requesting user themselves, emails it as a JSON attachment, persists
- * a DataExportRequest row with status COMPLETED, and writes the
- * DATA_EXPORT_DELIVERED audit event.
+ * a DataExportRequest row, and writes audit events.
+ *
+ * Two-phase audit pattern (so every request leaves a durable record, even
+ * if email delivery fails):
+ *   Phase 1: create DataExportRequest(status='PENDING') + DATA_EXPORT_REQUESTED
+ *            audit, both inside a withAudit transaction.
+ *   Phase 2: synchronously send the email.
+ *   Phase 3a (success): update row to status='COMPLETED' + DATA_EXPORT_DELIVERED
+ *                      audit, both inside a second withAudit transaction.
+ *   Phase 3b (failure): update row to status='FAILED' (best-effort, no audit)
+ *                      and re-throw so the caller surfaces the error.
  *
  * This satisfies Phase 2 Legal Gate item 3 — "managed user can request
  * their data on demand" — without requiring Power User intervention.
  *
- * For v1 (1–50 users), exports stay well under the 17MB inline limit. If
- * a future user's export exceeds it, we'll layer R2 + signed URL on top
- * of this code path (the DataExportRequest schema already has the
- * downloadUrl / expiresAt columns reserved). See task 6.2 plan.
+ * For v1 (1-50 users), exports stay well under the 17MB inline limit. If a
+ * future user's export exceeds it, layer R2 + signed URL on top of this code
+ * path (the DataExportRequest schema reserves downloadUrl / expiresAt columns).
  *
  * Throws: user_not_found, export_too_large, export_email_failed.
  */
@@ -34,14 +42,39 @@ export async function requestDataExport(userId: string): Promise<{ exportRequest
     throw new Error('export_too_large');
   }
 
-  // Send the export synchronously BEFORE the audit / persistence write so we
-  // don't claim "COMPLETED" if delivery failed. If Resend fails, throw —
-  // user retries later.
+  // Phase 1: durable request record + REQUESTED audit BEFORE sensitive data
+  // leaves the system. If phase-2 email delivery fails, this row is the
+  // audit trail saying the user requested it.
+  const requestRow = await withAudit(
+    async (tx) => {
+      return tx.dataExportRequest.create({
+        data: {
+          userId: user.id,
+          format: 'JSON',
+          status: 'PENDING',
+        },
+      });
+    },
+    (row) => ({
+      actorUserId: user.id,
+      subjectUserId: user.id,
+      category: 'Auth' as const,
+      action: 'DATA_EXPORT_REQUESTED' as const,
+      resourceId: row.id,
+      resourceType: 'DataExportRequest',
+      metadata: { format: 'JSON', bytes: exportBuffer.byteLength },
+    })
+  );
+
+  // Phase 2: send the email synchronously. Resend's HTML field is not
+  // sanitized by the library, so escape any user-controlled fields
+  // interpolated into the template (user.name).
+  const greeting = user.name ? `Hi ${escapeHtml(user.name)},` : 'Hi,';
   const { error: emailError } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: user.email,
     subject: 'Your data export — Peptides',
-    html: `<p>Hi ${user.name ?? ''},</p><p>Attached is a full JSON export of your account data. You requested this from your account settings just now.</p><p>If you didn't request this, you can ignore it — no changes were made to your account.</p>`,
+    html: `<p>${greeting}</p><p>Attached is a full JSON export of your account data. You requested this from your account settings just now.</p><p>If you didn't request this, you can ignore it — no changes were made to your account.</p>`,
     attachments: [
       {
         filename: `peptides-export-${user.id}-${new Date().toISOString().slice(0, 10)}.json`,
@@ -51,21 +84,22 @@ export async function requestDataExport(userId: string): Promise<{ exportRequest
   });
   if (emailError) {
     console.error('[requestDataExport] email send failed:', emailError.message);
+    // Best-effort: mark the row FAILED so the audit trail reflects the outcome.
+    // No separate FAILED audit event — the REQUESTED audit + the absence of a
+    // DELIVERED audit is sufficient signal, and a third action class adds noise.
+    await prisma.dataExportRequest
+      .update({ where: { id: requestRow.id }, data: { status: 'FAILED' } })
+      .catch((err) => console.error('[requestDataExport] failed-status update also failed:', err));
     throw new Error('export_email_failed');
   }
 
-  const created = await withAudit(
+  // Phase 3a: mark completed + DELIVERED audit.
+  await withAudit(
     async (tx) => {
-      // Persist DataExportRequest as COMPLETED — email already delivered above.
-      const row = await tx.dataExportRequest.create({
-        data: {
-          userId: user.id,
-          format: 'JSON',
-          status: 'COMPLETED',
-          // expiresAt left null for inline-email exports; future R2 path will populate.
-        },
+      return tx.dataExportRequest.update({
+        where: { id: requestRow.id },
+        data: { status: 'COMPLETED' },
       });
-      return row;
     },
     (row) => ({
       actorUserId: user.id,
@@ -78,5 +112,19 @@ export async function requestDataExport(userId: string): Promise<{ exportRequest
     })
   );
 
-  return { exportRequestId: created.id };
+  return { exportRequestId: requestRow.id };
+}
+
+/**
+ * Minimal HTML escape for interpolating user-controlled values into Resend's
+ * HTML template. Covers the five characters that affect HTML parsing — &, <,
+ * >, ", '. Sufficient for plain-text interpolation into <p> body context.
+ */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
