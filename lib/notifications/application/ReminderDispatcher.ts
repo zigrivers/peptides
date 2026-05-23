@@ -159,10 +159,16 @@ export async function dispatchDoseReminders(now: Date): Promise<DispatchSummary>
       }
 
       let emailSent = false;
+      // Email semantics: explicit EMAIL/BOTH channel always emails. For
+      // PUSH-only, the fallback fires when *any* push attempt failed to
+      // deliver OR when the user has no active push subscriptions —
+      // otherwise a single successful stale/secondary device could mask
+      // a primary-device failure and silently miss the user.
+      const pushHasGap =
+        wantsPush && (pushAttemptCount === 0 || pushSentCount < pushAttemptCount);
       const pushDeliveredAny = wantsPush && pushSentCount > 0;
       const shouldEmail =
-        wantsEmail ||
-        (wantsPush && !pushDeliveredAny && pref.emailFallbackEnabled);
+        wantsEmail || (pushHasGap && pref.emailFallbackEnabled);
 
       if (shouldEmail && pref.user.email) {
         const result = await sendReminderEmail(pref.user.email);

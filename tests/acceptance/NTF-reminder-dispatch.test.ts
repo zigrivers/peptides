@@ -179,6 +179,23 @@ describe('US-TRK-09: dispatchDoseReminders', () => {
     expect(summary.emailSent).toBe(1); // email fallback because emailFallbackEnabled
   });
 
+  it('AC-11c: multi-device — partial push delivery still triggers email fallback', async () => {
+    mockPrefFindMany.mockResolvedValueOnce([basePref]);
+    mockPushFindMany.mockResolvedValueOnce([
+      { endpoint: 'https://fcm.example/primary', p256dh: 'p', auth: 'a' },
+      { endpoint: 'https://fcm.example/secondary', p256dh: 'p', auth: 'a' },
+    ]);
+    // Primary fails transiently, secondary succeeds. The user might be on
+    // their primary device — fallback email is needed so they don't miss it.
+    mockSendWebPush
+      .mockResolvedValueOnce({ ok: false, expired: false, statusCode: 500 })
+      .mockResolvedValueOnce({ ok: true, expired: false });
+
+    const summary = await dispatchDoseReminders(NOW);
+    expect(summary.pushSent).toBe(1);
+    expect(summary.emailSent).toBe(1);
+  });
+
   it('AC-11b: transient push failure does NOT prune subscription; still falls back to email per setting', async () => {
     mockPrefFindMany.mockResolvedValueOnce([basePref]);
     mockSendWebPush.mockResolvedValueOnce({ ok: false, expired: false, statusCode: 500 });
