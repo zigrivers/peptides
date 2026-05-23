@@ -13,9 +13,11 @@ const mockWithAudit = vi.fn();
 const mockSend = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
 const mockAuditEventCreate = vi.fn();
+const mockPasswordResetCreate = vi.fn();
 
-const mockRequestPasswordReset = vi.fn();
-vi.mock('@/lib/auth/application/requestPasswordReset', () => ({ requestPasswordReset: mockRequestPasswordReset }));
+vi.mock('@/lib/auth/infrastructure/PasswordResetRepo', () => ({
+  PasswordResetRepo: { create: mockPasswordResetCreate },
+}));
 vi.mock('next/server', () => ({ unstable_after: mockAfter }));
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
@@ -52,7 +54,7 @@ beforeEach(() => {
   mockDoseLogFindMany.mockResolvedValue([]);
   mockProtocolFindMany.mockResolvedValue([]);
   mockAuditEventCreate.mockResolvedValue({});
-  mockRequestPasswordReset.mockResolvedValue(undefined);
+  mockPasswordResetCreate.mockResolvedValue('raw-token-test');
   mockUpdateMany.mockResolvedValue({ count: 1 });
 });
 
@@ -380,10 +382,31 @@ describe('US-ADM-03: triggerManagedUserPasswordReset', () => {
     await expect(triggerManagedUserPasswordReset('pu-1', 'stranger')).rejects.toThrow('managed_user_not_found');
   });
 
-  it('AC-2: calls requestPasswordReset with the managed user email', async () => {
+  it('AC-2: creates reset token and dispatches email for the managed user', async () => {
+    let deferred: (() => Promise<void>) | undefined;
+    mockAfter.mockImplementationOnce((fn: () => Promise<void>) => { deferred = fn; });
     mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', email: 'user@e.com' });
+    const orig = process.env.NEXTAUTH_URL;
+    process.env.NEXTAUTH_URL = 'https://app.example.com';
+    try {
+      await triggerManagedUserPasswordReset('pu-1', 'mu-1');
+      await deferred!();
+    } finally {
+      process.env.NEXTAUTH_URL = orig;
+    }
+    expect(mockPasswordResetCreate).toHaveBeenCalledWith(expect.anything(), 'mu-1');
+    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ to: 'user@e.com' }));
+  });
 
+  it('AC-2: writes MANAGED_USER_PASSWORD_RESET_TRIGGERED audit event with powerUser as actor', async () => {
+    let capturedAudit: unknown = null;
+    mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+      const result = await mutation({});
+      capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
+      return result;
+    });
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', email: 'user@e.com' });
     await triggerManagedUserPasswordReset('pu-1', 'mu-1');
-    expect(mockRequestPasswordReset).toHaveBeenCalledWith('user@e.com');
+    expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_PASSWORD_RESET_TRIGGERED', actorUserId: 'pu-1' });
   });
 });

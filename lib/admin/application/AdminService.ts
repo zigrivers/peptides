@@ -1,7 +1,9 @@
+import { unstable_after as after } from 'next/server';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
-import { requestPasswordReset } from '@/lib/auth/application/requestPasswordReset';
+import { resend, FROM_ADDRESS } from '@/lib/shared/email';
+import { PasswordResetRepo } from '@/lib/auth/infrastructure/PasswordResetRepo';
 
 export type InviteStatus = 'ACTIVE' | 'DEACTIVATED' | 'INVITED' | 'INVITE_EXPIRED';
 
@@ -212,15 +214,29 @@ export async function triggerManagedUserPasswordReset(
   });
   if (!user) throw new Error('managed_user_not_found');
 
-  await requestPasswordReset(user.email);
-  await withAudit(
-    async () => {},
+  const rawToken = await withAudit(
+    (tx) => PasswordResetRepo.create(tx, managedUserId),
     {
       actorUserId: powerUserId,
       category: 'Admin' as const,
       action: 'MANAGED_USER_PASSWORD_RESET_TRIGGERED' as const,
       resourceId: managedUserId,
       resourceType: 'User',
+      subjectUserId: managedUserId,
     }
   );
+
+  const { email } = user;
+  after(async () => {
+    const appUrl = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL;
+    if (!appUrl) return;
+    const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
+    const { error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: email,
+      subject: 'Reset your password',
+      html: `<p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`,
+    });
+    if (error) console.error('[triggerManagedUserPasswordReset] email send failed:', error.message);
+  });
 }
