@@ -343,7 +343,7 @@ describe('US-ADM-03: deactivateManagedUser', () => {
     expect(mockUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ id: 'mu-1', managedBy: 'pu-1' }),
-        data: { status: 'DEACTIVATED' },
+        data: { status: 'DEACTIVATED', passwordVersion: { increment: 1 } },
       })
     );
   });

@@ -185,7 +185,7 @@ export async function deactivateManagedUser(
     async (tx) => {
       const { count } = await tx.user.updateMany({
         where: { id: managedUserId, managedBy: powerUserId, status: { not: 'DEACTIVATED' } },
-        data: { status: 'DEACTIVATED' },
+        data: { status: 'DEACTIVATED', passwordVersion: { increment: 1 } },
       });
       if (count === 0) throw new Error('managed_user_not_found');
     },
@@ -207,11 +207,12 @@ export async function triggerManagedUserPasswordReset(
   managedUserId: string
 ): Promise<void> {
   const user = await prisma.user.findFirst({
-    where: { id: managedUserId, managedBy: powerUserId },
+    where: { id: managedUserId, managedBy: powerUserId, status: { not: 'DEACTIVATED' } },
     select: { id: true, email: true },
   });
   if (!user) throw new Error('managed_user_not_found');
 
+  await requestPasswordReset(user.email);
   await withAudit(
     async () => {},
     {
@@ -222,5 +223,4 @@ export async function triggerManagedUserPasswordReset(
       resourceType: 'User',
     }
   );
-  await requestPasswordReset(user.email);
 }

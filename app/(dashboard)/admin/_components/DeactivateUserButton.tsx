@@ -28,7 +28,7 @@ export function DeactivateUserButton({ action }: Props) {
         disabled={isPending || !!state?.success}
         className="text-xs text-red-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        {isPending ? 'Processing…' : needsConfirm ? 'Confirm Deactivate' : 'Deactivate'}
+        {isPending ? 'Processing…' : state?.success ? 'Deactivated' : needsConfirm ? 'Confirm Deactivate' : 'Deactivate'}
       </button>
     </form>
   );
