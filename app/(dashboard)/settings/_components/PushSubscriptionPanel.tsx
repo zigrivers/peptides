@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { registerPushSubscriptionAction } from '@/app/actions/notifications/register-push-subscription';
 import { removePushSubscriptionAction } from '@/app/actions/notifications/remove-push-subscription';
 import { setPushPermissionStateAction } from '@/app/actions/notifications/set-push-permission-state';
+import { checkPushSubscriptionOwnershipAction } from '@/app/actions/notifications/check-push-subscription-ownership';
 import type { PushPermissionState } from '@/lib/notifications/domain/types';
 
 type SubscriptionState =
@@ -80,11 +81,35 @@ export function PushSubscriptionPanel() {
       : Notification.permission === 'denied'
         ? 'DENIED'
         : 'NOT_PROMPTED') as PushPermissionState;
+    // PushManager.getSubscription is origin-scoped, NOT account-scoped — on a
+    // shared browser, the local subscription may belong to a previous user.
+    // We must confirm ownership server-side before showing "subscribed". If
+    // the endpoint belongs to someone else, locally unsubscribe to avoid the
+    // current user appearing as having that device registered.
     let subscribed = false;
     try {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
-      subscribed = sub !== null;
+      if (sub) {
+        const ownership = await checkPushSubscriptionOwnershipAction(sub.endpoint);
+        if (ownership.ok && ownership.ownership === 'self') {
+          subscribed = true;
+        } else if (ownership.ok && ownership.ownership === 'other') {
+          // Stale local subscription from a previous account — drop it so the
+          // current user can opt in to a fresh subscription.
+          try {
+            await sub.unsubscribe();
+          } catch {
+            /* ignore — browser may already be in an inconsistent state */
+          }
+          subscribed = false;
+        } else {
+          // ownership === 'unknown' (no server row) or the check failed:
+          // be conservative, treat as not subscribed so the user can
+          // explicitly re-enable.
+          subscribed = false;
+        }
+      }
     } catch {
       subscribed = false;
     }
@@ -145,7 +170,13 @@ export function PushSubscriptionPanel() {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
-        await removePushSubscriptionAction(sub.endpoint);
+        // Tear down the server row FIRST. If the server deletion fails we
+        // must not unsubscribe locally — otherwise the device's endpoint
+        // would persist server-side while the UI showed it as disabled.
+        const result = await removePushSubscriptionAction(sub.endpoint);
+        if (!result.ok) {
+          throw new Error(result.error ?? 'remove_failed');
+        }
         await sub.unsubscribe();
       }
       await refresh();
