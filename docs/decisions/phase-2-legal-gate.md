@@ -1,6 +1,6 @@
 # Phase 2 Legal Gate — Self-Review (Task 4.5)
 
-**Status:** **CONDITIONAL — BLOCKED for Phase 2 ship until item 3 (standalone data export) is remediated.** Items 1, 2, 4, 5, 6 PASS as of Task 1.6c.
+**Status:** **PASS — Phase 2 entry GRANTED as of Task 6.2.** All six items satisfied.
 **Reviewed by:** Power User (solo dev) — Ken Allred (<zigrivers@gmail.com>)
 **Review date:** 2026-05-23
 **Next review:** 2027-05-23 (annual cadence per PRD §7.5), OR earlier whenever a blocking item is remediated.
@@ -18,7 +18,7 @@
 |---|------|--------|----------------------|
 | 1 | Each managed user signs (or clicks-through) a written acknowledgment that the Power User is configuring their protocols and can view their adherence data. | **PASS** (as of Task 1.6c) | Task 1.6c shipped `/accept-invite` page + `acceptInvite` server action (`lib/auth/application/acceptInvite.ts`, `app/(auth)/accept-invite/page.tsx`, `app/actions/auth/accept-invite.ts`). Invitees land at `/accept-invite?token=...`, see the consent copy verbatim above the form, must tick an explicit acknowledgment checkbox, and on submit the action writes the `INVITE_ACCEPTED` audit event (with the new user as both actor and subject) atomically with the user-create and `Invite.acceptedAt` / `acceptedByUserId` updates inside a single `withAudit` transaction. 12-test acceptance suite at `tests/acceptance/AUT-accept-invite.test.ts`. **Out-of-band signed copies** (if a family member prefers paper): file at R2 `legal/acks/{userId}.pdf` with 7y retention. |
 | 2 | No managed user is a minor; no managed user lacks legal capacity to consent. | **PASS** (Power User attestation) | Attested by the Power User: every invited managed user in the v1 family circle is an adult of sound mind. No automated age verification — relies on Power User knowing the invitees personally. Operational gate: Power User re-attests at each new invite by self-checking before sending. |
-| 3 | The data-export and account-deletion flows in §5.6 + §5.7 are verified working end-to-end for managed users (a managed user can request their data and have their account deleted by the Power User on demand). | **CONDITIONAL — deletion PASS, standalone export BLOCKED** | <ul><li>**Deletion side: PASS.** Task 4.3 (PR #30) ships `requestManagedUserDeletion` with typed-email confirmation, exhaustive cascade-table export emailed to the Power User before any DB write, 48h delayed deletion via `AccountDeletionRequest`, atomic cancel, and the `processPendingDeletions` cron (`lib/admin/application/AdminService.ts`). 25-test acceptance suite at `tests/acceptance/ADM-admin.test.ts`.</li><li>**Standalone export side: BLOCKED.** The PRD wording is *"a managed user can request their data … on demand"*. The deletion-time export does not satisfy this on its own — it requires the Power User to schedule a deletion (and either commit to it or cancel within 48h). That is operational kludge, not an end-to-end user-facing request. **Remediation:** Task 6.2 (Async Data Export Pipeline, `docs/implementation-plan.md` line 261) ships the standalone request-export flow. Until 6.2 is merged, this item fails and Phase 2 should not ship.</li></ul> |
+| 3 | The data-export and account-deletion flows in §5.6 + §5.7 are verified working end-to-end for managed users (a managed user can request their data and have their account deleted by the Power User on demand). | **PASS** (as of Task 6.2) | <ul><li>**Deletion side: PASS.** Task 4.3 (PR #30) ships `requestManagedUserDeletion` with typed-email confirmation, exhaustive cascade-table export emailed to the Power User before any DB write, 48h delayed deletion via `AccountDeletionRequest`, atomic cancel, and the `processPendingDeletions` cron (`lib/admin/application/AdminService.ts`). 25-test acceptance suite at `tests/acceptance/ADM-admin.test.ts`.</li><li>**Self-serve export side: PASS.** Task 6.2 (this PR) ships `lib/user/application/requestDataExport.ts` + `app/actions/account/request-export.ts` + `/settings` UI. Any signed-in user (Power or Managed) clicks "Email me my data" to receive the same exhaustive JSON export the deletion flow uses, emailed inline (≤17MB at v1 scale). The shared `generateUserDataExport(userId, userEmail)` helper at `lib/shared/userDataExport.ts` is the single source of truth. 7-test acceptance suite at `tests/acceptance/AUT-data-export.test.ts`. R2 / signed-URL infrastructure is deferred until exports exceed 17MB; the DataExportRequest schema already reserves the `downloadUrl` and `expiresAt` columns for that future path.</li></ul> |
 | 4 | The audit log (§5.7) records every admin action taken on a managed user's data, with the actor identity preserved. | **PASS** | `lib/audit/domain/AuditEvent.ts` enumerates every audit action; `lib/audit/application/withAudit.ts` wraps every Server Action mutation in a transaction that writes the mutation and the AuditEvent atomically (mutation aborts on audit-write failure). `actorUserId` and `subjectUserId` are stored as plain strings with no FK constraint per ADR-009 — they survive user deletion so historical attribution is permanent. Admin actions in production: `MANAGED_USER_DEACTIVATED`, `MANAGED_USER_DELETION_REQUESTED`, `MANAGED_USER_DELETION_CANCELLED`, `MANAGED_USER_DELETED`, `MANAGED_USER_PASSWORD_RESET_TRIGGERED`, `USER_INVITED`, `INVITE_RESENT`, `INVITE_ACCEPTED`. System-actor pattern (`actorUserId: 'SYSTEM'`) used for cron-driven deletions (`processPendingDeletions`) with `originalRequestor` recorded in metadata. |
 | 5 | The product framing in marketing or recruitment communications to family/friends is honest (no claim of clinical oversight, professional advice, or HIPAA coverage). | **PASS** | No marketing communications exist for v1 — the product is invite-only via direct outreach. The README, dashboard copy, and invite email template all describe the app as a *peptide tracker and reference web app*, never as a clinical, medical, or HIPAA-compliant service. Power User attestation: any future onboarding/recruitment copy will go through the same self-review against this item before being sent. |
 | 6 | The Power User has reviewed their state-of-residence law for any provisions that materially apply to storing third-party health-adjacent data outside a clinical relationship. | **PASS** (Power User attestation) | Reviewed by the Power User for state of residence. No statutes identified that materially apply to a personal-tool deployment storing health-adjacent data for a small family/friend circle outside a clinical relationship. Caveat: this is a non-attorney self-review per PRD §7.5; if a managed user's residence changes (e.g. moves to a jurisdiction with stricter data laws) or if scope expands beyond family/friends, this item must be re-reviewed (and optional attorney consultation undertaken per PRD §7.5). |
@@ -45,13 +45,19 @@
 
 ---
 
-## Item 3 — Standalone Data Export (CONDITIONAL)
+## Item 3 — Standalone Data Export (PASS — Task 6.2)
 
-**Current state:** The deletion-time export (Task 4.3 / PR #30) is comprehensive — it covers every user-owned cascade table with secret fields stripped — but it is gated behind a deletion action.
+**Implementation:** Task 6.2 shipped the self-serve export flow:
 
-**Gap:** PRD §7.5 item 3 requires that *"a managed user can request their data … on demand"*. The deletion-export-plus-cancel workaround requires the Power User to schedule a deletion they don't intend to commit, which is operational kludge and burns a 48h window every time. A managed user cannot self-serve.
+- `lib/shared/userDataExport.ts` — shared helper `generateUserDataExport(userId, userEmail)` produces the same exhaustive JSON used by the deletion flow. Extracted from `AdminService.generateManagedUserExport` so admin-deletion and self-serve paths share one source of truth. Also exports `INLINE_EXPORT_MAX_BYTES = 17MB` (raw payload threshold to stay under Resend's 25MB attachment cap with base64 inflation).
+- `lib/user/application/requestDataExport.ts` — generates the export, sends it synchronously via Resend, persists a `DataExportRequest` row with `status: 'COMPLETED'`, writes `DATA_EXPORT_DELIVERED` audit with the user as actor + subject. Throws `export_too_large` / `export_email_failed` for the two failure modes.
+- `app/actions/account/request-export.ts` — server action wrapper. Reads userId from session (never form data), translates domain errors to user-friendly messages.
+- `app/(dashboard)/settings/page.tsx` + `app/(dashboard)/settings/_components/RequestExportButton.tsx` — account-settings index with the "Email me my data" button.
+- `lib/audit/domain/AuditEvent.ts` — new `DATA_EXPORT_REQUESTED` and `DATA_EXPORT_DELIVERED` audit actions.
 
-**Remediation (Task 6.2 — already on the implementation plan):** `docs/implementation-plan.md` line 261, *Async Data Export Pipeline (R2 + Resend)*. Once 6.2 ships, a managed user (or a Power User acting on their behalf) can trigger an export from the account-settings UI without scheduling a deletion. Until 6.2 is merged, item 3 conditionally passes the deletion-side but fails the standalone-export side, and Phase 2 entry is blocked.
+Coverage: `tests/acceptance/AUT-data-export.test.ts` (7 tests).
+
+**R2 + signed-URL** is deferred until exports actually exceed 17MB (v1 scale of 1–50 users produces exports well under that). The `DataExportRequest` schema already has `downloadUrl` and `expiresAt` columns reserved for the future async-pipeline path. When that lands, the `requestDataExport` service is the single point that switches from inline-attachment to upload-and-signed-link delivery.
 
 ---
 
@@ -75,12 +81,10 @@ These are not blocking for Phase 2 entry directly, but must be maintained as the
 
 ## Phase 2 Ship Decision
 
-**Phase 2 does NOT ship until item 3 is remediated.** Concretely:
+✅ **Phase 2 entry GRANTED.** All six items PASS.
 
 - ✅ **Task 1.6c** (accept-invite + acknowledgment) — SHIPPED. Item 1 PASS.
-- ❌ **Task 6.2** (Async Data Export Pipeline) — required for item 3.
-
-When 6.2 ships, return to this document and update the table; once all six items show `PASS`, file an updated revision-history row stating Phase 2 entry granted.
+- ✅ **Task 6.2** (self-serve data export, MVP) — SHIPPED. Item 3 PASS.
 
 ---
 
@@ -90,3 +94,4 @@ When 6.2 ships, return to this document and update the table; once all six items
 |------|----------|---------|
 | 2026-05-23 | Power User | Initial review — items 2/4/5/6 PASS, items 1/3 BLOCKED. Phase 2 entry NOT yet granted; remediation requires Task 1.6c (accept-invite) and Task 6.2 (standalone export). |
 | 2026-05-23 | Power User | Task 1.6c shipped — item 1 now PASS. Item 3 (standalone export) still BLOCKED on Task 6.2. Phase 2 entry remains gated. |
+| 2026-05-23 | Power User | Task 6.2 MVP shipped (self-serve `/settings` data export, inline email delivery). Item 3 now PASS. **Phase 2 entry GRANTED.** R2 + signed-URL pipeline deferred until exports exceed the 17MB inline limit; tracked separately. |
