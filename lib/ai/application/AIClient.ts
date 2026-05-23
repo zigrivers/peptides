@@ -155,7 +155,15 @@ async function runWithRetry<T>(
   try {
     return await withTimeout((signal) => task(model, signal), timeoutMs);
   } catch (err) {
-    errors.push(`${attempt.provider}_1:${classifyError(err)}`);
+    const code = classifyError(err);
+    errors.push(`${attempt.provider}_1:${code}`);
+    // Only retry transient errors. A schema/validation failure is
+    // deterministic — re-running the same prompt won't change the
+    // output shape, so burning a second attempt wastes latency + tokens.
+    // Fall through to the next provider instead.
+    if (code === 'invalid_schema' || code === 'aborted') {
+      return null;
+    }
     await new Promise((r) => setTimeout(r, RETRY_BACKOFF_MS));
     try {
       return await withTimeout((signal) => task(model, signal), timeoutMs);

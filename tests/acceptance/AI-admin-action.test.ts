@@ -61,6 +61,40 @@ describe('draftProfileAction', () => {
     expect(result.draft).toBeUndefined();
   });
 
+  it('rejects empty compoundName before any AI call', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: 'u1', role: 'POWER_USER' } });
+    const result = await draftProfileAction({ compoundName: '  ', citations: [] });
+    expect(result.error).toBe('empty_compound_name');
+    expect(mockDraftProfile).not.toHaveBeenCalled();
+  });
+
+  it('rejects compoundName > 128 chars (cap)', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: 'u1', role: 'POWER_USER' } });
+    const result = await draftProfileAction({ compoundName: 'a'.repeat(129), citations: [] });
+    expect(result.error).toBe('compound_name_too_long');
+    expect(mockDraftProfile).not.toHaveBeenCalled();
+  });
+
+  it('rejects too_many_citations (cap)', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: 'u1', role: 'POWER_USER' } });
+    const result = await draftProfileAction({
+      compoundName: 'BPC-157',
+      citations: Array.from({ length: 31 }, () => 'c'),
+    });
+    expect(result.error).toBe('too_many_citations');
+    expect(mockDraftProfile).not.toHaveBeenCalled();
+  });
+
+  it('rejects citation_too_long (cap)', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: 'u1', role: 'POWER_USER' } });
+    const result = await draftProfileAction({
+      compoundName: 'BPC-157',
+      citations: ['x'.repeat(2001)],
+    });
+    expect(result.error).toBe('citation_too_long');
+    expect(mockDraftProfile).not.toHaveBeenCalled();
+  });
+
   it('maps disallowed_output to its own error', async () => {
     mockAuth.mockResolvedValueOnce({ user: { id: 'u1', role: 'POWER_USER' } });
     mockDraftProfile.mockRejectedValueOnce(new Error('disallowed_output'));

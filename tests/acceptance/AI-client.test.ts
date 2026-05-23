@@ -163,10 +163,12 @@ describe('AIClient.callObject — provider fail-over', () => {
     expect(mockGetGeminiModel).toHaveBeenCalled();
   });
 
-  it('AC-6: Anthropic returns Zod-invalid output → falls over to Gemini', async () => {
+  it('AC-6: Anthropic returns Zod-invalid output → no retry on same provider, falls over to Gemini', async () => {
+    // First Anthropic attempt: parse throws. Per the no-retry-on-deterministic-error
+    // rule, the orchestrator must NOT call generateObject a second time on
+    // Anthropic — it should fall through to Gemini immediately.
     mockGenerateObject
-      .mockResolvedValueOnce({ object: { ok: 'not-a-bool' } }) // first Anthropic attempt: parse() throws
-      .mockResolvedValueOnce({ object: { ok: 'still-bad' } }) // second Anthropic attempt: same
+      .mockResolvedValueOnce({ object: { ok: 'not-a-bool' } })
       .mockResolvedValueOnce({ object: { ok: true } });
     const result = await callObject({
       operation: 'extract_citation',
@@ -176,6 +178,8 @@ describe('AIClient.callObject — provider fail-over', () => {
     });
     expect(result).toEqual({ ok: true });
     expect(mockGetGeminiModel).toHaveBeenCalled();
+    // 1 Anthropic + 1 Gemini call exactly.
+    expect(mockGenerateObject).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -214,16 +218,18 @@ describe('AIClient.callText', () => {
     expect(result).toBe('hello world');
   });
 
-  it('treats empty text as a failure and falls through', async () => {
+  it('treats empty text as invalid_schema → no retry on same provider, falls through to Gemini', async () => {
+    // Two empty responses (Anthropic then Gemini), each treated as
+    // deterministic-failure → no retry. Then a successful third call
+    // proves both providers were tried in order and the call ultimately
+    // throws — proving no infinite or extra retries.
     mockGenerateText
-      .mockResolvedValueOnce({ text: '' })
-      .mockResolvedValueOnce({ text: '' })
-      .mockResolvedValueOnce({ text: 'finally' });
-    const result = await callText({
-      operation: 'draft_compound_profile',
-      system: 's',
-      prompt: 'p',
-    });
-    expect(result).toBe('finally');
+      .mockResolvedValueOnce({ text: '' }) // Anthropic
+      .mockResolvedValueOnce({ text: '' }) // Gemini
+      .mockResolvedValueOnce({ text: 'unreachable' });
+    await expect(
+      callText({ operation: 'draft_compound_profile', system: 's', prompt: 'p' })
+    ).rejects.toThrow('ai_unavailable');
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
   });
 });
