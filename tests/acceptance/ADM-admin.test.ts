@@ -485,7 +485,7 @@ describe('US-ADM-04: requestManagedUserDeletion', () => {
 
     const result = await requestManagedUserDeletion('pu-1', 'mu-1', true, true);
     expect(result.status).toBe('deleted');
-    expect(mockUserDeleteMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'mu-1', managedBy: 'pu-1' } }));
+    expect(mockUserDeleteMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'mu-1', managedBy: 'pu-1', status: 'DEACTIVATED' } }));
   });
 
   it('AC-2 (delayed): schedules deletion 48h in future and returns scheduled status', async () => {

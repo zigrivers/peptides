@@ -9,6 +9,7 @@ interface Props {
 
 export function DeleteUserButton({ action }: Props) {
   const [state, formAction, isPending] = useActionState(action, null);
+  const needsSecondConfirm = !!state?.warning;
 
   return (
     <form action={formAction} className="inline">
@@ -16,13 +17,14 @@ export function DeleteUserButton({ action }: Props) {
       {state?.warning && <p className="text-xs text-orange-600 mb-1">{state.warning}</p>}
       {state?.success && <p className="text-xs text-green-600 mb-1">{state.success}</p>}
       <input type="hidden" name="immediate" value="false" />
+      <input type="hidden" name="secondConfirm" value={needsSecondConfirm ? 'true' : 'false'} />
       {!state?.success && (
         <button
           type="submit"
           disabled={isPending}
           className="text-xs text-red-700 font-semibold hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {isPending ? 'Processing…' : 'Schedule Deletion'}
+          {isPending ? 'Processing…' : needsSecondConfirm ? 'Confirm (Irreversible)' : 'Schedule Deletion'}
         </button>
       )}
     </form>

@@ -311,7 +311,7 @@ export async function requestManagedUserDeletion(
   if (immediate) {
     await withAudit(
       async (tx) => {
-        const { count } = await tx.user.deleteMany({ where: { id: managedUserId, managedBy: powerUserId } });
+        const { count } = await tx.user.deleteMany({ where: { id: managedUserId, managedBy: powerUserId, status: 'DEACTIVATED' } });
         if (count === 0) throw new Error('managed_user_not_found');
       },
       {
@@ -331,7 +331,7 @@ export async function requestManagedUserDeletion(
   await withAudit(
     async (tx) => {
       const { count } = await tx.user.updateMany({
-        where: { id: managedUserId, managedBy: powerUserId },
+        where: { id: managedUserId, managedBy: powerUserId, status: 'DEACTIVATED' },
         data: { status: 'DELETION_PENDING' },
       });
       if (count === 0) throw new Error('managed_user_not_found');
