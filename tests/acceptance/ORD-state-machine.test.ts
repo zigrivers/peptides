@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // --- Mocks ---
 
@@ -188,6 +188,57 @@ describe('markOrdersStale', () => {
 
     const count = await markOrdersStale(now);
     expect(count).toBe(3);
+  });
+});
+
+describe('POST /api/cron/stale-orders', () => {
+  const mockMarkOrdersStale = vi.fn();
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.doMock('@/lib/ordering/application/OrderService', () => ({
+      markOrdersStale: mockMarkOrdersStale,
+    }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.doUnmock('@/lib/ordering/application/OrderService');
+  });
+
+  it('AC-1: returns 401 when Authorization header is missing', async () => {
+    vi.stubEnv('CRON_SECRET', 'test-secret');
+    const { POST } = await import('@/app/api/cron/stale-orders/route');
+    const req = new Request('http://localhost/api/cron/stale-orders', { method: 'POST' });
+    const res = await POST(req);
+    expect(res.status).toBe(401);
+  });
+
+  it('AC-2: returns 401 when Authorization header is wrong', async () => {
+    vi.stubEnv('CRON_SECRET', 'test-secret');
+    const { POST } = await import('@/app/api/cron/stale-orders/route');
+    const req = new Request('http://localhost/api/cron/stale-orders', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer wrong-secret' },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(401);
+  });
+
+  it('AC-3: calls markOrdersStale and returns staled count on valid auth', async () => {
+    vi.stubEnv('CRON_SECRET', 'test-secret');
+    mockMarkOrdersStale.mockResolvedValueOnce(3);
+    const { POST } = await import('@/app/api/cron/stale-orders/route');
+    const req = new Request('http://localhost/api/cron/stale-orders', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer test-secret' },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.staled).toBe(3);
+    expect(mockMarkOrdersStale).toHaveBeenCalledOnce();
   });
 });
 
