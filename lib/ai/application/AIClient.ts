@@ -1,5 +1,6 @@
 import { generateObject, generateText } from 'ai';
 import type { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { getAnthropicModel } from '../infrastructure/anthropicClient';
 import { getGeminiModel } from '../infrastructure/geminiClient';
 import {
@@ -63,30 +64,44 @@ async function withTimeout<T>(
   ms: number
 ): Promise<T> {
   const controller = new AbortController();
+  let timedOut = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const timeoutPromise = new Promise<T>((_resolve, reject) => {
     timer = setTimeout(() => {
+      timedOut = true;
       controller.abort();
       reject(new Error('ai_timeout'));
     }, ms);
     if (timer && typeof timer.unref === 'function') timer.unref();
   });
+  // Normalise the task rejection so a provider that respects abortSignal and
+  // rejects with its own AbortError / "aborted" still surfaces as `ai_timeout`
+  // when the abort was triggered by our timeout — the retry path treats
+  // timeouts as transient and tries again. Without this normalisation, the
+  // race between "abort rejects the task" and "timeoutPromise rejects" was
+  // non-deterministic, sometimes classifying as `aborted` (no retry).
+  const wrappedTask = task(controller.signal).catch((err) => {
+    if (timedOut) throw new Error('ai_timeout');
+    throw err;
+  });
   try {
-    return await Promise.race([task(controller.signal), timeoutPromise]);
+    return await Promise.race([wrappedTask, timeoutPromise]);
   } finally {
     if (timer) clearTimeout(timer);
   }
 }
 
+// Single-row audit writes — no wrapping mutation to keep transactional, so
+// we call PrismaAuditRepo.create directly with the base client. The repo's
+// signature takes Prisma.TransactionClient; the base PrismaClient satisfies
+// the same model-method surface so the cast is safe.
 async function emitAuditInitiated(opts: { operation: AIOperation; actorUserId: string }) {
-  await prisma.$transaction(async (tx) => {
-    await PrismaAuditRepo.create(tx, {
-      actorUserId: opts.actorUserId,
-      category: 'Security',
-      action: 'AI_REQUEST_INITIATED',
-      resourceId: opts.operation,
-      resourceType: 'AIRequest',
-    });
+  await PrismaAuditRepo.create(prisma as unknown as Prisma.TransactionClient, {
+    actorUserId: opts.actorUserId,
+    category: 'Security',
+    action: 'AI_REQUEST_INITIATED',
+    resourceId: opts.operation,
+    resourceType: 'AIRequest',
   });
 }
 
@@ -95,15 +110,13 @@ async function emitAuditFailed(opts: {
   actorUserId: string;
   errors: string[];
 }) {
-  await prisma.$transaction(async (tx) => {
-    await PrismaAuditRepo.create(tx, {
-      actorUserId: opts.actorUserId,
-      category: 'Security',
-      action: 'AI_REQUEST_FAILED',
-      resourceId: opts.operation,
-      resourceType: 'AIRequest',
-      metadata: { errors: opts.errors },
-    });
+  await PrismaAuditRepo.create(prisma as unknown as Prisma.TransactionClient, {
+    actorUserId: opts.actorUserId,
+    category: 'Security',
+    action: 'AI_REQUEST_FAILED',
+    resourceId: opts.operation,
+    resourceType: 'AIRequest',
+    metadata: { errors: opts.errors },
   });
 }
 

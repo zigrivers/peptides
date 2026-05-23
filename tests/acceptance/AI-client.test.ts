@@ -27,8 +27,10 @@ vi.mock('@/lib/ai/infrastructure/geminiClient', () => ({
 }));
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
-    $transaction: (cb: (tx: unknown) => Promise<unknown>) =>
-      cb({ auditEvent: { create: mockAuditCreate } }),
+    // AI audit writes go directly through PrismaAuditRepo.create(prisma, ...)
+    // — no transaction wrapper since these are single-row writes with no
+    // accompanying mutation to keep atomic.
+    auditEvent: { create: mockAuditCreate },
   },
 }));
 
