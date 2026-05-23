@@ -20,7 +20,13 @@ const mockMarkOrdersStale = vi.fn();
 const mockAuth = vi.fn();
 const mockCreateRateLimiter = vi.fn(() => ({ check: vi.fn().mockResolvedValue({ allowed: true }) }));
 
-vi.mock('@/lib/ordering/application/OrderService', () => ({ markOrdersStale: mockMarkOrdersStale }));
+vi.mock('@/lib/ordering/application/OrderService', () => ({
+  markOrdersStale: mockMarkOrdersStale,
+  cancelOrder: vi.fn(),
+  confirmQuote: vi.fn(),
+  markPaymentSent: vi.fn(),
+  receiveOrder: vi.fn(),
+}));
 vi.mock('@/lib/auth', () => ({ auth: mockAuth }));
 vi.mock('@/lib/shared/rateLimiter', () => ({ createRateLimiter: mockCreateRateLimiter }));
 
@@ -45,6 +51,7 @@ vi.mock('@/lib/ordering/application/TelegramAuthService', () => ({
   getSessionStatus: vi.fn(),
 }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
+vi.mock('next/navigation', () => ({ redirect: vi.fn(), notFound: vi.fn() }));
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -57,6 +64,7 @@ const { isOrderingDisabled, assertOrderingEnabled } = await import('@/lib/shared
 const vendorActions = await import('@/app/actions/ordering/vendor');
 const vendorProductActions = await import('@/app/actions/ordering/vendor-product');
 const telegramActions = await import('@/app/actions/ordering/telegram-auth');
+const orderLifecycleActions = await import('@/app/(dashboard)/ordering/orders/_actions');
 const cronRoute = await import('@/app/api/cron/stale-orders/route');
 
 /**
@@ -197,6 +205,34 @@ describe('US-ORD-08: telegram-auth server actions are gated', () => {
 
   it('getTelegramStatusAction throws ordering_disabled', async () => {
     await expect(telegramActions.getTelegramStatusAction()).rejects.toThrow('ordering_disabled');
+  });
+});
+
+describe('US-ORD-08: order lifecycle server actions are gated', () => {
+  beforeEach(() => {
+    vi.stubEnv('DISABLE_ORDERING', 'true');
+  });
+
+  it('cancelOrderAction throws ordering_disabled', async () => {
+    await expect(orderLifecycleActions.cancelOrderAction('order-1')).rejects.toThrow('ordering_disabled');
+  });
+
+  it('confirmQuoteAction throws ordering_disabled', async () => {
+    const fd = new FormData();
+    fd.set('walletAddress', '0xabc');
+    fd.set('amount', '1.00');
+    fd.set('currency', 'USDT');
+    await expect(orderLifecycleActions.confirmQuoteAction('order-1', null, fd)).rejects.toThrow('ordering_disabled');
+  });
+
+  it('markPaymentSentAction throws ordering_disabled', async () => {
+    const fd = new FormData();
+    fd.set('acknowledged', 'true');
+    await expect(orderLifecycleActions.markPaymentSentAction('order-1', null, fd)).rejects.toThrow('ordering_disabled');
+  });
+
+  it('receiveOrderAction throws ordering_disabled', async () => {
+    await expect(orderLifecycleActions.receiveOrderAction('order-1', null, new FormData())).rejects.toThrow('ordering_disabled');
   });
 });
 

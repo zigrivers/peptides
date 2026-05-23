@@ -11,6 +11,7 @@ import {
   receiveOrder,
 } from '@/lib/ordering/application/OrderService';
 import { VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
+import { assertOrderingEnabled } from '@/lib/shared/featureFlags';
 
 const ALLOWED_PAYMENT_CURRENCIES = new Set(VENDOR_CURRENCIES);
 
@@ -19,6 +20,7 @@ export interface ActionResult {
 }
 
 export async function cancelOrderAction(orderId: string) {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) throw new Error('Unauthorized');
   await cancelOrder(session.user.id, orderId);
@@ -31,6 +33,7 @@ export async function confirmQuoteAction(
   _prevState: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult | null> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) throw new Error('Unauthorized');
   const walletAddress = (formData.get('walletAddress') as string | null)?.trim() ?? '';
@@ -64,6 +67,7 @@ export async function markPaymentSentAction(
   _prevState: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult | null> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) throw new Error('Unauthorized');
   if (formData.get('acknowledged') !== 'true') {
@@ -83,6 +87,7 @@ export async function receiveOrderAction(
   _prevState: ActionResult | null,
   _formData: FormData
 ): Promise<ActionResult | null> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) throw new Error('Unauthorized');
   try {
