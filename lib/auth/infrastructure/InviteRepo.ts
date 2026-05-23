@@ -27,6 +27,26 @@ export const InviteRepo = {
     return prisma.invite.findUnique({ where: { tokenHash } });
   },
 
+  /**
+   * Pre-auth token-hash lookup used by the public /accept-invite page to render
+   * the form. Includes the inviting power user's name/email for the consent copy
+   * ("[Power User] invited you…"). Returns only non-sensitive fields; never
+   * returns user-authored content. Same approved boundary as findByTokenHash —
+   * the unforgeable SHA-256 hash IS the credential.
+   */
+  async findByTokenHashWithInviter(tokenHash: string) {
+    return prisma.invite.findUnique({
+      where: { tokenHash },
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        expiresAt: true,
+        powerUser: { select: { name: true, email: true } },
+      },
+    });
+  },
+
   async findById(id: string, powerUserId: string) {
     return prisma.invite.findFirst({ where: { id, powerUserId } });
   },

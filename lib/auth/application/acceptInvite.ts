@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
+import { InviteRepo } from '../infrastructure/InviteRepo';
 import { InviteToken } from '../domain/InviteToken';
 import { PasswordHash } from '../domain/PasswordHash';
 
@@ -21,6 +22,13 @@ export interface AcceptInviteInput {
  * acknowledgment, and the INVITE_ACCEPTED audit row is the durable
  * record of that consent.
  *
+ * Identity-scoping exceptions documented in AGENTS.md:
+ *   - Token-hash invite lookup via InviteRepo.findByTokenHash (existing
+ *     pre-auth exception — the unforgeable SHA-256 hash IS the credential).
+ *   - System-wide email uniqueness check via prisma.user.findFirst
+ *     (new exception added in this PR — same justification as createInvite's:
+ *     pre-auth boundary checking whether the email is already registered).
+ *
  * Throws: invite_not_found, invite_already_used, invite_revoked,
  * invite_expired, email_already_in_use, password_too_short, name_required.
  */
@@ -30,13 +38,13 @@ export async function acceptInvite(input: AcceptInviteInput): Promise<{ userId: 
   if (input.password.length < 8) throw new Error('password_too_short');
 
   const tokenHash = await InviteToken.hash(input.rawToken);
-  const invite = await prisma.invite.findUnique({ where: { tokenHash } });
+  const invite = await InviteRepo.findByTokenHash(tokenHash);
   if (!invite) throw new Error('invite_not_found');
   InviteToken.validateForAccept({ status: invite.status, expiresAt: invite.expiresAt });
 
-  // Defense against the case where someone signed up with this email between
-  // the invite being issued and now. The Identity Scoping exception for this
-  // pre-auth email lookup is documented in AGENTS.md (auth scoping section).
+  // Pre-auth system-wide email uniqueness check. Documented exception in
+  // AGENTS.md (same pattern as lib/auth/application/createInvite.ts). Selects
+  // only `id`; never returns user-authored content.
   const existing = await prisma.user.findFirst({
     where: { email: { equals: invite.email, mode: 'insensitive' } },
     select: { id: true },
@@ -47,6 +55,7 @@ export async function acceptInvite(input: AcceptInviteInput): Promise<{ userId: 
 
   const created = await withAudit(
     async (tx) => {
+      // Create the user first because invite.acceptedByUserId references it.
       const user = await tx.user.create({
         data: {
           email: invite.email.toLowerCase(),
@@ -57,10 +66,15 @@ export async function acceptInvite(input: AcceptInviteInput): Promise<{ userId: 
           passwordHash: passwordHash.toString(),
         },
       });
-      await tx.invite.update({
-        where: { id: invite.id },
+      // Atomic claim: only succeeds if the invite is still PENDING and not
+      // expired. This closes the TOCTOU window between the pre-transaction
+      // validation and the update — a concurrent revoke or re-acceptance
+      // attempt rolls this entire transaction back (including the user.create).
+      const { count } = await tx.invite.updateMany({
+        where: { id: invite.id, status: 'PENDING', expiresAt: { gt: new Date() } },
         data: { status: 'ACCEPTED', acceptedAt: new Date(), acceptedByUserId: user.id },
       });
+      if (count === 0) throw new Error('invite_no_longer_valid');
       return user;
     },
     (user) => ({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AcceptInviteActionState } from '@/app/actions/auth/accept-invite';
 
@@ -21,10 +21,14 @@ export function AcceptInviteForm({ action, email }: Props) {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // On success the action returns {} (no error, no warning). Navigate to
-  // /login with the email pre-filled and a success message.
-  if (state && !state.error) {
-    router.replace(`/login?email=${encodeURIComponent(email)}&accepted=1`);
-  }
+  // /login with the email pre-filled and a success marker. useEffect runs
+  // after render so router.replace doesn't trigger a "Cannot update a
+  // component while rendering" warning.
+  useEffect(() => {
+    if (state && !state.error) {
+      router.replace(`/login?email=${encodeURIComponent(email)}&accepted=1`);
+    }
+  }, [state, router, email]);
 
   const canSubmit = acknowledged && name.trim().length > 0 && password.length >= 8 && password === confirmPassword;
 

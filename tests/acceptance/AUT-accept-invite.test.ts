@@ -15,18 +15,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockInviteFindUnique = vi.fn();
 const mockUserFindFirst = vi.fn();
 const mockUserCreate = vi.fn();
-const mockInviteUpdate = vi.fn();
+const mockInviteUpdateMany = vi.fn();
 const mockWithAudit = vi.fn();
-const mockSignIn = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
-    invite: { findUnique: mockInviteFindUnique, update: mockInviteUpdate },
+    invite: { findUnique: mockInviteFindUnique },
     user: { findFirst: mockUserFindFirst, create: mockUserCreate },
   },
 }));
 vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }));
-vi.mock('@/lib/auth', () => ({ signIn: mockSignIn }));
 
 const FUTURE = new Date(Date.now() + 24 * 3_600_000);
 const PAST = new Date(Date.now() - 1000);
@@ -36,13 +34,12 @@ beforeEach(() => {
   mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>) =>
     mutation({
       user: { create: mockUserCreate },
-      invite: { update: mockInviteUpdate },
+      invite: { updateMany: mockInviteUpdateMany },
     })
   );
   mockUserCreate.mockResolvedValue({ id: 'new-user-1', email: 'invitee@e.com' });
-  mockInviteUpdate.mockResolvedValue({});
+  mockInviteUpdateMany.mockResolvedValue({ count: 1 });
   mockUserFindFirst.mockResolvedValue(null);
-  mockSignIn.mockResolvedValue(undefined);
 });
 
 const { acceptInvite } = await import('@/lib/auth/application/acceptInvite');
@@ -123,14 +120,18 @@ describe('US-AUT-01 / US-ADM-01: acceptInvite', () => {
     expect(call.data.passwordHash).toMatch(/^\$2[abxy]\$/); // bcrypt format
   });
 
-  it('AC-4: marks the invite ACCEPTED, sets acceptedAt + acceptedByUserId atomically', async () => {
+  it('AC-4: claims the invite atomically via updateMany with status+expiry predicate', async () => {
     mockInviteFindUnique.mockResolvedValueOnce(validInvite);
 
     await acceptInvite({ rawToken: 'tok', name: 'Alice', password: 'StrongPass123!' });
 
-    expect(mockInviteUpdate).toHaveBeenCalledWith(
+    expect(mockInviteUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'invite-1' },
+        where: expect.objectContaining({
+          id: 'invite-1',
+          status: 'PENDING',
+          expiresAt: { gt: expect.any(Date) },
+        }),
         data: expect.objectContaining({
           status: 'ACCEPTED',
           acceptedAt: expect.any(Date),
@@ -140,12 +141,21 @@ describe('US-AUT-01 / US-ADM-01: acceptInvite', () => {
     );
   });
 
+  it('AC-4b: throws invite_no_longer_valid when the atomic claim returns count=0 (TOCTOU)', async () => {
+    mockInviteFindUnique.mockResolvedValueOnce(validInvite);
+    mockInviteUpdateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(
+      acceptInvite({ rawToken: 'tok', name: 'Alice', password: 'StrongPass123!' })
+    ).rejects.toThrow('invite_no_longer_valid');
+  });
+
   it('AC-5: writes INVITE_ACCEPTED audit event with the new user as actor + subject', async () => {
     let capturedAudit: unknown = null;
     mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
       const result = await mutation({
         user: { create: mockUserCreate },
-        invite: { update: mockInviteUpdate },
+        invite: { updateMany: mockInviteUpdateMany },
       });
       capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
       return result;
