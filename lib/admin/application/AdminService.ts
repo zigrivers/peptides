@@ -490,11 +490,13 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
         continue;
       }
 
-      // Verify the user's current managedBy matches the recorded requestedByUserId.
-      // If ownership has changed since the request, the original authorization is
-      // void — delete the stale ADR and skip (avoids infinite retry loop).
-      if (req.requestedByUserId && user.managedBy !== req.requestedByUserId) {
-        console.error('[processPendingDeletions] requestedByUserId mismatch — aborting and cleaning up ADR', {
+      // Managed-user deletion requires a recorded requestor that still matches
+      // the user's current managedBy. Null requestedByUserId rows are treated as
+      // malformed/stale for this cron (the managed-user path always records the
+      // requestor; null is reserved for a future self-deletion path with its own
+      // authorization invariant). Delete the stale ADR to avoid infinite retry.
+      if (!req.requestedByUserId || user.managedBy !== req.requestedByUserId) {
+        console.error('[processPendingDeletions] missing or mismatched requestor — aborting and cleaning up ADR', {
           adrId: req.id, userId: req.userId, recordedRequestor: req.requestedByUserId, currentManagedBy: user.managedBy,
         });
         await prisma.accountDeletionRequest.delete({ where: { id: req.id } }).catch(() => {});
@@ -509,12 +511,11 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
             where: { id: req.id, userId: req.userId, status: 'PENDING' },
           });
           if (adrCount === 0) throw new Error('already_cancelled');
-          // Scope the user delete with managedBy = recorded requestor (if set) so the
-          // delete carries the original authorization predicate, not just DELETION_PENDING
-          const userWhere = req.requestedByUserId
-            ? { id: req.userId, status: 'DELETION_PENDING', managedBy: req.requestedByUserId }
-            : { id: req.userId, status: 'DELETION_PENDING' };
-          const { count: userCount } = await tx.user.deleteMany({ where: userWhere });
+          // Scope the user delete with managedBy = recorded requestor so the
+          // destructive op carries the original authorization predicate
+          const { count: userCount } = await tx.user.deleteMany({
+            where: { id: req.userId, status: 'DELETION_PENDING', managedBy: req.requestedByUserId },
+          });
           if (userCount === 0) throw new Error('user_not_in_deletion_pending');
         },
         {
@@ -524,7 +525,7 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
           action: 'MANAGED_USER_DELETED' as const,
           resourceId: req.userId,
           resourceType: 'User',
-          metadata: { mode: 'delayed', originalRequestor: req.requestedByUserId ?? user.managedBy ?? null },
+          metadata: { mode: 'delayed', originalRequestor: req.requestedByUserId },
         }
       );
       deleted++;
