@@ -144,10 +144,16 @@ export async function requestSelfDeletion(
  * to ACTIVE and removes the ADR atomically.
  */
 export async function cancelSelfDeletion(userId: string): Promise<void> {
+  // Capture `now` once so the predicate and any subsequent reasoning use
+  // the same instant. The cron processes ADRs whose scheduledFor <= now,
+  // so a cancel that races with the cron will fail the `gt: now`
+  // predicate and surface as `no_pending_deletion` to the user — the
+  // canonical "you missed the window" signal.
+  const now = new Date();
   await withAudit(
     async (tx) => {
       const { count: adrCount } = await tx.accountDeletionRequest.deleteMany({
-        where: { userId, status: 'PENDING' },
+        where: { userId, status: 'PENDING', scheduledFor: { gt: now } },
       });
       if (adrCount === 0) throw new Error('no_pending_deletion');
       const { count: userCount } = await tx.user.updateMany({

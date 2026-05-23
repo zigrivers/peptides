@@ -150,9 +150,15 @@ describe('US-AUT-02: requestSelfDeletion (delayed)', () => {
 describe('US-AUT-02: cancelSelfDeletion', () => {
   it('AC-4: deletes the ADR and restores User.status; audit emitted', async () => {
     await cancelSelfDeletion(USER_ID);
-    expect(mockAdrDeleteMany).toHaveBeenCalledWith({
-      where: { userId: USER_ID, status: 'PENDING' },
-    });
+    expect(mockAdrDeleteMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: USER_ID,
+          status: 'PENDING',
+          scheduledFor: expect.objectContaining({ gt: expect.any(Date) }),
+        }),
+      })
+    );
     expect(mockUserUpdateMany).toHaveBeenCalledWith({
       where: { id: USER_ID, status: 'DELETION_PENDING' },
       data: { status: 'ACTIVE' },
@@ -167,6 +173,15 @@ describe('US-AUT-02: cancelSelfDeletion', () => {
   it('AC-5: throws no_pending_deletion when there is nothing to cancel', async () => {
     mockAdrDeleteMany.mockResolvedValueOnce({ count: 0 });
     await expect(cancelSelfDeletion(USER_ID)).rejects.toThrow('no_pending_deletion');
+  });
+
+  it('AC-5b: cancel after scheduledFor has passed (cron about to run) → no_pending_deletion', async () => {
+    // Simulate the race: deleteMany returns count=0 because the predicate's
+    // `scheduledFor: { gt: now }` no longer matches.
+    mockAdrDeleteMany.mockResolvedValueOnce({ count: 0 });
+    await expect(cancelSelfDeletion(USER_ID)).rejects.toThrow('no_pending_deletion');
+    // The User row must NOT be restored when the cancel was rejected.
+    expect(mockUserUpdateMany).not.toHaveBeenCalled();
   });
 });
 
