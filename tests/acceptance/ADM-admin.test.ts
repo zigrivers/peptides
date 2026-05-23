@@ -17,6 +17,7 @@ const mockADRCreate = vi.fn();
 const mockADRFindFirst = vi.fn();
 const mockADRFindMany = vi.fn();
 const mockADRDelete = vi.fn();
+const mockADRDeleteMany = vi.fn();
 const mockWithAudit = vi.fn();
 const mockSend = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
@@ -35,7 +36,7 @@ vi.mock('@/lib/shared/prisma', () => ({
     protocol: { findMany: mockProtocolFindMany },
     outcomeLog: { findMany: mockOutcomeLogFindMany },
     vial: { findMany: mockVialFindMany },
-    accountDeletionRequest: { create: mockADRCreate, findFirst: mockADRFindFirst, findMany: mockADRFindMany, delete: mockADRDelete },
+    accountDeletionRequest: { create: mockADRCreate, findFirst: mockADRFindFirst, findMany: mockADRFindMany, delete: mockADRDelete, deleteMany: mockADRDeleteMany },
     auditEvent: { create: mockAuditEventCreate },
   },
 }));
@@ -50,7 +51,7 @@ function setupWithAudit() {
     mutation({
       invite: { create: mockCreate, updateMany: mockUpdateMany },
       user: { update: mockUpdate, updateMany: mockUpdateMany, delete: mockUserDelete, deleteMany: mockUserDeleteMany },
-      accountDeletionRequest: { create: mockADRCreate, delete: mockADRDelete },
+      accountDeletionRequest: { create: mockADRCreate, delete: mockADRDelete, deleteMany: mockADRDeleteMany },
     })
   );
 }
@@ -74,6 +75,7 @@ beforeEach(() => {
   mockADRFindFirst.mockResolvedValue(null);
   mockADRFindMany.mockResolvedValue([]);
   mockADRDelete.mockResolvedValue({});
+  mockADRDeleteMany.mockResolvedValue({ count: 1 });
   mockOutcomeLogFindMany.mockResolvedValue([]);
   mockVialFindMany.mockResolvedValue([]);
 });
@@ -439,6 +441,7 @@ describe('US-ADM-03: triggerManagedUserPasswordReset', () => {
  */
 describe('US-ADM-04: requestManagedUserDeletion', () => {
   const activeUser = { id: 'mu-1', email: 'user@e.com', status: 'ACTIVE' };
+  const deactivatedUser = { id: 'mu-1', email: 'user@e.com', status: 'DEACTIVATED' };
   const powerUser = { id: 'pu-1', email: 'admin@e.com' };
 
   it('AC-1: throws managed_user_not_found when user does not belong to powerUser', async () => {
@@ -446,25 +449,26 @@ describe('US-ADM-04: requestManagedUserDeletion', () => {
     await expect(requestManagedUserDeletion('pu-1', 'stranger', false)).rejects.toThrow('managed_user_not_found');
   });
 
-  it('AC-1: generates export JSON and dispatches email to admin before deletion', async () => {
-    let deferred: (() => Promise<void>) | undefined;
-    mockAfter.mockImplementationOnce((fn: () => Promise<void>) => { deferred = fn; });
+  it('AC-1: throws user_must_be_deactivated when user is not DEACTIVATED', async () => {
     mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+    await expect(requestManagedUserDeletion('pu-1', 'mu-1', false)).rejects.toThrow('user_must_be_deactivated');
+  });
+
+  it('AC-1: sends export email synchronously before deletion side-effect', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
     mockProtocolFindMany.mockResolvedValueOnce([]);
     mockDoseLogFindMany.mockResolvedValueOnce([]);
     mockVialFindMany.mockResolvedValueOnce([]);
     mockOutcomeLogFindMany.mockResolvedValueOnce([]);
-    mockADRCreate.mockResolvedValueOnce({});
 
     await requestManagedUserDeletion('pu-1', 'mu-1', false);
-    await deferred!();
     expect(mockSend).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'admin@e.com', subject: expect.stringContaining('user@e.com') })
     );
   });
 
   it('AC-2 (immediate, no secondConfirm): returns needs_second_confirm without performing deletion', async () => {
-    mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
 
     const result = await requestManagedUserDeletion('pu-1', 'mu-1', true, false);
     expect(result.status).toBe('needs_second_confirm');
@@ -473,7 +477,7 @@ describe('US-ADM-04: requestManagedUserDeletion', () => {
   });
 
   it('AC-2 (immediate, secondConfirm=true): deletes user immediately', async () => {
-    mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
     mockProtocolFindMany.mockResolvedValueOnce([]);
     mockDoseLogFindMany.mockResolvedValueOnce([]);
     mockVialFindMany.mockResolvedValueOnce([]);
@@ -485,7 +489,7 @@ describe('US-ADM-04: requestManagedUserDeletion', () => {
   });
 
   it('AC-2 (delayed): schedules deletion 48h in future and returns scheduled status', async () => {
-    mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
     mockProtocolFindMany.mockResolvedValueOnce([]);
     mockDoseLogFindMany.mockResolvedValueOnce([]);
     mockVialFindMany.mockResolvedValueOnce([]);
@@ -507,7 +511,7 @@ describe('US-ADM-04: requestManagedUserDeletion', () => {
       capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
       return result;
     });
-    mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
     mockProtocolFindMany.mockResolvedValueOnce([]);
     mockDoseLogFindMany.mockResolvedValueOnce([]);
     mockVialFindMany.mockResolvedValueOnce([]);
@@ -524,7 +528,7 @@ describe('US-ADM-04: requestManagedUserDeletion', () => {
       capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
       return result;
     });
-    mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
     mockProtocolFindMany.mockResolvedValueOnce([]);
     mockDoseLogFindMany.mockResolvedValueOnce([]);
     mockVialFindMany.mockResolvedValueOnce([]);
@@ -554,7 +558,7 @@ describe('US-ADM-04: cancelManagedUserDeletion', () => {
     await cancelManagedUserDeletion('pu-1', 'mu-1');
     expect(mockADRDelete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'adr-1' } }));
     expect(mockUpdateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'mu-1' }, data: { status: 'DEACTIVATED' } })
+      expect.objectContaining({ where: { id: 'mu-1', managedBy: 'pu-1', status: 'DELETION_PENDING' }, data: { status: 'DEACTIVATED' } })
     );
   });
 
@@ -578,7 +582,7 @@ describe('US-ADM-04: processPendingDeletions', () => {
     mockADRFindMany.mockResolvedValueOnce([]);
     const result = await processPendingDeletions();
     expect(result.deleted).toBe(0);
-    expect(mockUserDelete).not.toHaveBeenCalled();
+    expect(mockUserDeleteMany).not.toHaveBeenCalled();
   });
 
   it('deletes users whose scheduled deletion time has passed', async () => {
@@ -587,13 +591,22 @@ describe('US-ADM-04: processPendingDeletions', () => {
 
     const result = await processPendingDeletions();
     expect(result.deleted).toBe(1);
-    expect(mockUserDelete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'mu-1' } }));
+    expect(mockUserDeleteMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'mu-1', status: 'DELETION_PENDING' } }));
+  });
+
+  it('cleans up orphaned ADR when user no longer exists', async () => {
+    mockADRFindMany.mockResolvedValueOnce([{ userId: 'mu-orphan' }]);
+    mockUserFindFirst.mockResolvedValueOnce(null);
+
+    const result = await processPendingDeletions();
+    expect(result.deleted).toBe(0);
+    expect(mockADRDeleteMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'mu-orphan', status: 'PENDING' } }));
   });
 
   it('writes MANAGED_USER_DELETED audit event for each processed deletion', async () => {
     let capturedAudit: unknown = null;
     mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
-      const result = await mutation({ user: { delete: mockUserDelete } });
+      const result = await mutation({ user: { deleteMany: mockUserDeleteMany }, accountDeletionRequest: { deleteMany: mockADRDeleteMany } });
       capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
       return result;
     });

@@ -13,6 +13,7 @@ export function DeleteUserButton({ action }: Props) {
   return (
     <form action={formAction} className="inline">
       {state?.error && <p className="text-xs text-red-600 mb-1">{state.error}</p>}
+      {state?.warning && <p className="text-xs text-orange-600 mb-1">{state.warning}</p>}
       {state?.success && <p className="text-xs text-green-600 mb-1">{state.success}</p>}
       <input type="hidden" name="immediate" value="false" />
       {!state?.success && (

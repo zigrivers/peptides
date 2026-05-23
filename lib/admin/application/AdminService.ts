@@ -287,25 +287,25 @@ export async function requestManagedUserDeletion(
   });
   if (!powerUser) throw new Error('power_user_not_found');
 
+  // Only DEACTIVATED users can be deleted — active sessions must be revoked first
+  if (managedUser.status !== 'DEACTIVATED') throw new Error('user_must_be_deactivated');
+
   if (immediate && !secondConfirm) {
     return { status: 'needs_second_confirm' };
   }
 
+  // Export-first: generate and deliver the data export BEFORE any deletion side-effect
   const exportJson = await generateManagedUserExport(managedUserId, managedUser.email);
-  const adminEmail = powerUser.email;
-  const managedEmail = managedUser.email;
-
-  function dispatchExportEmail(mode: 'immediate' | 'delayed') {
-    after(async () => {
-      const { error } = await resend.emails.send({
-        from: FROM_ADDRESS,
-        to: adminEmail,
-        subject: `Data export for ${managedEmail} — before account deletion`,
-        html: `<p>The deletion of managed user <strong>${managedEmail}</strong> has been ${mode === 'immediate' ? 'executed immediately' : 'scheduled'}. Their data export is attached.</p>`,
-        attachments: [{ filename: `export-${managedUserId}.json`, content: Buffer.from(exportJson).toString('base64') }],
-      });
-      if (error) console.error('[requestManagedUserDeletion] export email failed:', error.message);
-    });
+  const { error: emailError } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: powerUser.email,
+    subject: `Data export for ${managedUser.email} — before account deletion`,
+    html: `<p>The deletion of managed user <strong>${managedUser.email}</strong> has been ${immediate ? 'executed immediately' : 'scheduled'}. Their data export is attached.</p>`,
+    attachments: [{ filename: `export-${managedUserId}.json`, content: Buffer.from(exportJson).toString('base64') }],
+  });
+  if (emailError) {
+    console.error('[requestManagedUserDeletion] export email failed:', emailError.message);
+    throw new Error('export_email_failed');
   }
 
   if (immediate) {
@@ -324,7 +324,6 @@ export async function requestManagedUserDeletion(
         metadata: { mode: 'immediate' },
       }
     );
-    dispatchExportEmail('immediate');
     return { status: 'deleted' };
   }
 
@@ -350,7 +349,6 @@ export async function requestManagedUserDeletion(
       metadata: { scheduledFor: scheduledFor.toISOString(), mode: 'delayed' },
     }
   );
-  dispatchExportEmail('delayed');
   return { status: 'scheduled', scheduledFor };
 }
 
@@ -373,7 +371,11 @@ export async function cancelManagedUserDeletion(
   await withAudit(
     async (tx) => {
       await tx.accountDeletionRequest.delete({ where: { id: request.id } });
-      await tx.user.updateMany({ where: { id: managedUserId }, data: { status: 'DEACTIVATED' } });
+      const { count } = await tx.user.updateMany({
+        where: { id: managedUserId, managedBy: powerUserId, status: 'DELETION_PENDING' },
+        data: { status: 'DEACTIVATED' },
+      });
+      if (count === 0) throw new Error('managed_user_not_found');
     },
     {
       actorUserId: powerUserId,
@@ -400,10 +402,23 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
         where: { id: req.userId },
         select: { id: true, managedBy: true },
       });
-      if (!user) continue;
+      if (!user) {
+        // Orphaned ADR with no corresponding user — clean up and skip
+        await prisma.accountDeletionRequest.deleteMany({
+          where: { userId: req.userId, status: 'PENDING' },
+        });
+        continue;
+      }
 
       await withAudit(
-        async (tx) => { await tx.user.delete({ where: { id: req.userId } }); },
+        async (tx) => {
+          // Atomically claim the ADR inside the transaction to prevent cancel-then-delete race
+          const { count: adrCount } = await tx.accountDeletionRequest.deleteMany({
+            where: { userId: req.userId, status: 'PENDING', scheduledFor: { lte: now } },
+          });
+          if (adrCount === 0) throw new Error('already_cancelled');
+          await tx.user.deleteMany({ where: { id: req.userId, status: 'DELETION_PENDING' } });
+        },
         {
           actorUserId: user.managedBy ?? req.userId,
           subjectUserId: req.userId,
@@ -416,6 +431,7 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
       );
       deleted++;
     } catch (err) {
+      if (err instanceof Error && err.message === 'already_cancelled') continue;
       console.error('[processPendingDeletions] failed for userId', req.userId, err);
     }
   }

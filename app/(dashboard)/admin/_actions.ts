@@ -91,6 +91,12 @@ export async function requestDeletionAction(
     if (err instanceof Error && err.message === 'managed_user_not_found') {
       return { error: 'User not found.' };
     }
+    if (err instanceof Error && err.message === 'user_must_be_deactivated') {
+      return { error: 'User must be deactivated before deletion.' };
+    }
+    if (err instanceof Error && err.message === 'export_email_failed') {
+      return { error: 'Failed to deliver data export email. Deletion aborted.' };
+    }
     return { error: 'Something went wrong.' };
   }
 }
