@@ -13,6 +13,20 @@ This file tracks architectural and process learnings for future agents. Append a
 - **Stale ADR cleanup must restore user state atomically**: When the cron rejects a deletion (mismatched requestor), deleting the ADR alone leaves the user stuck in DELETION_PENDING with no cancellation handle. Use `$transaction` to delete the ADR AND restore `status: 'DEACTIVATED'` in one atomic op.
 - **Module-level API client instantiation breaks Next.js builds**: `export const resend = new Resend(process.env.RESEND_API_KEY)` at module top-level runs during Next.js build-time page data collection, even for routes that are never called. If the env var is missing in CI, the constructor throws and the whole build fails. Wrap third-party clients in a lazy `Proxy` (see `lib/shared/email.ts`) so import is side-effect-free.
 
+## 2026-05-23 (Task 4.4 — DISABLE_ORDERING flag — MERGED #33)
+
+- **Feature flag enforcement needs four layers**: middleware (404), server-action guards (`assertOrderingEnabled()` as line 1), cron route (200 no-op), and UI hiding (RSC checks `isOrderingDisabled()` before rendering ordering surfaces). Missing any one of these leaves the surface reachable; MMR caught the order-lifecycle actions in `app/(dashboard)/ordering/orders/_actions.ts` that I'd missed in round 1.
+- **Onboarding state is sticky**: hardcoded onboarding steps like `telegram_setup` remain in the DB after a flag flip. Don't backfill — handle in the UI layer (`if (!orderingEnabled && step === 'telegram_setup') return null`) so flipping the flag back on restores the prior behavior.
+- **Exact-string match for destructive flags**: `process.env.X === 'true'` is the right idiom. `Boolean(process.env.X)` would treat `"false"` as truthy. Document the strictness in the runbook (`.env.example` and `docs/operations-runbook.md` §1.3).
+- **Codex correctly distinguishes "this UI is now broken" from "this is a pre-existing UX bug"**: in round 1, F-002 flagged that `admin/page.tsx` linked to `/settings/telegram` which now 404s. The link target itself was always wrong (Settings has no invite UI) — Codex didn't ask me to fix that pre-existing bug; just to gate it. Scope discipline.
+- **Local delegation via the multi-agent stack failed**: 3 iterations, every patch malformed (`error: corrupt patch at <stdin>:6`). The local developer agent can produce plans and review-quality findings, but its patch-generation pipeline can't reliably emit `git apply`-clean diffs. For now, frontier implements directly after planning; the local stack is useful for review-only signal.
+- **macOS `UF_HIDDEN` flag on `.venv` breaks Python `.pth` files**: if `~/Documents/dev-projects/*/.venv` (or any tree containing site-packages) is marked hidden via `chflags`, Python's `site.py` skips ALL `.pth` files in the tree with no warning beyond `python -v`'s `Skipping hidden .pth file:` trace. Fix: `chflags -R nohidden .venv`. Editable installs (`pip install -e .` / hatch) write underscore-prefixed `.pth` files (`_editable_impl_*.pth`) that are silently disabled by this flag.
+
+## 2026-05-23 (Task 4.5 — Phase 2 Legal Gate — documented)
+
+- **Self-review docs need clear PASS criteria per item**: PRD §7.5's six-item list is binary (all six must pass), but the criteria within each item are mixed (code evidence + Power User attestation + operational gate). Capture each item's evidence type explicitly in `docs/decisions/phase-2-legal-gate.md` so future re-reviews don't lose context.
+- **Annual review cadence belongs in the document, not external calendars**: every decision doc that requires re-review should self-document its next-review date at the top so the cadence survives organizational changes. The Power User adds the date to their personal calendar as defense-in-depth.
+
 ## 2026-05-20
 
 - **Precision**: Math must use `Decimal` (per `.claude/rules/safety-math.md`); floating point leads to rounding errors in dose calculations. Vitest config enforces 100% branch coverage on `lib/reconstitution` and `lib/audit`.

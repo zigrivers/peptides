@@ -33,15 +33,20 @@ Task 4.3 (US-ADM-04) shipped end-to-end after **18 MMR rounds**. All 497 accepta
 
 ## What's Next
 
-Task 4.4 (Ordering Module Isolation Feature Flag — US-ORD-08) is in progress on
-branch `task-4.4-disable-ordering-flag`. See `plans/2026-05-23-task-4.4-ordering-feature-flag.md`.
+Wave 4 is complete:
+- **Task 4.4** (Ordering Module Isolation Feature Flag — US-ORD-08) — merged via PR #33 (commit `235992e`). Plan: `plans/2026-05-23-task-4.4-ordering-feature-flag.md`.
+- **Task 4.5** (Phase 2 Legal Gate Completion) — documented in `docs/decisions/phase-2-legal-gate.md`. Phase 2 entry granted; all six checklist items pass.
 
-After Task 4.4 merges, the next deliverable per the implementation plan:
+Next per the implementation plan: **Wave 5**.
 
-### Task 4.5 — Phase 2 Legal Gate Completion
-- **File:** `docs/implementation-plan.md` line 217
-- **Description:** Execute the 6-item checklist from PRD §7.5; capture managed-user signed acknowledgments in R2 `legal/acks/`; document in `docs/decisions/phase-2-legal-gate.md`.
-- **Estimate:** 1 day (self-review).
+### Task 5.1 — Reminder Preferences + Web Push Subscription
+- **File:** `docs/implementation-plan.md` line 227
+- **Description:** ReminderPreference CRUD; service-worker push subscription registration; VAPID keys in env; push permission state tracking per ADR-007 step-5.
+- **Estimate:** 2 days.
+
+### Task 5.2 — Reminder Dispatch Cron (15-minute tick)
+### Task 5.3 — Subjective Outcomes + Correlation Timeline
+### Task 5.4 — AI Layer (Vercel AI SDK + Anthropic + Gemini fallback)
 
 ---
 
