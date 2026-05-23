@@ -28,6 +28,16 @@
 - **Staging**: Always-on environment matching production specs. Target for `main` branch before production cutover.
 - **Production**: User-facing environment. Restricted access; only automated deployments from `Staging` verification.
 
+### 1.3 Feature Flags
+| Variable | Values | Effect |
+|----------|--------|--------|
+| `DISABLE_ORDERING` | exact `"true"` enables; anything else (unset / `"false"` / `"1"` / `"TRUE"`) leaves enabled | When `"true"`: all `/ordering/*` routes return 404 (middleware); `/settings/telegram` returns 404; ordering server actions throw `ordering_disabled`; stale-orders cron returns `{ skipped: true, reason: 'ordering_disabled' }`; dashboard stale-order banner is hidden. Tracker, Reference, Reconstitution, and Admin pillars remain fully functional. See ADR-015 and US-ORD-08. |
+
+**Notes on `DISABLE_ORDERING`:**
+- Match is **exact-string `"true"`** — this is deliberate so a destructive switch requires unambiguous opt-in. `True`, `TRUE`, `1`, `yes` all leave ordering ENABLED.
+- Existing `TelegramSession` rows are NOT invalidated when the flag is flipped on. The flag is a routing/UI gate, not a data-destruction operation; flipping the flag off later restores existing sessions.
+- The flag does NOT delete ordering data (vendors, orders, vials linked to orders). It only blocks user-facing access.
+
 ---
 
 ## 2. Deployment Strategy: Blue-Green

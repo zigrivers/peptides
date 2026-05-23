@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import { authConfig } from '@/lib/auth/auth.config';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { isOrderingDisabled } from '@/lib/shared/featureFlags';
 
 // Edge-safe middleware: uses only the JWT-based authConfig (no Prisma imports).
 // Session revocation (revokedAt check) is deferred to Task 1.4 and will require
@@ -18,6 +19,15 @@ function isPublicPath(pathname: string): boolean {
 
 export default auth((req: NextRequest & { auth: { user?: { id?: string } } | null }) => {
   const { pathname } = req.nextUrl;
+
+  // ADR-015 / US-ORD-08: when DISABLE_ORDERING=true, the entire ordering
+  // bounded context is inaccessible. Return 404 (not 403) so the path looks
+  // like it doesn't exist — no information leak about a disabled feature.
+  // This check precedes the auth redirect so anonymous and authenticated
+  // requests both see 404 rather than being bounced to /login?callbackUrl=...
+  if (isOrderingDisabled() && (pathname === '/ordering' || pathname.startsWith('/ordering/'))) {
+    return new NextResponse(null, { status: 404 });
+  }
 
   // Check both that a session exists AND that it carries a valid user.id.
   // Sessions without user.id occur when the JWT is missing required claims

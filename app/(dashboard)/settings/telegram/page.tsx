@@ -1,9 +1,14 @@
-import { redirect } from 'next/navigation';
+import { redirect, notFound } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { getSessionStatus } from '@/lib/ordering/application/TelegramAuthService';
+import { isOrderingDisabled } from '@/lib/shared/featureFlags';
 import { TelegramSetupForm } from './_components/TelegramSetupForm';
 
 export default async function TelegramSettingsPage() {
+  // ADR-015 / US-ORD-08: Telegram setup is exclusively the ordering-message
+  // transport. When ordering is disabled, this route should not exist.
+  if (isOrderingDisabled()) notFound();
+
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
 
