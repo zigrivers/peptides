@@ -7,8 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockOutcomeFindFirst = vi.fn();
 const mockOutcomeFindMany = vi.fn();
-const mockOutcomeCreate = vi.fn();
-const mockOutcomeUpdateMany = vi.fn();
+const mockOutcomeUpsert = vi.fn();
 const mockProtocolFindMany = vi.fn();
 const mockProtocolRatingDeleteMany = vi.fn();
 const mockProtocolRatingCreateMany = vi.fn();
@@ -20,8 +19,7 @@ vi.mock('@/lib/shared/prisma', () => ({
     outcomeLog: {
       findFirst: mockOutcomeFindFirst,
       findMany: mockOutcomeFindMany,
-      create: mockOutcomeCreate,
-      updateMany: mockOutcomeUpdateMany,
+      upsert: mockOutcomeUpsert,
     },
     protocolRating: {
       deleteMany: mockProtocolRatingDeleteMany,
@@ -33,8 +31,7 @@ vi.mock('@/lib/shared/prisma', () => ({
       cb({
         outcomeLog: {
           findFirst: mockOutcomeFindFirst,
-          create: mockOutcomeCreate,
-          updateMany: mockOutcomeUpdateMany,
+          upsert: mockOutcomeUpsert,
         },
         protocolRating: {
           deleteMany: mockProtocolRatingDeleteMany,
@@ -51,8 +48,7 @@ const TODAY = new Date(Date.UTC(2026, 4, 23)); // 2026-05-23
 beforeEach(() => {
   vi.resetAllMocks();
   mockOutcomeFindFirst.mockResolvedValue(null);
-  mockOutcomeCreate.mockResolvedValue({ id: 'ol-new' });
-  mockOutcomeUpdateMany.mockResolvedValue({ count: 1 });
+  mockOutcomeUpsert.mockResolvedValue({ id: 'ol-new', userId: USER_ID });
   mockProtocolRatingDeleteMany.mockResolvedValue({ count: 0 });
   mockProtocolRatingCreateMany.mockResolvedValue({ count: 0 });
   mockProtocolFindMany.mockResolvedValue([]);
@@ -69,9 +65,9 @@ const {
 } = await import('@/lib/tracker/application/OutcomeLogService');
 
 describe('US-TRK-06: upsertOutcome', () => {
-  it('AC-1: creates a new outcome and writes OUTCOME_LOGGED audit', async () => {
-    mockOutcomeFindFirst.mockResolvedValueOnce(null); // inside repo upsertWithRatings: existing? = no
-    mockOutcomeCreate.mockResolvedValueOnce({ id: 'ol-1' });
+  it('AC-1: creates a new outcome via atomic upsert and writes OUTCOME_LOGGED audit', async () => {
+    mockOutcomeFindFirst.mockResolvedValueOnce(null); // pre-read for audit branching
+    mockOutcomeUpsert.mockResolvedValueOnce({ id: 'ol-1', userId: USER_ID });
 
     const result = await upsertOutcome(USER_ID, {
       scheduledDate: TODAY,
@@ -81,14 +77,16 @@ describe('US-TRK-06: upsertOutcome', () => {
     });
 
     expect(result.created).toBe(true);
-    expect(mockOutcomeCreate).toHaveBeenCalledWith(
+    expect(mockOutcomeUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
+        where: { userId_scheduledDate: { userId: USER_ID, scheduledDate: TODAY } },
+        create: expect.objectContaining({
           userId: USER_ID,
           overallRating: 4,
           tags: ['energy', 'focus'],
           note: 'great day',
         }),
+        update: expect.objectContaining({ overallRating: 4 }),
       })
     );
     expect(mockAuditCreate).toHaveBeenCalledWith(
@@ -99,16 +97,18 @@ describe('US-TRK-06: upsertOutcome', () => {
   });
 
   it('AC-2: updates the existing outcome and writes OUTCOME_UPDATED audit', async () => {
-    mockOutcomeFindFirst.mockResolvedValueOnce({ id: 'ol-1' }); // inside repo
+    mockOutcomeFindFirst.mockResolvedValueOnce({ id: 'ol-1' }); // pre-read sees existing row
+    mockOutcomeUpsert.mockResolvedValueOnce({ id: 'ol-1', userId: USER_ID });
+
     await upsertOutcome(USER_ID, {
       scheduledDate: TODAY,
       overallRating: 3,
       tags: [],
     });
-    expect(mockOutcomeUpdateMany).toHaveBeenCalledWith(
+
+    expect(mockOutcomeUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'ol-1', userId: USER_ID },
-        data: expect.objectContaining({ overallRating: 3 }),
+        update: expect.objectContaining({ overallRating: 3 }),
       })
     );
     expect(mockProtocolRatingDeleteMany).toHaveBeenCalledWith({
@@ -121,6 +121,18 @@ describe('US-TRK-06: upsertOutcome', () => {
     );
   });
 
+  it('AC-2b: race-safe — pre-read sees null but upsert returns existing row; audit may label LOGGED but data is preserved', async () => {
+    mockOutcomeFindFirst.mockResolvedValueOnce(null); // pre-read lost race
+    mockOutcomeUpsert.mockResolvedValueOnce({ id: 'ol-1', userId: USER_ID }); // winner's row
+    const result = await upsertOutcome(USER_ID, {
+      scheduledDate: TODAY,
+      overallRating: 5,
+      tags: [],
+    });
+    expect(result.id).toBe('ol-1');
+    // Does not throw; data integrity preserved via atomic upsert.
+  });
+
   it('AC-3: rejects rating < 1 or > 5', async () => {
     await expect(
       upsertOutcome(USER_ID, { scheduledDate: TODAY, overallRating: 0, tags: [] })
@@ -128,7 +140,7 @@ describe('US-TRK-06: upsertOutcome', () => {
     await expect(
       upsertOutcome(USER_ID, { scheduledDate: TODAY, overallRating: 6, tags: [] })
     ).rejects.toThrow();
-    expect(mockOutcomeCreate).not.toHaveBeenCalled();
+    expect(mockOutcomeUpsert).not.toHaveBeenCalled();
   });
 
   it('AC-4: trims tags and rejects empty-after-trim', async () => {
@@ -164,7 +176,7 @@ describe('US-TRK-06: upsertOutcome', () => {
         protocolRatings: [{ protocolId: 'p-paused', rating: 4 }],
       })
     ).rejects.toThrow('protocol_not_owned');
-    expect(mockOutcomeCreate).not.toHaveBeenCalled();
+    expect(mockOutcomeUpsert).not.toHaveBeenCalled();
   });
 
   it('AC-8: rejects protocolRatings referencing protocols not owned by the actor', async () => {
@@ -180,13 +192,13 @@ describe('US-TRK-06: upsertOutcome', () => {
         ],
       })
     ).rejects.toThrow('protocol_not_owned');
-    expect(mockOutcomeCreate).not.toHaveBeenCalled();
+    expect(mockOutcomeUpsert).not.toHaveBeenCalled();
   });
 
-  it('AC-8b: creates ProtocolRatings via createMany when ownership checks pass', async () => {
+  it('AC-8b: writes ProtocolRatings via createMany when ownership checks pass', async () => {
     mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }, { id: 'p-2' }]);
-    mockOutcomeFindFirst.mockResolvedValueOnce(null); // first-time outcome
-    mockOutcomeCreate.mockResolvedValueOnce({ id: 'ol-2' });
+    mockOutcomeFindFirst.mockResolvedValueOnce(null);
+    mockOutcomeUpsert.mockResolvedValueOnce({ id: 'ol-2', userId: USER_ID });
 
     await upsertOutcome(USER_ID, {
       scheduledDate: TODAY,
@@ -198,24 +210,18 @@ describe('US-TRK-06: upsertOutcome', () => {
       ],
     });
 
-    expect(mockOutcomeCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          protocolRatings: {
-            create: [
-              { protocolId: 'p-1', rating: 4 },
-              { protocolId: 'p-2', rating: 3 },
-            ],
-          },
-        }),
-      })
-    );
+    expect(mockProtocolRatingCreateMany).toHaveBeenCalledWith({
+      data: [
+        { outcomeLogId: 'ol-2', protocolId: 'p-1', rating: 4 },
+        { outcomeLogId: 'ol-2', protocolId: 'p-2', rating: 3 },
+      ],
+    });
   });
 
   it('AC-8c: emits one PROTOCOL_RATED audit per submitted rating', async () => {
     mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }, { id: 'p-2' }]);
     mockOutcomeFindFirst.mockResolvedValueOnce(null);
-    mockOutcomeCreate.mockResolvedValueOnce({ id: 'ol-3' });
+    mockOutcomeUpsert.mockResolvedValueOnce({ id: 'ol-3', userId: USER_ID });
 
     await upsertOutcome(USER_ID, {
       scheduledDate: TODAY,
@@ -238,7 +244,7 @@ describe('US-TRK-06: upsertOutcome', () => {
   it('AC-8d: dedupes duplicate protocolIds (last-write-wins) before audit/createMany', async () => {
     mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }]);
     mockOutcomeFindFirst.mockResolvedValueOnce(null);
-    mockOutcomeCreate.mockResolvedValueOnce({ id: 'ol-4' });
+    mockOutcomeUpsert.mockResolvedValueOnce({ id: 'ol-4', userId: USER_ID });
 
     await upsertOutcome(USER_ID, {
       scheduledDate: TODAY,
@@ -250,13 +256,9 @@ describe('US-TRK-06: upsertOutcome', () => {
       ],
     });
 
-    expect(mockOutcomeCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          protocolRatings: { create: [{ protocolId: 'p-1', rating: 5 }] },
-        }),
-      })
-    );
+    expect(mockProtocolRatingCreateMany).toHaveBeenCalledWith({
+      data: [{ outcomeLogId: 'ol-4', protocolId: 'p-1', rating: 5 }],
+    });
     const ratedCalls = mockAuditCreate.mock.calls.filter(
       (call) => call[0]?.data?.action === 'PROTOCOL_RATED'
     );

@@ -74,60 +74,60 @@ export const OutcomeLogRepo = {
     },
     client: Prisma.TransactionClient
   ): Promise<{ id: string; created: boolean }> {
-    const existing = await client.outcomeLog.findFirst({
+    // Atomic upsert against the unique (userId, scheduledDate) index so
+    // two concurrent submissions for the same day collapse into a single
+    // idempotent update rather than one of them throwing P2002. We use a
+    // separate `findFirst` purely to decide which audit action to emit;
+    // the data write is the upsert. If a race causes the audit branch to
+    // disagree with the actual SQL outcome, the worst case is a single
+    // mis-labelled OUTCOME_LOGGED-vs-OUTCOME_UPDATED audit row — data
+    // integrity is preserved.
+    const existingForAudit = await client.outcomeLog.findFirst({
       where: { userId, scheduledDate: input.scheduledDate },
       select: { id: true },
     });
 
-    if (!existing) {
-      const created = await client.outcomeLog.create({
-        data: {
-          userId,
-          scheduledDate: input.scheduledDate,
-          overallRating: input.overallRating,
-          tags: input.tags,
-          note: input.note,
-          protocolRatings: {
-            create: input.protocolRatings.map((r) => ({
-              protocolId: r.protocolId,
-              rating: r.rating,
-            })),
-          },
-        },
-        select: { id: true },
-      });
-      return { id: created.id, created: true };
-    }
-
-    // Update: replace protocolRatings (delete-then-insert) so the new set
-    // exactly matches the input. The OutcomeLog update uses `updateMany`
-    // with both `id` and `userId` predicates for defense-in-depth (matches
-    // CLAUDE.md's identity-scoping rule on mutations). ProtocolRating's
-    // delete is scoped through the parent's userId via a relation filter:
-    // `outcomeLog: { is: { userId } }` — Prisma supports relation filters
-    // on `deleteMany`, so we can enforce ownership without trusting a
-    // bare `outcomeLogId`.
-    const updated = await client.outcomeLog.updateMany({
-      where: { id: existing.id, userId },
-      data: {
+    const upserted = await client.outcomeLog.upsert({
+      where: {
+        userId_scheduledDate: { userId, scheduledDate: input.scheduledDate },
+      },
+      create: {
+        userId,
+        scheduledDate: input.scheduledDate,
         overallRating: input.overallRating,
         tags: input.tags,
         note: input.note,
       },
+      update: {
+        overallRating: input.overallRating,
+        tags: input.tags,
+        note: input.note,
+      },
+      select: { id: true, userId: true },
     });
-    if (updated.count === 0) throw new Error('outcome_not_owned_by_actor');
+
+    // Defense-in-depth: the upsert is keyed on (userId, scheduledDate),
+    // so the returned row's userId MUST equal the actor. A mismatch would
+    // indicate something has gone wrong upstream.
+    if (upserted.userId !== userId) {
+      throw new Error('outcome_not_owned_by_actor');
+    }
+
+    // Replace ProtocolRatings — delete-then-insert. The deleteMany is
+    // scoped through a relation filter on the parent's userId so a
+    // tampered outcomeLogId can't cross-delete another user's ratings.
     await client.protocolRating.deleteMany({
-      where: { outcomeLogId: existing.id, outcomeLog: { is: { userId } } },
+      where: { outcomeLogId: upserted.id, outcomeLog: { is: { userId } } },
     });
     if (input.protocolRatings.length > 0) {
       await client.protocolRating.createMany({
         data: input.protocolRatings.map((r) => ({
-          outcomeLogId: existing.id,
+          outcomeLogId: upserted.id,
           protocolId: r.protocolId,
           rating: r.rating,
         })),
       });
     }
-    return { id: existing.id, created: false };
+    return { id: upserted.id, created: existingForAudit === null };
   },
 };
