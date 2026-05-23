@@ -118,7 +118,7 @@ describe('US-AUT-02: requestSelfDeletion (delayed)', () => {
 
     expect(mockGenerateExport).toHaveBeenCalledWith(USER_ID, USER_EMAIL);
     expect(mockResendSend).toHaveBeenCalled();
-    expect(mockDeactivateTelegram).toHaveBeenCalledWith(USER_ID);
+    expect(mockDeactivateTelegram).toHaveBeenCalledWith(USER_ID, expect.anything());
 
     expect(mockAdrUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -230,7 +230,7 @@ describe('US-AUT-02: requestImmediateDeletion', () => {
       confirmEmail: USER_EMAIL,
       acknowledged: true,
     });
-    expect(mockDeactivateTelegram).toHaveBeenCalledWith(USER_ID);
+    expect(mockDeactivateTelegram).toHaveBeenCalledWith(USER_ID, expect.anything());
     expect(mockUserDeleteMany).toHaveBeenCalledWith({
       where: { id: USER_ID, managedBy: null },
     });

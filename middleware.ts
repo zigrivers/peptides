@@ -17,7 +17,7 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
 }
 
-export default auth((req: NextRequest & { auth: { user?: { id?: string } } | null }) => {
+export default auth((req: NextRequest & { auth: { user?: { id?: string; status?: string } } | null }) => {
   const { pathname } = req.nextUrl;
 
   // ADR-015 / US-ORD-08: when DISABLE_ORDERING=true, the entire ordering
@@ -33,6 +33,24 @@ export default auth((req: NextRequest & { auth: { user?: { id?: string } } | nul
   // Sessions without user.id occur when the JWT is missing required claims
   // (the session callback returns the base session in that case rather than throwing).
   const isAuthenticated = req.auth?.user?.id;
+
+  // Task 6.1 — DELETION_PENDING users are restricted to /settings (where
+  // the cancel banner lives) and /api/auth/* (signOut, session). Without
+  // this guard, the user could log in during the 48h window and create
+  // data after the export was generated; the cron would then silently
+  // delete that data without it appearing in the export. The session
+  // carries `status` (embedded in the JWT and surfaced by the session
+  // callback in `lib/auth/auth.config.ts`), so this is a pure JWT read
+  // — no DB hop in middleware.
+  const status = req.auth?.user?.status;
+  if (
+    isAuthenticated &&
+    status === 'DELETION_PENDING' &&
+    !pathname.startsWith('/settings') &&
+    !pathname.startsWith('/api/auth')
+  ) {
+    return NextResponse.redirect(new URL('/settings', req.nextUrl.origin));
+  }
 
   if (!isAuthenticated && !isPublicPath(pathname)) {
     // API routes: return 401 JSON — don't redirect browsers to /login

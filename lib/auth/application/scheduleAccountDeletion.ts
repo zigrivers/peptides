@@ -98,15 +98,14 @@ export async function requestSelfDeletion(
   }
 
   await sendExportEmail(user);
-  // Telegram session revocation runs outside the transaction so a delete-
-  // failure (e.g. network blip) doesn't roll back the audited ADR write.
-  // The session table cascades on user delete anyway; this just ensures
-  // it's gone before the user is signed out.
-  await deactivateTelegramSession(user.id);
 
   const scheduledFor = new Date(Date.now() + DELETION_WINDOW_MS);
   await withAudit(
     async (tx) => {
+      // Telegram session revocation lives inside the audited transaction so
+      // that if the schedule mutation fails the session is preserved (Task
+      // 4.3 lesson: never leave the account in a partial state).
+      await deactivateTelegramSession(user.id, tx);
       // upsert lets us reuse this path if a stale non-PENDING row exists
       // (e.g. a prior cancelled deletion already cleaned the row out, but
       // we want to be tolerant of races at the unique userId index).
@@ -211,10 +210,12 @@ export async function requestImmediateDeletion(
   }
 
   await sendExportEmail(user);
-  await deactivateTelegramSession(user.id);
 
   await withAudit(
     async (tx) => {
+      // Telegram session deactivation lives inside the transaction so a
+      // tx failure doesn't leave the session removed but the user intact.
+      await deactivateTelegramSession(user.id, tx);
       // Pre-delete user's own vendor orders so the User→Vendor cascade
       // doesn't trip Order.vendorId FK restrict (same pattern as the
       // managed-user deletion path in AdminService).
