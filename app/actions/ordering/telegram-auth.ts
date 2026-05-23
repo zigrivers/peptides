@@ -10,6 +10,7 @@ import {
   unlinkTelegram,
   getSessionStatus,
 } from '@/lib/ordering/application/TelegramAuthService';
+import { assertOrderingEnabled } from '@/lib/shared/featureFlags';
 
 export type TelegramAuthError =
   | 'unauthorized'
@@ -45,6 +46,7 @@ const completeLimiter = createRateLimiter(5, 10 * 60 * 1000);
 export async function initiateTelegramLinkAction(
   rawInput: unknown
 ): Promise<TelegramAuthResult<{ flowId: string; phoneCodeHash: string }>> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
@@ -69,6 +71,7 @@ export async function initiateTelegramLinkAction(
 export async function completeTelegramLinkAction(
   rawInput: unknown
 ): Promise<TelegramAuthResult> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
@@ -106,6 +109,7 @@ export async function completeTelegramLinkAction(
 export async function completeTelegramLinkWithPasswordAction(
   rawInput: unknown
 ): Promise<TelegramAuthResult> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
@@ -136,6 +140,7 @@ export async function completeTelegramLinkWithPasswordAction(
 }
 
 export async function unlinkTelegramAction(): Promise<TelegramAuthResult> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
@@ -148,6 +153,7 @@ export async function unlinkTelegramAction(): Promise<TelegramAuthResult> {
 }
 
 export async function getTelegramStatusAction(): Promise<TelegramAuthResult<{ linked: boolean }>> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 

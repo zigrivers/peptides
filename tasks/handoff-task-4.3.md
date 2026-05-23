@@ -33,12 +33,10 @@ Task 4.3 (US-ADM-04) shipped end-to-end after **18 MMR rounds**. All 497 accepta
 
 ## What's Next
 
-The autonomous loop's next task per the implementation plan:
+Task 4.4 (Ordering Module Isolation Feature Flag — US-ORD-08) is in progress on
+branch `task-4.4-disable-ordering-flag`. See `plans/2026-05-23-task-4.4-ordering-feature-flag.md`.
 
-### Task 4.4 — Ordering Module Isolation Feature Flag (US-ORD-08)
-- **File:** `docs/implementation-plan.md` line 211
-- **Description:** `DISABLE_ORDERING` env flag per ADR-015; all `/ordering/*` routes return 404/403 when set; UI hides ordering nav; tracker + reference fully functional with ordering disabled.
-- **Estimate:** 1 day.
+After Task 4.4 merges, the next deliverable per the implementation plan:
 
 ### Task 4.5 — Phase 2 Legal Gate Completion
 - **File:** `docs/implementation-plan.md` line 217

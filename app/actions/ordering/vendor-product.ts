@@ -8,6 +8,7 @@ import {
   updateVendorProduct,
   archiveVendorProduct,
 } from '@/lib/ordering/application/VendorProductService';
+import { assertOrderingEnabled } from '@/lib/shared/featureFlags';
 
 const CreateProductSchema = z.object({
   vendorId: z.string().min(1),
@@ -37,6 +38,7 @@ export type ProductActionResult<T = void> =
 export async function createVendorProductAction(
   rawInput: unknown
 ): Promise<ProductActionResult<{ productId: string }>> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
@@ -60,6 +62,7 @@ export async function updateVendorProductAction(
   vendorId: string,
   rawInput: unknown
 ): Promise<ProductActionResult> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
@@ -82,6 +85,7 @@ export async function archiveVendorProductAction(
   productId: string,
   vendorId: string
 ): Promise<ProductActionResult> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 

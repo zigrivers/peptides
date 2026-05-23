@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
+import { isOrderingDisabled } from '@/lib/shared/featureFlags';
 import { getManagedUsersWithAdherence } from '@/lib/admin/application/AdminService';
 import type { InviteStatus, ManagedUserRow, PendingInviteRow } from '@/lib/admin/application/AdminService';
 import { deactivateManagedUserAction, triggerPasswordResetAction, requestDeletionAction, cancelDeletionAction } from './_actions';
@@ -149,11 +150,16 @@ export default async function AdminPage() {
 
       {total === 0 && (
         <p className="text-sm text-gray-400 py-4 text-center">
-          No managed users yet.{' '}
-          <Link href="/settings/telegram" className="text-indigo-600 hover:underline">
-            Go to Settings
-          </Link>{' '}
-          to invite someone.
+          No managed users yet.
+          {!isOrderingDisabled() && (
+            <>
+              {' '}
+              <Link href="/settings/telegram" className="text-indigo-600 hover:underline">
+                Go to Settings
+              </Link>
+              {' '}to invite someone.
+            </>
+          )}
         </p>
       )}
     </main>

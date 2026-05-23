@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { createVendor, updateVendor, disableVendor } from '@/lib/ordering/application/VendorService';
 import { VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
+import { assertOrderingEnabled } from '@/lib/shared/featureFlags';
 
 const CreateVendorSchema = z.object({
   name: z.string().min(1).max(100),
@@ -33,6 +34,7 @@ export type VendorActionResult<T = void> =
 export async function createVendorAction(
   rawInput: unknown
 ): Promise<VendorActionResult<{ vendorId: string }>> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
@@ -52,6 +54,7 @@ export async function updateVendorAction(
   vendorId: string,
   rawInput: unknown
 ): Promise<VendorActionResult> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
@@ -72,6 +75,7 @@ export async function updateVendorAction(
 }
 
 export async function disableVendorAction(vendorId: string): Promise<VendorActionResult> {
+  assertOrderingEnabled();
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
