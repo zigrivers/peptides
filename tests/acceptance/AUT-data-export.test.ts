@@ -14,13 +14,13 @@ const mockUserFindUnique = vi.fn();
 const mockSend = vi.fn();
 const mockWithAudit = vi.fn();
 const mockDERCreate = vi.fn();
-const mockDERUpdate = vi.fn();
+const mockDERUpdateMany = vi.fn();
 const mockGenerateExport = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
     user: { findUnique: mockUserFindUnique },
-    dataExportRequest: { update: mockDERUpdate }, // outer-prisma (for FAILED status)
+    dataExportRequest: { updateMany: mockDERUpdateMany }, // outer-prisma (for FAILED status)
   },
 }));
 vi.mock('@/lib/shared/email', () => ({
@@ -35,16 +35,16 @@ vi.mock('@/lib/shared/userDataExport', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Default setupWithAudit: tx exposes both create + update on dataExportRequest
+  // Default setupWithAudit: tx exposes both create + updateMany on dataExportRequest
   mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>) =>
-    mutation({ dataExportRequest: { create: mockDERCreate, update: mockDERUpdate } })
+    mutation({ dataExportRequest: { create: mockDERCreate, updateMany: mockDERUpdateMany } })
   );
   mockUserFindUnique.mockResolvedValue({ id: 'u-1', email: 'user@e.com', name: 'Test User' });
   mockSend.mockResolvedValue({ data: { id: 'msg-1' }, error: null });
   mockGenerateExport.mockResolvedValue(JSON.stringify({ userId: 'u-1', protocols: [] }));
-  // Phase 1 create returns a row with id; phase 3a update returns same id.
+  // Phase 1 create returns a row with id; phase 3a updateMany returns count.
   mockDERCreate.mockResolvedValue({ id: 'der-1', status: 'PENDING' });
-  mockDERUpdate.mockResolvedValue({ id: 'der-1', status: 'COMPLETED' });
+  mockDERUpdateMany.mockResolvedValue({ count: 1 });
 });
 
 const { requestDataExport } = await import('@/lib/auth/application/requestDataExport');
@@ -87,10 +87,10 @@ describe('US-AUT-02: requestDataExport (self-serve)', () => {
       })
     );
 
-    // Phase 3a: update to COMPLETED
-    expect(mockDERUpdate).toHaveBeenCalledWith(
+    // Phase 3a: updateMany to COMPLETED, scoped with userId
+    expect(mockDERUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'der-1' },
+        where: { id: 'der-1', userId: 'u-1' },
         data: { status: 'COMPLETED' },
       })
     );
@@ -99,7 +99,7 @@ describe('US-AUT-02: requestDataExport (self-serve)', () => {
   it('AC-4: writes DATA_EXPORT_REQUESTED before email, DATA_EXPORT_DELIVERED after', async () => {
     const captured: unknown[] = [];
     mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
-      const result = await mutation({ dataExportRequest: { create: mockDERCreate, update: mockDERUpdate } });
+      const result = await mutation({ dataExportRequest: { create: mockDERCreate, updateMany: mockDERUpdateMany } });
       captured.push(typeof buildAudit === 'function' ? buildAudit(result) : buildAudit);
       return result;
     });
@@ -137,13 +137,13 @@ describe('US-AUT-02: requestDataExport (self-serve)', () => {
     expect(mockDERCreate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: 'PENDING' }) })
     );
-    // Phase 3a COMPLETED update did NOT happen
-    expect(mockDERUpdate).not.toHaveBeenCalledWith(
+    // Phase 3a COMPLETED updateMany did NOT happen
+    expect(mockDERUpdateMany).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: 'COMPLETED' } })
     );
-    // Best-effort FAILED status update happened (outer prisma, not via withAudit)
-    expect(mockDERUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'der-1' }, data: { status: 'FAILED' } })
+    // Best-effort FAILED status updateMany happened (outer prisma, userId-scoped)
+    expect(mockDERUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'der-1', userId: 'u-1' }, data: { status: 'FAILED' } })
     );
   });
 

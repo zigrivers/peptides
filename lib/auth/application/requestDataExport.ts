@@ -85,21 +85,25 @@ export async function requestDataExport(userId: string): Promise<{ exportRequest
   if (emailError) {
     console.error('[requestDataExport] email send failed:', emailError.message);
     // Best-effort: mark the row FAILED so the audit trail reflects the outcome.
-    // No separate FAILED audit event — the REQUESTED audit + the absence of a
-    // DELIVERED audit is sufficient signal, and a third action class adds noise.
+    // updateMany with userId predicate satisfies the userId-scoping rule —
+    // DataExportRequest.id is a UUID so the practical risk is nil, but the
+    // explicit scope is the documented project standard for user-owned writes.
     await prisma.dataExportRequest
-      .update({ where: { id: requestRow.id }, data: { status: 'FAILED' } })
+      .updateMany({ where: { id: requestRow.id, userId: user.id }, data: { status: 'FAILED' } })
       .catch((err) => console.error('[requestDataExport] failed-status update also failed:', err));
     throw new Error('export_email_failed');
   }
 
-  // Phase 3a: mark completed + DELIVERED audit.
+  // Phase 3a: mark completed + DELIVERED audit. userId-scoped updateMany +
+  // count check for defense-in-depth (matches the pattern in AdminService).
   await withAudit(
     async (tx) => {
-      return tx.dataExportRequest.update({
-        where: { id: requestRow.id },
+      const { count } = await tx.dataExportRequest.updateMany({
+        where: { id: requestRow.id, userId: user.id },
         data: { status: 'COMPLETED' },
       });
+      if (count === 0) throw new Error('data_export_request_not_found');
+      return { id: requestRow.id };
     },
     (row) => ({
       actorUserId: user.id,
