@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getOrderWithDetails } from '@/lib/ordering/application/OrderService';
 import { receiveOrderAction } from '../../_actions';
+import { ConfirmReceiptButton } from './_components/ConfirmReceiptButton';
 
 interface Props {
   params: Promise<{ orderId: string }>;
@@ -54,12 +55,7 @@ export default async function ReceivePage({ params }: Props) {
       </section>
 
       <form action={action}>
-        <button
-          type="submit"
-          className="w-full rounded-md bg-green-600 text-white px-4 py-3 text-sm font-semibold hover:bg-green-700 transition-colors"
-        >
-          Confirm Receipt &amp; Add to Inventory
-        </button>
+        <ConfirmReceiptButton />
       </form>
     </main>
   );

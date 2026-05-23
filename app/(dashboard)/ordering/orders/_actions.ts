@@ -39,6 +39,7 @@ export async function confirmQuoteAction(
   let amount: string;
   try {
     const d = new Decimal(amountRaw);
+    if (!d.isFinite()) return { error: 'Amount must be a valid number (e.g. 50.00 or 0.001).' };
     if (d.lte(0)) return { error: 'Amount must be greater than zero.' };
     amount = d.toString();
   } catch {

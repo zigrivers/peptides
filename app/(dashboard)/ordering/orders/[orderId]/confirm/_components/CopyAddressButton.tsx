@@ -6,6 +6,7 @@ export function CopyAddressButton({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return;
     await navigator.clipboard.writeText(address);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
