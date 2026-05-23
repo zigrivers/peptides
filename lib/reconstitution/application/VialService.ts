@@ -88,7 +88,7 @@ export async function saveVial(input: SaveVialInput): Promise<VialWithBadges> {
 
 export async function getVialsForUser(userId: string): Promise<VialWithBadges[]> {
   const vials = await prisma.vial.findMany({
-    where: { userId, status: 'RECONSTITUTED' },
+    where: { userId, status: { in: ['DRY', 'RECONSTITUTED'] } },
     include: { compound: { select: { name: true } } },
     orderBy: { expiresAt: 'asc' },
   });

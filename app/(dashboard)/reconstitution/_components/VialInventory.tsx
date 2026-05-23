@@ -57,9 +57,13 @@ export function VialInventory({ vials }: Props) {
                   <> &middot; {Number(vial.bacWaterMl).toFixed(1)} mL BAC water</>
                 )}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Expires {formatDate(vial.expiresAt)}
-              </p>
+              {vial.status === 'DRY' ? (
+                <p className="text-xs text-amber-600 mt-0.5 font-medium">Pending reconstitution</p>
+              ) : (
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Expires {formatDate(vial.expiresAt)}
+                </p>
+              )}
             </div>
             {vial.badges.length > 0 && (
               <div className="flex flex-col gap-1 items-end">

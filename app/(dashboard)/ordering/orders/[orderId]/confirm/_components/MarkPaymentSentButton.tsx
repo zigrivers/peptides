@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useActionState } from 'react';
 import { markPaymentSentAction } from '../../../_actions';
+import type { ActionResult } from '../../../_actions';
 
 interface Props {
   orderId: string;
@@ -10,26 +11,18 @@ interface Props {
 
 export function MarkPaymentSentButton({ orderId, hasPriorDiff }: Props) {
   const [acknowledged, setAcknowledged] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const boundAction = markPaymentSentAction.bind(null, orderId);
+  const [state, formAction, isPending] = useActionState<ActionResult | null, FormData>(boundAction, null);
 
   const label = hasPriorDiff
     ? 'I have compared the addresses and verified this is the correct wallet'
     : "I have verified the wallet address and amount from the vendor's current reply";
 
-  function handleSubmit() {
-    setError(null);
-    startTransition(async () => {
-      const result = await markPaymentSentAction(orderId);
-      if (result?.error) setError(result.error);
-    });
-  }
-
   return (
-    <div className="space-y-4 pt-2">
-      {error && (
+    <form action={formAction} className="space-y-4 pt-2">
+      {state?.error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+          {state.error}
         </div>
       )}
 
@@ -43,14 +36,16 @@ export function MarkPaymentSentButton({ orderId, hasPriorDiff }: Props) {
         <span className="text-sm text-gray-700">{label}</span>
       </label>
 
+      {/* Server-validated acknowledgement — checkbox state mirrored as form field */}
+      <input type="hidden" name="acknowledged" value={acknowledged ? 'true' : 'false'} />
+
       <button
-        type="button"
+        type="submit"
         disabled={!acknowledged || isPending}
-        onClick={handleSubmit}
         className="w-full rounded-md bg-indigo-600 text-white px-4 py-3 text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {isPending ? 'Processing…' : 'Mark Payment Sent'}
       </button>
-    </div>
+    </form>
   );
 }

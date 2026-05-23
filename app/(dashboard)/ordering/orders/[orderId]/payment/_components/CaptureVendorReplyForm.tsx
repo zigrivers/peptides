@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function CaptureVendorReplyForm({ action, defaultValues }: Props) {
-  const [state, formAction] = useActionState(action, null);
+  const [state, formAction, isPending] = useActionState(action, null);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -70,9 +70,10 @@ export function CaptureVendorReplyForm({ action, defaultValues }: Props) {
 
       <button
         type="submit"
-        className="w-full rounded-md bg-indigo-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-indigo-700 transition-colors"
+        disabled={isPending}
+        className="w-full rounded-md bg-indigo-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        Review Payment →
+        {isPending ? 'Processing…' : 'Review Payment →'}
       </button>
     </form>
   );

@@ -53,9 +53,16 @@ export async function confirmQuoteAction(
   redirect(`/ordering/orders/${orderId}/confirm`);
 }
 
-export async function markPaymentSentAction(orderId: string): Promise<ActionResult | null> {
+export async function markPaymentSentAction(
+  orderId: string,
+  _prevState: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult | null> {
   const session = await auth();
   if (!session?.user?.id) throw new Error('Unauthorized');
+  if (formData.get('acknowledged') !== 'true') {
+    return { error: 'You must acknowledge the payment details before marking payment as sent.' };
+  }
   try {
     await markPaymentSent(session.user.id, orderId);
   } catch (err) {

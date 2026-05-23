@@ -583,33 +583,42 @@ export async function receiveOrder(userId: string, orderId: string): Promise<voi
   const now = new Date();
   const DEFAULT_SHELF_LIFE_DAYS = 14;
 
-  // Only SOLUTION items create vials on receipt — they're pre-mixed and immediately usable.
-  // LYOPHILIZED_POWDER items are reconstituted separately through the tracker flow.
-  const solutionItems = order.items.filter((item) => item.form === 'SOLUTION');
-
-  // Resolve compound-specific shelf life for each unique solution compound
+  // Resolve compound-specific shelf life for SOLUTION items (DRY items don't need it)
+  const solutionCompoundIds = [...new Set(
+    order.items.filter((i) => i.form === 'SOLUTION').map((i) => i.compoundId)
+  )];
   const shelfLifeByCompound = new Map<string, number>();
-  for (const item of solutionItems) {
-    if (!shelfLifeByCompound.has(item.compoundId)) {
-      const days = await getReconstitutedShelfLifeDays(item.compoundId);
-      shelfLifeByCompound.set(item.compoundId, days ?? DEFAULT_SHELF_LIFE_DAYS);
-    }
+  for (const compoundId of solutionCompoundIds) {
+    const days = await getReconstitutedShelfLifeDays(compoundId);
+    shelfLifeByCompound.set(compoundId, days ?? DEFAULT_SHELF_LIFE_DAYS);
   }
 
-  const vialRows = solutionItems.flatMap((item) => {
-    const shelfLifeDays = shelfLifeByCompound.get(item.compoundId) ?? DEFAULT_SHELF_LIFE_DAYS;
-    const expiresAt = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays)
-    );
+  const vialRows = order.items.flatMap((item) => {
+    const isSolution = item.form === 'SOLUTION';
+    if (isSolution) {
+      const shelfLifeDays = shelfLifeByCompound.get(item.compoundId) ?? DEFAULT_SHELF_LIFE_DAYS;
+      const expiresAt = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays)
+      );
+      return Array.from({ length: item.quantity }, () => ({
+        userId,
+        compoundId: item.compoundId,
+        orderItemId: item.id,
+        totalMg: item.vialSizeMg,
+        remainingMg: item.vialSizeMg,
+        status: 'RECONSTITUTED',
+        reconstitutedAt: now,
+        expiresAt,
+      }));
+    }
+    // LYOPHILIZED_POWDER: create DRY vials for provenance; visible in inventory pending reconstitution
     return Array.from({ length: item.quantity }, () => ({
       userId,
       compoundId: item.compoundId,
       orderItemId: item.id,
       totalMg: item.vialSizeMg,
       remainingMg: item.vialSizeMg,
-      status: 'RECONSTITUTED',
-      reconstitutedAt: now,
-      expiresAt,
+      status: 'DRY',
     }));
   });
 
@@ -620,9 +629,7 @@ export async function receiveOrder(userId: string, orderId: string): Promise<voi
         data: { status: 'RECEIVED', receivedAt: now },
       });
       if (count === 0) throw new Error('invalid_order_transition');
-      if (vialRows.length > 0) {
-        await tx.vial.createMany({ data: vialRows });
-      }
+      await tx.vial.createMany({ data: vialRows });
     },
     () => ({
       actorUserId: userId,
@@ -631,7 +638,7 @@ export async function receiveOrder(userId: string, orderId: string): Promise<voi
       resourceId: orderId,
       resourceType: 'Order',
       oldValues: { status: 'PAYMENT_SENT' },
-      newValues: { status: 'RECEIVED', solutionVialsCreated: vialRows.length },
+      newValues: { status: 'RECEIVED', vialsCreated: vialRows.length },
     })
   );
 }
