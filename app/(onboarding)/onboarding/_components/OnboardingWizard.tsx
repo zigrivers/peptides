@@ -12,7 +12,7 @@ interface WizardStep {
   cta: string;
 }
 
-const POWER_USER_STEPS: WizardStep[] = [
+const POWER_USER_STEPS_ALL: WizardStep[] = [
   {
     key: 'browse_catalog',
     title: 'Browse the Compound Catalog',
@@ -56,11 +56,24 @@ const MANAGED_USER_STEPS: WizardStep[] = [
 interface OnboardingWizardProps {
   initialState: OnboardingState;
   userRole: 'POWER_USER' | 'MANAGED_USER';
+  /**
+   * When false, the Telegram step is removed from the power-user wizard
+   * (per ADR-015 / US-ORD-08). The previous step's CTA becomes "Finish Setup"
+   * because it is now the last step.
+   */
+  orderingEnabled: boolean;
 }
 
-export function OnboardingWizard({ initialState, userRole }: OnboardingWizardProps) {
+export function OnboardingWizard({ initialState, userRole, orderingEnabled }: OnboardingWizardProps) {
   const router = useRouter();
-  const steps = userRole === 'POWER_USER' ? POWER_USER_STEPS : MANAGED_USER_STEPS;
+  // Filter out Telegram step when ordering is disabled, and re-label the
+  // (now last) step's CTA so the final action says "Finish Setup".
+  const powerUserSteps: WizardStep[] = orderingEnabled
+    ? POWER_USER_STEPS_ALL
+    : POWER_USER_STEPS_ALL
+        .filter((s) => s.key !== 'telegram_setup')
+        .map((s, i, arr) => (i === arr.length - 1 ? { ...s, cta: 'Finish Setup' } : s));
+  const steps = userRole === 'POWER_USER' ? powerUserSteps : MANAGED_USER_STEPS;
 
   const initialIndex = Math.max(
     0,

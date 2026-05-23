@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import type { OnboardingState, PowerUserStep, ManagedUserStep } from '@/lib/auth/application/onboarding';
 
-const POWER_USER_STEPS: { key: PowerUserStep; label: string }[] = [
+const POWER_USER_STEPS_ALL: { key: PowerUserStep; label: string }[] = [
   { key: 'browse_catalog', label: 'Browse the Compound Catalog' },
   { key: 'create_protocol', label: 'Create Your First Protocol' },
   { key: 'telegram_setup', label: 'Connect Telegram (Optional)' },
@@ -14,7 +14,7 @@ const MANAGED_USER_STEPS: { key: ManagedUserStep; label: string }[] = [
   { key: 'log_first_dose', label: 'Log Your First Dose' },
 ];
 
-const STEP_ORDER_PU: (PowerUserStep | ManagedUserStep)[] = [
+const STEP_ORDER_PU_ALL: (PowerUserStep | ManagedUserStep)[] = [
   'browse_catalog', 'create_protocol', 'telegram_setup', 'completed',
 ];
 const STEP_ORDER_MU: (PowerUserStep | ManagedUserStep)[] = [
@@ -24,18 +24,34 @@ const STEP_ORDER_MU: (PowerUserStep | ManagedUserStep)[] = [
 interface GettingStartedChecklistProps {
   state: OnboardingState;
   userRole: 'POWER_USER' | 'MANAGED_USER';
+  /**
+   * When false, the Telegram-connect step is hidden from the power-user
+   * checklist (per ADR-015 / US-ORD-08: DISABLE_ORDERING flag). The dashboard
+   * server component reads the flag and passes it down.
+   */
+  orderingEnabled: boolean;
 }
 
 // The checklist persists on the dashboard until all steps are completed,
 // per UX spec §2.3: "Getting Started checklist persists on dashboard until 100% complete".
 // It is intentionally not dismissible — only completing all steps hides it.
-export function GettingStartedChecklist({ state, userRole }: GettingStartedChecklistProps) {
+export function GettingStartedChecklist({ state, userRole, orderingEnabled }: GettingStartedChecklistProps) {
   const router = useRouter();
 
   if (state.step === 'completed') return null;
+  // When ordering is disabled, treat telegram_setup as effectively completed —
+  // the checklist hides rather than dangling a step the user can't act on.
+  if (!orderingEnabled && state.step === 'telegram_setup') return null;
 
-  const steps = userRole === 'POWER_USER' ? POWER_USER_STEPS : MANAGED_USER_STEPS;
-  const stepOrder = userRole === 'POWER_USER' ? STEP_ORDER_PU : STEP_ORDER_MU;
+  const powerUserSteps = orderingEnabled
+    ? POWER_USER_STEPS_ALL
+    : POWER_USER_STEPS_ALL.filter((s) => s.key !== 'telegram_setup');
+  const stepOrderPU = orderingEnabled
+    ? STEP_ORDER_PU_ALL
+    : STEP_ORDER_PU_ALL.filter((s) => s !== 'telegram_setup');
+
+  const steps = userRole === 'POWER_USER' ? powerUserSteps : MANAGED_USER_STEPS;
+  const stepOrder = userRole === 'POWER_USER' ? stepOrderPU : STEP_ORDER_MU;
   const currentStepIndex = stepOrder.indexOf(state.step as PowerUserStep | ManagedUserStep);
   const completedCount = Math.max(0, currentStepIndex);
   const totalSteps = steps.length;

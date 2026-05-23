@@ -50,6 +50,7 @@ export default async function DashboardPage() {
         <GettingStartedChecklist
           state={onboardingState}
           userRole={userRole}
+          orderingEnabled={orderingEnabled}
         />
       )}
 
