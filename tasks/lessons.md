@@ -2,6 +2,16 @@
 
 This file tracks architectural and process learnings for future agents. Append a dated section after every PR that surfaced a non-obvious lesson worth carrying forward. Keep entries terse — one or two sentences each; link to the related ADR, PR, or incident.
 
+## 2026-05-23 (Task 4.3 — IN PROGRESS, see tasks/handoff-task-4.3.md)
+
+- **`unstable_after` alias confuses Gemini**: Importing as `import { unstable_after as after }` causes Gemini to repeatedly flag `after` as undefined across multiple rounds. Switching to `import { unstable_after }` and calling `unstable_after(...)` directly eliminates the false positive. Next.js 15.0.0-rc.0 does not export `after` directly — only `unstable_after`.
+- **Contradicting MMR feedback across rounds is a signal to simplify**: Task 4.3 had immediate-deletion functionality that round-1 wanted hidden, round-3 wanted UI for, round-6 wanted removed entirely. When two reviewers disagree, the right move is usually to delete the contested code path, not to add more code defending it.
+- **Cron `findMany` over user-owned tables needs an explicit AGENTS.md exception**: System-level cron operations that scan all users' rows must be documented in AGENTS.md under "Auth Scoping" alongside `markOrdersStale`. Codex reads AGENTS.md as the authoritative reviewer brief; CLAUDE.md alone is not enough.
+- **Cron deletion needs `requestedByUserId` on AccountDeletionRequest**: For traceability and defense-in-depth, store the original power user who initiated the deletion on the ADR row. The cron then verifies `user.managedBy === req.requestedByUserId` before deleting and uses that requestor as the write predicate.
+- **Order/Vendor cascade conflict**: Deleting a User cascades to Vendor, but `Order.vendorId` has the default RESTRICT action — a Vendor with orders cannot be deleted. The deletion cron must pre-delete orders (scoped with `userId` for safety) before the user delete.
+- **Codex base64 size math**: When attaching JSON exports to Resend emails, the raw payload threshold must be ~17MB (not the 25MB attachment limit) to account for ~33% base64 inflation plus email header overhead.
+- **Stale ADR cleanup must restore user state atomically**: When the cron rejects a deletion (mismatched requestor), deleting the ADR alone leaves the user stuck in DELETION_PENDING with no cancellation handle. Use `$transaction` to delete the ADR AND restore `status: 'DEACTIVATED'` in one atomic op.
+
 ## 2026-05-20
 
 - **Precision**: Math must use `Decimal` (per `.claude/rules/safety-math.md`); floating point leads to rounding errors in dose calculations. Vitest config enforces 100% branch coverage on `lib/reconstitution` and `lib/audit`.
