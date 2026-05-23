@@ -10,6 +10,9 @@ import {
   markPaymentSent,
   receiveOrder,
 } from '@/lib/ordering/application/OrderService';
+import { VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
+
+const ALLOWED_PAYMENT_CURRENCIES = new Set(VENDOR_CURRENCIES);
 
 export interface ActionResult {
   error: string;
@@ -35,6 +38,9 @@ export async function confirmQuoteAction(
   const currency = (formData.get('currency') as string | null)?.trim() ?? '';
   if (!walletAddress || !amountRaw || !currency) {
     return { error: 'All fields are required.' };
+  }
+  if (!ALLOWED_PAYMENT_CURRENCIES.has(currency as (typeof VENDOR_CURRENCIES)[number])) {
+    return { error: 'Invalid currency selection.' };
   }
   let amount: string;
   try {

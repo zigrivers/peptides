@@ -205,23 +205,24 @@ describe('receiveOrder', () => {
     mockGetReconstitutedShelfLifeDays.mockResolvedValue(null); // use 14-day default
   });
 
-  it('AC-1: transitions PAYMENT_SENT → RECEIVED and sets receivedAt', async () => {
+  it('AC-1: transitions PAYMENT_SENT → RECEIVED and sets receivedAt (powder-only: no vials created)', async () => {
     const { receiveOrder } = await import('@/lib/ordering/application/OrderService');
     mockPrismaOrderFindFirst.mockResolvedValueOnce({
       id: 'order-1', userId: 'user-1', status: 'PAYMENT_SENT',
       items: [{ id: 'item-1', compoundId: 'c-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: new Decimal('5'), quantity: 2 }],
     });
     mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
-    mockPrismaVialCreateMany.mockResolvedValueOnce({ count: 2 });
 
     await receiveOrder('user-1', 'order-1');
 
     const updateCall = mockPrismaOrderUpdateMany.mock.calls[0][0];
     expect(updateCall.data.status).toBe('RECEIVED');
     expect(updateCall.data.receivedAt).toBeInstanceOf(Date);
+    // No vials for powder — users add them via the reconstitution tracker
+    expect(mockPrismaVialCreateMany).not.toHaveBeenCalled();
   });
 
-  it('AC-2: creates one Vial per quantity per OrderItem — DRY for powder, RECONSTITUTED for solution', async () => {
+  it('AC-2: creates RECONSTITUTED vials only for SOLUTION items (not LYOPHILIZED_POWDER)', async () => {
     const { receiveOrder } = await import('@/lib/ordering/application/OrderService');
     mockPrismaOrderFindFirst.mockResolvedValueOnce({
       id: 'order-1', userId: 'user-1', status: 'PAYMENT_SENT',
@@ -231,20 +232,17 @@ describe('receiveOrder', () => {
       ],
     });
     mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
-    mockPrismaVialCreateMany.mockResolvedValueOnce({ count: 3 });
+    mockPrismaVialCreateMany.mockResolvedValueOnce({ count: 2 });
 
     await receiveOrder('user-1', 'order-1');
 
     const createManyCall = mockPrismaVialCreateMany.mock.calls[0][0];
-    expect(createManyCall.data).toHaveLength(3);
+    // Only the 2 SOLUTION vials; powder item is skipped
+    expect(createManyCall.data).toHaveLength(2);
     const solutionVials = createManyCall.data.filter((v: { orderItemId: string }) => v.orderItemId === 'item-1');
     expect(solutionVials).toHaveLength(2);
     expect(solutionVials[0].status).toBe('RECONSTITUTED');
     expect(solutionVials[0].totalMg.toString()).toBe('5');
-    const powderVials = createManyCall.data.filter((v: { orderItemId: string }) => v.orderItemId === 'item-2');
-    expect(powderVials).toHaveLength(1);
-    expect(powderVials[0].status).toBe('DRY');
-    expect(powderVials[0].totalMg.toString()).toBe('10');
   });
 
   it('AC-3: throws order_not_found if order does not exist', async () => {
