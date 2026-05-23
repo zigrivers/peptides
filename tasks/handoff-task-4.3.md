@@ -33,20 +33,28 @@ Task 4.3 (US-ADM-04) shipped end-to-end after **18 MMR rounds**. All 497 accepta
 
 ## What's Next
 
-Wave 4 is complete:
+Wave 4 status:
 - **Task 4.4** (Ordering Module Isolation Feature Flag — US-ORD-08) — merged via PR #33 (commit `235992e`). Plan: `plans/2026-05-23-task-4.4-ordering-feature-flag.md`.
-- **Task 4.5** (Phase 2 Legal Gate Completion) — documented in `docs/decisions/phase-2-legal-gate.md`. Phase 2 entry granted; all six checklist items pass.
+- **Task 4.5** (Phase 2 Legal Gate Completion) — self-review documented in `docs/decisions/phase-2-legal-gate.md`. Outcome: **CONDITIONAL — BLOCKED**. Items 2/4/5/6 pass, but items 1 and 3 cannot honestly pass yet:
+  - Item 1 (managed-user click-through acknowledgment): the `/accept-invite` route + `acceptInvite` server action don't exist. Per AGENTS.md known-design-decisions, the acceptance page was intentionally deferred. Remediation: **Task 1.6c** (added to `docs/implementation-plan.md`).
+  - Item 3 (data export on demand): the deletion-time export is comprehensive, but standalone on-demand export requires **Task 6.2** (Async Data Export Pipeline, already on plan).
 
-Next per the implementation plan: **Wave 5**.
+**Phase 2 ship is gated on Task 1.6c and Task 6.2 merging.** Wave 5 implementation can proceed in parallel (it doesn't depend on Phase 2 entry), but no managed user beyond the Power User's own household should be invited until both blockers clear and the legal gate is re-reviewed.
+
+Next deliverables (in dependency order):
+
+### Task 1.6c — Accept Invite Flow (NEW — gating Phase 2 entry)
+- **File:** `docs/implementation-plan.md` (added under Wave 1 as Task 1.6c)
+- **Description:** ship `/accept-invite` page + `acceptInvite` server action so invitees can click through the consent copy, create their managed-user account, and have the `INVITE_ACCEPTED` audit written. Resolves Phase 2 Legal Gate item 1.
 
 ### Task 5.1 — Reminder Preferences + Web Push Subscription
 - **File:** `docs/implementation-plan.md` line 227
-- **Description:** ReminderPreference CRUD; service-worker push subscription registration; VAPID keys in env; push permission state tracking per ADR-007 step-5.
-- **Estimate:** 2 days.
 
 ### Task 5.2 — Reminder Dispatch Cron (15-minute tick)
 ### Task 5.3 — Subjective Outcomes + Correlation Timeline
 ### Task 5.4 — AI Layer (Vercel AI SDK + Anthropic + Gemini fallback)
+
+### Task 6.2 — Async Data Export Pipeline (also gating Phase 2 entry)
 
 ---
 

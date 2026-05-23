@@ -84,6 +84,13 @@ Before any feature task is started, the following gates MUST pass. These are not
 - **AC**: invite link sent via Resend; 4-state model (Invited/Expired/Accepted/Revoked); resend invalidates prior.
 - **Estimate**: 3 days.
 
+#### Task 1.6c: Accept Invite Flow (NEW — Phase 2 gate blocker)
+- **Description**: ship the `/accept-invite` route + `acceptInvite` server action. Invite emails already link to `/accept-invite?token=…` (Task 1.6a), but the page itself was intentionally deferred and is now blocking Phase 2 entry (`docs/decisions/phase-2-legal-gate.md` item 1). The page hashes the raw token, looks up `Invite` by `tokenHash`, validates pending+unexpired, then renders the consent copy + password/name form. Submission creates the managed-user `User` row, marks the invite ACCEPTED, writes the `INVITE_ACCEPTED` audit event (already defined in `lib/audit/domain/AuditEvent.ts`), signs the user in, and redirects to `/dashboard`.
+- **Stories**: US-ADM-01, US-AUT-01 (acknowledgment side of Phase 2 legal gate)
+- **AC**: invitee can click invite-email link and finish account creation with a click-through consent acknowledgment; `Invite.acceptedAt` + `acceptedByUserId` populated; `INVITE_ACCEPTED` audit written with the new user as actor; expired/used tokens render an "Invitation no longer valid" page instead of throwing.
+- **Estimate**: 1.5 days.
+- **Note**: This task was originally folded into Task 1.6a's description but was deferred per AGENTS.md "Known Design Decisions". Surfaced as its own task because it now blocks the Phase 2 legal gate.
+
 ---
 
 ### Wave 2: Tracker & Reference + Reconstitution UI
