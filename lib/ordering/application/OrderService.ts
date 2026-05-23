@@ -513,12 +513,12 @@ export async function confirmQuote(
 ): Promise<void> {
   const order = await prisma.order.findFirst({ where: { id: orderId, userId } });
   if (!order) throw new Error('order_not_found');
-  if (order.status !== 'SENT') throw new Error('invalid_order_transition');
+  if (order.status !== 'SENT' && order.status !== 'STALE') throw new Error('invalid_order_transition');
   const now = new Date();
   await withAudit(
     async (tx) => {
       const { count } = await tx.order.updateMany({
-        where: { id: orderId, userId, status: 'SENT' },
+        where: { id: orderId, userId, status: { in: ['SENT', 'STALE'] } },
         data: {
           status: 'CONFIRMED',
           confirmedAt: now,
@@ -575,38 +575,41 @@ export async function receiveOrder(userId: string, orderId: string): Promise<voi
     include: { items: { select: { id: true, compoundId: true, vialSizeMg: true, quantity: true } } },
   });
   if (!order) throw new Error('order_not_found');
+  // Idempotent: already received — safe to return without creating duplicate vials
+  if (order.status === 'RECEIVED') return;
   if (order.status !== 'PAYMENT_SENT') throw new Error('invalid_order_transition');
   const now = new Date();
 
-  await prisma.$transaction(async (tx) => {
-    const { count } = await tx.order.updateMany({
-      where: { id: orderId, userId, status: 'PAYMENT_SENT' },
-      data: { status: 'RECEIVED', receivedAt: now },
-    });
-    if (count === 0) throw new Error('invalid_order_transition');
+  const vialRows = order.items.flatMap((item) =>
+    Array.from({ length: item.quantity }, () => ({
+      userId,
+      compoundId: item.compoundId,
+      orderItemId: item.id,
+      totalMg: item.vialSizeMg,
+      remainingMg: item.vialSizeMg,
+      status: 'DRY',
+    }))
+  );
 
-    const vialRows = order.items.flatMap((item) =>
-      Array.from({ length: item.quantity }, () => ({
-        userId,
-        compoundId: item.compoundId,
-        orderItemId: item.id,
-        totalMg: item.vialSizeMg,
-        remainingMg: item.vialSizeMg,
-        status: 'DRY',
-      }))
-    );
-    await tx.vial.createMany({ data: vialRows });
-
-    await PrismaAuditRepo.create(tx, {
+  await withAudit(
+    async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: { id: orderId, userId, status: 'PAYMENT_SENT' },
+        data: { status: 'RECEIVED', receivedAt: now },
+      });
+      if (count === 0) throw new Error('invalid_order_transition');
+      await tx.vial.createMany({ data: vialRows });
+    },
+    () => ({
       actorUserId: userId,
-      category: 'Order',
-      action: 'ORDER_RECEIVED',
+      category: 'Order' as const,
+      action: 'ORDER_RECEIVED' as const,
       resourceId: orderId,
       resourceType: 'Order',
       oldValues: { status: 'PAYMENT_SENT' },
       newValues: { status: 'RECEIVED', vialsCreated: vialRows.length },
-    });
-  });
+    })
+  );
 }
 
 export async function getPriorWalletAddress(

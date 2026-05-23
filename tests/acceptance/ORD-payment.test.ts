@@ -79,13 +79,23 @@ describe('confirmQuote', () => {
     ).rejects.toThrow('order_not_found');
   });
 
-  it('AC-3: throws invalid_order_transition if order is not SENT', async () => {
+  it('AC-3: throws invalid_order_transition if order is not SENT or STALE', async () => {
     const { confirmQuote } = await import('@/lib/ordering/application/OrderService');
     mockPrismaOrderFindFirst.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', status: 'DRAFT' });
 
     await expect(
       confirmQuote('user-1', 'order-1', { walletAddress: 'x', amount: '10', currency: 'USDT' })
     ).rejects.toThrow('invalid_order_transition');
+  });
+
+  it('AC-3b: allows STALE → CONFIRMED transition (recoverable late reply)', async () => {
+    const { confirmQuote } = await import('@/lib/ordering/application/OrderService');
+    mockPrismaOrderFindFirst.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', status: 'STALE' });
+    mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
+
+    await expect(
+      confirmQuote('user-1', 'order-1', { walletAddress: 'TAddr', amount: '50.00', currency: 'USDT' })
+    ).resolves.toBeUndefined();
   });
 
   it('AC-4: audits ORDER_CONFIRMED with old and new values', async () => {
@@ -226,6 +236,17 @@ describe('receiveOrder', () => {
     });
 
     await expect(receiveOrder('user-1', 'order-1')).rejects.toThrow('invalid_order_transition');
+  });
+
+  it('AC-6: idempotent — already RECEIVED order returns without error or duplicate vials', async () => {
+    const { receiveOrder } = await import('@/lib/ordering/application/OrderService');
+    mockPrismaOrderFindFirst.mockResolvedValueOnce({
+      id: 'order-1', userId: 'user-1', status: 'RECEIVED',
+      items: [],
+    });
+
+    await expect(receiveOrder('user-1', 'order-1')).resolves.toBeUndefined();
+    expect(mockPrismaVialCreateMany).not.toHaveBeenCalled();
   });
 
   it('AC-5: audits ORDER_RECEIVED', async () => {

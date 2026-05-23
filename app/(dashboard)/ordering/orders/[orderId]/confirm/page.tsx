@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getOrderWithDetails, getPriorWalletAddress } from '@/lib/ordering/application/OrderService';
 import { MarkPaymentSentButton } from './_components/MarkPaymentSentButton';
+import { CopyAddressButton } from './_components/CopyAddressButton';
 
 interface Props {
   params: Promise<{ orderId: string }>;
@@ -54,14 +55,7 @@ export default async function ConfirmPage({ params }: Props) {
         </p>
 
         <div className="flex gap-2 pt-1">
-          <button
-            type="button"
-            onClick={undefined}
-            className="text-xs text-indigo-600 hover:underline"
-            aria-label="Copy wallet address"
-          >
-            Copy address
-          </button>
+          <CopyAddressButton address={conf.walletAddress} />
         </div>
       </section>
 

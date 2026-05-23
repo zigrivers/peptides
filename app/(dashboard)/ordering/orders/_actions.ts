@@ -24,7 +24,9 @@ export async function confirmQuoteAction(orderId: string, formData: FormData) {
   const amount = (formData.get('amount') as string | null)?.trim() ?? '';
   const currency = (formData.get('currency') as string | null)?.trim() ?? '';
   if (!walletAddress || !amount || !currency) throw new Error('missing_fields');
-  await confirmQuote(session.user.id, orderId, { walletAddress, amount, currency });
+  const parsedAmount = parseFloat(amount);
+  if (isNaN(parsedAmount) || parsedAmount <= 0) throw new Error('invalid_amount');
+  await confirmQuote(session.user.id, orderId, { walletAddress, amount: parsedAmount.toFixed(2), currency });
   redirect(`/ordering/orders/${orderId}/confirm`);
 }
 
