@@ -70,23 +70,32 @@ export async function triggerPasswordResetAction(
 export async function requestDeletionAction(
   managedUserId: string,
   _prevState: AdminActionResult | null,
-  _formData: FormData
+  formData: FormData
 ): Promise<AdminActionResult | null> {
   const session = await auth();
   if (!session?.user?.id) return { error: 'Unauthorized' };
   if (session.user.role === 'MANAGED_USER') return { error: 'Forbidden' };
 
+  const confirmEmail = formData.get('confirmEmail')?.toString().trim() ?? '';
+  if (!confirmEmail) return { error: "Type the user's email to confirm." };
+
   try {
-    const result = await requestManagedUserDeletion(session.user.id, managedUserId);
+    const result = await requestManagedUserDeletion(session.user.id, managedUserId, confirmEmail);
     const dateStr = result.scheduledFor.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
     revalidatePath('/admin', 'layout');
-    return { success: `Deletion scheduled for ${dateStr}. A data export will be emailed to you.` };
+    return { success: `Deletion scheduled for ${dateStr}. A data export has been emailed to you.` };
   } catch (err) {
     if (err instanceof Error && err.message === 'managed_user_not_found') {
       return { error: 'User not found.' };
     }
     if (err instanceof Error && err.message === 'user_must_be_deactivated') {
       return { error: 'User must be deactivated before deletion.' };
+    }
+    if (err instanceof Error && err.message === 'email_confirmation_mismatch') {
+      return { error: "Typed email doesn't match the user's email." };
+    }
+    if (err instanceof Error && err.message === 'export_email_failed') {
+      return { error: 'Failed to deliver data export email. Deletion aborted — please try again.' };
     }
     return { error: 'Something went wrong.' };
   }

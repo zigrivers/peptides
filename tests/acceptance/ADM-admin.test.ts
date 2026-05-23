@@ -475,28 +475,43 @@ describe('US-ADM-04: requestManagedUserDeletion', () => {
 
   it('AC-1: throws managed_user_not_found when user does not belong to powerUser', async () => {
     mockUserFindFirst.mockResolvedValueOnce(null);
-    await expect(requestManagedUserDeletion('pu-1', 'stranger')).rejects.toThrow('managed_user_not_found');
+    await expect(requestManagedUserDeletion('pu-1', 'stranger', 'user@e.com')).rejects.toThrow('managed_user_not_found');
   });
 
   it('AC-1: throws user_must_be_deactivated when user is not DEACTIVATED', async () => {
     mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
-    await expect(requestManagedUserDeletion('pu-1', 'mu-1')).rejects.toThrow('user_must_be_deactivated');
+    await expect(requestManagedUserDeletion('pu-1', 'mu-1', 'user@e.com')).rejects.toThrow('user_must_be_deactivated');
   });
 
-  it('AC-1: dispatches export email to admin (deferred via after) after scheduling', async () => {
-    let deferred: (() => Promise<void>) | undefined;
-    mockAfter.mockImplementationOnce((fn: () => Promise<void>) => { deferred = fn; });
+  it('AC-1: throws email_confirmation_mismatch when typed email does not match', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
+    await expect(requestManagedUserDeletion('pu-1', 'mu-1', 'wrong@e.com')).rejects.toThrow('email_confirmation_mismatch');
+    expect(mockADRCreate).not.toHaveBeenCalled();
+  });
+
+  it('AC-1: sends export email synchronously before scheduling DB write', async () => {
     mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
     mockProtocolFindMany.mockResolvedValueOnce([]);
     mockDoseLogFindMany.mockResolvedValueOnce([]);
     mockVialFindMany.mockResolvedValueOnce([]);
     mockOutcomeLogFindMany.mockResolvedValueOnce([]);
 
-    await requestManagedUserDeletion('pu-1', 'mu-1');
-    await deferred!();
+    await requestManagedUserDeletion('pu-1', 'mu-1', 'user@e.com');
     expect(mockSend).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'admin@e.com', subject: expect.stringContaining('user@e.com') })
     );
+  });
+
+  it('AC-1: throws export_email_failed and aborts when Resend returns error', async () => {
+    mockSend.mockResolvedValueOnce({ error: { message: 'resend-down' } });
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockDoseLogFindMany.mockResolvedValueOnce([]);
+    mockVialFindMany.mockResolvedValueOnce([]);
+    mockOutcomeLogFindMany.mockResolvedValueOnce([]);
+
+    await expect(requestManagedUserDeletion('pu-1', 'mu-1', 'user@e.com')).rejects.toThrow('export_email_failed');
+    expect(mockADRCreate).not.toHaveBeenCalled();
   });
 
   it('AC-2: schedules deletion 48h in future and returns scheduled status', async () => {
@@ -507,7 +522,7 @@ describe('US-ADM-04: requestManagedUserDeletion', () => {
     mockOutcomeLogFindMany.mockResolvedValueOnce([]);
 
     const before = Date.now();
-    const result = await requestManagedUserDeletion('pu-1', 'mu-1');
+    const result = await requestManagedUserDeletion('pu-1', 'mu-1', 'user@e.com');
     expect(result.status).toBe('scheduled');
     expect(result.scheduledFor.getTime()).toBeGreaterThan(before + 47 * 3_600_000);
     expect(mockADRCreate).toHaveBeenCalledWith(
@@ -528,7 +543,7 @@ describe('US-ADM-04: requestManagedUserDeletion', () => {
     mockVialFindMany.mockResolvedValueOnce([]);
     mockOutcomeLogFindMany.mockResolvedValueOnce([]);
 
-    await requestManagedUserDeletion('pu-1', 'mu-1');
+    await requestManagedUserDeletion('pu-1', 'mu-1', 'user@e.com');
     expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DELETION_REQUESTED', actorUserId: 'pu-1', subjectUserId: 'mu-1' });
   });
 });

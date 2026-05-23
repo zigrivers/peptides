@@ -85,7 +85,7 @@ function ManagedUserCard({ user }: { user: ManagedUserRow }) {
       )}
       {user.inviteStatus === 'DEACTIVATED' && (
         <div className="flex items-center justify-end pt-1">
-          <DeleteUserButton action={requestDeletionAction.bind(null, user.id)} />
+          <DeleteUserButton action={requestDeletionAction.bind(null, user.id)} userEmail={user.email} />
         </div>
       )}
       {user.inviteStatus === 'DELETION_PENDING' && (

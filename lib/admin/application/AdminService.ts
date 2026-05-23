@@ -1,4 +1,4 @@
-import { unstable_after as after } from 'next/server';
+import { unstable_after } from 'next/server';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
@@ -234,7 +234,7 @@ export async function triggerManagedUserPasswordReset(
   );
 
   const { email } = user;
-  after(async () => {
+  unstable_after(async () => {
     const appUrl = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL;
     if (!appUrl) {
       console.error('[triggerManagedUserPasswordReset] APP_URL_NOT_CONFIGURED');
@@ -337,7 +337,8 @@ export interface DeletionRequestResult {
 
 export async function requestManagedUserDeletion(
   powerUserId: string,
-  managedUserId: string
+  managedUserId: string,
+  confirmEmail: string
 ): Promise<DeletionRequestResult> {
   const managedUser = await prisma.user.findFirst({
     where: { id: managedUserId, managedBy: powerUserId },
@@ -354,12 +355,23 @@ export async function requestManagedUserDeletion(
   // Only DEACTIVATED users can be deleted — active sessions must be revoked first
   if (managedUser.status !== 'DEACTIVATED') throw new Error('user_must_be_deactivated');
 
-  // Generate export before scheduling. Email is deferred via after() so we only
-  // notify the admin after the DB transaction has succeeded — the 48h cron delay
-  // means no user data is destroyed during this request, so deferred email is safe.
+  // Typed-email confirmation gate against accidental destructive action
+  if (confirmEmail !== managedUser.email) throw new Error('email_confirmation_mismatch');
+
+  // Export-first: generate and synchronously deliver the export before any scheduling.
+  // If email delivery fails, we throw before the DB write so no deletion is scheduled.
   const exportJson = await generateManagedUserExport(managedUserId, managedUser.email);
-  const adminEmail = powerUser.email;
-  const managedEmail = managedUser.email;
+  const { error: emailError } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: powerUser.email,
+    subject: `Data export for ${managedUser.email} — before account deletion`,
+    html: `<p>The deletion of managed user <strong>${managedUser.email}</strong> has been scheduled. Their data export is attached.</p>`,
+    attachments: [{ filename: `export-${managedUserId}.json`, content: Buffer.from(exportJson).toString('base64') }],
+  });
+  if (emailError) {
+    console.error('[requestManagedUserDeletion] export email failed:', emailError.message);
+    throw new Error('export_email_failed');
+  }
 
   const scheduledFor = new Date(Date.now() + 48 * 3_600_000);
   await withAudit(
@@ -383,18 +395,6 @@ export async function requestManagedUserDeletion(
       metadata: { scheduledFor: scheduledFor.toISOString(), mode: 'delayed' },
     }
   );
-
-  // Deferred: send export email only after the transaction has committed
-  after(async () => {
-    const { error } = await resend.emails.send({
-      from: FROM_ADDRESS,
-      to: adminEmail,
-      subject: `Data export for ${managedEmail} — before account deletion`,
-      html: `<p>The deletion of managed user <strong>${managedEmail}</strong> has been scheduled. Their data export is attached.</p>`,
-      attachments: [{ filename: `export-${managedUserId}.json`, content: Buffer.from(exportJson).toString('base64') }],
-    });
-    if (error) console.error('[requestManagedUserDeletion] export email failed:', error.message);
-  });
 
   return { status: 'scheduled', scheduledFor };
 }
@@ -436,6 +436,12 @@ export async function cancelManagedUserDeletion(
   );
 }
 
+/**
+ * System-level cron operation. Per the documented exception in CLAUDE.md
+ * Identity Scoping section, the global AccountDeletionRequest scan here is
+ * explicitly approved: ownership was verified at request-creation time, and
+ * this function only acts on previously authorized deletion records.
+ */
 export async function processPendingDeletions(): Promise<{ deleted: number }> {
   const now = new Date();
   const pending = await prisma.accountDeletionRequest.findMany({
