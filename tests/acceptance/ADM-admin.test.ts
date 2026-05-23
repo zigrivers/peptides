@@ -565,7 +565,9 @@ describe('US-ADM-04: cancelManagedUserDeletion', () => {
     mockADRFindFirst.mockResolvedValueOnce({ id: 'adr-1' });
 
     await cancelManagedUserDeletion('pu-1', 'mu-1');
-    expect(mockADRDelete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'adr-1' } }));
+    expect(mockADRDeleteMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'adr-1', userId: 'mu-1', status: 'PENDING' } })
+    );
     expect(mockUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'mu-1', managedBy: 'pu-1', status: 'DELETION_PENDING' }, data: { status: 'DEACTIVATED' } })
     );
@@ -574,7 +576,7 @@ describe('US-ADM-04: cancelManagedUserDeletion', () => {
   it('writes MANAGED_USER_DELETION_CANCELLED audit event', async () => {
     let capturedAudit: unknown = null;
     mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
-      const result = await mutation({ accountDeletionRequest: { delete: mockADRDelete }, user: { updateMany: mockUpdateMany } });
+      const result = await mutation({ accountDeletionRequest: { deleteMany: mockADRDeleteMany }, user: { updateMany: mockUpdateMany } });
       capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
       return result;
     });

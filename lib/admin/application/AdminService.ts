@@ -216,7 +216,7 @@ export async function triggerManagedUserPasswordReset(
   managedUserId: string
 ): Promise<void> {
   const user = await prisma.user.findFirst({
-    where: { id: managedUserId, managedBy: powerUserId, status: { not: 'DEACTIVATED' } },
+    where: { id: managedUserId, managedBy: powerUserId, status: 'ACTIVE' },
     select: { id: true, email: true },
   });
   if (!user) throw new Error('managed_user_not_found');
@@ -423,7 +423,10 @@ export async function cancelManagedUserDeletion(
         data: { status: 'DEACTIVATED' },
       });
       if (count === 0) throw new Error('managed_user_not_found');
-      await tx.accountDeletionRequest.delete({ where: { id: request.id } });
+      const { count: adrCount } = await tx.accountDeletionRequest.deleteMany({
+        where: { id: request.id, userId: managedUserId, status: 'PENDING' },
+      });
+      if (adrCount === 0) throw new Error('no_pending_deletion');
     },
     {
       actorUserId: powerUserId,
