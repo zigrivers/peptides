@@ -2,7 +2,7 @@
 
 This file tracks architectural and process learnings for future agents. Append a dated section after every PR that surfaced a non-obvious lesson worth carrying forward. Keep entries terse — one or two sentences each; link to the related ADR, PR, or incident.
 
-## 2026-05-23 (Task 4.3 — IN PROGRESS, see tasks/handoff-task-4.3.md)
+## 2026-05-23 (Task 4.3 — MERGED #30 + follow-up #31)
 
 - **`unstable_after` alias confuses Gemini**: Importing as `import { unstable_after as after }` causes Gemini to repeatedly flag `after` as undefined across multiple rounds. Switching to `import { unstable_after }` and calling `unstable_after(...)` directly eliminates the false positive. Next.js 15.0.0-rc.0 does not export `after` directly — only `unstable_after`.
 - **Contradicting MMR feedback across rounds is a signal to simplify**: Task 4.3 had immediate-deletion functionality that round-1 wanted hidden, round-3 wanted UI for, round-6 wanted removed entirely. When two reviewers disagree, the right move is usually to delete the contested code path, not to add more code defending it.
@@ -11,6 +11,7 @@ This file tracks architectural and process learnings for future agents. Append a
 - **Order/Vendor cascade conflict**: Deleting a User cascades to Vendor, but `Order.vendorId` has the default RESTRICT action — a Vendor with orders cannot be deleted. The deletion cron must pre-delete orders (scoped with `userId` for safety) before the user delete.
 - **Codex base64 size math**: When attaching JSON exports to Resend emails, the raw payload threshold must be ~17MB (not the 25MB attachment limit) to account for ~33% base64 inflation plus email header overhead.
 - **Stale ADR cleanup must restore user state atomically**: When the cron rejects a deletion (mismatched requestor), deleting the ADR alone leaves the user stuck in DELETION_PENDING with no cancellation handle. Use `$transaction` to delete the ADR AND restore `status: 'DEACTIVATED'` in one atomic op.
+- **Module-level API client instantiation breaks Next.js builds**: `export const resend = new Resend(process.env.RESEND_API_KEY)` at module top-level runs during Next.js build-time page data collection, even for routes that are never called. If the env var is missing in CI, the constructor throws and the whole build fails. Wrap third-party clients in a lazy `Proxy` (see `lib/shared/email.ts`) so import is side-effect-free.
 
 ## 2026-05-20
 
