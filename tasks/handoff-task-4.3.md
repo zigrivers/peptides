@@ -43,9 +43,9 @@ Wave 4 status:
 
 Next deliverables (in dependency order):
 
-### Task 1.6c — Accept Invite Flow (NEW — gating Phase 2 entry)
-- **File:** `docs/implementation-plan.md` (added under Wave 1 as Task 1.6c)
-- **Description:** ship `/accept-invite` page + `acceptInvite` server action so invitees can click through the consent copy, create their managed-user account, and have the `INVITE_ACCEPTED` audit written. Resolves Phase 2 Legal Gate item 1.
+### Task 1.6c — Accept Invite Flow — SHIPPED ✅
+- **Status:** Merged. Item 1 of the Phase 2 Legal Gate now PASSES.
+- **Files:** `app/(auth)/accept-invite/page.tsx`, `app/(auth)/accept-invite/_components/AcceptInviteForm.tsx`, `app/actions/auth/accept-invite.ts`, `lib/auth/application/acceptInvite.ts`, plus `middleware.ts` (added `/accept-invite` to PUBLIC_ROUTES). 12-test acceptance suite at `tests/acceptance/AUT-accept-invite.test.ts`.
 
 ### Task 5.1 — Reminder Preferences + Web Push Subscription
 - **File:** `docs/implementation-plan.md` line 227
