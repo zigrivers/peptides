@@ -92,6 +92,23 @@ describe('US-AUT-01 / US-ADM-01: acceptInvite', () => {
     expect(mockUserCreate).not.toHaveBeenCalled();
   });
 
+  it('AC-2b: translates Prisma P2002 (unique constraint) at user.create to email_already_in_use', async () => {
+    mockInviteFindUnique.mockResolvedValueOnce(validInvite);
+    // Pre-check passes (email looks free), but a concurrent registration won
+    // the race and hit the unique-email constraint at insert time.
+    const { Prisma } = await import('@prisma/client');
+    const p2002 = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+      code: 'P2002',
+      clientVersion: '5.22.0',
+      meta: { target: ['email'] },
+    });
+    mockUserCreate.mockRejectedValueOnce(p2002);
+
+    await expect(
+      acceptInvite({ rawToken: 'tok', name: 'Alice', password: 'StrongPass123!' })
+    ).rejects.toThrow('email_already_in_use');
+  });
+
   it('AC-3: creates a managed user with role=MANAGED_USER and managedBy=invite.powerUserId', async () => {
     mockInviteFindUnique.mockResolvedValueOnce(validInvite);
 

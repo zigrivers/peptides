@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import { InviteRepo } from '../infrastructure/InviteRepo';
@@ -56,16 +57,28 @@ export async function acceptInvite(input: AcceptInviteInput): Promise<{ userId: 
   const created = await withAudit(
     async (tx) => {
       // Create the user first because invite.acceptedByUserId references it.
-      const user = await tx.user.create({
-        data: {
-          email: invite.email.toLowerCase(),
-          name,
-          role: 'MANAGED_USER',
-          managedBy: invite.powerUserId,
-          status: 'ACTIVE',
-          passwordHash: passwordHash.toString(),
-        },
-      });
+      // The pre-transaction findFirst is best-effort — a concurrent registration
+      // or a race with another acceptInvite call may still trip the unique-email
+      // constraint at insert time. Translate P2002 to the same user-facing error
+      // so the UX is consistent regardless of which check caught the conflict.
+      let user;
+      try {
+        user = await tx.user.create({
+          data: {
+            email: invite.email.toLowerCase(),
+            name,
+            role: 'MANAGED_USER',
+            managedBy: invite.powerUserId,
+            status: 'ACTIVE',
+            passwordHash: passwordHash.toString(),
+          },
+        });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          throw new Error('email_already_in_use');
+        }
+        throw err;
+      }
       // Atomic claim: only succeeds if the invite is still PENDING and not
       // expired. This closes the TOCTOU window between the pre-transaction
       // validation and the update — a concurrent revoke or re-acceptance
