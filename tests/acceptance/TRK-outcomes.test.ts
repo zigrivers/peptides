@@ -152,6 +152,21 @@ describe('US-TRK-06: upsertOutcome', () => {
     ).rejects.toThrow();
   });
 
+  it('AC-8e: rejects ratings for owned-but-inactive protocols', async () => {
+    // findMany is filtered by `status: 'ACTIVE'` in the service — returning []
+    // here simulates an existing-but-PAUSED protocol that the actor owns.
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    await expect(
+      upsertOutcome(USER_ID, {
+        scheduledDate: TODAY,
+        overallRating: 4,
+        tags: [],
+        protocolRatings: [{ protocolId: 'p-paused', rating: 4 }],
+      })
+    ).rejects.toThrow('protocol_not_owned');
+    expect(mockOutcomeCreate).not.toHaveBeenCalled();
+  });
+
   it('AC-8: rejects protocolRatings referencing protocols not owned by the actor', async () => {
     mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }]); // only one of two requested is owned
     await expect(

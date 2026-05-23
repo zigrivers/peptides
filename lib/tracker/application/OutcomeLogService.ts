@@ -123,8 +123,12 @@ export async function upsertOutcome(
   // an audit-write-then-rollback.
   if (dedupedRatings.length > 0) {
     const requested = dedupedRatings.map((r) => r.protocolId);
+    // ACTIVE-only check: the UI only surfaces active protocols, so a
+    // submission referencing a paused/completed/deactivated protocol is
+    // either a stale form or a forged request. Reject it like an
+    // ownership failure rather than silently dropping the rating.
     const owned = await prisma.protocol.findMany({
-      where: { userId, id: { in: requested } },
+      where: { userId, id: { in: requested }, status: 'ACTIVE' },
       select: { id: true },
     });
     const ownedIds = new Set(owned.map((p) => p.id));
