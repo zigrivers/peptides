@@ -42,7 +42,7 @@ function AdherenceBar({ result, label }: { result: { logged: number; total: numb
 function InviteBadge({ status, expiresAt }: { status: InviteStatus; expiresAt?: Date | null }) {
   const label =
     status === 'INVITED' && expiresAt
-      ? `Invited (expires ${expiresAt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })})`
+      ? `Invited (expires ${expiresAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })})`
       : BADGE_LABELS[status];
   return (
     <span className={`text-xs rounded-full px-2 py-0.5 border font-medium whitespace-nowrap ${BADGE_STYLES[status]}`}>

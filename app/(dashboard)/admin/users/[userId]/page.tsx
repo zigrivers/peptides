@@ -5,7 +5,7 @@ import { getManagedUserDoseHistory } from '@/lib/admin/application/AdminService'
 
 interface Props {
   params: Promise<{ userId: string }>;
-  searchParams: Promise<{ days?: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -15,7 +15,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 function formatDate(d: Date): string {
-  return d.toLocaleDateString(undefined, { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 export default async function ManagedUserDoseHistoryPage({ params, searchParams }: Props) {
@@ -24,7 +24,8 @@ export default async function ManagedUserDoseHistoryPage({ params, searchParams 
   if (session.user.role === 'MANAGED_USER') redirect('/dashboard?error=forbidden');
 
   const { userId } = await params;
-  const { days: daysParam } = await searchParams;
+  const sp = await searchParams;
+  const daysParam = Array.isArray(sp.days) ? sp.days[0] : sp.days;
   const days = Math.min(90, Math.max(7, parseInt(daysParam ?? '30', 10) || 30));
 
   let history: Awaited<ReturnType<typeof getManagedUserDoseHistory>>;
