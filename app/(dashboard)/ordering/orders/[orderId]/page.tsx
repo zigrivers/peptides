@@ -67,6 +67,30 @@ export default async function OrderDetailPage({ params }: Props) {
         </section>
       )}
 
+      {order.status === 'CONFIRMED' && (
+        <section className="rounded-xl border border-green-200 bg-green-50 px-5 py-4">
+          <p className="text-sm font-semibold text-green-800 mb-1">Vendor quote confirmed</p>
+          <Link
+            href={`/ordering/orders/${order.id}/confirm`}
+            className="inline-flex items-center justify-center rounded-md bg-green-600 text-white px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors"
+          >
+            Review &amp; Mark Payment Sent →
+          </Link>
+        </section>
+      )}
+
+      {order.status === 'PAYMENT_SENT' && (
+        <section className="rounded-xl border border-purple-200 bg-purple-50 px-5 py-4">
+          <p className="text-sm font-semibold text-purple-800 mb-3">Payment sent — waiting for delivery</p>
+          <Link
+            href={`/ordering/orders/${order.id}/receive`}
+            className="inline-flex items-center justify-center rounded-md bg-purple-600 text-white px-4 py-2 text-sm font-medium hover:bg-purple-700 transition-colors"
+          >
+            Mark as Received →
+          </Link>
+        </section>
+      )}
+
       <section className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Items</h2>
         <ul className="space-y-2">
@@ -85,6 +109,9 @@ export default async function OrderDetailPage({ params }: Props) {
         <h2 className="text-sm font-semibold text-gray-700 mb-2">Timeline</h2>
         <TimelineRow label="Created" date={order.createdAt} />
         {order.sentAt && <TimelineRow label="Sent" date={order.sentAt} />}
+        {order.confirmedAt && <TimelineRow label="Quote confirmed" date={order.confirmedAt} />}
+        {order.paymentSentAt && <TimelineRow label="Payment sent" date={order.paymentSentAt} />}
+        {order.receivedAt && <TimelineRow label="Received" date={order.receivedAt} />}
         {order.staleFlaggedAt && <TimelineRow label="Flagged stale" date={order.staleFlaggedAt} />}
         {order.cancelledAt && <TimelineRow label="Cancelled" date={order.cancelledAt} />}
       </section>

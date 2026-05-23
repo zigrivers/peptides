@@ -369,6 +369,8 @@ model Order {
   messageText         String?   @db.Text
   idempotencyKey      String    @unique
   sentAt              DateTime?
+  confirmedAt         DateTime?
+  paymentSentAt       DateTime?
   staleFlaggedAt      DateTime?
   cancelledAt         DateTime?
   cancelledByUserId   String?

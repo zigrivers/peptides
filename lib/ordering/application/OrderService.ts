@@ -499,3 +499,127 @@ export async function getOrderWithDetails(
     },
   });
 }
+
+export interface ConfirmQuoteInput {
+  walletAddress: string;
+  amount: string;
+  currency: string;
+}
+
+export async function confirmQuote(
+  userId: string,
+  orderId: string,
+  input: ConfirmQuoteInput
+): Promise<void> {
+  const order = await prisma.order.findFirst({ where: { id: orderId, userId } });
+  if (!order) throw new Error('order_not_found');
+  if (order.status !== 'SENT') throw new Error('invalid_order_transition');
+  const now = new Date();
+  await withAudit(
+    async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: { id: orderId, userId, status: 'SENT' },
+        data: {
+          status: 'CONFIRMED',
+          confirmedAt: now,
+          paymentConfirmation: {
+            walletAddress: input.walletAddress.trim(),
+            amount: input.amount,
+            currency: input.currency,
+          },
+        },
+      });
+      if (count === 0) throw new Error('invalid_order_transition');
+    },
+    () => ({
+      actorUserId: userId,
+      category: 'Order' as const,
+      action: 'ORDER_CONFIRMED' as const,
+      resourceId: orderId,
+      resourceType: 'Order',
+      oldValues: { status: order.status },
+      newValues: { status: 'CONFIRMED' },
+    })
+  );
+}
+
+export async function markPaymentSent(userId: string, orderId: string): Promise<void> {
+  const order = await prisma.order.findFirst({ where: { id: orderId, userId } });
+  if (!order) throw new Error('order_not_found');
+  if (order.status !== 'CONFIRMED') throw new Error('invalid_order_transition');
+  if (!order.paymentConfirmation) throw new Error('payment_not_confirmed');
+  const now = new Date();
+  await withAudit(
+    async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: { id: orderId, userId, status: 'CONFIRMED' },
+        data: { status: 'PAYMENT_SENT', paymentSentAt: now },
+      });
+      if (count === 0) throw new Error('invalid_order_transition');
+    },
+    () => ({
+      actorUserId: userId,
+      category: 'Order' as const,
+      action: 'ORDER_PAYMENT_SENT' as const,
+      resourceId: orderId,
+      resourceType: 'Order',
+      oldValues: { status: 'CONFIRMED' },
+      newValues: { status: 'PAYMENT_SENT' },
+    })
+  );
+}
+
+export async function receiveOrder(userId: string, orderId: string): Promise<void> {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, userId },
+    include: { items: { select: { id: true, compoundId: true, vialSizeMg: true, quantity: true } } },
+  });
+  if (!order) throw new Error('order_not_found');
+  if (order.status !== 'PAYMENT_SENT') throw new Error('invalid_order_transition');
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.order.updateMany({
+      where: { id: orderId, userId, status: 'PAYMENT_SENT' },
+      data: { status: 'RECEIVED', receivedAt: now },
+    });
+    if (count === 0) throw new Error('invalid_order_transition');
+
+    const vialRows = order.items.flatMap((item) =>
+      Array.from({ length: item.quantity }, () => ({
+        userId,
+        compoundId: item.compoundId,
+        orderItemId: item.id,
+        totalMg: item.vialSizeMg,
+        remainingMg: item.vialSizeMg,
+        status: 'DRY',
+      }))
+    );
+    await tx.vial.createMany({ data: vialRows });
+
+    await PrismaAuditRepo.create(tx, {
+      actorUserId: userId,
+      category: 'Order',
+      action: 'ORDER_RECEIVED',
+      resourceId: orderId,
+      resourceType: 'Order',
+      oldValues: { status: 'PAYMENT_SENT' },
+      newValues: { status: 'RECEIVED', vialsCreated: vialRows.length },
+    });
+  });
+}
+
+export async function getPriorWalletAddress(
+  userId: string,
+  vendorId: string
+): Promise<string | null> {
+  const orders = await prisma.order.findMany({
+    where: { userId, vendorId, paymentConfirmation: { not: Prisma.JsonNull } },
+    select: { paymentConfirmation: true },
+    orderBy: { confirmedAt: 'desc' },
+    take: 1,
+  });
+  if (orders.length === 0) return null;
+  const conf = orders[0].paymentConfirmation as { walletAddress?: string } | null;
+  return conf?.walletAddress ?? null;
+}
