@@ -45,7 +45,11 @@ export async function confirmQuoteAction(
   } catch {
     return { error: 'Amount must be a valid number (e.g. 50.00 or 0.001).' };
   }
-  await confirmQuote(session.user.id, orderId, { walletAddress, amount, currency });
+  try {
+    await confirmQuote(session.user.id, orderId, { walletAddress, amount, currency });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Something went wrong. Please try again.' };
+  }
   redirect(`/ordering/orders/${orderId}/confirm`);
 }
 

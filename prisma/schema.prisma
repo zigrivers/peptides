@@ -381,6 +381,7 @@ model Order {
 
   @@index([userId, status])
   @@index([status, sentAt])
+  @@index([userId, vendorId, confirmedAt])
 }
 
 model OrderItem {

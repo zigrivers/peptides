@@ -282,7 +282,11 @@ describe('receiveOrder', () => {
     const solutionVial = createManyCall.data.find((v: { orderItemId: string }) => v.orderItemId === 'item-1');
     const powderVial = createManyCall.data.find((v: { orderItemId: string }) => v.orderItemId === 'item-2');
     expect(solutionVial.status).toBe('RECONSTITUTED');
+    expect(solutionVial.reconstitutedAt).toBeInstanceOf(Date);
+    expect(solutionVial.expiresAt).toBeInstanceOf(Date);
     expect(powderVial.status).toBe('DRY');
+    expect(powderVial.reconstitutedAt).toBeUndefined();
+    expect(powderVial.expiresAt).toBeUndefined();
   });
 
   it('AC-5: audits ORDER_RECEIVED', async () => {

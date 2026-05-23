@@ -582,17 +582,24 @@ export async function receiveOrder(userId: string, orderId: string): Promise<voi
   if (order.status !== 'PAYMENT_SENT') throw new Error('invalid_order_transition');
   const now = new Date();
 
-  const vialRows = order.items.flatMap((item) =>
-    Array.from({ length: item.quantity }, () => ({
+  // SOLUTION vials arrive pre-mixed; use the same 14-day default shelf life as VialService
+  const SOLUTION_SHELF_LIFE_DAYS = 14;
+  const solutionExpiresAt = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + SOLUTION_SHELF_LIFE_DAYS)
+  );
+
+  const vialRows = order.items.flatMap((item) => {
+    const isSolution = item.form === 'SOLUTION';
+    return Array.from({ length: item.quantity }, () => ({
       userId,
       compoundId: item.compoundId,
       orderItemId: item.id,
       totalMg: item.vialSizeMg,
       remainingMg: item.vialSizeMg,
-      // SOLUTION items arrive pre-mixed; LYOPHILIZED_POWDER arrives dry
-      status: item.form === 'SOLUTION' ? 'RECONSTITUTED' : 'DRY',
-    }))
-  );
+      status: isSolution ? 'RECONSTITUTED' : 'DRY',
+      ...(isSolution ? { reconstitutedAt: now, expiresAt: solutionExpiresAt } : {}),
+    }));
+  });
 
   await withAudit(
     async (tx) => {
