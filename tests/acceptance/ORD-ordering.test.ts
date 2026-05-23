@@ -1094,7 +1094,6 @@ describe('US-ORD-03: Build and Send Telegram Order', () => {
         { compoundId: 'cmp-1', compoundName: 'BPC-157', form: 'LYOPHILIZED_POWDER', vialSizeMg: { toString: () => '5' }, quantity: 1 },
       ],
     };
-    const recentDuplicate = { id: 'order-0', sentAt: new Date(), messageText: 'same' };
 
     mockPrismaOrderFindFirst
       .mockResolvedValueOnce(orderWithDetails); // force=true skips dup check — no second findFirst call
