@@ -71,16 +71,16 @@ export async function deleteImmediatelyAction(
       confirmEmail,
       acknowledged,
     });
-    // Sign out so the now-deleted session doesn't linger. signOut throws a
-    // redirect; catch to surface the success state for the caller.
-    try {
-      await signOut({ redirectTo: '/' });
-    } catch {
-      /* signOut may throw a redirect — ignore */
-    }
-    return { success: 'Your account has been deleted.' };
   } catch (err) {
     const code = err instanceof Error ? err.message : 'unknown_error';
     return { error: humanError(code) };
   }
+  // After successful deletion, sign the user out so the now-stale session
+  // cookie is cleared and the browser is redirected. signOut throws a
+  // redirect — let it propagate so Next.js performs the navigation.
+  await signOut({ redirectTo: '/' });
+  // Unreachable: signOut always throws (the redirect). Returning here only
+  // to satisfy the type system in the event Next.js ever changes signOut
+  // to no-op on the server.
+  return { success: 'Your account has been deleted.' };
 }

@@ -77,9 +77,15 @@ export async function requestSelfDeletion(
 ): Promise<{ scheduledFor: Date }> {
   const user = await prisma.user.findUnique({
     where: { id: input.userId },
-    select: { id: true, email: true, name: true, status: true },
+    select: { id: true, email: true, name: true, status: true, managedBy: true },
   });
   if (!user) throw new Error('user_not_found');
+  // Managed users cannot self-delete. Their account is governed by the
+  // Power User; routing here would create a self-delete ADR with
+  // requestedByUserId=null AND user.managedBy!=null, which the cron
+  // rejects as malformed (and would restore the user to DEACTIVATED
+  // mid-flow). Refuse up-front so the UI can show a meaningful message.
+  if (user.managedBy !== null) throw new Error('managed_user_cannot_self_delete');
   if (normaliseEmail(input.confirmEmail) !== normaliseEmail(user.email)) {
     throw new Error('email_mismatch');
   }
@@ -152,12 +158,22 @@ export async function cancelSelfDeletion(userId: string): Promise<void> {
   const now = new Date();
   await withAudit(
     async (tx) => {
+      // Scope the cancel to the self-delete shape: the ADR has no
+      // requestedByUserId and the user has no managedBy. This both
+      // matches the requestSelfDeletion gate and defensively prevents
+      // a managed user from being restored to ACTIVE via this path
+      // (the admin path manages their state separately).
       const { count: adrCount } = await tx.accountDeletionRequest.deleteMany({
-        where: { userId, status: 'PENDING', scheduledFor: { gt: now } },
+        where: {
+          userId,
+          status: 'PENDING',
+          scheduledFor: { gt: now },
+          requestedByUserId: null,
+        },
       });
       if (adrCount === 0) throw new Error('no_pending_deletion');
       const { count: userCount } = await tx.user.updateMany({
-        where: { id: userId, status: 'DELETION_PENDING' },
+        where: { id: userId, status: 'DELETION_PENDING', managedBy: null },
         data: { status: 'ACTIVE' },
       });
       if (userCount === 0) throw new Error('user_status_transition_failed');
@@ -186,9 +202,10 @@ export async function requestImmediateDeletion(
   if (!input.acknowledged) throw new Error('acknowledgment_required');
   const user = await prisma.user.findUnique({
     where: { id: input.userId },
-    select: { id: true, email: true, name: true },
+    select: { id: true, email: true, name: true, managedBy: true },
   });
   if (!user) throw new Error('user_not_found');
+  if (user.managedBy !== null) throw new Error('managed_user_cannot_self_delete');
   if (normaliseEmail(input.confirmEmail) !== normaliseEmail(user.email)) {
     throw new Error('email_mismatch');
   }

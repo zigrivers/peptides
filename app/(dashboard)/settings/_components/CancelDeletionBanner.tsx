@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import type { CancelDeletionState } from '@/app/actions/account/cancel-deletion';
 
 interface Props {
@@ -8,11 +8,21 @@ interface Props {
     prev: CancelDeletionState | null,
     formData: FormData
   ) => Promise<CancelDeletionState>;
-  scheduledFor: Date;
+  /** ISO 8601 string — kept as a string so server-rendered HTML matches the initial client render. */
+  scheduledForISO: string;
 }
 
-export function CancelDeletionBanner({ action, scheduledFor }: Props) {
+export function CancelDeletionBanner({ action, scheduledForISO }: Props) {
   const [state, formAction, pending] = useActionState(action, null);
+  // Format the date client-side only. Rendering toLocaleString() on the
+  // server vs. client can produce different strings (the server uses the
+  // deployment's locale/TZ; the client uses the user's), triggering a
+  // hydration mismatch. The initial server render emits the raw ISO; the
+  // effect replaces it after hydration.
+  const [formatted, setFormatted] = useState<string>(scheduledForISO);
+  useEffect(() => {
+    setFormatted(new Date(scheduledForISO).toLocaleString());
+  }, [scheduledForISO]);
 
   if (state?.success) {
     return (
@@ -27,7 +37,7 @@ export function CancelDeletionBanner({ action, scheduledFor }: Props) {
       <h2 className="text-sm font-semibold text-amber-900 mb-1">Deletion pending</h2>
       <p className="text-sm text-amber-900">
         Your account is scheduled to be permanently deleted on{' '}
-        <strong>{scheduledFor.toLocaleString()}</strong>. You can cancel any time before then.
+        <strong suppressHydrationWarning>{formatted}</strong>. You can cancel any time before then.
       </p>
       {state?.error && (
         <p className="mt-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">

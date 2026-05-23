@@ -61,7 +61,13 @@ const USER_EMAIL = 'user@example.com';
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mockUserFindUnique.mockResolvedValue({ id: USER_ID, email: USER_EMAIL, name: 'Alice', status: 'ACTIVE' });
+  mockUserFindUnique.mockResolvedValue({
+    id: USER_ID,
+    email: USER_EMAIL,
+    name: 'Alice',
+    status: 'ACTIVE',
+    managedBy: null,
+  });
   mockAdrFindUnique.mockResolvedValue(null);
   mockAdrUpsert.mockResolvedValue({ id: 'adr-1' });
   mockAdrDeleteMany.mockResolvedValue({ count: 1 });
@@ -138,6 +144,21 @@ describe('US-AUT-02: requestSelfDeletion (delayed)', () => {
     );
   });
 
+  it('AC-1c: rejects managed users (must use the admin path)', async () => {
+    mockUserFindUnique.mockResolvedValueOnce({
+      id: USER_ID,
+      email: USER_EMAIL,
+      name: 'Alice',
+      status: 'ACTIVE',
+      managedBy: 'pu-1',
+    });
+    await expect(
+      requestSelfDeletion({ userId: USER_ID, confirmEmail: USER_EMAIL })
+    ).rejects.toThrow('managed_user_cannot_self_delete');
+    expect(mockGenerateExport).not.toHaveBeenCalled();
+    expect(mockAdrUpsert).not.toHaveBeenCalled();
+  });
+
   it('throws deletion_already_pending if an active ADR already exists', async () => {
     mockAdrFindUnique.mockResolvedValueOnce({ id: 'adr-existing', status: 'PENDING' });
     await expect(
@@ -160,7 +181,7 @@ describe('US-AUT-02: cancelSelfDeletion', () => {
       })
     );
     expect(mockUserUpdateMany).toHaveBeenCalledWith({
-      where: { id: USER_ID, status: 'DELETION_PENDING' },
+      where: { id: USER_ID, status: 'DELETION_PENDING', managedBy: null },
       data: { status: 'ACTIVE' },
     });
     expect(mockAuditCreate).toHaveBeenCalledWith(

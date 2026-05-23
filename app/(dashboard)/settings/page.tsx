@@ -45,7 +45,7 @@ export default async function SettingsPage() {
       {isDeletionPending && pendingDeletion && (
         <CancelDeletionBanner
           action={cancelDeletionAction}
-          scheduledFor={pendingDeletion.scheduledFor}
+          scheduledForISO={pendingDeletion.scheduledFor.toISOString()}
         />
       )}
 
