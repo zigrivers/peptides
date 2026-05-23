@@ -1,5 +1,23 @@
 import { Resend } from 'resend';
 
-export const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy proxy: defer Resend instantiation until first use so importing this
+// module during build-time page data collection (when env vars may be absent)
+// does not throw "Missing API key". Routes that import this module transitively
+// — e.g. /api/cron/pending-deletions — are evaluated by Next.js during build
+// even if they aren't called, which used to fail CI when RESEND_API_KEY wasn't
+// set in the build environment.
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
+
+export const resend = new Proxy({} as Resend, {
+  get(_target, prop) {
+    return Reflect.get(getResend(), prop);
+  },
+});
 
 export const FROM_ADDRESS = 'noreply@peptides.app';
