@@ -16,7 +16,11 @@ function getResend(): Resend {
 
 export const resend = new Proxy({} as Resend, {
   get(_target, prop) {
-    return Reflect.get(getResend(), prop);
+    const instance = getResend();
+    const value = Reflect.get(instance, prop);
+    // Bind methods to the instance so `this` doesn't point at the Proxy if
+    // someone calls a top-level method directly (e.g. `resend.someMethod()`).
+    return typeof value === 'function' ? value.bind(instance) : value;
   },
 });
 
