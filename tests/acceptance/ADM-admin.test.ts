@@ -502,6 +502,32 @@ describe('US-ADM-04: requestManagedUserDeletion', () => {
     );
   });
 
+  it('AC-1: export queries for secret-bearing tables use explicit select allowlists', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);
+
+    await requestManagedUserDeletion('pu-1', 'mu-1', 'user@e.com');
+
+    // PushSubscription: auth + p256dh keys must NOT be in select
+    expect(mockPushSubFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.not.objectContaining({ auth: true, p256dh: true }),
+      })
+    );
+    // Invite (sent): tokenHash must NOT be in select
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { powerUserId: 'mu-1' },
+        select: expect.not.objectContaining({ tokenHash: true }),
+      })
+    );
+    // TelegramSession: sessionString must NOT be in select
+    expect(mockTelegramFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.not.objectContaining({ sessionString: true }),
+      })
+    );
+  });
+
   it('AC-1: throws export_email_failed and aborts when Resend returns error', async () => {
     mockSend.mockResolvedValueOnce({ error: { message: 'resend-down' } });
     mockUserFindFirst.mockResolvedValueOnce(deactivatedUser).mockResolvedValueOnce(powerUser);

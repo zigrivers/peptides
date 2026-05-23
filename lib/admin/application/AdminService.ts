@@ -282,7 +282,11 @@ async function generateManagedUserExport(managedUserId: string, managedUserEmail
       include: { products: true, orders: { include: { items: true } } },
     }),
     prisma.reminderPreference.findMany({ where: { userId: managedUserId } }),
-    prisma.pushSubscription.findMany({ where: { userId: managedUserId } }),
+    // PushSubscription `auth` and `p256dh` are cryptographic keys for sending notifications — exclude
+    prisma.pushSubscription.findMany({
+      where: { userId: managedUserId },
+      select: { id: true, userId: true, endpoint: true, createdAt: true },
+    }),
     prisma.telegramSession.findMany({
       where: { userId: managedUserId },
       select: { id: true, userId: true, isActive: true, lastConnectedIp: true, updatedAt: true },
@@ -291,8 +295,16 @@ async function generateManagedUserExport(managedUserId: string, managedUserEmail
       where: { userId: managedUserId },
       select: { id: true, userId: true, oldEmail: true, newEmail: true, status: true, expiresAt: true, createdAt: true, verifiedAt: true, appliedAt: true, revertibleUntil: true },
     }),
-    prisma.dataExportRequest.findMany({ where: { userId: managedUserId } }),
-    prisma.invite.findMany({ where: { powerUserId: managedUserId } }),
+    // DataExportRequest.downloadUrl may be a signed URL — exclude
+    prisma.dataExportRequest.findMany({
+      where: { userId: managedUserId },
+      select: { id: true, userId: true, format: true, status: true, expiresAt: true, createdAt: true },
+    }),
+    // Invite.tokenHash is a credential — exclude
+    prisma.invite.findMany({
+      where: { powerUserId: managedUserId },
+      select: { id: true, email: true, powerUserId: true, status: true, expiresAt: true, createdAt: true, acceptedAt: true, acceptedByUserId: true },
+    }),
   ]);
   // Original Invite that created this user account (acceptedByUserId match) and full audit history.
   const [originalInvite, auditEvents] = await Promise.all([
