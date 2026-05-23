@@ -264,7 +264,7 @@ async function generateManagedUserExport(managedUserId: string, managedUserEmail
     vendors,
     reminderPreferences,
     pushSubscriptions,
-    telegramSession,
+    telegramSessions,
     emailChangeRequests,
     dataExportRequests,
     invitesSent,
@@ -283,7 +283,7 @@ async function generateManagedUserExport(managedUserId: string, managedUserEmail
     }),
     prisma.reminderPreference.findMany({ where: { userId: managedUserId } }),
     prisma.pushSubscription.findMany({ where: { userId: managedUserId } }),
-    prisma.telegramSession.findFirst({
+    prisma.telegramSession.findMany({
       where: { userId: managedUserId },
       select: { id: true, userId: true, isActive: true, lastConnectedIp: true, updatedAt: true },
     }),
@@ -319,7 +319,7 @@ async function generateManagedUserExport(managedUserId: string, managedUserEmail
       vendors,
       reminderPreferences,
       pushSubscriptions,
-      telegramSession,
+      telegramSessions,
       emailChangeRequests,
       dataExportRequests,
       invitesSent,
@@ -417,12 +417,13 @@ export async function cancelManagedUserDeletion(
 
   await withAudit(
     async (tx) => {
-      await tx.accountDeletionRequest.delete({ where: { id: request.id } });
+      // Update status first so we throw before any irreversible delete if the user has moved on
       const { count } = await tx.user.updateMany({
         where: { id: managedUserId, managedBy: powerUserId, status: 'DELETION_PENDING' },
         data: { status: 'DEACTIVATED' },
       });
       if (count === 0) throw new Error('managed_user_not_found');
+      await tx.accountDeletionRequest.delete({ where: { id: request.id } });
     },
     {
       actorUserId: powerUserId,
@@ -439,7 +440,7 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
   const now = new Date();
   const pending = await prisma.accountDeletionRequest.findMany({
     where: { status: 'PENDING', scheduledFor: { lte: now } },
-    select: { userId: true },
+    select: { id: true, userId: true },
   });
 
   let deleted = 0;
@@ -450,18 +451,17 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
         select: { id: true, managedBy: true },
       });
       if (!user) {
-        // Orphaned ADR with no corresponding user — clean up and skip
-        await prisma.accountDeletionRequest.deleteMany({
-          where: { userId: req.userId, status: 'PENDING' },
-        });
+        // Orphaned ADR with no corresponding user — clean up by specific id
+        await prisma.accountDeletionRequest.delete({ where: { id: req.id } }).catch(() => {});
         continue;
       }
 
       await withAudit(
         async (tx) => {
-          // Atomically claim the ADR inside the transaction to prevent cancel-then-delete race
+          // Atomically claim the specific ADR row by id inside the transaction
+          // userId is @unique on AccountDeletionRequest so there can be at most one pending row per user
           const { count: adrCount } = await tx.accountDeletionRequest.deleteMany({
-            where: { userId: req.userId, status: 'PENDING', scheduledFor: { lte: now } },
+            where: { id: req.id, status: 'PENDING' },
           });
           if (adrCount === 0) throw new Error('already_cancelled');
           const { count: userCount } = await tx.user.deleteMany({ where: { id: req.userId, status: 'DELETION_PENDING' } });

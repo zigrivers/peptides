@@ -22,7 +22,7 @@ const mockCycleFindMany = vi.fn();
 const mockVendorFindMany = vi.fn();
 const mockReminderFindMany = vi.fn();
 const mockPushSubFindMany = vi.fn();
-const mockTelegramFindFirst = vi.fn();
+const mockTelegramFindMany = vi.fn();
 const mockEmailChangeFindMany = vi.fn();
 const mockDataExportFindMany = vi.fn();
 const mockAuditEventFindMany = vi.fn();
@@ -50,7 +50,7 @@ vi.mock('@/lib/shared/prisma', () => ({
     vendor: { findMany: mockVendorFindMany },
     reminderPreference: { findMany: mockReminderFindMany },
     pushSubscription: { findMany: mockPushSubFindMany },
-    telegramSession: { findFirst: mockTelegramFindFirst },
+    telegramSession: { findMany: mockTelegramFindMany },
     emailChangeRequest: { findMany: mockEmailChangeFindMany },
     dataExportRequest: { findMany: mockDataExportFindMany },
   },
@@ -97,7 +97,7 @@ beforeEach(() => {
   mockVendorFindMany.mockResolvedValue([]);
   mockReminderFindMany.mockResolvedValue([]);
   mockPushSubFindMany.mockResolvedValue([]);
-  mockTelegramFindFirst.mockResolvedValue(null);
+  mockTelegramFindMany.mockResolvedValue([]);
   mockEmailChangeFindMany.mockResolvedValue([]);
   mockDataExportFindMany.mockResolvedValue([]);
   mockAuditEventFindMany.mockResolvedValue([]);
@@ -580,7 +580,7 @@ describe('US-ADM-04: processPendingDeletions', () => {
   });
 
   it('deletes users whose scheduled deletion time has passed', async () => {
-    mockADRFindMany.mockResolvedValueOnce([{ userId: 'mu-1' }]);
+    mockADRFindMany.mockResolvedValueOnce([{ id: 'adr-1', userId: 'mu-1' }]);
     mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', managedBy: 'pu-1' });
 
     const result = await processPendingDeletions();
@@ -589,12 +589,12 @@ describe('US-ADM-04: processPendingDeletions', () => {
   });
 
   it('cleans up orphaned ADR when user no longer exists', async () => {
-    mockADRFindMany.mockResolvedValueOnce([{ userId: 'mu-orphan' }]);
+    mockADRFindMany.mockResolvedValueOnce([{ id: 'adr-orphan', userId: 'mu-orphan' }]);
     mockUserFindFirst.mockResolvedValueOnce(null);
 
     const result = await processPendingDeletions();
     expect(result.deleted).toBe(0);
-    expect(mockADRDeleteMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'mu-orphan', status: 'PENDING' } }));
+    expect(mockADRDelete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'adr-orphan' } }));
   });
 
   it('writes MANAGED_USER_DELETED audit event for each processed deletion', async () => {
@@ -604,7 +604,7 @@ describe('US-ADM-04: processPendingDeletions', () => {
       capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
       return result;
     });
-    mockADRFindMany.mockResolvedValueOnce([{ userId: 'mu-1' }]);
+    mockADRFindMany.mockResolvedValueOnce([{ id: 'adr-1', userId: 'mu-1' }]);
     mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', managedBy: 'pu-1' });
 
     await processPendingDeletions();
