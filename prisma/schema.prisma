@@ -129,12 +129,15 @@ model PasswordResetToken {
 }
 
 model AccountDeletionRequest {
-  id           String   @id @default(uuid())
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  requestedAt  DateTime @default(now())
-  scheduledFor DateTime
-  status       String   @default("PENDING")
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestedByUserId String?  // The power user who initiated this deletion (null for self-deletion)
+  requestedAt       DateTime @default(now())
+  scheduledFor      DateTime
+  status            String   @default("PENDING")
+
+  @@index([requestedByUserId])
 }
 
 model DataExportRequest {

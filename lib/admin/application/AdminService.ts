@@ -262,6 +262,7 @@ async function generateManagedUserExport(managedUserId: string, managedUserEmail
     outcomeLogs,
     vials,
     vendors,
+    orders,
     reminderPreferences,
     pushSubscriptions,
     telegramSessions,
@@ -281,6 +282,9 @@ async function generateManagedUserExport(managedUserId: string, managedUserEmail
       where: { userId: managedUserId },
       include: { products: true, orders: { include: { items: true } } },
     }),
+    // Top-level Order query as a backstop in case any Order rows have userId set
+    // but vendor ownership has diverged — Order is its own cascade target.
+    prisma.order.findMany({ where: { userId: managedUserId }, include: { items: true } }),
     prisma.reminderPreference.findMany({ where: { userId: managedUserId } }),
     // PushSubscription `auth` and `p256dh` are cryptographic keys for sending notifications — exclude
     prisma.pushSubscription.findMany({
@@ -329,6 +333,7 @@ async function generateManagedUserExport(managedUserId: string, managedUserEmail
       outcomeLogs,
       vials,
       vendors,
+      orders,
       reminderPreferences,
       pushSubscriptions,
       telegramSessions,
@@ -402,7 +407,7 @@ export async function requestManagedUserDeletion(
       });
       if (count === 0) throw new Error('managed_user_not_found');
       await tx.accountDeletionRequest.create({
-        data: { userId: managedUserId, scheduledFor, status: 'PENDING' },
+        data: { userId: managedUserId, requestedByUserId: powerUserId, scheduledFor, status: 'PENDING' },
       });
     },
     {
@@ -469,7 +474,7 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
   const now = new Date();
   const pending = await prisma.accountDeletionRequest.findMany({
     where: { status: 'PENDING', scheduledFor: { lte: now } },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, requestedByUserId: true },
   });
 
   let deleted = 0;
@@ -485,6 +490,16 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
         continue;
       }
 
+      // Verify the user's current managedBy matches the recorded requestedByUserId.
+      // If ownership has changed since the request, abort — this deletion is no
+      // longer authorized by the current owner.
+      if (req.requestedByUserId && user.managedBy !== req.requestedByUserId) {
+        console.error('[processPendingDeletions] requestedByUserId mismatch — aborting', {
+          adrId: req.id, userId: req.userId, recordedRequestor: req.requestedByUserId, currentManagedBy: user.managedBy,
+        });
+        continue;
+      }
+
       await withAudit(
         async (tx) => {
           // Atomically claim the specific ADR row by id inside the transaction
@@ -493,7 +508,12 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
             where: { id: req.id, status: 'PENDING' },
           });
           if (adrCount === 0) throw new Error('already_cancelled');
-          const { count: userCount } = await tx.user.deleteMany({ where: { id: req.userId, status: 'DELETION_PENDING' } });
+          // Scope the user delete with managedBy = recorded requestor (if set) so the
+          // delete carries the original authorization predicate, not just DELETION_PENDING
+          const userWhere = req.requestedByUserId
+            ? { id: req.userId, status: 'DELETION_PENDING', managedBy: req.requestedByUserId }
+            : { id: req.userId, status: 'DELETION_PENDING' };
+          const { count: userCount } = await tx.user.deleteMany({ where: userWhere });
           if (userCount === 0) throw new Error('user_not_in_deletion_pending');
         },
         {
@@ -503,7 +523,7 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
           action: 'MANAGED_USER_DELETED' as const,
           resourceId: req.userId,
           resourceType: 'User',
-          metadata: { mode: 'delayed', originalRequestor: user.managedBy ?? null },
+          metadata: { mode: 'delayed', originalRequestor: req.requestedByUserId ?? user.managedBy ?? null },
         }
       );
       deleted++;
