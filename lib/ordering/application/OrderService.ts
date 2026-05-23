@@ -8,7 +8,7 @@ import { ITEM_FORMS, VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
 import type { OrderLineItemInput, SendMethod } from '@/lib/ordering/domain/types';
 import { sendTelegramMessage } from '@/lib/ordering/infrastructure/MTProtoClient';
 import { getDecryptedSession, buildFallbackDeepLink } from './TelegramAuthService';
-import { findCompoundsByIds } from '@/lib/reference/infrastructure/CompoundRepo';
+import { findCompoundsByIds, getReconstitutedShelfLifeDays } from '@/lib/reference/infrastructure/CompoundRepo';
 
 type OrderForSend = Prisma.OrderGetPayload<{
   include: {
@@ -498,4 +498,162 @@ export async function getOrderWithDetails(
       items: { include: { compound: { select: { name: true } } } },
     },
   });
+}
+
+export interface ConfirmQuoteInput {
+  walletAddress: string;
+  amount: string;
+  currency: string;
+}
+
+export async function confirmQuote(
+  userId: string,
+  orderId: string,
+  input: ConfirmQuoteInput
+): Promise<void> {
+  const order = await prisma.order.findFirst({ where: { id: orderId, userId } });
+  if (!order) throw new Error('order_not_found');
+  if (order.status !== 'SENT' && order.status !== 'STALE' && order.status !== 'CONFIRMED') {
+    throw new Error('invalid_order_transition');
+  }
+  const now = new Date();
+  await withAudit(
+    async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: { id: orderId, userId, status: { in: ['SENT', 'STALE', 'CONFIRMED'] } },
+        data: {
+          status: 'CONFIRMED',
+          confirmedAt: now,
+          paymentConfirmation: {
+            walletAddress: input.walletAddress.trim(),
+            amount: input.amount,
+            currency: input.currency,
+          },
+        },
+      });
+      if (count === 0) throw new Error('invalid_order_transition');
+    },
+    () => ({
+      actorUserId: userId,
+      category: 'Order' as const,
+      action: 'ORDER_CONFIRMED' as const,
+      resourceId: orderId,
+      resourceType: 'Order',
+      oldValues: { status: order.status },
+      newValues: { status: 'CONFIRMED' },
+    })
+  );
+}
+
+export async function markPaymentSent(userId: string, orderId: string): Promise<void> {
+  const order = await prisma.order.findFirst({ where: { id: orderId, userId } });
+  if (!order) throw new Error('order_not_found');
+  if (order.status !== 'CONFIRMED') throw new Error('invalid_order_transition');
+  if (!order.paymentConfirmation) throw new Error('payment_not_confirmed');
+  const now = new Date();
+  await withAudit(
+    async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: { id: orderId, userId, status: 'CONFIRMED' },
+        data: { status: 'PAYMENT_SENT', paymentSentAt: now },
+      });
+      if (count === 0) throw new Error('invalid_order_transition');
+    },
+    () => ({
+      actorUserId: userId,
+      category: 'Order' as const,
+      action: 'ORDER_PAYMENT_SENT' as const,
+      resourceId: orderId,
+      resourceType: 'Order',
+      oldValues: { status: 'CONFIRMED' },
+      newValues: { status: 'PAYMENT_SENT' },
+    })
+  );
+}
+
+export async function receiveOrder(userId: string, orderId: string): Promise<void> {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, userId },
+    include: { items: { select: { id: true, compoundId: true, form: true, vialSizeMg: true, quantity: true } } },
+  });
+  if (!order) throw new Error('order_not_found');
+  // Idempotent: already received — safe to return without creating duplicate vials
+  if (order.status === 'RECEIVED') return;
+  if (order.status !== 'PAYMENT_SENT') throw new Error('invalid_order_transition');
+  const now = new Date();
+  const DEFAULT_SHELF_LIFE_DAYS = 14;
+
+  // Only SOLUTION items create vials on receipt — they arrive pre-mixed and are immediately active.
+  // LYOPHILIZED_POWDER items are added to the reconstitution tracker by the user after receipt.
+  const solutionItems = order.items.filter((i) => i.form === 'SOLUTION');
+  const uniqueSolutionCompoundIds = [...new Set(solutionItems.map((i) => i.compoundId))];
+
+  // Parallelize compound-specific shelf life lookups
+  const shelfLifeEntries = await Promise.all(
+    uniqueSolutionCompoundIds.map(async (compoundId) => {
+      const days = await getReconstitutedShelfLifeDays(compoundId);
+      return [compoundId, days ?? DEFAULT_SHELF_LIFE_DAYS] as const;
+    })
+  );
+  const shelfLifeByCompound = new Map(shelfLifeEntries);
+
+  const vialRows = solutionItems.flatMap((item) => {
+    const shelfLifeDays = shelfLifeByCompound.get(item.compoundId) ?? DEFAULT_SHELF_LIFE_DAYS;
+    const expiresAt = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays, 23, 59, 59, 999)
+    );
+    return Array.from({ length: item.quantity }, () => ({
+      userId,
+      compoundId: item.compoundId,
+      orderItemId: item.id,
+      totalMg: item.vialSizeMg,
+      remainingMg: item.vialSizeMg,
+      status: 'RECONSTITUTED',
+      reconstitutedAt: now,
+      expiresAt,
+    }));
+  });
+
+  await withAudit(
+    async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: { id: orderId, userId, status: 'PAYMENT_SENT' },
+        data: { status: 'RECEIVED', receivedAt: now },
+      });
+      if (count === 0) throw new Error('invalid_order_transition');
+      if (vialRows.length > 0) {
+        await tx.vial.createMany({ data: vialRows });
+      }
+    },
+    () => ({
+      actorUserId: userId,
+      category: 'Order' as const,
+      action: 'ORDER_RECEIVED' as const,
+      resourceId: orderId,
+      resourceType: 'Order',
+      oldValues: { status: 'PAYMENT_SENT' },
+      newValues: { status: 'RECEIVED', solutionVialsCreated: vialRows.length },
+    })
+  );
+}
+
+export async function getPriorWalletAddress(
+  userId: string,
+  vendorId: string,
+  excludeOrderId?: string
+): Promise<string | null> {
+  const orders = await prisma.order.findMany({
+    where: {
+      userId,
+      vendorId,
+      paymentConfirmation: { not: Prisma.AnyNull },
+      ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}),
+    },
+    select: { paymentConfirmation: true },
+    orderBy: { confirmedAt: 'desc' },
+    take: 1,
+  });
+  if (orders.length === 0) return null;
+  const conf = orders[0].paymentConfirmation as { walletAddress?: string } | null;
+  return conf?.walletAddress ?? null;
 }

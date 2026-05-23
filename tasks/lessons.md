@@ -100,6 +100,14 @@ This file tracks architectural and process learnings for future agents. Append a
 - **Extract date-boundary helpers to `lib/shared/date.ts`**: Computing `nowUtcMidnight` inline in multiple page files leads to duplication flagged by multi-channel reviewers. A single `utcMidnightToday()` export is the canonical source of truth and can be tested in isolation.
 - **Capture a single `now = new Date()` at the top of each service function**: Multiple `new Date()` calls within one async function risk inconsistent boundaries if a millisecond boundary is crossed mid-execution. One `const now = new Date()` passed through all helpers eliminates the race and is idiomatic.
 
+## 2026-05-22 (Task 3.4)
+
+- **TOCTOU in bulk status transitions requires per-row `count === 1` guard**: A `findMany` followed by a bulk `updateMany({ id: { in: ids } })` has a race window — orders whose status changed between the read and the write still appear in the batch. Fix: loop per-order inside a single `$transaction`, use `updateMany({ where: { id, userId, status: 'SENT' } })`, and only audit/count rows where `count === 1`.
+- **Cron actorUserId must be `'SYSTEM'`, not the user's id**: Audit events for automated status changes (stale flagging) must attribute the actor to `'SYSTEM'` and carry `subjectUserId` for the affected user. Using the user's id as actor corrupts audit attribution and flags as P1 in every review channel.
+- **`vi.doMock` bleeds into later describe blocks — always pair with `vi.doUnmock` in afterEach**: `vi.doMock` (unlike the hoisted `vi.mock`) persists until explicitly unmocked. If a describe block mocks a module with `vi.doMock`, add `vi.doUnmock(modulePath)` in `afterEach` to prevent the mock from polluting subsequent describes that import the same module for real.
+- **STALE is non-terminal — show recovery actions, not just a warning**: If STALE is in `NON_TERMINAL_STATUSES`, the UI must still offer the Telegram deep-link and "Capture vendor reply" button (adjusted label). A warning-only panel for STALE orders traps users in a cancel-only dead end despite the domain allowing recovery.
+- **Internal navigation must use Next.js `<Link>`, not `<a>`**: Using `<a href="...">` for same-app routes bypasses the client-side router and forces a full page reload. MMR channels consistently flag this as P2. Always import and use `<Link>` from `next/link` for internal navigation.
+
 ## 2026-05-22 (Task 3.3)
 
 - **Split catch scope after Telegram send**: Only catch Telegram send failures; persist `telegramMessageId` outside the try-catch so a DB failure after confirmed delivery throws rather than silently offering MANUAL_FALLBACK. This prevents data loss when Telegram succeeds but the follow-up write fails.
