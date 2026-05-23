@@ -143,3 +143,137 @@ This file tracks architectural and process learnings for future agents. Append a
 - **Type assertion on `$queryRaw` result, not generic arg**: Casting via `(tx as any).$queryRaw<T>(...)` fails TypeScript (`error TS2347`). Instead use `(await (tx as any).$queryRaw(...)) as T` — the assertion moves to the result expression.
 - **Trailing-zero stripping in composeMessage**: `new Decimal('5.000').toString()` gives `'5.000'`; wrap with `new Decimal(i.vialSizeMg.toString()).toString()` to strip normalized decimals for human-readable messages.
 - **`send_state_indeterminate` guard**: Detect DRAFT orders where `messageText` is set but `telegramMessageId` and `sendMethod` are both null — indicates a crash after Telegram success but before the pre-write. Throw `send_state_indeterminate` to block re-send rather than silently duplicating the message.
+
+## 2026-05-23 (Task 5.1 → 6.4, end-of-session batch)
+
+Lessons that cut across multiple of the seven PRs shipped this session
+(5.1 reminder prefs, 5.2 reminder cron, 5.3 outcomes, 5.4 AI layer,
+6.1 self-deletion, 6.3 audit purge + backup verify, 6.4 vial expiry):
+
+- **Atomic claim via optimistic-lock CAS beats elapsed-time predicates**
+  for cron-loop dedupe (Task 5.2). An initial fix used a 23h elapsed-time
+  cutoff in the SQL `updateMany` predicate, but Codex caught the edge
+  case where a user crosses a local-day boundary < 23h after a prior
+  dispatch (DST, reminder-time moved earlier). Switched to
+  `WHERE lastDispatchedAt = <value just read>` — the prior-read value
+  IS the CAS. Combined with an in-process `alreadyDispatchedToday`
+  check, the SQL claim only needs to defeat the race.
+
+- **Atomic upsert (vs find-then-create-or-update) for one-row-per-day
+  invariants** (Task 5.3). Two concurrent submissions for the same
+  `(userId, scheduledDate)` outcome both saw "no existing row" via
+  findFirst and one then tripped P2002 — turning an idempotent save
+  into a 500. `prisma.outcomeLog.upsert` keyed on the unique compound
+  index collapses the race; a separate pre-read still drives the
+  OUTCOME_LOGGED-vs-UPDATED audit branch (the worst case is one
+  mislabelled audit row).
+
+- **Replace-set scoping**: when a service does delete-then-insert on
+  a nested collection (Task 5.3 ProtocolRatings), pass the *active set*
+  of allowed IDs into the repo and scope the delete to that set. The
+  first attempt deleted "all ratings for this outcome", which silently
+  destroyed historical ratings for protocols that had since been
+  paused. The user can still clear an *active* rating by omitting it,
+  but inactive history is preserved.
+
+- **Provider fail-over orchestrator (Task 5.4) needs THREE distinct
+  failure classes**:
+  - **Transient** (timeout, provider 5xx): retry once on the same provider.
+  - **Deterministic** (invalid_schema, aborted-by-our-timeout): no
+    retry on the same provider; fall through immediately. Re-running
+    the same prompt on the same model just burns latency + tokens.
+  - **Init failure** (SDK import, bad shape, missing env var): treat
+    as "this provider is unavailable today" — record + fall through.
+  Codex caught the missing init-class on round 3 by reasoning about
+  what happens when the SDK's shape is unexpected.
+
+- **JWT-carried status enables edge-runtime route gating without DB
+  hops** (Task 6.1). When the cron + middleware + service all need to
+  agree on a user's state (e.g. DELETION_PENDING), embed the field in
+  the JWT. The Node-runtime jwt callback refreshes it on every request
+  (same DB hit as `passwordVersion`); the edge middleware reads the
+  refreshed cookie purely from the JWT.
+
+- **signOut after a privileged status transition** is the cleanest way
+  to force a session refresh. The user submits "delete my account
+  (delayed)"; the server action sets `User.status = 'DELETION_PENDING'`
+  but the user's existing JWT still claims `ACTIVE`. Letting the
+  signOut redirect propagate (don't `try/catch` it) clears the cookie
+  and forces re-login, after which the JWT carries the new status.
+  Codex flagged a `try/catch` around signOut as silently swallowing
+  the navigation, leaving the user with a stale session cookie.
+
+- **Refuse self-delete when the user has active managed accounts**
+  (Task 6.1). Otherwise FK SetNull would orphan their managed users
+  outside the admin-ownership model. The check is `_count.managedUsers
+  > 0` via Prisma's `_count` select.
+
+- **Chunked deleteMany with `findMany take: N` then `deleteMany WHERE
+  id IN`** (Task 6.3). For potentially-large tables (AuditEvent at
+  scale), a single deleteMany can hold row locks long enough to
+  interfere with concurrent writes. Each batch is its own statement,
+  with a MAX_BATCHES safety cap.
+
+- **Re-verify the predicate that selected a row INSIDE the per-row
+  transaction's updateMany** (Task 6.4). A vial whose `expiresAt`
+  was extended by a concurrent user action between the initial
+  findMany and the per-vial transaction would otherwise be incorrectly
+  flipped to EXPIRED. The fix is to repeat
+  `expiresAt: { not: null, lt: now }` in the updateMany WHERE clause.
+  Same logical pattern as the TOCTOU `fromStatus` guard in protocol
+  state transitions.
+
+- **Backup-verify cron honesty**: a heartbeat-only route that always
+  returns `ok: true` makes the cron's promise ("alert on missed
+  backup") a lie. Even when full Railway backup-API integration isn't
+  available, a `SELECT 1` round-trip + 500 on failure is a genuine
+  liveness check — and Railway's existing non-2xx alerting picks up
+  the failure. Earlier added a `User.updatedAt` freshness check too,
+  but dropped it: low-traffic envs produce false-positive pages when
+  a solo dev's profile not changing for 72h is normal.
+
+- **Hydration-safe date rendering in client components** (Task 6.1).
+  `new Date(iso).toLocaleString()` on server vs client produces
+  different strings (server's locale/TZ vs user's). For SSR, render a
+  stable UTC string (`YYYY-MM-DD HH:MM UTC`) on the server and the
+  initial client paint, then `useEffect` to swap to the user's local
+  format. No hydration mismatch and no raw-ISO flash.
+
+- **Disallowed-phrase guards need compound-adjective variants**: an
+  AI safety regex of `/approved\s+by\s+the\s+(fda|ema)/` does not
+  catch the much more common LLM output `/(fda|ema)[\s-]*approved/`
+  ("FDA-approved", "EMA approved"). Codex caught the gap on round 2
+  of Task 5.4 — the test was passing for the verbose form but not
+  the adjective form.
+
+- **`vi.clearAllMocks()` does NOT drain `mockResolvedValueOnce`
+  queues** — only `vi.resetAllMocks()` does. Tests that set up
+  per-test `.mockResolvedValueOnce(...)` returns inside the test body
+  must reset between tests or the leftover queue contaminates later
+  tests. Found this on the first test run of Task 5.1.
+
+- **`web-push` is CommonJS — normalise the dynamic-import shape**
+  (Task 5.2). `await import('web-push')` may surface methods under
+  `default` depending on the bundler's interop config. The wrapper:
+  ```ts
+  const imported = await import('web-push');
+  const mod = imported.default ?? imported;
+  ```
+  Plus a shape-check guard so an unexpected version surfaces a clean
+  `web_push_module_shape_unexpected` rather than `setVapidDetails is
+  not a function` at first send.
+
+- **`AbortSignal` propagation to provider SDKs makes timeouts real**
+  (Task 5.4). `withTimeout(p, ms)` that only races a setTimeout
+  rejection leaves the upstream HTTP request running in the
+  background, burning tokens. Wire the AbortController through every
+  provider call (`generateObject({ ..., abortSignal })`). For the
+  retry path to engage on timeout, normalise the resulting
+  AbortError to `ai_timeout` rather than `aborted` (which we treat
+  as deterministic and no-retry).
+
+- **Multi-PR sessions need compaction-artifact cleanup**: midway
+  through Task 5.3, found two stale ` 2`-suffixed directories from a
+  prior compaction (matches the 2026-05-21 lesson). They were
+  untracked, but `find ... -name '* 2'` should be part of any
+  new-session warmup if `git status` shows nothing relevant.
