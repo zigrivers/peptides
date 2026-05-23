@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockOutcomeFindFirst = vi.fn();
 const mockOutcomeFindMany = vi.fn();
 const mockOutcomeCreate = vi.fn();
-const mockOutcomeUpdateMany = vi.fn();
+const mockOutcomeUpdate = vi.fn();
 const mockProtocolFindMany = vi.fn();
 const mockProtocolRatingDeleteMany = vi.fn();
 const mockProtocolRatingCreateMany = vi.fn();
@@ -21,7 +21,7 @@ vi.mock('@/lib/shared/prisma', () => ({
       findFirst: mockOutcomeFindFirst,
       findMany: mockOutcomeFindMany,
       create: mockOutcomeCreate,
-      updateMany: mockOutcomeUpdateMany,
+      update: mockOutcomeUpdate,
     },
     protocolRating: {
       deleteMany: mockProtocolRatingDeleteMany,
@@ -34,7 +34,7 @@ vi.mock('@/lib/shared/prisma', () => ({
         outcomeLog: {
           findFirst: mockOutcomeFindFirst,
           create: mockOutcomeCreate,
-          updateMany: mockOutcomeUpdateMany,
+          update: mockOutcomeUpdate,
         },
         protocolRating: {
           deleteMany: mockProtocolRatingDeleteMany,
@@ -52,7 +52,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   mockOutcomeFindFirst.mockResolvedValue(null);
   mockOutcomeCreate.mockResolvedValue({ id: 'ol-new' });
-  mockOutcomeUpdateMany.mockResolvedValue({ count: 1 });
+  mockOutcomeUpdate.mockResolvedValue({ count: 1 });
   mockProtocolRatingDeleteMany.mockResolvedValue({ count: 0 });
   mockProtocolRatingCreateMany.mockResolvedValue({ count: 0 });
   mockProtocolFindMany.mockResolvedValue([]);
@@ -105,9 +105,9 @@ describe('US-TRK-06: upsertOutcome', () => {
       overallRating: 3,
       tags: [],
     });
-    expect(mockOutcomeUpdateMany).toHaveBeenCalledWith(
+    expect(mockOutcomeUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'ol-1', userId: USER_ID },
+        where: { id: 'ol-1' },
         data: expect.objectContaining({ overallRating: 3 }),
       })
     );
@@ -195,6 +195,58 @@ describe('US-TRK-06: upsertOutcome', () => {
         }),
       })
     );
+  });
+
+  it('AC-8c: emits one PROTOCOL_RATED audit per submitted rating', async () => {
+    mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }, { id: 'p-2' }]);
+    mockOutcomeFindFirst.mockResolvedValueOnce(null);
+    mockOutcomeCreate.mockResolvedValueOnce({ id: 'ol-3' });
+
+    await upsertOutcome(USER_ID, {
+      scheduledDate: TODAY,
+      overallRating: 4,
+      tags: [],
+      protocolRatings: [
+        { protocolId: 'p-1', rating: 4 },
+        { protocolId: 'p-2', rating: 5 },
+      ],
+    });
+
+    const ratedCalls = mockAuditCreate.mock.calls.filter(
+      (call) => call[0]?.data?.action === 'PROTOCOL_RATED'
+    );
+    expect(ratedCalls).toHaveLength(2);
+    expect(ratedCalls[0][0].data.resourceId).toBe('p-1');
+    expect(ratedCalls[1][0].data.resourceId).toBe('p-2');
+  });
+
+  it('AC-8d: dedupes duplicate protocolIds (last-write-wins) before audit/createMany', async () => {
+    mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }]);
+    mockOutcomeFindFirst.mockResolvedValueOnce(null);
+    mockOutcomeCreate.mockResolvedValueOnce({ id: 'ol-4' });
+
+    await upsertOutcome(USER_ID, {
+      scheduledDate: TODAY,
+      overallRating: 4,
+      tags: [],
+      protocolRatings: [
+        { protocolId: 'p-1', rating: 3 },
+        { protocolId: 'p-1', rating: 5 }, // duplicate — wins
+      ],
+    });
+
+    expect(mockOutcomeCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          protocolRatings: { create: [{ protocolId: 'p-1', rating: 5 }] },
+        }),
+      })
+    );
+    const ratedCalls = mockAuditCreate.mock.calls.filter(
+      (call) => call[0]?.data?.action === 'PROTOCOL_RATED'
+    );
+    expect(ratedCalls).toHaveLength(1);
+    expect(ratedCalls[0][0].data.metadata.rating).toBe(5);
   });
 });
 

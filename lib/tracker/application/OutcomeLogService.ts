@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/shared/prisma';
-import { withAudit } from '@/lib/audit/application/withAudit';
+import { PrismaAuditRepo } from '@/lib/audit/infrastructure/PrismaAuditRepo';
 import { OutcomeLogRepo, type OutcomeRow } from '../infrastructure/OutcomeLogRepo';
 import { outcomeUpsertSchema } from '../domain/outcomeValidation';
 
@@ -108,11 +108,20 @@ export async function upsertOutcome(
     protocolRatings: rawInput.protocolRatings ?? [],
   });
 
+  // Dedupe protocolRatings by protocolId — last write wins. A malformed
+  // client payload with duplicate IDs would otherwise trip a Prisma
+  // createMany constraint (no @@unique exists on outcomeLogId+protocolId yet,
+  // but duplicate audit rows + the user's mental model are violated all the
+  // same).
+  const dedupedRatings = Array.from(
+    new Map(input.protocolRatings.map((r) => [r.protocolId, r])).values()
+  );
+
   // Ownership check for any submitted protocolRatings BEFORE the audit
   // transaction so a forged protocolId triggers a clean error rather than
   // an audit-write-then-rollback.
-  if (input.protocolRatings.length > 0) {
-    const requested = [...new Set(input.protocolRatings.map((r) => r.protocolId))];
+  if (dedupedRatings.length > 0) {
+    const requested = dedupedRatings.map((r) => r.protocolId);
     const owned = await prisma.protocol.findMany({
       where: { userId, id: { in: requested } },
       select: { id: true },
@@ -124,20 +133,23 @@ export async function upsertOutcome(
     }
   }
 
-  return withAudit(
-    (tx) =>
-      OutcomeLogRepo.upsertWithRatings(
-        userId,
-        {
-          scheduledDate: input.scheduledDate,
-          overallRating: input.overallRating,
-          tags: input.tags,
-          note: input.note ?? null,
-          protocolRatings: input.protocolRatings,
-        },
-        tx
-      ),
-    (result) => ({
+  // Manual $transaction so we can emit the OUTCOME_LOGGED/OUTCOME_UPDATED
+  // aggregate audit plus one PROTOCOL_RATED audit per submitted rating —
+  // all atomically with the upsert + ratings write.
+  return prisma.$transaction(async (tx) => {
+    const result = await OutcomeLogRepo.upsertWithRatings(
+      userId,
+      {
+        scheduledDate: input.scheduledDate,
+        overallRating: input.overallRating,
+        tags: input.tags,
+        note: input.note ?? null,
+        protocolRatings: dedupedRatings,
+      },
+      tx
+    );
+
+    await PrismaAuditRepo.create(tx, {
       actorUserId: userId,
       subjectUserId: userId,
       category: 'Protocol',
@@ -148,10 +160,28 @@ export async function upsertOutcome(
         scheduledDate: input.scheduledDate.toISOString(),
         overallRating: input.overallRating,
         tagCount: input.tags.length,
-        protocolRatingCount: input.protocolRatings.length,
+        protocolRatingCount: dedupedRatings.length,
       },
-    })
-  );
+    });
+
+    for (const rating of dedupedRatings) {
+      await PrismaAuditRepo.create(tx, {
+        actorUserId: userId,
+        subjectUserId: userId,
+        category: 'Protocol',
+        action: 'PROTOCOL_RATED',
+        resourceId: rating.protocolId,
+        resourceType: 'Protocol',
+        metadata: {
+          outcomeLogId: result.id,
+          scheduledDate: input.scheduledDate.toISOString(),
+          rating: rating.rating,
+        },
+      });
+    }
+
+    return result;
+  });
 }
 
 export interface TimelineBucket {

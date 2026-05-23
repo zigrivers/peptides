@@ -101,8 +101,10 @@ export const OutcomeLogRepo = {
 
     // Update: replace protocolRatings (delete-then-insert) so the new set
     // exactly matches the input. Both writes are inside the same transaction.
-    await client.outcomeLog.updateMany({
-      where: { id: existing.id, userId },
+    // We `update` by primary key (the existing row was already userId-scoped
+    // in the findFirst above; ownership is therefore established).
+    await client.outcomeLog.update({
+      where: { id: existing.id },
       data: {
         overallRating: input.overallRating,
         tags: input.tags,

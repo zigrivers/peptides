@@ -41,16 +41,48 @@ export function OutcomeForm({
   function toggleTag(tag: string) {
     setTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   }
+
+  // The server action transports tags as a comma-separated string, so we must
+  // split any pasted/typed commas at the client boundary to keep wire format
+  // and chip count in sync.
   function addTag() {
-    const value = tagInput.trim();
-    if (!value) return;
-    if (!tags.includes(value)) setTags([...tags, value]);
+    const candidates = tagInput
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+    if (candidates.length === 0) {
+      setTagInput('');
+      return;
+    }
+    setTags((prev) => {
+      const out = [...prev];
+      for (const c of candidates) {
+        if (!out.includes(c)) out.push(c);
+      }
+      return out;
+    });
     setTagInput('');
   }
   function setRatingFor(protocolId: string, value: number) {
     setProtocolRatings((prev) => ({ ...prev, [protocolId]: value }));
   }
 
+  // Flush any pending tag text into chips before submit so the typed-but-
+  // not-pressed-Enter case doesn't silently drop the user's tag.
+  function flushPendingTag(): string[] {
+    const candidates = tagInput
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+    if (candidates.length === 0) return tags;
+    const out = [...tags];
+    for (const c of candidates) {
+      if (!out.includes(c)) out.push(c);
+    }
+    return out;
+  }
+
+  const submittedTags = flushPendingTag();
   const ratingsPayload = Object.entries(protocolRatings)
     .filter(([, v]) => v >= 1 && v <= 5)
     .map(([protocolId, rating]) => ({ protocolId, rating }));
@@ -58,7 +90,7 @@ export function OutcomeForm({
   return (
     <form action={formAction} className="space-y-5">
       <input type="hidden" name="scheduledDate" value={scheduledDateISO} />
-      <input type="hidden" name="tags" value={tags.join(',')} />
+      <input type="hidden" name="tags" value={submittedTags.join(',')} />
       <input type="hidden" name="protocolRatings" value={JSON.stringify(ratingsPayload)} />
       <input type="hidden" name="overallRating" value={String(rating)} />
 

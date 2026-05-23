@@ -27,6 +27,15 @@ export async function logOutcomeAction(
   }
   const [y, m, d] = scheduledDateRaw.split('-').map(Number);
   const scheduledDate = new Date(Date.UTC(y, m - 1, d));
+  // JS Date silently rolls invalid days (e.g. 2026-02-31 → 2026-03-03). Reject
+  // any input whose round-tripped UTC components don't match the original.
+  if (
+    scheduledDate.getUTCFullYear() !== y ||
+    scheduledDate.getUTCMonth() !== m - 1 ||
+    scheduledDate.getUTCDate() !== d
+  ) {
+    return { error: 'Invalid date.' };
+  }
 
   const tags = tagsRaw
     .split(',')
