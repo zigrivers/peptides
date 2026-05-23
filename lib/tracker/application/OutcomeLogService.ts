@@ -118,21 +118,23 @@ export async function upsertOutcome(
     new Map(input.protocolRatings.map((r) => [r.protocolId, r])).values()
   );
 
-  // Ownership check for any submitted protocolRatings BEFORE the audit
-  // transaction so a forged protocolId triggers a clean error rather than
-  // an audit-write-then-rollback.
+  // Snapshot of the user's currently-active protocol IDs. The repo uses this
+  // to scope the rating replacement: only ratings tied to ACTIVE protocols
+  // are subject to delete-then-insert; ratings for protocols that have since
+  // been paused/deactivated are preserved as historical evidence. The
+  // submitted ratings are validated to be a subset of this set so a stale
+  // form or forged request can't slip in a non-active rating.
+  const activeOwned = await prisma.protocol.findMany({
+    where: { userId, status: 'ACTIVE' },
+    select: { id: true },
+  });
+  const activeProtocolIds = activeOwned.map((p) => p.id);
+  const activeSet = new Set(activeProtocolIds);
+
   if (dedupedRatings.length > 0) {
-    const requested = dedupedRatings.map((r) => r.protocolId);
-    // ACTIVE-only check: the UI only surfaces active protocols, so a
-    // submission referencing a paused/completed/deactivated protocol is
-    // either a stale form or a forged request. Reject it like an
-    // ownership failure rather than silently dropping the rating.
-    const owned = await prisma.protocol.findMany({
-      where: { userId, id: { in: requested }, status: 'ACTIVE' },
-      select: { id: true },
-    });
-    const ownedIds = new Set(owned.map((p) => p.id));
-    const missing = requested.filter((id) => !ownedIds.has(id));
+    const missing = dedupedRatings
+      .map((r) => r.protocolId)
+      .filter((id) => !activeSet.has(id));
     if (missing.length > 0) {
       throw new Error('protocol_not_owned');
     }
@@ -150,6 +152,7 @@ export async function upsertOutcome(
         tags: input.tags,
         note: input.note ?? null,
         protocolRatings: dedupedRatings,
+        activeProtocolIds,
       },
       tx
     );

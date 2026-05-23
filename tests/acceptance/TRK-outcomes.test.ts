@@ -98,6 +98,8 @@ describe('US-TRK-06: upsertOutcome', () => {
 
   it('AC-2: updates the existing outcome and writes OUTCOME_UPDATED audit', async () => {
     mockOutcomeFindFirst.mockResolvedValueOnce({ id: 'ol-1' }); // pre-read sees existing row
+    // One ACTIVE protocol in scope so the repo's deleteMany predicate fires.
+    mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }]);
     mockOutcomeUpsert.mockResolvedValueOnce({ id: 'ol-1', userId: USER_ID });
 
     await upsertOutcome(USER_ID, {
@@ -112,13 +114,37 @@ describe('US-TRK-06: upsertOutcome', () => {
       })
     );
     expect(mockProtocolRatingDeleteMany).toHaveBeenCalledWith({
-      where: { outcomeLogId: 'ol-1', outcomeLog: { is: { userId: USER_ID } } },
+      where: {
+        outcomeLogId: 'ol-1',
+        outcomeLog: { is: { userId: USER_ID } },
+        protocolId: { in: ['p-1'] },
+      },
     });
     expect(mockAuditCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ action: 'OUTCOME_UPDATED' }),
       })
     );
+  });
+
+  it('AC-2c: edit of outcome does NOT delete historical ratings for now-paused protocols', async () => {
+    // p-1 is active now; p-paused is NOT in the active list — its prior
+    // rating must survive an outcome edit.
+    mockOutcomeFindFirst.mockResolvedValueOnce({ id: 'ol-1' });
+    mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }]); // only p-1 active
+    mockOutcomeUpsert.mockResolvedValueOnce({ id: 'ol-1', userId: USER_ID });
+
+    await upsertOutcome(USER_ID, {
+      scheduledDate: TODAY,
+      overallRating: 4,
+      tags: [],
+      protocolRatings: [{ protocolId: 'p-1', rating: 5 }],
+    });
+
+    const deleteCall = mockProtocolRatingDeleteMany.mock.calls[0]?.[0];
+    expect(deleteCall.where.protocolId.in).toEqual(['p-1']);
+    // p-paused must NOT appear in the delete scope.
+    expect(deleteCall.where.protocolId.in).not.toContain('p-paused');
   });
 
   it('AC-2b: race-safe — pre-read sees null but upsert returns existing row; audit may label LOGGED but data is preserved', async () => {

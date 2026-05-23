@@ -71,6 +71,15 @@ export const OutcomeLogRepo = {
       tags: string[];
       note: string | null;
       protocolRatings: { protocolId: string; rating: number }[];
+      /**
+       * Active protocol IDs at submit time. The ratings replacement
+       * deletes only ratings tied to these IDs (so a user can clear a
+       * rating they previously set) — historical ratings for protocols
+       * that have since been paused/completed are left untouched. The
+       * service is responsible for ensuring submitted protocolRatings
+       * is a subset of activeProtocolIds.
+       */
+      activeProtocolIds: string[];
     },
     client: Prisma.TransactionClient
   ): Promise<{ id: string; created: boolean }> {
@@ -113,12 +122,23 @@ export const OutcomeLogRepo = {
       throw new Error('outcome_not_owned_by_actor');
     }
 
-    // Replace ProtocolRatings — delete-then-insert. The deleteMany is
-    // scoped through a relation filter on the parent's userId so a
-    // tampered outcomeLogId can't cross-delete another user's ratings.
-    await client.protocolRating.deleteMany({
-      where: { outcomeLogId: upserted.id, outcomeLog: { is: { userId } } },
-    });
+    // Scoped replacement: only delete ratings for ACTIVE protocols. Ratings
+    // for protocols that have since been paused/deactivated remain (they're
+    // historical evidence of how the user felt about those protocols on
+    // this day; the edit UI doesn't expose them, so we don't disturb them).
+    // The user can clear an active rating by submitting the outcome with
+    // that protocolId absent — the deleteMany picks it up via the
+    // activeProtocolIds predicate. The relation filter on outcomeLog.userId
+    // ensures cross-user delete is impossible.
+    if (input.activeProtocolIds.length > 0) {
+      await client.protocolRating.deleteMany({
+        where: {
+          outcomeLogId: upserted.id,
+          outcomeLog: { is: { userId } },
+          protocolId: { in: input.activeProtocolIds },
+        },
+      });
+    }
     if (input.protocolRatings.length > 0) {
       await client.protocolRating.createMany({
         data: input.protocolRatings.map((r) => ({
