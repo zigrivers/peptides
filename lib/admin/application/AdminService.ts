@@ -280,7 +280,12 @@ async function generateManagedUserExport(managedUserId: string, managedUserEmail
     prisma.vial.findMany({ where: { userId: managedUserId } }),
     prisma.vendor.findMany({
       where: { userId: managedUserId },
-      include: { products: true, orders: { include: { items: true } } },
+      include: {
+        products: true,
+        // Only include orders owned by this user — Order has its own userId so
+        // a vendor MAY (defensively) have orders from other users
+        orders: { where: { userId: managedUserId }, include: { items: true } },
+      },
     }),
     // Top-level Order query as a backstop in case any Order rows have userId set
     // but vendor ownership has diverged — Order is its own cascade target.
@@ -372,8 +377,10 @@ export async function requestManagedUserDeletion(
   // Only DEACTIVATED users can be deleted — active sessions must be revoked first
   if (managedUser.status !== 'DEACTIVATED') throw new Error('user_must_be_deactivated');
 
-  // Typed-email confirmation gate against accidental destructive action
-  if (confirmEmail !== managedUser.email) throw new Error('email_confirmation_mismatch');
+  // Typed-email confirmation gate against accidental destructive action (case-insensitive trim)
+  if (confirmEmail.trim().toLowerCase() !== managedUser.email.toLowerCase()) {
+    throw new Error('email_confirmation_mismatch');
+  }
 
   // Export-first: generate and synchronously deliver the export before any scheduling.
   // If email delivery fails, we throw before the DB write so no deletion is scheduled.
@@ -381,8 +388,9 @@ export async function requestManagedUserDeletion(
   // happens in the transaction below; the admin only sees confirmation in the UI.
   const exportJson = await generateManagedUserExport(managedUserId, managedUser.email);
   const exportBuffer = Buffer.from(exportJson);
-  // Resend hard limit is ~25MB for attachments; bail early to surface a clear error
-  if (exportBuffer.byteLength > 20 * 1024 * 1024) {
+  // Resend hard limit is 25MB for attachments. Base64 encoding inflates size by
+  // ~33%, so the raw payload threshold is ~18MB to stay safely under the limit.
+  if (exportBuffer.byteLength > 18 * 1024 * 1024) {
     console.error('[requestManagedUserDeletion] export too large:', exportBuffer.byteLength);
     throw new Error('export_too_large');
   }
@@ -495,6 +503,9 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
       // malformed/stale for this cron (the managed-user path always records the
       // requestor; null is reserved for a future self-deletion path with its own
       // authorization invariant). Delete the stale ADR to avoid infinite retry.
+      // TODO: when self-deletion is implemented, branch here to handle
+      //   `req.requestedByUserId === null && user.managedBy === null` as the
+      //   approved self-deletion case with its own ownership check.
       if (!req.requestedByUserId || user.managedBy !== req.requestedByUserId) {
         console.error('[processPendingDeletions] missing or mismatched requestor — aborting and cleaning up ADR', {
           adrId: req.id, userId: req.userId, recordedRequestor: req.requestedByUserId, currentManagedBy: user.managedBy,
@@ -520,8 +531,11 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
             select: { id: true },
           });
           if (userVendors.length > 0) {
+            // Defense-in-depth: only delete orders that belong to THIS user.
+            // If a cross-owner order is referencing this user's vendor, leave
+            // it for manual remediation rather than destroying another user's data.
             await tx.order.deleteMany({
-              where: { vendorId: { in: userVendors.map((v) => v.id) } },
+              where: { vendorId: { in: userVendors.map((v) => v.id) }, userId: req.userId },
             });
           }
           // Scope the user delete with managedBy = recorded requestor so the

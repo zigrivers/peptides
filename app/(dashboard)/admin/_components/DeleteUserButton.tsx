@@ -11,7 +11,7 @@ interface Props {
 export function DeleteUserButton({ action, userEmail }: Props) {
   const [state, formAction, isPending] = useActionState(action, null);
   const [typed, setTyped] = useState('');
-  const matches = typed === userEmail;
+  const matches = typed.trim().toLowerCase() === userEmail.toLowerCase();
 
   return (
     <form action={formAction} className="inline-flex items-center gap-2">
