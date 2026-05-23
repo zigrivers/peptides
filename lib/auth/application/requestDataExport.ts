@@ -5,6 +5,7 @@ import { generateUserDataExport, INLINE_EXPORT_MAX_BYTES } from '@/lib/shared/us
 import {
   isR2Configured,
   storeExportInR2,
+  deleteExportFromR2,
   R2NotConfiguredError,
 } from '@/lib/auth/infrastructure/exportStorage';
 
@@ -135,6 +136,19 @@ export async function requestDataExport(userId: string): Promise<{ exportRequest
   });
   if (emailError) {
     console.error('[requestDataExport] email send failed:', emailError.message);
+    // If we used R2, the object exists but the user cannot reach it (the
+    // signed URL was only in the failed email). Delete it best-effort
+    // so we don't strand orphaned exports — the daily cleanup cron is
+    // the catch-all, but proactive cleanup here keeps the
+    // export-not-delivered window short.
+    if (r2Result) {
+      await deleteExportFromR2(r2Result.objectKey).catch((cleanupErr) => {
+        console.error('[requestDataExport] best-effort r2 cleanup after email-fail failed', {
+          objectKey: r2Result?.objectKey,
+          err: (cleanupErr as Error).message,
+        });
+      });
+    }
     await failExportRequest(requestRow.id, user.id, {
       reason: 'email_send_failed',
       detail: emailError.message,

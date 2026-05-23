@@ -55,28 +55,25 @@ describe('cleanupExpiredExports — service', () => {
       { key: 'exports/user-1/req-a.json', userId: 'user-1' },
       { key: 'exports/user-2/req-b.json', userId: 'user-2' },
     ]);
-    mockUpdateMany.mockResolvedValueOnce({ count: 5 });
+    mockUpdateMany.mockResolvedValue({ count: 1 });
 
     const result = await cleanupExpiredExports(NOW);
-    expect(result).toEqual({
-      deletedObjects: 2,
-      expiredRequestRows: 5,
-      errors: 0,
-      skipped: false,
-    });
+    expect(result.deletedObjects).toBe(2);
+    expect(result.expiredRequestRows).toBe(2); // one update per successful delete
+    expect(result.errors).toBe(0);
+    expect(result.skipped).toBe(false);
     expect(mockDeleteFromR2).toHaveBeenCalledTimes(2);
-    expect(mockUpdateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          expiresAt: { not: null, lt: NOW },
-          downloadUrl: { not: null },
-        }),
-        data: { downloadUrl: null, expiresAt: null },
-      })
-    );
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { downloadUrl: { contains: 'exports/user-1/req-a.json' } },
+      data: { downloadUrl: null, expiresAt: null },
+    });
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { downloadUrl: { contains: 'exports/user-2/req-b.json' } },
+      data: { downloadUrl: null, expiresAt: null },
+    });
   });
 
-  it('continues past a per-key delete failure and counts it as an error', async () => {
+  it('does NOT null DB rows whose R2 delete failed (retryable on next run)', async () => {
     mockListExpired.mockResolvedValueOnce([
       { key: 'exports/user-1/a.json', userId: 'user-1' },
       { key: 'exports/user-2/b.json', userId: 'user-2' },
@@ -84,12 +81,18 @@ describe('cleanupExpiredExports — service', () => {
     mockDeleteFromR2
       .mockRejectedValueOnce(new Error('502 Bad Gateway'))
       .mockResolvedValueOnce(undefined);
+    mockUpdateMany.mockResolvedValue({ count: 1 });
 
     const result = await cleanupExpiredExports(NOW);
     expect(result.deletedObjects).toBe(1);
+    expect(result.expiredRequestRows).toBe(1);
     expect(result.errors).toBe(1);
-    expect(result.skipped).toBe(false);
-    expect(mockUpdateMany).toHaveBeenCalled();
+    // updateMany should only have been called for the successful delete.
+    expect(mockUpdateMany).toHaveBeenCalledTimes(1);
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { downloadUrl: { contains: 'exports/user-2/b.json' } },
+      data: { downloadUrl: null, expiresAt: null },
+    });
   });
 
   it('returns zeros when nothing is expired yet (idempotent)', async () => {

@@ -18,6 +18,7 @@ const mockAuditCreate = vi.fn();
 const mockGenerateExport = vi.fn();
 const mockIsR2Configured = vi.fn();
 const mockStoreInR2 = vi.fn();
+const mockDeleteFromR2 = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
@@ -46,6 +47,7 @@ vi.mock('@/lib/shared/userDataExport', () => ({
 vi.mock('@/lib/auth/infrastructure/exportStorage', () => ({
   isR2Configured: mockIsR2Configured,
   storeExportInR2: mockStoreInR2,
+  deleteExportFromR2: mockDeleteFromR2,
   R2NotConfiguredError: class R2NotConfiguredError extends Error {
     constructor() {
       super('r2_not_configured');
@@ -149,16 +151,27 @@ describe('requestDataExport — R2 branch', () => {
     expect(failedAudits[0][0].data.metadata.reason).toBe('r2_upload_failed');
   });
 
-  it('writes DATA_EXPORT_FAILED + throws export_email_failed when Resend fails on the R2 path', async () => {
+  it('writes DATA_EXPORT_FAILED + throws export_email_failed when Resend fails on the R2 path, and best-effort deletes the R2 object', async () => {
     mockGenerateExport.mockResolvedValueOnce(bigJson(INLINE_MAX + 1024));
     mockResendSend.mockResolvedValueOnce({ error: { message: 'smtp_down' } });
+    mockDeleteFromR2.mockResolvedValueOnce(undefined);
     await expect(requestDataExport(USER_ID)).rejects.toThrow('export_email_failed');
-    // Object was uploaded but the row stays FAILED.
     expect(mockStoreInR2).toHaveBeenCalled();
+    // Best-effort cleanup of the uploaded R2 object so it isn't orphaned
+    // waiting for the daily cleanup cron.
+    expect(mockDeleteFromR2).toHaveBeenCalledWith(`exports/${USER_ID}/der-1.json`);
     const failedAudits = mockAuditCreate.mock.calls.filter(
       (c) => c[0]?.data?.action === 'DATA_EXPORT_FAILED'
     );
     expect(failedAudits).toHaveLength(1);
     expect(failedAudits[0][0].data.metadata.reason).toBe('email_send_failed');
+  });
+
+  it('still surfaces export_email_failed even when the best-effort R2 cleanup throws', async () => {
+    mockGenerateExport.mockResolvedValueOnce(bigJson(INLINE_MAX + 1024));
+    mockResendSend.mockResolvedValueOnce({ error: { message: 'smtp_down' } });
+    mockDeleteFromR2.mockRejectedValueOnce(new Error('r2_408_timeout'));
+    await expect(requestDataExport(USER_ID)).rejects.toThrow('export_email_failed');
+    expect(mockDeleteFromR2).toHaveBeenCalled();
   });
 });

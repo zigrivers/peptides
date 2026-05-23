@@ -15,15 +15,22 @@ export interface CleanupSummary {
 
 /**
  * Daily 03:00 UTC cron (ADR-014). Walks every R2 export object older
- * than 7 days and deletes it, then nulls out the matching
- * DataExportRequest.downloadUrl rows so the UI stops showing live
- * links to gone objects.
+ * than 7 days and deletes it, then nulls out the corresponding
+ * DataExportRequest.downloadUrl rows so the UI stops showing dead links.
  *
- * System-level cron — no userId predicate on the R2 list (the bucket
- * is the global namespace). The DB `updateMany` carries `userId` when
- * we can extract it from the key (defense-in-depth); when we can't,
- * we match on `downloadUrl LIKE %{key}%` which is implicitly scoped
- * because keys embed the userId.
+ * Retry safety: only rows whose R2 object was *successfully* deleted in
+ * this run get nulled out. A failed delete leaves the row's downloadUrl
+ * intact AND leaves the R2 object in place, so the NEXT cron run will
+ * re-list and retry it (R2 list is the source of truth for the retry
+ * set). Without this, a transient R2 error would null the row and
+ * orphan the object until the bucket's 14-day defense-in-depth
+ * lifecycle policy fires.
+ *
+ * System-level cron — no per-user predicate on either side:
+ *  - R2 list is the global `exports/` prefix (bucket has no per-user
+ *    namespace).
+ *  - DB `updateMany` filters by `downloadUrl contains <key>`. The key
+ *    embeds userId, so each match is implicitly scoped to one user.
  *
  * No-ops cleanly when R2 isn't configured — returns `skipped: true`.
  * Idempotent.
@@ -44,31 +51,27 @@ export async function cleanupExpiredExports(now: Date): Promise<CleanupSummary> 
   }
 
   let deletedObjects = 0;
+  let expiredRequestRows = 0;
   let errors = 0;
   for (const obj of expired) {
     try {
       await deleteExportFromR2(obj.key);
       deletedObjects += 1;
+      // Null only the row that referenced THIS object. `downloadUrl`
+      // stores the full signed URL; the key appears as a substring of
+      // the URL path. This naturally scopes the update to the one row
+      // whose object we just removed.
+      const { count } = await prisma.dataExportRequest.updateMany({
+        where: { downloadUrl: { contains: obj.key } },
+        data: { downloadUrl: null, expiresAt: null },
+      });
+      expiredRequestRows += count;
     } catch (err) {
       errors += 1;
       // eslint-disable-next-line no-console
       console.error('[export-cleanup] r2 delete failed', { key: obj.key, err: (err as Error).message });
     }
   }
-
-  // Null out downloadUrl for any DataExportRequest whose URL referenced
-  // an object we just deleted (or that simply expired naturally). We
-  // can't easily reverse-lookup the row from the R2 key alone because
-  // downloadUrl stores the full signed URL, not the key. Use
-  // expiresAt-based predicate instead: any row whose expiresAt is in
-  // the past has a dead URL and should have its downloadUrl cleared.
-  const { count: expiredRequestRows } = await prisma.dataExportRequest.updateMany({
-    where: {
-      expiresAt: { not: null, lt: now },
-      downloadUrl: { not: null },
-    },
-    data: { downloadUrl: null, expiresAt: null },
-  });
 
   return { deletedObjects, expiredRequestRows, errors, skipped: false };
 }
