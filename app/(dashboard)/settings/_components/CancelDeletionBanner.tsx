@@ -12,14 +12,22 @@ interface Props {
   scheduledForISO: string;
 }
 
+/**
+ * Render a hydration-safe UTC representation of an ISO timestamp.
+ * `YYYY-MM-DD HH:MM UTC` is stable across server (any TZ) and client.
+ */
+function utcDisplay(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
+}
+
 export function CancelDeletionBanner({ action, scheduledForISO }: Props) {
   const [state, formAction, pending] = useActionState(action, null);
-  // Format the date client-side only. Rendering toLocaleString() on the
-  // server vs. client can produce different strings (the server uses the
-  // deployment's locale/TZ; the client uses the user's), triggering a
-  // hydration mismatch. The initial server render emits the raw ISO; the
-  // effect replaces it after hydration.
-  const [formatted, setFormatted] = useState<string>(scheduledForISO);
+  // Render a stable UTC string on the server and initial client render so
+  // hydration never mismatches. After hydration, useEffect replaces it
+  // with the user's local-time format. No raw ISO flash.
+  const [formatted, setFormatted] = useState<string>(() => utcDisplay(scheduledForISO));
   useEffect(() => {
     setFormatted(new Date(scheduledForISO).toLocaleString());
   }, [scheduledForISO]);

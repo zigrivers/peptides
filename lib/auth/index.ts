@@ -30,7 +30,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // See lib/auth/infrastructure/AuthRepository.ts, CLAUDE.md, and AGENTS.md for the
         // documented exception to the Identity Scoping rule.
         const user = await AuthRepository.findByEmailForAuth(credentials.email.toLowerCase());
-        if (!user?.passwordHash || user.status !== 'ACTIVE') {
+        // Allow ACTIVE users normally; also allow DELETION_PENDING users to
+        // sign in during their 48h cancellation window so they can reach
+        // the cancel flow at /settings. Task 6.1 / US-AUT-02.
+        const canAuthenticate =
+          user?.status === 'ACTIVE' || user?.status === 'DELETION_PENDING';
+        if (!user?.passwordHash || !canAuthenticate) {
           // Constant-time guard: prevents timing-based user enumeration.
           await bcrypt.compare(credentials.password, DUMMY_HASH);
           return null;

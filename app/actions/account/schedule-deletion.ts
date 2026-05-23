@@ -24,6 +24,8 @@ const HUMAN_ERRORS: Record<string, string> = {
   user_not_found: 'Account not found.',
   user_status_transition_failed: 'Your account is in an unexpected state. Please refresh and try again.',
   user_not_in_eligible_state: 'Your account is no longer eligible for immediate deletion. Please refresh.',
+  managed_user_cannot_self_delete:
+    'Managed accounts cannot be deleted directly. Please contact the Power User who manages your account.',
 };
 
 function humanError(code: string): string {
