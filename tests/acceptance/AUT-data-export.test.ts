@@ -147,6 +147,27 @@ describe('US-AUT-02: requestDataExport (self-serve)', () => {
     );
   });
 
+  it('AC-6b: writes DATA_EXPORT_FAILED audit on email failure', async () => {
+    const captured: unknown[] = [];
+    mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+      const result = await mutation({ dataExportRequest: { create: mockDERCreate, updateMany: mockDERUpdateMany } });
+      captured.push(typeof buildAudit === 'function' ? buildAudit(result) : buildAudit);
+      return result;
+    });
+    mockSend.mockResolvedValueOnce({ error: { message: 'resend-down' } });
+
+    await expect(requestDataExport('u-1')).rejects.toThrow('export_email_failed');
+
+    // Two audit events: REQUESTED (phase 1) and FAILED (phase 3b)
+    expect(captured[0]).toMatchObject({ action: 'DATA_EXPORT_REQUESTED' });
+    expect(captured[1]).toMatchObject({
+      action: 'DATA_EXPORT_FAILED',
+      actorUserId: 'u-1',
+      subjectUserId: 'u-1',
+      resourceType: 'DataExportRequest',
+    });
+  });
+
   it('AC-7: identity-scoped — only queries by the userId passed in', async () => {
     await requestDataExport('u-1');
 
