@@ -30,8 +30,9 @@ export default async function ManagedUserDoseHistoryPage({ params, searchParams 
   let history: Awaited<ReturnType<typeof getManagedUserDoseHistory>>;
   try {
     history = await getManagedUserDoseHistory(session.user.id, userId, days);
-  } catch {
-    notFound();
+  } catch (err) {
+    if (err instanceof Error && err.message === 'managed_user_not_found') notFound();
+    throw err;
   }
 
   return (

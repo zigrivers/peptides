@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 
 export type InviteStatus = 'ACTIVE' | 'DEACTIVATED' | 'INVITED' | 'INVITE_EXPIRED';
@@ -31,7 +32,8 @@ function adherenceFromLogs(logs: { status: string }[]): AdherenceResult {
   return { logged, total, percent: total === 0 ? 0 : (logged / total) * 100 };
 }
 
-async function getAdherence(userId: string, days: number): Promise<AdherenceResult> {
+async function getBulkAdherence(userIds: string[], days: number): Promise<Map<string, AdherenceResult>> {
+  if (userIds.length === 0) return new Map();
   const now = new Date();
   const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (days - 1)));
   const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
@@ -39,16 +41,26 @@ async function getAdherence(userId: string, days: number): Promise<AdherenceResu
 
   const logs = await prisma.doseLog.findMany({
     where: {
-      userId,
+      userId: { in: userIds },
       OR: [
         { scheduledDate: { gte: since, lt: tomorrow }, status: { in: ['LOGGED', 'SKIPPED'] } },
         { scheduledDate: { gte: since, lt: todayMidnight }, status: 'PENDING' },
       ],
     },
-    select: { status: true },
+    select: { userId: true, status: true },
   });
 
-  return adherenceFromLogs(logs);
+  const byUser = new Map<string, { status: string }[]>();
+  for (const log of logs) {
+    if (!byUser.has(log.userId)) byUser.set(log.userId, []);
+    byUser.get(log.userId)!.push({ status: log.status });
+  }
+
+  const result = new Map<string, AdherenceResult>();
+  for (const id of userIds) {
+    result.set(id, adherenceFromLogs(byUser.get(id) ?? []));
+  }
+  return result;
 }
 
 export async function getManagedUsersWithAdherence(powerUserId: string): Promise<{
@@ -68,23 +80,21 @@ export async function getManagedUsersWithAdherence(powerUserId: string): Promise
     }),
   ]);
 
-  const activeUserRows = await Promise.all(
-    managedUsers.map(async (u) => {
-      const [adherence7Day, adherence30Day] = await Promise.all([
-        getAdherence(u.id, 7),
-        getAdherence(u.id, 30),
-      ]);
-      return {
-        id: u.id,
-        email: u.email,
-        name: u.name ?? null,
-        inviteStatus: (u.status === 'DEACTIVATED' ? 'DEACTIVATED' : 'ACTIVE') as InviteStatus,
-        inviteExpiresAt: null,
-        adherence7Day,
-        adherence30Day,
-      };
-    })
-  );
+  const userIds = managedUsers.map((u) => u.id);
+  const [adherence7Map, adherence30Map] = await Promise.all([
+    getBulkAdherence(userIds, 7),
+    getBulkAdherence(userIds, 30),
+  ]);
+
+  const activeUserRows: ManagedUserRow[] = managedUsers.map((u) => ({
+    id: u.id,
+    email: u.email,
+    name: u.name ?? null,
+    inviteStatus: (u.status === 'DEACTIVATED' ? 'DEACTIVATED' : 'ACTIVE') as InviteStatus,
+    inviteExpiresAt: null,
+    adherence7Day: adherence7Map.get(u.id) ?? { logged: 0, total: 0, percent: 0 },
+    adherence30Day: adherence30Map.get(u.id) ?? { logged: 0, total: 0, percent: 0 },
+  }));
 
   const pendingInviteRows: PendingInviteRow[] = pendingInvites.map((inv) => ({
     id: inv.id,
@@ -102,7 +112,7 @@ export interface DoseHistoryEntry {
   scheduledDate: Date;
   loggedAt: Date;
   status: string;
-  amount: unknown;
+  amount: Prisma.JsonValue;
 }
 
 export async function getManagedUserDoseHistory(

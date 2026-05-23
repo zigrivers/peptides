@@ -94,6 +94,7 @@ export default async function AdminPage() {
   if (session.user.role === 'MANAGED_USER') redirect('/dashboard?error=forbidden');
 
   const { activeUsers, pendingInvites } = await getManagedUsersWithAdherence(session.user.id);
+  const activeCount = activeUsers.filter((u) => u.inviteStatus === 'ACTIVE').length;
   const total = activeUsers.length + pendingInvites.length;
 
   return (
@@ -103,7 +104,7 @@ export default async function AdminPage() {
         <p className="text-sm text-gray-500 mt-1">
           {total === 0
             ? 'No managed users yet. Invite someone to get started.'
-            : `${activeUsers.length} active · ${pendingInvites.length} pending invite${pendingInvites.length !== 1 ? 's' : ''}`}
+            : `${activeCount} active · ${pendingInvites.length} pending invite${pendingInvites.length !== 1 ? 's' : ''}`}
         </p>
       </div>
 

@@ -49,7 +49,7 @@ beforeEach(() => {
 
 const { createInvite } = await import('@/lib/auth/application/createInvite');
 const { resendInvite } = await import('@/lib/auth/application/resendInvite');
-const { getManagedUsersWithAdherence } = await import('@/lib/admin/application/AdminService');
+const { getManagedUsersWithAdherence, getManagedUserDoseHistory } = await import('@/lib/admin/application/AdminService');
 
 /**
  * Story: US-ADM-01 - Create Managed User
@@ -197,10 +197,17 @@ describe('US-ADM-02: Monitor Adherence', () => {
       { id: 'mu-1', email: 'user@e.com', name: 'Test User', status: 'ACTIVE' },
     ]);
     mockFindMany.mockResolvedValueOnce([]); // no pending invites
-    // 7-day: 2 LOGGED + 1 SKIPPED
-    mockDoseLogFindMany.mockResolvedValueOnce([{ status: 'LOGGED' }, { status: 'LOGGED' }, { status: 'SKIPPED' }]);
-    // 30-day: 1 LOGGED + 1 PENDING
-    mockDoseLogFindMany.mockResolvedValueOnce([{ status: 'LOGGED' }, { status: 'PENDING' }]);
+    // bulk 7-day query (includes userId for group-by)
+    mockDoseLogFindMany.mockResolvedValueOnce([
+      { userId: 'mu-1', status: 'LOGGED' },
+      { userId: 'mu-1', status: 'LOGGED' },
+      { userId: 'mu-1', status: 'SKIPPED' },
+    ]);
+    // bulk 30-day query
+    mockDoseLogFindMany.mockResolvedValueOnce([
+      { userId: 'mu-1', status: 'LOGGED' },
+      { userId: 'mu-1', status: 'PENDING' },
+    ]);
 
     const result = await getManagedUsersWithAdherence('pu-1');
     expect(result.activeUsers).toHaveLength(1);
@@ -243,5 +250,48 @@ describe('US-ADM-02: Monitor Adherence', () => {
 
     const result = await getManagedUsersWithAdherence('pu-1');
     expect(result.activeUsers[0].inviteStatus).toBe('DEACTIVATED');
+  });
+});
+
+/**
+ * Story: US-ADM-02 - Dose History View
+ */
+describe('US-ADM-02: getManagedUserDoseHistory', () => {
+  const mockDoseLog = {
+    id: 'dl-1',
+    scheduledDate: new Date('2026-05-20T00:00:00Z'),
+    loggedAt: new Date('2026-05-20T08:00:00Z'),
+    status: 'LOGGED',
+    amount: { value: 2, unit: 'mg' },
+    protocol: { compound: { name: 'BPC-157' } },
+  };
+
+  it('throws managed_user_not_found when userId does not belong to powerUser', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(null);
+    await expect(getManagedUserDoseHistory('pu-1', 'other-user', 30)).rejects.toThrow('managed_user_not_found');
+  });
+
+  it('returns dose history entries for a managed user', async () => {
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1' });
+    mockDoseLogFindMany.mockResolvedValueOnce([mockDoseLog]);
+
+    const result = await getManagedUserDoseHistory('pu-1', 'mu-1', 30);
+    expect(result).toHaveLength(1);
+    expect(result[0].compoundName).toBe('BPC-157');
+    expect(result[0].status).toBe('LOGGED');
+    expect(result[0].scheduledDate).toEqual(mockDoseLog.scheduledDate);
+  });
+
+  it('queries only logs within the requested day window', async () => {
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1' });
+    mockDoseLogFindMany.mockResolvedValueOnce([]);
+
+    await getManagedUserDoseHistory('pu-1', 'mu-1', 7);
+
+    const call = mockDoseLogFindMany.mock.calls[0][0];
+    expect(call.where.scheduledDate.gte).toBeDefined();
+    expect(call.where.scheduledDate.lt).toBeDefined();
+    const windowDays = (call.where.scheduledDate.lt.getTime() - call.where.scheduledDate.gte.getTime()) / 86400_000;
+    expect(windowDays).toBe(7);
   });
 });
