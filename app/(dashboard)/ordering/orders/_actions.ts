@@ -65,10 +65,18 @@ export async function markPaymentSentAction(orderId: string): Promise<ActionResu
   redirect(`/ordering/orders/${orderId}`);
 }
 
-export async function receiveOrderAction(orderId: string) {
+export async function receiveOrderAction(
+  orderId: string,
+  _prevState: ActionResult | null,
+  _formData: FormData
+): Promise<ActionResult | null> {
   const session = await auth();
   if (!session?.user?.id) throw new Error('Unauthorized');
-  await receiveOrder(session.user.id, orderId);
+  try {
+    await receiveOrder(session.user.id, orderId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Something went wrong. Please try again.' };
+  }
   revalidatePath('/ordering/orders', 'layout');
   redirect(`/ordering/orders/${orderId}`);
 }

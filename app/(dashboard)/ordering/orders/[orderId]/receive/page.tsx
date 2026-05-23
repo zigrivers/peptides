@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getOrderWithDetails } from '@/lib/ordering/application/OrderService';
 import { receiveOrderAction } from '../../_actions';
-import { ConfirmReceiptButton } from './_components/ConfirmReceiptButton';
+import { ReceiveOrderForm } from './_components/ReceiveOrderForm';
 
 interface Props {
   params: Promise<{ orderId: string }>;
@@ -21,7 +21,7 @@ export default async function ReceivePage({ params }: Props) {
     redirect(`/ordering/orders/${orderId}`);
   }
 
-  const action = receiveOrderAction.bind(null, orderId);
+  const boundAction = receiveOrderAction.bind(null, orderId);
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -31,7 +31,8 @@ export default async function ReceivePage({ params }: Props) {
         </Link>
         <h1 className="text-2xl font-semibold text-gray-900 mt-2">Confirm Receipt</h1>
         <p className="text-sm text-gray-500 mt-1">
-          The following items will be added to your inventory as dry vials ready for reconstitution.
+          Confirm you have received the following items. Pre-mixed solutions are added directly to your
+          active inventory. Powder items should be reconstituted in the tracker before tracking doses.
         </p>
       </div>
 
@@ -50,13 +51,11 @@ export default async function ReceivePage({ params }: Props) {
           ))}
         </ul>
         <p className="text-xs text-gray-400 mt-3">
-          Total: {order.items.reduce((sum, i) => sum + i.quantity, 0)} vials added to inventory
+          Total: {order.items.reduce((sum, i) => sum + i.quantity, 0)} vials
         </p>
       </section>
 
-      <form action={action}>
-        <ConfirmReceiptButton />
-      </form>
+      <ReceiveOrderForm action={boundAction} />
     </main>
   );
 }

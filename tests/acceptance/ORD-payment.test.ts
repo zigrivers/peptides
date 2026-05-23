@@ -9,6 +9,7 @@ const mockPrismaOrderUpdateMany = vi.fn();
 const mockPrismaOrderUpdate = vi.fn();
 const mockPrismaVialCreateMany = vi.fn();
 const mockPrismaAuditEventCreate = vi.fn();
+const mockGetReconstitutedShelfLifeDays = vi.fn();
 const mockPrismaTx = {
   order: {
     findFirst: mockPrismaOrderFindFirst,
@@ -31,6 +32,11 @@ vi.mock('@/lib/shared/prisma', () => ({
     vial: { createMany: mockPrismaVialCreateMany },
     auditEvent: { create: mockPrismaAuditEventCreate },
   },
+}));
+
+vi.mock('@/lib/reference/infrastructure/CompoundRepo', () => ({
+  findCompoundsByIds: vi.fn(),
+  getReconstitutedShelfLifeDays: mockGetReconstitutedShelfLifeDays,
 }));
 
 vi.mock('@/lib/audit/application/withAudit', () => ({
@@ -196,46 +202,47 @@ describe('receiveOrder', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    mockGetReconstitutedShelfLifeDays.mockResolvedValue(null); // use 14-day default
   });
 
-  it('AC-1: transitions PAYMENT_SENT → RECEIVED and sets receivedAt', async () => {
+  it('AC-1: transitions PAYMENT_SENT → RECEIVED and sets receivedAt (no vials for powder-only order)', async () => {
     const { receiveOrder } = await import('@/lib/ordering/application/OrderService');
     mockPrismaOrderFindFirst.mockResolvedValueOnce({
       id: 'order-1', userId: 'user-1', status: 'PAYMENT_SENT',
       items: [{ id: 'item-1', compoundId: 'c-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: new Decimal('5'), quantity: 2 }],
     });
     mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
-    mockPrismaVialCreateMany.mockResolvedValueOnce({ count: 2 });
 
     await receiveOrder('user-1', 'order-1');
 
     const updateCall = mockPrismaOrderUpdateMany.mock.calls[0][0];
     expect(updateCall.data.status).toBe('RECEIVED');
     expect(updateCall.data.receivedAt).toBeInstanceOf(Date);
+    // LYOPHILIZED_POWDER items are reconstituted separately — no vials created on receipt
+    expect(mockPrismaVialCreateMany).not.toHaveBeenCalled();
   });
 
-  it('AC-2: creates one Vial per quantity unit per OrderItem linked by orderItemId', async () => {
+  it('AC-2: creates RECONSTITUTED vials for SOLUTION items (not LYOPHILIZED_POWDER)', async () => {
     const { receiveOrder } = await import('@/lib/ordering/application/OrderService');
     mockPrismaOrderFindFirst.mockResolvedValueOnce({
       id: 'order-1', userId: 'user-1', status: 'PAYMENT_SENT',
       items: [
-        { id: 'item-1', compoundId: 'c-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: new Decimal('5'), quantity: 2 },
+        { id: 'item-1', compoundId: 'c-1', form: 'SOLUTION', vialSizeMg: new Decimal('5'), quantity: 2 },
         { id: 'item-2', compoundId: 'c-2', form: 'LYOPHILIZED_POWDER', vialSizeMg: new Decimal('10'), quantity: 1 },
       ],
     });
     mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
-    mockPrismaVialCreateMany.mockResolvedValueOnce({ count: 3 });
+    mockPrismaVialCreateMany.mockResolvedValueOnce({ count: 2 });
 
     await receiveOrder('user-1', 'order-1');
 
     const createManyCall = mockPrismaVialCreateMany.mock.calls[0][0];
-    expect(createManyCall.data).toHaveLength(3);
-    const item1Vials = createManyCall.data.filter((v: { orderItemId: string }) => v.orderItemId === 'item-1');
-    expect(item1Vials).toHaveLength(2);
-    expect(item1Vials[0].totalMg.toString()).toBe('5');
-    const item2Vials = createManyCall.data.filter((v: { orderItemId: string }) => v.orderItemId === 'item-2');
-    expect(item2Vials).toHaveLength(1);
-    expect(item2Vials[0].totalMg.toString()).toBe('10');
+    // Only the 2 SOLUTION vials (item-1, qty 2); powder item is skipped
+    expect(createManyCall.data).toHaveLength(2);
+    const solutionVials = createManyCall.data.filter((v: { orderItemId: string }) => v.orderItemId === 'item-1');
+    expect(solutionVials).toHaveLength(2);
+    expect(solutionVials[0].totalMg.toString()).toBe('5');
+    expect(solutionVials[0].status).toBe('RECONSTITUTED');
   });
 
   it('AC-3: throws order_not_found if order does not exist', async () => {
@@ -264,29 +271,28 @@ describe('receiveOrder', () => {
     expect(mockPrismaVialCreateMany).not.toHaveBeenCalled();
   });
 
-  it('AC-2b: SOLUTION items create RECONSTITUTED vials (not DRY)', async () => {
+  it('AC-2b: SOLUTION vials use compound-specific shelf life (falls back to 14 days)', async () => {
     const { receiveOrder } = await import('@/lib/ordering/application/OrderService');
+    mockGetReconstitutedShelfLifeDays.mockResolvedValueOnce(28); // compound has 28-day shelf life
     mockPrismaOrderFindFirst.mockResolvedValueOnce({
       id: 'order-1', userId: 'user-1', status: 'PAYMENT_SENT',
-      items: [
-        { id: 'item-1', compoundId: 'c-1', form: 'SOLUTION', vialSizeMg: new Decimal('5'), quantity: 1 },
-        { id: 'item-2', compoundId: 'c-2', form: 'LYOPHILIZED_POWDER', vialSizeMg: new Decimal('10'), quantity: 1 },
-      ],
+      items: [{ id: 'item-1', compoundId: 'c-1', form: 'SOLUTION', vialSizeMg: new Decimal('5'), quantity: 1 }],
     });
     mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
-    mockPrismaVialCreateMany.mockResolvedValueOnce({ count: 2 });
+    mockPrismaVialCreateMany.mockResolvedValueOnce({ count: 1 });
 
+    const before = Date.now();
     await receiveOrder('user-1', 'order-1');
 
     const createManyCall = mockPrismaVialCreateMany.mock.calls[0][0];
-    const solutionVial = createManyCall.data.find((v: { orderItemId: string }) => v.orderItemId === 'item-1');
-    const powderVial = createManyCall.data.find((v: { orderItemId: string }) => v.orderItemId === 'item-2');
-    expect(solutionVial.status).toBe('RECONSTITUTED');
-    expect(solutionVial.reconstitutedAt).toBeInstanceOf(Date);
-    expect(solutionVial.expiresAt).toBeInstanceOf(Date);
-    expect(powderVial.status).toBe('DRY');
-    expect(powderVial.reconstitutedAt).toBeUndefined();
-    expect(powderVial.expiresAt).toBeUndefined();
+    const vial = createManyCall.data[0];
+    expect(vial.status).toBe('RECONSTITUTED');
+    expect(vial.reconstitutedAt).toBeInstanceOf(Date);
+    expect(vial.expiresAt).toBeInstanceOf(Date);
+    // 28-day shelf life: expiresAt should be ~28 days from now
+    const expectedDays = (vial.expiresAt.getTime() - before) / 86400_000;
+    expect(expectedDays).toBeGreaterThanOrEqual(27);
+    expect(expectedDays).toBeLessThanOrEqual(29);
   });
 
   it('AC-5: audits ORDER_RECEIVED', async () => {
@@ -296,7 +302,7 @@ describe('receiveOrder', () => {
       items: [{ id: 'item-1', compoundId: 'c-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: new Decimal('5'), quantity: 1 }],
     });
     mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
-    mockPrismaVialCreateMany.mockResolvedValueOnce({ count: 1 });
+    // No vialCreateMany mock needed — LYOPHILIZED_POWDER items don't create vials on receipt
 
     await receiveOrder('user-1', 'order-1');
 

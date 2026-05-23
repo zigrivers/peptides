@@ -8,7 +8,7 @@ import { ITEM_FORMS, VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
 import type { OrderLineItemInput, SendMethod } from '@/lib/ordering/domain/types';
 import { sendTelegramMessage } from '@/lib/ordering/infrastructure/MTProtoClient';
 import { getDecryptedSession, buildFallbackDeepLink } from './TelegramAuthService';
-import { findCompoundsByIds } from '@/lib/reference/infrastructure/CompoundRepo';
+import { findCompoundsByIds, getReconstitutedShelfLifeDays } from '@/lib/reference/infrastructure/CompoundRepo';
 
 type OrderForSend = Prisma.OrderGetPayload<{
   include: {
@@ -581,23 +581,35 @@ export async function receiveOrder(userId: string, orderId: string): Promise<voi
   if (order.status === 'RECEIVED') return;
   if (order.status !== 'PAYMENT_SENT') throw new Error('invalid_order_transition');
   const now = new Date();
+  const DEFAULT_SHELF_LIFE_DAYS = 14;
 
-  // SOLUTION vials arrive pre-mixed; use the same 14-day default shelf life as VialService
-  const SOLUTION_SHELF_LIFE_DAYS = 14;
-  const solutionExpiresAt = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + SOLUTION_SHELF_LIFE_DAYS)
-  );
+  // Only SOLUTION items create vials on receipt — they're pre-mixed and immediately usable.
+  // LYOPHILIZED_POWDER items are reconstituted separately through the tracker flow.
+  const solutionItems = order.items.filter((item) => item.form === 'SOLUTION');
 
-  const vialRows = order.items.flatMap((item) => {
-    const isSolution = item.form === 'SOLUTION';
+  // Resolve compound-specific shelf life for each unique solution compound
+  const shelfLifeByCompound = new Map<string, number>();
+  for (const item of solutionItems) {
+    if (!shelfLifeByCompound.has(item.compoundId)) {
+      const days = await getReconstitutedShelfLifeDays(item.compoundId);
+      shelfLifeByCompound.set(item.compoundId, days ?? DEFAULT_SHELF_LIFE_DAYS);
+    }
+  }
+
+  const vialRows = solutionItems.flatMap((item) => {
+    const shelfLifeDays = shelfLifeByCompound.get(item.compoundId) ?? DEFAULT_SHELF_LIFE_DAYS;
+    const expiresAt = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays)
+    );
     return Array.from({ length: item.quantity }, () => ({
       userId,
       compoundId: item.compoundId,
       orderItemId: item.id,
       totalMg: item.vialSizeMg,
       remainingMg: item.vialSizeMg,
-      status: isSolution ? 'RECONSTITUTED' : 'DRY',
-      ...(isSolution ? { reconstitutedAt: now, expiresAt: solutionExpiresAt } : {}),
+      status: 'RECONSTITUTED',
+      reconstitutedAt: now,
+      expiresAt,
     }));
   });
 
@@ -608,7 +620,9 @@ export async function receiveOrder(userId: string, orderId: string): Promise<voi
         data: { status: 'RECEIVED', receivedAt: now },
       });
       if (count === 0) throw new Error('invalid_order_transition');
-      await tx.vial.createMany({ data: vialRows });
+      if (vialRows.length > 0) {
+        await tx.vial.createMany({ data: vialRows });
+      }
     },
     () => ({
       actorUserId: userId,
@@ -617,7 +631,7 @@ export async function receiveOrder(userId: string, orderId: string): Promise<voi
       resourceId: orderId,
       resourceType: 'Order',
       oldValues: { status: 'PAYMENT_SENT' },
-      newValues: { status: 'RECEIVED', vialsCreated: vialRows.length },
+      newValues: { status: 'RECEIVED', solutionVialsCreated: vialRows.length },
     })
   );
 }
