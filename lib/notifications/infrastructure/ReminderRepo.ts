@@ -6,6 +6,11 @@ import type {
   ReminderPreferenceInput,
   ReminderPreferenceRecord,
 } from '../domain/types';
+import {
+  DEFAULT_BOOTSTRAP_CHANNEL,
+  DEFAULT_REMINDER_TIME,
+  DEFAULT_TIMEZONE,
+} from '../domain/defaults';
 
 type TxOrPrisma = Prisma.TransactionClient | typeof prisma;
 
@@ -81,9 +86,9 @@ export const ReminderRepo = {
       const row = await client.reminderPreference.create({
         data: {
           userId,
-          reminderTime: '08:00',
-          timezone: 'UTC',
-          channel: 'EMAIL',
+          reminderTime: DEFAULT_REMINDER_TIME,
+          timezone: DEFAULT_TIMEZONE,
+          channel: DEFAULT_BOOTSTRAP_CHANNEL,
           enabled: true,
           pushPermissionState: state,
           emailFallbackEnabled: true,

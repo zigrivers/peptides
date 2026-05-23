@@ -8,6 +8,7 @@ import { getReminderPreference } from '@/lib/notifications/application/ReminderS
 import { updateReminderPreferencesAction } from '@/app/actions/notifications/update-reminder-preferences';
 import { RemindersForm } from './_components/RemindersForm';
 import { PushSubscriptionPanel } from './_components/PushSubscriptionPanel';
+import { buildTimezoneSuggestions } from '@/lib/notifications/domain/timezones';
 
 /**
  * Account settings index. Surfaces the data-export request button (Task 6.2,
@@ -21,6 +22,7 @@ export default async function SettingsPage() {
   // Server-side default timezone falls back to the deployment's TZ env (or 'UTC'
   // when unset) so first-time users get a sensible non-empty value to edit.
   const defaultTimezone = process.env.TZ || 'UTC';
+  const timezoneSuggestions = buildTimezoneSuggestions(reminderPreference?.timezone);
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
@@ -35,6 +37,7 @@ export default async function SettingsPage() {
           action={updateReminderPreferencesAction}
           initial={reminderPreference}
           defaultTimezone={defaultTimezone}
+          timezoneSuggestions={timezoneSuggestions}
         />
         <div className="mt-6 border-t border-gray-100 pt-4">
           <h3 className="text-sm font-semibold text-gray-900 mb-2">Web push on this device</h3>

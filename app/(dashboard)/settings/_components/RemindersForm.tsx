@@ -5,6 +5,7 @@ import type {
   ChannelPreference,
   ReminderPreferenceRecord,
 } from '@/lib/notifications/domain/types';
+import { DEFAULT_FORM_CHANNEL, DEFAULT_REMINDER_TIME } from '@/lib/notifications/domain/defaults';
 import type { UpdateReminderPreferencesState } from '@/app/actions/notifications/update-reminder-preferences';
 
 interface Props {
@@ -14,6 +15,8 @@ interface Props {
   ) => Promise<UpdateReminderPreferencesState>;
   initial: ReminderPreferenceRecord | null;
   defaultTimezone: string;
+  /** IANA timezone identifiers to surface as autocomplete suggestions. */
+  timezoneSuggestions: readonly string[];
 }
 
 const CHANNEL_OPTIONS: { value: ChannelPreference; label: string; description: string }[] = [
@@ -22,7 +25,7 @@ const CHANNEL_OPTIONS: { value: ChannelPreference; label: string; description: s
   { value: 'BOTH', label: 'Push + email', description: 'Push notification with email as a fallback if push fails.' },
 ];
 
-export function RemindersForm({ action, initial, defaultTimezone }: Props) {
+export function RemindersForm({ action, initial, defaultTimezone, timezoneSuggestions }: Props) {
   const [state, formAction, isPending] = useActionState(action, null);
 
   return (
@@ -35,7 +38,7 @@ export function RemindersForm({ action, initial, defaultTimezone }: Props) {
           id="reminderTime"
           name="reminderTime"
           type="time"
-          defaultValue={initial?.reminderTime ?? '07:00'}
+          defaultValue={initial?.reminderTime ?? DEFAULT_REMINDER_TIME}
           required
           className="rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
         />
@@ -49,11 +52,18 @@ export function RemindersForm({ action, initial, defaultTimezone }: Props) {
           id="timezone"
           name="timezone"
           type="text"
+          list="timezone-suggestions"
           defaultValue={initial?.timezone ?? defaultTimezone}
           required
           placeholder="e.g. America/Denver"
+          autoComplete="off"
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
         />
+        <datalist id="timezone-suggestions">
+          {timezoneSuggestions.map((tz) => (
+            <option key={tz} value={tz} />
+          ))}
+        </datalist>
         <p className="mt-1 text-xs text-gray-500">
           IANA timezone identifier. The reminder fires at this local time every day.
         </p>
@@ -68,7 +78,7 @@ export function RemindersForm({ action, initial, defaultTimezone }: Props) {
                 type="radio"
                 name="channel"
                 value={opt.value}
-                defaultChecked={(initial?.channel ?? 'PUSH') === opt.value}
+                defaultChecked={(initial?.channel ?? DEFAULT_FORM_CHANNEL) === opt.value}
                 className="mt-0.5"
               />
               <span>
