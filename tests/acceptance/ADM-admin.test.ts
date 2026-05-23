@@ -36,7 +36,7 @@ function setupWithAudit() {
   mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>) =>
     mutation({
       invite: { create: mockCreate, updateMany: mockUpdateMany },
-      user: { update: mockUpdate },
+      user: { update: mockUpdate, updateMany: mockUpdateMany },
     })
   );
 }
@@ -331,24 +331,27 @@ describe('US-ADM-03: deactivateManagedUser', () => {
     expect(result.status).toBe('needs_confirmation');
     expect(result.activeProtocolCount).toBe(2);
     expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
   it('AC-1: deactivates user (sets status=DEACTIVATED) when confirmed=true', async () => {
     mockUserFindFirst.mockResolvedValueOnce(activeUser);
-    mockProtocolFindMany.mockResolvedValueOnce([{ id: 'p-1' }]);
-    mockUpdate.mockResolvedValueOnce({ id: 'mu-1', status: 'DEACTIVATED' });
+    mockUpdateMany.mockResolvedValueOnce({ count: 1 });
 
     const result = await deactivateManagedUser('pu-1', 'mu-1', true);
     expect(result.status).toBe('deactivated');
-    expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'mu-1' }, data: { status: 'DEACTIVATED' } })
+    expect(mockUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'mu-1', managedBy: 'pu-1' }),
+        data: { status: 'DEACTIVATED' },
+      })
     );
   });
 
   it('AC-1: deactivates user with no active protocols without confirmation prompt', async () => {
     mockUserFindFirst.mockResolvedValueOnce(activeUser);
     mockProtocolFindMany.mockResolvedValueOnce([]);
-    mockUpdate.mockResolvedValueOnce({ id: 'mu-1', status: 'DEACTIVATED' });
+    mockUpdateMany.mockResolvedValueOnce({ count: 1 });
 
     const result = await deactivateManagedUser('pu-1', 'mu-1', false);
     expect(result.status).toBe('deactivated');
@@ -357,13 +360,13 @@ describe('US-ADM-03: deactivateManagedUser', () => {
   it('writes USER_DEACTIVATED audit event on deactivation', async () => {
     let capturedAudit: unknown = null;
     mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
-      const result = await mutation({ user: { update: mockUpdate } });
+      const result = await mutation({ user: { update: mockUpdate, updateMany: mockUpdateMany } });
       capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
       return result;
     });
     mockUserFindFirst.mockResolvedValueOnce(activeUser);
     mockProtocolFindMany.mockResolvedValueOnce([]);
-    mockUpdate.mockResolvedValueOnce({ id: 'mu-1', status: 'DEACTIVATED' });
+    mockUpdateMany.mockResolvedValueOnce({ count: 1 });
 
     await deactivateManagedUser('pu-1', 'mu-1', false);
     expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DEACTIVATED', actorUserId: 'pu-1' });

@@ -17,8 +17,8 @@ export async function deactivateManagedUserAction(
   formData: FormData
 ): Promise<AdminActionResult | null> {
   const session = await auth();
-  if (!session?.user?.id) throw new Error('Unauthorized');
-  if (session.user.role === 'MANAGED_USER') throw new Error('Forbidden');
+  if (!session?.user?.id) return { error: 'Unauthorized' };
+  if (session.user.role === 'MANAGED_USER') return { error: 'Forbidden' };
 
   const confirmed = formData.get('confirmed') === 'true';
   try {
@@ -42,8 +42,8 @@ export async function triggerPasswordResetAction(
   _formData: FormData
 ): Promise<AdminActionResult | null> {
   const session = await auth();
-  if (!session?.user?.id) throw new Error('Unauthorized');
-  if (session.user.role === 'MANAGED_USER') throw new Error('Forbidden');
+  if (!session?.user?.id) return { error: 'Unauthorized' };
+  if (session.user.role === 'MANAGED_USER') return { error: 'Forbidden' };
 
   try {
     await triggerManagedUserPasswordReset(session.user.id, managedUserId);

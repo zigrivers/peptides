@@ -166,21 +166,29 @@ export async function deactivateManagedUser(
 ): Promise<DeactivateResult> {
   const user = await prisma.user.findFirst({
     where: { id: managedUserId, managedBy: powerUserId },
-    select: { id: true },
+    select: { id: true, status: true },
   });
   if (!user) throw new Error('managed_user_not_found');
+  if (user.status === 'DEACTIVATED') return { status: 'deactivated' };
 
-  const activeProtocols = await prisma.protocol.findMany({
-    where: { userId: managedUserId, status: 'ACTIVE' },
-    select: { id: true },
-  });
-
-  if (!confirmed && activeProtocols.length > 0) {
-    return { status: 'needs_confirmation', activeProtocolCount: activeProtocols.length };
+  if (!confirmed) {
+    const activeProtocols = await prisma.protocol.findMany({
+      where: { userId: managedUserId, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    if (activeProtocols.length > 0) {
+      return { status: 'needs_confirmation', activeProtocolCount: activeProtocols.length };
+    }
   }
 
   await withAudit(
-    (tx) => tx.user.update({ where: { id: managedUserId }, data: { status: 'DEACTIVATED' } }),
+    async (tx) => {
+      const { count } = await tx.user.updateMany({
+        where: { id: managedUserId, managedBy: powerUserId, status: { not: 'DEACTIVATED' } },
+        data: { status: 'DEACTIVATED' },
+      });
+      if (count === 0) throw new Error('managed_user_not_found');
+    },
     () => ({
       actorUserId: powerUserId,
       category: 'Admin' as const,
@@ -204,5 +212,15 @@ export async function triggerManagedUserPasswordReset(
   });
   if (!user) throw new Error('managed_user_not_found');
 
+  await withAudit(
+    async () => {},
+    {
+      actorUserId: powerUserId,
+      category: 'Admin' as const,
+      action: 'MANAGED_USER_PASSWORD_RESET_TRIGGERED' as const,
+      resourceId: managedUserId,
+      resourceType: 'User',
+    }
+  );
   await requestPasswordReset(user.email);
 }
