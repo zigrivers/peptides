@@ -33,8 +33,16 @@ export function OutcomeForm({
   const [tags, setTags] = useState<string[]>(existingOutcome?.tags ?? []);
   const [tagInput, setTagInput] = useState('');
   const [note, setNote] = useState<string>(existingOutcome?.note ?? '');
+  // Initialize protocolRatings ONLY for protocols that are still active.
+  // Otherwise a stale rating (for a protocol the user has since paused) would
+  // be sent to the server, which rejects non-ACTIVE protocols and would
+  // block any further outcome edits today. Filtering here matches what the
+  // UI surfaces: you can only modify ratings for protocols that are visible.
+  const activeIds = new Set(activeProtocols.map((p) => p.id));
   const initialRatingMap: Record<string, number> = Object.fromEntries(
-    (existingOutcome?.protocolRatings ?? []).map((r) => [r.protocolId, r.rating])
+    (existingOutcome?.protocolRatings ?? [])
+      .filter((r) => activeIds.has(r.protocolId))
+      .map((r) => [r.protocolId, r.rating])
   );
   const [protocolRatings, setProtocolRatings] = useState<Record<string, number>>(initialRatingMap);
 
@@ -84,7 +92,7 @@ export function OutcomeForm({
 
   const submittedTags = flushPendingTag();
   const ratingsPayload = Object.entries(protocolRatings)
-    .filter(([, v]) => v >= 1 && v <= 5)
+    .filter(([protocolId, v]) => v >= 1 && v <= 5 && activeIds.has(protocolId))
     .map(([protocolId, rating]) => ({ protocolId, rating }));
 
   return (

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import {
   getOutcomeForDate,
@@ -82,18 +83,18 @@ export default async function OutcomesPage({ searchParams }: PageProps) {
             Dose × outcome correlation
           </h2>
           <nav className="text-xs">
-            <a
+            <Link
               className={`mr-3 ${windowDays === 30 ? 'font-semibold text-indigo-600' : 'text-gray-600 hover:text-gray-900'}`}
               href="/tracker/outcomes?window=30"
             >
               30 days
-            </a>
-            <a
+            </Link>
+            <Link
               className={windowDays === 90 ? 'font-semibold text-indigo-600' : 'text-gray-600 hover:text-gray-900'}
               href="/tracker/outcomes?window=90"
             >
               90 days
-            </a>
+            </Link>
           </nav>
         </div>
         <CorrelationStats stats={stats} />
