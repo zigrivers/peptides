@@ -1,73 +1,80 @@
 # Task 4.3 Handoff — Managed User Deletion with Export-First
 
-**Status:** IN PROGRESS — PR #30 open on branch `task-4.3-managed-user-deletion`. Implementation complete and 497 tests pass; iterating through MMR review rounds.
-
-**Last completed:** MMR round-17 fixes committed and pushed (commit `f81ce56`).
+**Status:** ✅ COMPLETE — PR #30 merged into `main` on 2026-05-23 (commit `3e927bd`). Follow-up PR #31 (Resend lazy-init) merged into `main` (commit `93af904`). CI is green.
 
 ---
 
-## What's Been Done
+## Outcome
 
-All of Task 4.3 (US-ADM-04) is implemented:
-- Service layer (`lib/admin/application/AdminService.ts`):
-  - `requestManagedUserDeletion(powerUserId, managedUserId, confirmEmail)` → schedules 48h-delayed deletion. Requires typed-email confirmation, sends export email synchronously before scheduling DB write.
-  - `cancelManagedUserDeletion(powerUserId, managedUserId)` → restores user from DELETION_PENDING → DEACTIVATED and removes the ADR.
-  - `processPendingDeletions()` → cron handler that scans due ADRs, verifies `user.managedBy === req.requestedByUserId`, pre-deletes orders to avoid FK conflict, then deletes the user.
-  - `generateManagedUserExport(...)` → exhaustive export of every user-owned cascade table with secret/credential fields stripped (PushSubscription.auth/p256dh, Invite.tokenHash, TelegramSession.sessionString, EmailChangeRequest.tokenHash, DataExportRequest.downloadUrl).
-- Server actions (`app/(dashboard)/admin/_actions.ts`): `requestDeletionAction` validates typed `confirmEmail`; `cancelDeletionAction`.
-- UI (`app/(dashboard)/admin/_components/DeleteUserButton.tsx`, `CancelDeletionButton.tsx`): typed-email confirmation gate (case-insensitive), button only enables when typed value matches user email.
-- Cron route (`app/api/cron/pending-deletions/route.ts`): `POST` with `Authorization: Bearer ${CRON_SECRET}`.
-- Schema: added `AccountDeletionRequest.requestedByUserId String?` column (migration `20260523000001_adr_requested_by`).
-- Middleware: `/api/cron(/|$)` exempted in the matcher exclusion.
-- AGENTS.md: added `processPendingDeletions` to the Auth Scoping exception list alongside `markOrdersStale`.
+Task 4.3 (US-ADM-04) shipped end-to-end after **18 MMR rounds**. All 497 acceptance tests pass, `pnpm check` is green, and CI on `main` is green at HEAD.
 
-All 497 tests pass; `pnpm check` (lint + typecheck + test + prisma validate) is green at HEAD.
+### What's in production
+
+- **Service layer** (`lib/admin/application/AdminService.ts`):
+  - `requestManagedUserDeletion(powerUserId, managedUserId, confirmEmail)` — requires typed-email confirmation (case-insensitive trim), generates exhaustive export, sends export email synchronously (aborts on Resend failure with `export_email_failed`), then schedules 48h delayed deletion. Status flow: DEACTIVATED → DELETION_PENDING. Records `requestedByUserId` on the ADR row.
+  - `cancelManagedUserDeletion(powerUserId, managedUserId)` — restores DELETION_PENDING → DEACTIVATED atomically (updateMany scoped with `managedBy + status` predicate, then deleteMany on ADR scoped with `id + userId + status`).
+  - `processPendingDeletions()` — cron handler. Scans due ADRs, verifies `user.managedBy === req.requestedByUserId`, atomically deletes ADR + restores user to DEACTIVATED for stale/mismatched rows (no infinite retry), or pre-deletes user-scoped orders (defense against `Order.vendorId` FK restrict) then deletes the user. Audit `actorUserId: 'SYSTEM'` with `originalRequestor` in metadata.
+  - `generateManagedUserExport(...)` — covers all user-owned cascade tables (Protocol, Cycle, DoseLog, OutcomeLog + protocolRatings, Vial, Vendor + products + nested orders + items, Order (top-level backstop), ReminderPreference, PushSubscription, TelegramSession, EmailChangeRequest, DataExportRequest, sent Invites, original Invite + full AuditEvent history). Secret fields stripped via explicit `select` allowlists (PushSubscription.auth/p256dh, Invite.tokenHash, TelegramSession.sessionString, EmailChangeRequest.tokenHash, DataExportRequest.downloadUrl).
+- **Server actions** (`app/(dashboard)/admin/_actions.ts`): `requestDeletionAction` validates typed `confirmEmail`; `cancelDeletionAction`.
+- **UI components**:
+  - `DeleteUserButton.tsx` — typed-email confirmation gate; submit button disabled until typed value matches user email (case-insensitive trim).
+  - `CancelDeletionButton.tsx` — visible while user is DELETION_PENDING.
+- **Cron route** (`app/api/cron/pending-deletions/route.ts`): `POST` with `Authorization: Bearer ${CRON_SECRET}`. Middleware exempts `/api/cron(/|$)` so the in-route bearer check is the sole gate.
+- **Schema**: `AccountDeletionRequest.requestedByUserId String?` (migration `20260523000001_adr_requested_by`).
+- **Documentation**:
+  - `CLAUDE.md` and `AGENTS.md` both list `processPendingDeletions` as an approved Identity Scoping / Auth Scoping exception.
+  - `AGENTS.md` known-false-positives section updated for the recurring `@middleware.ts` Gemini hallucination on `AccountDeletionRequest.id`.
+
+### Follow-up build fix (PR #31)
+
+`Resend` was instantiated at module load time, which threw `Missing API key` during Next.js build-time page data collection when `RESEND_API_KEY` wasn't in the build env. Task 4.2 silently broke CI in the same way; Task 4.3 inherited the broken state. Resolved by wrapping `Resend` in a lazy `Proxy` (`lib/shared/email.ts`).
 
 ---
 
 ## What's Next
 
-**Immediate**: Run `mmr review --pr 30 --sync --format json` to get round-18 findings. If the verdict is `approved`, proceed to merge:
+The autonomous loop's next task per the implementation plan:
+
+### Task 4.4 — Ordering Module Isolation Feature Flag (US-ORD-08)
+- **File:** `docs/implementation-plan.md` line 211
+- **Description:** `DISABLE_ORDERING` env flag per ADR-015; all `/ordering/*` routes return 404/403 when set; UI hides ordering nav; tracker + reference fully functional with ordering disabled.
+- **Estimate:** 1 day.
+
+### Task 4.5 — Phase 2 Legal Gate Completion
+- **File:** `docs/implementation-plan.md` line 217
+- **Description:** Execute the 6-item checklist from PRD §7.5; capture managed-user signed acknowledgments in R2 `legal/acks/`; document in `docs/decisions/phase-2-legal-gate.md`.
+- **Estimate:** 1 day (self-review).
+
+---
+
+## MMR Iteration Summary
+
+PR #30 went through 18 rounds. Recurring patterns worth carrying forward:
+
+1. **Defense-in-depth scoping**: Every write inside a transaction carries `userId` even when the row is already ID-scoped.
+2. **Atomic state transitions**: When cleaning up a stale row, restore related state in the same `$transaction` (don't leave an account "stuck").
+3. **Export-before-destruction**: Email send is synchronous and pre-DB; failure aborts the whole flow.
+4. **Typed-confirmation > 2-step buttons**: Round-3 wanted a 2-step UI for immediate deletion; round-8 pivoted to typed-email confirmation, which is a stronger gate and simpler code.
+5. **Test mock structure**: `setupWithAudit` helper mock tx must include every model+method the service touches inside `withAudit` — adding new tables (e.g. `vendor`, `order`) requires updating the mock tx.
+6. **`unstable_after` directly, not aliased**: `import { unstable_after as after }` confuses Gemini repeatedly. Call `unstable_after()` directly.
+7. **Cron exceptions go in BOTH CLAUDE.md and AGENTS.md**: Codex reads AGENTS.md as the reviewer brief; CLAUDE.md alone doesn't suppress findings.
+8. **Contradicting reviewer feedback is a signal to simplify**: When two reviewers disagree on whether a feature should exist (immediate vs scheduled deletion), the right move is usually to remove the contested path.
+9. **`Resend` (and similar API clients) must be lazy-instantiated** — module-level construction with env-var arguments breaks Next.js page data collection in CI.
+
+See `tasks/lessons.md` for the full lessons log.
+
+---
+
+## Verification
 
 ```bash
-gh pr merge 30 --auto --squash --delete-branch
-gh run watch  # wait for CI
+# Verify the merge:
+gh pr view 30 --json state,mergedAt  # → {"state":"MERGED","mergedAt":"2026-05-23T12:26:17Z"}
+gh pr view 31 --json state,mergedAt  # → {"state":"MERGED","mergedAt":"2026-05-23T12:32:..."}
+
+# Verify CI is green:
+gh run list --branch main --limit 2
+
+# Verify local checks pass:
+pnpm check
 ```
-
-If MMR is still blocked, fix the new findings using the patterns established across the prior 17 rounds:
-- **Codex hallucinations** about `unstable_after`/`after` import — none should remain since we switched to direct `unstable_after()` calls in round-8.
-- **Codex hallucinations** about the cron exception not being approved — should be handled now that we have it in AGENTS.md (round-15), but if it recurs, point to `AGENTS.md` section under Auth Scoping.
-- **Gemini hallucination** of `@middleware.ts` on `AccountDeletionRequest.id` — documented in AGENTS.md known false positives (round-15). Verify with `grep "@id @default" prisma/schema.prisma` if it recurs.
-
-**After Task 4.3 merges**:
-- Task 4.4 (Ordering Module Isolation Feature Flag, US-ORD-08) — `DISABLE_ORDERING` env flag per ADR-015.
-- Task 4.5 (Phase 2 Legal Gate Completion) — 6-item checklist from PRD §7.5.
-
----
-
-## MMR Iteration History (PR #30)
-
-17 rounds of MMR fixes have been applied. Recurring themes:
-1. **Identity scoping**: Every write inside a transaction must carry the `userId` predicate (not just `id`) even when the row is already ID-scoped — defense-in-depth.
-2. **Atomic state transitions**: When deleting one row, also restore related rows in the same transaction so the system doesn't end up in an unrecoverable state.
-3. **Export must precede destruction**: Email send is synchronous and pre-DB; failure aborts the whole flow with `export_email_failed`.
-4. **Typed confirmation > 2-step button**: Round-3 wanted a 2-step confirm UI for immediate deletion; round-8 pivoted to typed-email confirmation against an explicit input field, which is a stronger gate.
-5. **Test mock structure**: The `setupWithAudit` helper mock tx must include every model+method the service touches inside the `withAudit` callback. Adding new models to the service (e.g. `vendor`, `order`) requires updating the mock tx too.
-
----
-
-## Files Touched in This PR
-
-- `lib/admin/application/AdminService.ts` (heavily updated)
-- `lib/audit/domain/AuditEvent.ts` (added `MANAGED_USER_DELETION_CANCELLED` to AuditAction union)
-- `app/(dashboard)/admin/_actions.ts`
-- `app/(dashboard)/admin/page.tsx`
-- `app/(dashboard)/admin/_components/DeleteUserButton.tsx` (new)
-- `app/(dashboard)/admin/_components/CancelDeletionButton.tsx` (new)
-- `app/api/cron/pending-deletions/route.ts` (new)
-- `middleware.ts` (added cron exemption to matcher)
-- `prisma/schema.prisma` (added requestedByUserId column)
-- `prisma/migrations/20260523000001_adr_requested_by/migration.sql` (new)
-- `AGENTS.md` (added cron exception + Gemini false-positive note)
-- `CLAUDE.md` (added cron exception under Identity Scoping)
-- `tests/acceptance/ADM-admin.test.ts` (44 → 50 tests, 17 new for US-ADM-04)
