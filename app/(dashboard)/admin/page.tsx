@@ -3,6 +3,9 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getManagedUsersWithAdherence } from '@/lib/admin/application/AdminService';
 import type { InviteStatus, ManagedUserRow, PendingInviteRow } from '@/lib/admin/application/AdminService';
+import { deactivateManagedUserAction, triggerPasswordResetAction } from './_actions';
+import { DeactivateUserButton } from './_components/DeactivateUserButton';
+import { ResetPasswordButton } from './_components/ResetPasswordButton';
 
 const BADGE_STYLES: Record<InviteStatus, string> = {
   ACTIVE: 'bg-green-50 text-green-700 border-green-200',
@@ -66,12 +69,18 @@ function ManagedUserCard({ user }: { user: ManagedUserRow }) {
         <AdherenceBar result={user.adherence30Day} label="30-day adherence" />
       </div>
       {user.inviteStatus === 'ACTIVE' && (
-        <Link
-          href={`/admin/users/${user.id}`}
-          className="block text-center text-xs text-indigo-600 hover:underline pt-1"
-        >
-          View dose history →
-        </Link>
+        <div className="flex items-center justify-between pt-1">
+          <Link
+            href={`/admin/users/${user.id}`}
+            className="text-xs text-indigo-600 hover:underline"
+          >
+            View dose history →
+          </Link>
+          <div className="flex gap-3">
+            <ResetPasswordButton action={triggerPasswordResetAction.bind(null, user.id)} />
+            <DeactivateUserButton action={deactivateManagedUserAction.bind(null, user.id)} />
+          </div>
+        </div>
       )}
     </li>
   );

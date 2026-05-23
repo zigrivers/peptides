@@ -1,5 +1,9 @@
+import { unstable_after as after } from 'next/server';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
+import { withAudit } from '@/lib/audit/application/withAudit';
+import { resend, FROM_ADDRESS } from '@/lib/shared/email';
+import { PasswordResetRepo } from '@/lib/auth/infrastructure/PasswordResetRepo';
 
 export type InviteStatus = 'ACTIVE' | 'DEACTIVATED' | 'INVITED' | 'INVITE_EXPIRED';
 
@@ -148,4 +152,96 @@ export async function getManagedUserDoseHistory(
     status: l.status,
     amount: l.amount,
   }));
+}
+
+export type DeactivateStatus = 'deactivated' | 'needs_confirmation';
+
+export interface DeactivateResult {
+  status: DeactivateStatus;
+  activeProtocolCount?: number;
+}
+
+export async function deactivateManagedUser(
+  powerUserId: string,
+  managedUserId: string,
+  confirmed: boolean
+): Promise<DeactivateResult> {
+  const user = await prisma.user.findFirst({
+    where: { id: managedUserId, managedBy: powerUserId },
+    select: { id: true, status: true },
+  });
+  if (!user) throw new Error('managed_user_not_found');
+  if (user.status === 'DEACTIVATED') return { status: 'deactivated' };
+
+  if (!confirmed) {
+    const activeProtocols = await prisma.protocol.findMany({
+      where: { userId: managedUserId, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    if (activeProtocols.length > 0) {
+      return { status: 'needs_confirmation', activeProtocolCount: activeProtocols.length };
+    }
+  }
+
+  await withAudit(
+    async (tx) => {
+      const { count } = await tx.user.updateMany({
+        where: { id: managedUserId, managedBy: powerUserId, status: { not: 'DEACTIVATED' } },
+        data: { status: 'DEACTIVATED', passwordVersion: { increment: 1 } },
+      });
+      if (count === 0) throw new Error('managed_user_not_found');
+    },
+    () => ({
+      actorUserId: powerUserId,
+      subjectUserId: managedUserId,
+      category: 'Admin' as const,
+      action: 'MANAGED_USER_DEACTIVATED' as const,
+      resourceId: managedUserId,
+      resourceType: 'User',
+      newValues: { status: 'DEACTIVATED' },
+    })
+  );
+
+  return { status: 'deactivated' };
+}
+
+export async function triggerManagedUserPasswordReset(
+  powerUserId: string,
+  managedUserId: string
+): Promise<void> {
+  const user = await prisma.user.findFirst({
+    where: { id: managedUserId, managedBy: powerUserId, status: { not: 'DEACTIVATED' } },
+    select: { id: true, email: true },
+  });
+  if (!user) throw new Error('managed_user_not_found');
+
+  const rawToken = await withAudit(
+    (tx) => PasswordResetRepo.create(tx, managedUserId),
+    {
+      actorUserId: powerUserId,
+      category: 'Admin' as const,
+      action: 'MANAGED_USER_PASSWORD_RESET_TRIGGERED' as const,
+      resourceId: managedUserId,
+      resourceType: 'User',
+      subjectUserId: managedUserId,
+    }
+  );
+
+  const { email } = user;
+  after(async () => {
+    const appUrl = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL;
+    if (!appUrl) {
+      console.error('[triggerManagedUserPasswordReset] APP_URL_NOT_CONFIGURED');
+      return;
+    }
+    // /reset-password route convention is shared with requestPasswordReset (lib/auth)
+    const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
+    const { error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: email,
+      subject: 'Reset your password',
+      html: `<p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`,
+    });
+    if (error) console.error('[triggerManagedUserPasswordReset] email send failed:', error.message);
+  });
 }
