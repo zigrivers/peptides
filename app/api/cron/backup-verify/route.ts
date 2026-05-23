@@ -3,27 +3,28 @@ import { prisma } from '@/lib/shared/prisma';
 
 export const dynamic = 'force-dynamic';
 
-const STALE_DB_THRESHOLD_MS = 72 * 60 * 60 * 1000; // 72 hours
-
 /**
  * Backup verify cron (Task 6.3, PRD §8.7 + ADR-012).
  *
  * Daily 05:00 UTC via Railway Cron with `Authorization: Bearer ${CRON_SECRET}`.
  *
  * What this cron actually verifies in v1:
- *   1. The database is reachable (`prisma.$queryRaw` round-trip). A
- *      failed query returns 500 — Railway's existing alerting picks up
- *      the non-2xx and pages.
- *   2. The User table has been written to within the last 72 hours.
- *      A frozen User updatedAt is a strong indicator that the prod DB
- *      has diverged from the backup source (e.g., we're reading a
- *      replica that's no longer being replicated to). Returns 503 with
- *      a `db_stale: true` flag.
+ *   - The database is reachable via a `prisma.$queryRaw\`SELECT 1\``
+ *     round-trip. If it throws (network blip, exhausted connection
+ *     pool, DB stopped), the route returns 500. Railway's existing
+ *     non-2xx alerting picks up the failure and pages.
  *
- * What this does NOT verify (yet — known limitation):
+ * What this does NOT verify (yet — known limitation, documented in
+ * tasks/lessons.md):
  *   - That Railway's daily snapshot actually completed. Railway's
  *     backup API isn't integrated; checking it requires an API token
- *     we don't have provisioned. The above checks are the v1 proxy.
+ *     we don't have provisioned. The liveness check above is the v1
+ *     proxy — a DB that's unreachable is the most common cause of a
+ *     missed backup, and this catches it.
+ *   - Row-level freshness. A previous iteration checked
+ *     `User.updatedAt`, but low-traffic environments produce false
+ *     positives (a solo dev's profile not updated in 72h is normal,
+ *     not a backup failure). Dropped.
  *
  * Future Sentry upgrade: replace the structured log with
  * `Sentry.captureCheckIn({ monitorSlug: 'backup-verify', status })`
@@ -37,7 +38,6 @@ export async function POST(req: Request) {
   }
   const verifiedAt = new Date().toISOString();
 
-  // Liveness check: the DB responds.
   try {
     await prisma.$queryRaw`SELECT 1`;
   } catch (err) {
@@ -49,37 +49,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // Freshness check: the User table has been touched recently.
-  const mostRecentUser = await prisma.user.findFirst({
-    orderBy: { updatedAt: 'desc' },
-    select: { updatedAt: true },
-  });
-  if (mostRecentUser) {
-    const sinceLastUpdateMs = Date.now() - mostRecentUser.updatedAt.getTime();
-    if (sinceLastUpdateMs > STALE_DB_THRESHOLD_MS) {
-      // eslint-disable-next-line no-console
-      console.error('[backup-verify] user-table stale', {
-        verifiedAt,
-        lastUserUpdate: mostRecentUser.updatedAt.toISOString(),
-        sinceLastUpdateMs,
-      });
-      return NextResponse.json(
-        {
-          ok: false,
-          verifiedAt,
-          error: 'db_stale',
-          lastUserUpdate: mostRecentUser.updatedAt.toISOString(),
-        },
-        { status: 503 }
-      );
-    }
-  }
-
   // eslint-disable-next-line no-console
   console.info('[backup-verify] heartbeat ok', { verifiedAt });
-  return NextResponse.json({
-    ok: true,
-    verifiedAt,
-    lastUserUpdate: mostRecentUser?.updatedAt.toISOString() ?? null,
-  });
+  return NextResponse.json({ ok: true, verifiedAt });
 }
