@@ -38,6 +38,16 @@ const REMINDER_PAYLOAD = {
   tag: 'peptides-dose-reminder',
 };
 
+/**
+ * Conservative window — 23 hours — covers any IANA timezone's local-day
+ * boundary including DST spring-forward (23h) and the worst-case +14 → -12
+ * cross-DST shift (still strictly < 24h apart for any single user). If
+ * `lastDispatchedAt` is older than `now - 23h`, the prior dispatch is
+ * guaranteed to be on an earlier local day for this user; the
+ * `alreadyDispatchedToday` check above narrows it further in-process.
+ */
+const CLAIM_WINDOW_MS = 23 * 3600 * 1000;
+
 function emptySummary(): DispatchSummary {
   return {
     examined: 0,
@@ -142,6 +152,24 @@ export async function dispatchDoseReminders(now: Date): Promise<DispatchSummary>
         continue;
       }
 
+      // Atomic claim. Two overlapping cron ticks can both pass the in-process
+      // `alreadyDispatchedToday` check; only the updateMany whose predicate
+      // matches "the row hasn't been dispatched in the last 23 hours" wins.
+      // We claim BEFORE sending so we can't double-deliver — at worst, we
+      // miss a single day if all delivery channels fail (handled by rollback).
+      const cutoff = new Date(now.getTime() - CLAIM_WINDOW_MS);
+      const claim = await prisma.reminderPreference.updateMany({
+        where: {
+          userId: pref.userId,
+          OR: [{ lastDispatchedAt: null }, { lastDispatchedAt: { lt: cutoff } }],
+        },
+        data: { lastDispatchedAt: now },
+      });
+      if (claim.count === 0) {
+        // Another worker already claimed this user for today's dispatch.
+        continue;
+      }
+
       let pushSentCount = 0;
       let pushAttemptCount = 0;
       const channel = pref.channel;
@@ -193,9 +221,13 @@ export async function dispatchDoseReminders(now: Date): Promise<DispatchSummary>
       const anyDelivered = pushDeliveredAny || emailSent;
       if (!anyDelivered) {
         // Nothing was delivered (e.g. permission GRANTED but no subscriptions,
-        // and channel was PUSH-only with email-fallback off). Skip the audit
-        // and the lastDispatchedAt update so the user gets another chance
-        // next tick.
+        // and channel was PUSH-only with email-fallback off). Roll back our
+        // claim so a later tick can try again — guarded by the same CAS
+        // predicate so a competing worker that just claimed isn't reverted.
+        await prisma.reminderPreference.updateMany({
+          where: { userId: pref.userId, lastDispatchedAt: now },
+          data: { lastDispatchedAt: pref.lastDispatchedAt },
+        });
         continue;
       }
 
@@ -210,11 +242,9 @@ export async function dispatchDoseReminders(now: Date): Promise<DispatchSummary>
       const partialDelivery = pushPartialFailure || emailPartialFailure;
       if (partialDelivery) summary.partialDeliveries += 1;
 
+      // The lastDispatchedAt write already happened atomically in the claim
+      // above, so the audit can go through a single-row transaction.
       await prisma.$transaction(async (tx) => {
-        await tx.reminderPreference.update({
-          where: { userId: pref.userId },
-          data: { lastDispatchedAt: now },
-        });
         await PrismaAuditRepo.create(tx, {
           actorUserId: 'SYSTEM',
           subjectUserId: pref.userId,

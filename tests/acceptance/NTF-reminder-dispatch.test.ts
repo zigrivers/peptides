@@ -14,25 +14,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockPrefFindMany = vi.fn();
-const mockPrefUpdate = vi.fn();
+const mockPrefUpdateMany = vi.fn();
 const mockPushFindMany = vi.fn();
 const mockPushDeleteMany = vi.fn();
 const mockProtocolFindMany = vi.fn();
 const mockAuditCreate = vi.fn();
-const mockTxCallback = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
-    reminderPreference: { findMany: mockPrefFindMany, update: mockPrefUpdate },
+    reminderPreference: { findMany: mockPrefFindMany, updateMany: mockPrefUpdateMany },
     pushSubscription: { findMany: mockPushFindMany, deleteMany: mockPushDeleteMany },
     protocol: { findMany: mockProtocolFindMany },
-    $transaction: (cb: (tx: unknown) => Promise<unknown>) => {
-      mockTxCallback();
-      return cb({
-        reminderPreference: { update: mockPrefUpdate },
+    $transaction: (cb: (tx: unknown) => Promise<unknown>) =>
+      cb({
+        reminderPreference: { updateMany: mockPrefUpdateMany },
         auditEvent: { create: mockAuditCreate },
-      });
-    },
+      }),
   },
 }));
 
@@ -81,6 +78,9 @@ beforeEach(() => {
     { endpoint: 'https://fcm.example/abc', p256dh: 'p', auth: 'a' },
   ]);
   mockProtocolFindMany.mockResolvedValue([activeDailyProtocol]);
+  // Default: every claim succeeds (count: 1). Specific tests override
+  // this to simulate a competing worker that already claimed the day.
+  mockPrefUpdateMany.mockResolvedValue({ count: 1 });
 });
 
 const { dispatchDoseReminders } = await import(
@@ -111,10 +111,20 @@ describe('US-TRK-09: dispatchDoseReminders', () => {
     expect(summary.dispatched).toBe(1);
     expect(summary.pushSent).toBe(1);
     expect(mockSendWebPush).toHaveBeenCalledTimes(1);
-    expect(mockPrefUpdate).toHaveBeenCalledWith({
-      where: { userId: 'user-1' },
-      data: { lastDispatchedAt: NOW },
-    });
+    // The atomic claim should fire with the CAS predicate and stamp lastDispatchedAt.
+    const claimCall = mockPrefUpdateMany.mock.calls[0]?.[0];
+    expect(claimCall.where.userId).toBe('user-1');
+    expect(claimCall.where.OR).toBeDefined();
+    expect(claimCall.data.lastDispatchedAt).toEqual(NOW);
+  });
+
+  it('AC-4b: skips dispatch when atomic claim returns count=0 (another worker won)', async () => {
+    mockPrefFindMany.mockResolvedValueOnce([basePref]);
+    mockPrefUpdateMany.mockResolvedValueOnce({ count: 0 }); // claim lost
+    const summary = await dispatchDoseReminders(NOW);
+    expect(summary.dispatched).toBe(0);
+    expect(mockSendWebPush).not.toHaveBeenCalled();
+    expect(mockAuditCreate).not.toHaveBeenCalled();
   });
 
   it('AC-5: dedupes when lastDispatchedAt is earlier-today local', async () => {
@@ -211,9 +221,13 @@ describe('US-TRK-09: dispatchDoseReminders', () => {
     mockSendWebPush.mockResolvedValueOnce({ ok: false, expired: true });
     const summary = await dispatchDoseReminders(NOW);
     expect(mockSendReminderEmail).not.toHaveBeenCalled();
-    // Nothing delivered → no audit, no lastDispatchedAt update
+    // Nothing delivered → no audit. The claim should have been rolled back
+    // so a later tick gets another chance.
     expect(summary.dispatched).toBe(0);
-    expect(mockPrefUpdate).not.toHaveBeenCalled();
+    expect(mockAuditCreate).not.toHaveBeenCalled();
+    const calls = mockPrefUpdateMany.mock.calls;
+    expect(calls.length).toBeGreaterThanOrEqual(2); // claim + rollback
+    expect(calls[calls.length - 1][0].data.lastDispatchedAt).toBe(null);
   });
 
   it('AC-13: continues after a per-user exception', async () => {
