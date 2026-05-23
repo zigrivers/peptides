@@ -80,6 +80,7 @@ export type AuditAction =
   | 'DUPLICATE_SEND_BLOCKED'  // written when a 60s duplicate guard fires
   // Reconstitution
   | 'VIAL_RECONSTITUTED'
+  | 'VIAL_EXPIRED'
   | 'SAFETY_WARNING_TRIGGERED'
   // Security
   | 'TELEGRAM_SESSION_LINK_INITIATED'
