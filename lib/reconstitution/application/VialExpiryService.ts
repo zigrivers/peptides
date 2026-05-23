@@ -35,15 +35,24 @@ export async function markVialsExpired(now: Date): Promise<MarkVialsExpiredResul
   });
   if (dueVials.length === 0) return { expired: 0 };
 
-  let actuallyExpired = 0;
-  await prisma.$transaction(async (tx) => {
+  const actuallyExpired = await prisma.$transaction(async (tx) => {
+    let count = 0;
     for (const vial of dueVials) {
-      const { count } = await tx.vial.updateMany({
-        where: { id: vial.id, userId: vial.userId, status: 'RECONSTITUTED' },
+      // Defense-in-depth: re-verify the expiry predicate inside the
+      // transaction, so a vial whose expiresAt was extended by a
+      // concurrent user action between the findMany and this updateMany
+      // is NOT incorrectly flipped to EXPIRED.
+      const { count: rows } = await tx.vial.updateMany({
+        where: {
+          id: vial.id,
+          userId: vial.userId,
+          status: 'RECONSTITUTED',
+          expiresAt: { not: null, lt: now },
+        },
         data: { status: 'EXPIRED' },
       });
-      if (count === 1) {
-        actuallyExpired += 1;
+      if (rows === 1) {
+        count += 1;
         await PrismaAuditRepo.create(tx, {
           actorUserId: 'SYSTEM',
           subjectUserId: vial.userId,
@@ -57,6 +66,7 @@ export async function markVialsExpired(now: Date): Promise<MarkVialsExpiredResul
         });
       }
     }
+    return count;
   });
   return { expired: actuallyExpired };
 }

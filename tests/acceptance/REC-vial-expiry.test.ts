@@ -49,14 +49,27 @@ describe('markVialsExpired', () => {
     const result = await markVialsExpired(NOW);
     expect(result.expired).toBe(2);
 
-    expect(mockVialUpdateMany).toHaveBeenCalledWith({
-      where: { id: 'v-1', userId: 'u-1', status: 'RECONSTITUTED' },
-      data: { status: 'EXPIRED' },
-    });
-    expect(mockVialUpdateMany).toHaveBeenCalledWith({
-      where: { id: 'v-2', userId: 'u-2', status: 'RECONSTITUTED' },
-      data: { status: 'EXPIRED' },
-    });
+    expect(mockVialUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'v-1',
+          userId: 'u-1',
+          status: 'RECONSTITUTED',
+          expiresAt: expect.objectContaining({ not: null, lt: NOW }),
+        }),
+        data: { status: 'EXPIRED' },
+      })
+    );
+    expect(mockVialUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'v-2',
+          userId: 'u-2',
+          status: 'RECONSTITUTED',
+          expiresAt: expect.objectContaining({ not: null, lt: NOW }),
+        }),
+      })
+    );
     const expiredAudits = mockAuditCreate.mock.calls.filter(
       (c) => c[0]?.data?.action === 'VIAL_EXPIRED'
     );
