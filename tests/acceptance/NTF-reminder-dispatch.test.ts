@@ -111,10 +111,11 @@ describe('US-TRK-09: dispatchDoseReminders', () => {
     expect(summary.dispatched).toBe(1);
     expect(summary.pushSent).toBe(1);
     expect(mockSendWebPush).toHaveBeenCalledTimes(1);
-    // The atomic claim should fire with the CAS predicate and stamp lastDispatchedAt.
+    // The atomic claim should fire with CAS on the prior lastDispatchedAt
+    // (null in this case) and stamp it forward.
     const claimCall = mockPrefUpdateMany.mock.calls[0]?.[0];
     expect(claimCall.where.userId).toBe('user-1');
-    expect(claimCall.where.OR).toBeDefined();
+    expect(claimCall.where.lastDispatchedAt).toBeNull();
     expect(claimCall.data.lastDispatchedAt).toEqual(NOW);
   });
 

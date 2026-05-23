@@ -38,15 +38,6 @@ const REMINDER_PAYLOAD = {
   tag: 'peptides-dose-reminder',
 };
 
-/**
- * Conservative window — 23 hours — covers any IANA timezone's local-day
- * boundary including DST spring-forward (23h) and the worst-case +14 → -12
- * cross-DST shift (still strictly < 24h apart for any single user). If
- * `lastDispatchedAt` is older than `now - 23h`, the prior dispatch is
- * guaranteed to be on an earlier local day for this user; the
- * `alreadyDispatchedToday` check above narrows it further in-process.
- */
-const CLAIM_WINDOW_MS = 23 * 3600 * 1000;
 
 function emptySummary(): DispatchSummary {
   return {
@@ -152,17 +143,16 @@ export async function dispatchDoseReminders(now: Date): Promise<DispatchSummary>
         continue;
       }
 
-      // Atomic claim. Two overlapping cron ticks can both pass the in-process
-      // `alreadyDispatchedToday` check; only the updateMany whose predicate
-      // matches "the row hasn't been dispatched in the last 23 hours" wins.
-      // We claim BEFORE sending so we can't double-deliver — at worst, we
-      // miss a single day if all delivery channels fail (handled by rollback).
-      const cutoff = new Date(now.getTime() - CLAIM_WINDOW_MS);
+      // Atomic claim via optimistic lock. The in-process `alreadyDispatchedToday`
+      // check above already validated this candidate against the user's local
+      // calendar day — the SQL claim only needs to defend against the race
+      // where two overlapping ticks both see the same stale row. We CAS on
+      // the value we read: `lastDispatchedAt: pref.lastDispatchedAt` matches
+      // the existing row iff no other worker has updated it. Prisma renders
+      // a `null` filter as `IS NULL`, so both branches (first dispatch and
+      // subsequent days) use the same predicate shape.
       const claim = await prisma.reminderPreference.updateMany({
-        where: {
-          userId: pref.userId,
-          OR: [{ lastDispatchedAt: null }, { lastDispatchedAt: { lt: cutoff } }],
-        },
+        where: { userId: pref.userId, lastDispatchedAt: pref.lastDispatchedAt },
         data: { lastDispatchedAt: now },
       });
       if (claim.count === 0) {
