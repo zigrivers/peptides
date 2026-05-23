@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getOnboardingState } from '@/lib/auth/application/onboarding';
 import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
@@ -38,9 +39,9 @@ export default async function DashboardPage() {
       <h1 className="text-2xl font-semibold text-gray-900 mb-6">Dashboard</h1>
 
       {staleOrderCount > 0 && (
-        <a href="/ordering/orders" className="block mb-5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100 transition-colors">
+        <Link href="/ordering/orders" className="block mb-5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100 transition-colors">
           ⚠ {staleOrderCount} order{staleOrderCount > 1 ? 's' : ''} may be stale — check your order history.
-        </a>
+        </Link>
       )}
 
       {showChecklist && onboardingState && (
