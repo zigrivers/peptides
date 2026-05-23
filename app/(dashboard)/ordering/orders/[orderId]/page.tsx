@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getOrderWithDetails, NON_TERMINAL_STATUSES } from '@/lib/ordering/application/OrderService';
+import { buildFallbackDeepLink } from '@/lib/ordering/application/TelegramAuthService';
 import { OrderStatusBadge } from '../../_components/OrderStatusBadge';
 import { CancelOrderButton } from '../_components/CancelOrderButton';
 
@@ -18,7 +19,7 @@ export default async function OrderDetailPage({ params }: Props) {
 
   if (!order) notFound();
 
-  const telegramDeepLink = `tg://resolve?domain=${order.vendor.telegramUsername}`;
+  const telegramDeepLink = buildFallbackDeepLink(order.vendor.telegramUsername);
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">

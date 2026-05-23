@@ -377,6 +377,7 @@ export async function sendOrder(
 
 const TERMINAL_STATUSES = ['RECEIVED', 'CANCELLED'] as const;
 export const NON_TERMINAL_STATUSES = ['DRAFT', 'SENT', 'CONFIRMED', 'PAYMENT_SENT', 'STALE'] as const;
+const STALE_ORDER_THRESHOLD_DAYS = 14;
 
 export interface OrderSummary {
   id: string;
@@ -421,7 +422,7 @@ export async function cancelOrder(userId: string, orderId: string): Promise<void
 // userId-scoping rule, documented in AGENTS.md § Cross-User Exceptions. The mutation still
 // includes userId in the WHERE predicate for defence-in-depth.
 export async function markOrdersStale(now: Date): Promise<number> {
-  const cutoff = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  const cutoff = new Date(now.getTime() - STALE_ORDER_THRESHOLD_DAYS * 24 * 60 * 60 * 1000);
   const staleOrders = await prisma.order.findMany({
     where: { status: 'SENT', sentAt: { lt: cutoff }, staleFlaggedAt: null },
     select: { id: true, userId: true },
