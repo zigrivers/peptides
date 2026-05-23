@@ -18,6 +18,13 @@ const mockADRFindFirst = vi.fn();
 const mockADRFindMany = vi.fn();
 const mockADRDelete = vi.fn();
 const mockADRDeleteMany = vi.fn();
+const mockCycleFindMany = vi.fn();
+const mockVendorFindMany = vi.fn();
+const mockReminderFindMany = vi.fn();
+const mockPushSubFindMany = vi.fn();
+const mockTelegramFindFirst = vi.fn();
+const mockEmailChangeFindMany = vi.fn();
+const mockDataExportFindMany = vi.fn();
 const mockWithAudit = vi.fn();
 const mockSend = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
@@ -38,6 +45,13 @@ vi.mock('@/lib/shared/prisma', () => ({
     vial: { findMany: mockVialFindMany },
     accountDeletionRequest: { create: mockADRCreate, findFirst: mockADRFindFirst, findMany: mockADRFindMany, delete: mockADRDelete, deleteMany: mockADRDeleteMany },
     auditEvent: { create: mockAuditEventCreate },
+    cycle: { findMany: mockCycleFindMany },
+    vendor: { findMany: mockVendorFindMany },
+    reminderPreference: { findMany: mockReminderFindMany },
+    pushSubscription: { findMany: mockPushSubFindMany },
+    telegramSession: { findFirst: mockTelegramFindFirst },
+    emailChangeRequest: { findMany: mockEmailChangeFindMany },
+    dataExportRequest: { findMany: mockDataExportFindMany },
   },
 }));
 vi.mock('@/lib/audit/application/withAudit', () => ({ withAudit: mockWithAudit }));
@@ -78,6 +92,13 @@ beforeEach(() => {
   mockADRDeleteMany.mockResolvedValue({ count: 1 });
   mockOutcomeLogFindMany.mockResolvedValue([]);
   mockVialFindMany.mockResolvedValue([]);
+  mockCycleFindMany.mockResolvedValue([]);
+  mockVendorFindMany.mockResolvedValue([]);
+  mockReminderFindMany.mockResolvedValue([]);
+  mockPushSubFindMany.mockResolvedValue([]);
+  mockTelegramFindFirst.mockResolvedValue(null);
+  mockEmailChangeFindMany.mockResolvedValue([]);
+  mockDataExportFindMany.mockResolvedValue([]);
 });
 
 const { createInvite } = await import('@/lib/auth/application/createInvite');
@@ -620,6 +641,6 @@ describe('US-ADM-04: processPendingDeletions', () => {
     mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', managedBy: 'pu-1' });
 
     await processPendingDeletions();
-    expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DELETED', actorUserId: 'pu-1', subjectUserId: 'mu-1' });
+    expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DELETED', actorUserId: 'SYSTEM', subjectUserId: 'mu-1' });
   });
 });

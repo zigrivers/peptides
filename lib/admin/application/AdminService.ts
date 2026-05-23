@@ -253,14 +253,65 @@ export async function triggerManagedUserPasswordReset(
 }
 
 async function generateManagedUserExport(managedUserId: string, managedUserEmail: string): Promise<string> {
-  const [protocols, doseLogs, vials, outcomeLogs] = await Promise.all([
+  // Exhaustive export of every user-owned table that cascades on user deletion
+  // (per prisma/schema.prisma onDelete: Cascade relations). Secret fields excluded.
+  const [
+    protocols,
+    cycles,
+    doseLogs,
+    outcomeLogs,
+    vials,
+    vendors,
+    reminderPreferences,
+    pushSubscriptions,
+    telegramSession,
+    emailChangeRequests,
+    dataExportRequests,
+    invitesSent,
+  ] = await Promise.all([
     prisma.protocol.findMany({ where: { userId: managedUserId } }),
+    prisma.cycle.findMany({ where: { userId: managedUserId } }),
     prisma.doseLog.findMany({ where: { userId: managedUserId } }),
+    prisma.outcomeLog.findMany({
+      where: { userId: managedUserId },
+      include: { protocolRatings: true },
+    }),
     prisma.vial.findMany({ where: { userId: managedUserId } }),
-    prisma.outcomeLog.findMany({ where: { userId: managedUserId } }),
+    prisma.vendor.findMany({
+      where: { userId: managedUserId },
+      include: { products: true, orders: { include: { items: true } } },
+    }),
+    prisma.reminderPreference.findMany({ where: { userId: managedUserId } }),
+    prisma.pushSubscription.findMany({ where: { userId: managedUserId } }),
+    prisma.telegramSession.findFirst({
+      where: { userId: managedUserId },
+      select: { id: true, userId: true, isActive: true, lastConnectedIp: true, updatedAt: true },
+    }),
+    prisma.emailChangeRequest.findMany({
+      where: { userId: managedUserId },
+      select: { id: true, userId: true, oldEmail: true, newEmail: true, status: true, expiresAt: true, createdAt: true, verifiedAt: true, appliedAt: true, revertibleUntil: true },
+    }),
+    prisma.dataExportRequest.findMany({ where: { userId: managedUserId } }),
+    prisma.invite.findMany({ where: { powerUserId: managedUserId } }),
   ]);
   return JSON.stringify(
-    { userId: managedUserId, email: managedUserEmail, exportedAt: new Date().toISOString(), protocols, doseLogs, vials, outcomeLogs },
+    {
+      userId: managedUserId,
+      email: managedUserEmail,
+      exportedAt: new Date().toISOString(),
+      protocols,
+      cycles,
+      doseLogs,
+      outcomeLogs,
+      vials,
+      vendors,
+      reminderPreferences,
+      pushSubscriptions,
+      telegramSession,
+      emailChangeRequests,
+      dataExportRequests,
+      invitesSent,
+    },
     null,
     2
   );
@@ -423,13 +474,13 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
           if (userCount === 0) throw new Error('user_not_in_deletion_pending');
         },
         {
-          actorUserId: user.managedBy ?? req.userId,
+          actorUserId: 'SYSTEM',
           subjectUserId: req.userId,
           category: 'Admin' as const,
           action: 'MANAGED_USER_DELETED' as const,
           resourceId: req.userId,
           resourceType: 'User',
-          metadata: { mode: 'delayed' },
+          metadata: { mode: 'delayed', originalRequestor: user.managedBy ?? null },
         }
       );
       deleted++;
