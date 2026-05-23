@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react';
 import type { ActionResult } from '../../../_actions';
+import { VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
 
 interface Props {
   action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult | null>;
@@ -60,10 +61,9 @@ export function CaptureVendorReplyForm({ action, defaultValues }: Props) {
             defaultValue={defaultValues?.currency ?? 'USDT'}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option>USDT</option>
-            <option>BTC</option>
-            <option>ETH</option>
-            <option>USDC</option>
+            {VENDOR_CURRENCIES.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
           </select>
         </div>
       </div>

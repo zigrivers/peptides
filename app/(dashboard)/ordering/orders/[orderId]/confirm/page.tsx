@@ -13,6 +13,15 @@ function chunkAddress(address: string, chunkSize = 4): string {
   return address.match(new RegExp(`.{1,${chunkSize}}`, 'g'))?.join(' ') ?? address;
 }
 
+function isPaymentConf(v: unknown): v is { walletAddress: string; amount: string; currency: string } {
+  return (
+    typeof v === 'object' && v !== null &&
+    typeof (v as Record<string, unknown>).walletAddress === 'string' &&
+    typeof (v as Record<string, unknown>).amount === 'string' &&
+    typeof (v as Record<string, unknown>).currency === 'string'
+  );
+}
+
 export default async function ConfirmPage({ params }: Props) {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
@@ -25,7 +34,7 @@ export default async function ConfirmPage({ params }: Props) {
     redirect(`/ordering/orders/${orderId}`);
   }
 
-  const conf = order.paymentConfirmation as { walletAddress: string; amount: string; currency: string } | null;
+  const conf = isPaymentConf(order.paymentConfirmation) ? order.paymentConfirmation : null;
   if (!conf) redirect(`/ordering/orders/${orderId}/payment`);
 
   const priorWallet = await getPriorWalletAddress(session.user.id, order.vendorId, orderId);

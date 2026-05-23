@@ -600,7 +600,7 @@ export async function receiveOrder(userId: string, orderId: string): Promise<voi
   const vialRows = solutionItems.flatMap((item) => {
     const shelfLifeDays = shelfLifeByCompound.get(item.compoundId) ?? DEFAULT_SHELF_LIFE_DAYS;
     const expiresAt = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays)
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays, 23, 59, 59, 999)
     );
     return Array.from({ length: item.quantity }, () => ({
       userId,

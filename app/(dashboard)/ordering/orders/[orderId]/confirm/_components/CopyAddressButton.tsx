@@ -12,10 +12,14 @@ export function CopyAddressButton({ address }: { address: string }) {
 
   async function handleCopy() {
     if (typeof navigator === 'undefined' || !navigator.clipboard) return;
-    await navigator.clipboard.writeText(address);
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setCopied(true);
-    timeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(address);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setCopied(true);
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard write failed — permissions denied or restricted environment
+    }
   }
 
   return (
