@@ -282,7 +282,7 @@ describe('US-ADM-02: getManagedUserDoseHistory', () => {
     expect(result[0].scheduledDate).toEqual(mockDoseLog.scheduledDate);
   });
 
-  it('queries only logs within the requested day window', async () => {
+  it('queries only completed (LOGGED/SKIPPED) logs within the requested day window', async () => {
     mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1' });
     mockDoseLogFindMany.mockResolvedValueOnce([]);
 
@@ -293,5 +293,6 @@ describe('US-ADM-02: getManagedUserDoseHistory', () => {
     expect(call.where.scheduledDate.lt).toBeDefined();
     const windowDays = (call.where.scheduledDate.lt.getTime() - call.where.scheduledDate.gte.getTime()) / 86400_000;
     expect(windowDays).toBe(7);
+    expect(call.where.status).toEqual({ in: ['LOGGED', 'SKIPPED'] });
   });
 });

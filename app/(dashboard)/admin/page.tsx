@@ -129,7 +129,11 @@ export default async function AdminPage() {
 
       {total === 0 && (
         <p className="text-sm text-gray-400 py-4 text-center">
-          Invite a managed user from the Settings page.
+          No managed users yet.{' '}
+          <Link href="/settings/telegram" className="text-indigo-600 hover:underline">
+            Go to Settings
+          </Link>{' '}
+          to invite someone.
         </p>
       )}
     </main>

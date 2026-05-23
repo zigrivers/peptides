@@ -134,6 +134,7 @@ export async function getManagedUserDoseHistory(
     where: {
       userId: managedUserId,
       scheduledDate: { gte: since, lt: tomorrow },
+      status: { in: ['LOGGED', 'SKIPPED'] },
     },
     include: { protocol: { include: { compound: { select: { name: true } } } } },
     orderBy: { scheduledDate: 'desc' },

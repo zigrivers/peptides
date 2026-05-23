@@ -70,7 +70,12 @@ export default async function ManagedUserDoseHistoryPage({ params, searchParams 
             >
               <div>
                 <p className="font-medium text-sm text-gray-900">{entry.compoundName}</p>
-                <p className="text-xs text-gray-400">{formatDate(entry.scheduledDate)}</p>
+                <p className="text-xs text-gray-400">
+                  {formatDate(entry.scheduledDate)}
+                  {typeof entry.amount === 'object' && entry.amount !== null && 'value' in entry.amount && (
+                    <> &middot; {String((entry.amount as { value: unknown }).value)}{' '}{String((entry.amount as { unit: unknown }).unit)}</>
+                  )}
+                </p>
               </div>
               <span
                 className={`text-xs rounded-full px-2 py-0.5 border font-medium whitespace-nowrap ${
