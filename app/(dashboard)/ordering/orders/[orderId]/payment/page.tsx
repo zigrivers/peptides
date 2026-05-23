@@ -17,11 +17,21 @@ export default async function PaymentPage({ params }: Props) {
   const order = await getOrderWithDetails(session.user.id, orderId);
   if (!order) notFound();
 
-  if (order.status !== 'SENT' && order.status !== 'STALE') {
+  if (order.status !== 'SENT' && order.status !== 'STALE' && order.status !== 'CONFIRMED') {
     redirect(`/ordering/orders/${orderId}`);
   }
 
-  const priorWallet = await getPriorWalletAddress(session.user.id, order.vendorId);
+  const existingConf =
+    order.status === 'CONFIRMED'
+      ? (order.paymentConfirmation as { walletAddress: string; amount: string; currency: string } | null)
+      : null;
+
+  // When re-editing a CONFIRMED order, exclude it from prior-wallet lookup to avoid self-match
+  const priorWallet = await getPriorWalletAddress(
+    session.user.id,
+    order.vendorId,
+    order.status === 'CONFIRMED' ? orderId : undefined
+  );
 
   const boundAction = confirmQuoteAction.bind(null, orderId);
 
@@ -45,7 +55,7 @@ export default async function PaymentPage({ params }: Props) {
         </div>
       )}
 
-      <CaptureVendorReplyForm action={boundAction} />
+      <CaptureVendorReplyForm action={boundAction} defaultValues={existingConf ?? undefined} />
     </main>
   );
 }

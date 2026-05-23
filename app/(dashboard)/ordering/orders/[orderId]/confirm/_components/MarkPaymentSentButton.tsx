@@ -11,19 +11,28 @@ interface Props {
 export function MarkPaymentSentButton({ orderId, hasPriorDiff }: Props) {
   const [acknowledged, setAcknowledged] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   const label = hasPriorDiff
     ? 'I have compared the addresses and verified this is the correct wallet'
     : "I have verified the wallet address and amount from the vendor's current reply";
 
   function handleSubmit() {
+    setError(null);
     startTransition(async () => {
-      await markPaymentSentAction(orderId);
+      const result = await markPaymentSentAction(orderId);
+      if (result?.error) setError(result.error);
     });
   }
 
   return (
     <div className="space-y-4 pt-2">
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       <label className="flex items-start gap-3 cursor-pointer">
         <input
           type="checkbox"

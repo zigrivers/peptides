@@ -79,7 +79,7 @@ describe('confirmQuote', () => {
     ).rejects.toThrow('order_not_found');
   });
 
-  it('AC-3: throws invalid_order_transition if order is not SENT or STALE', async () => {
+  it('AC-3: throws invalid_order_transition for terminal/uneditable statuses (e.g. DRAFT)', async () => {
     const { confirmQuote } = await import('@/lib/ordering/application/OrderService');
     mockPrismaOrderFindFirst.mockResolvedValueOnce({ id: 'order-1', userId: 'user-1', status: 'DRAFT' });
 
@@ -96,6 +96,23 @@ describe('confirmQuote', () => {
     await expect(
       confirmQuote('user-1', 'order-1', { walletAddress: 'TAddr', amount: '50.00', currency: 'USDT' })
     ).resolves.toBeUndefined();
+  });
+
+  it('AC-3c: allows CONFIRMED → CONFIRMED re-confirmation (correct wrong wallet before payment)', async () => {
+    const { confirmQuote } = await import('@/lib/ordering/application/OrderService');
+    mockPrismaOrderFindFirst.mockResolvedValueOnce({
+      id: 'order-1', userId: 'user-1', status: 'CONFIRMED',
+      paymentConfirmation: { walletAddress: 'TAddr_old', amount: '50', currency: 'USDT' },
+    });
+    mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
+
+    await expect(
+      confirmQuote('user-1', 'order-1', { walletAddress: 'TAddr_new', amount: '50.00', currency: 'USDT' })
+    ).resolves.toBeUndefined();
+
+    const updateCall = mockPrismaOrderUpdateMany.mock.calls[0][0];
+    expect(updateCall.data.paymentConfirmation.walletAddress).toBe('TAddr_new');
+    expect(updateCall.data.status).toBe('CONFIRMED');
   });
 
   it('AC-4: audits ORDER_CONFIRMED with old and new values', async () => {
@@ -185,7 +202,7 @@ describe('receiveOrder', () => {
     const { receiveOrder } = await import('@/lib/ordering/application/OrderService');
     mockPrismaOrderFindFirst.mockResolvedValueOnce({
       id: 'order-1', userId: 'user-1', status: 'PAYMENT_SENT',
-      items: [{ id: 'item-1', compoundId: 'c-1', vialSizeMg: new Decimal('5'), quantity: 2 }],
+      items: [{ id: 'item-1', compoundId: 'c-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: new Decimal('5'), quantity: 2 }],
     });
     mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
     mockPrismaVialCreateMany.mockResolvedValueOnce({ count: 2 });
@@ -202,8 +219,8 @@ describe('receiveOrder', () => {
     mockPrismaOrderFindFirst.mockResolvedValueOnce({
       id: 'order-1', userId: 'user-1', status: 'PAYMENT_SENT',
       items: [
-        { id: 'item-1', compoundId: 'c-1', vialSizeMg: new Decimal('5'), quantity: 2 },
-        { id: 'item-2', compoundId: 'c-2', vialSizeMg: new Decimal('10'), quantity: 1 },
+        { id: 'item-1', compoundId: 'c-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: new Decimal('5'), quantity: 2 },
+        { id: 'item-2', compoundId: 'c-2', form: 'LYOPHILIZED_POWDER', vialSizeMg: new Decimal('10'), quantity: 1 },
       ],
     });
     mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
@@ -231,8 +248,7 @@ describe('receiveOrder', () => {
   it('AC-4: throws invalid_order_transition if order is not PAYMENT_SENT', async () => {
     const { receiveOrder } = await import('@/lib/ordering/application/OrderService');
     mockPrismaOrderFindFirst.mockResolvedValueOnce({
-      id: 'order-1', userId: 'user-1', status: 'CONFIRMED',
-      items: [],
+      id: 'order-1', userId: 'user-1', status: 'CONFIRMED', items: [],
     });
 
     await expect(receiveOrder('user-1', 'order-1')).rejects.toThrow('invalid_order_transition');
@@ -241,19 +257,39 @@ describe('receiveOrder', () => {
   it('AC-6: idempotent — already RECEIVED order returns without error or duplicate vials', async () => {
     const { receiveOrder } = await import('@/lib/ordering/application/OrderService');
     mockPrismaOrderFindFirst.mockResolvedValueOnce({
-      id: 'order-1', userId: 'user-1', status: 'RECEIVED',
-      items: [],
+      id: 'order-1', userId: 'user-1', status: 'RECEIVED', items: [],
     });
 
     await expect(receiveOrder('user-1', 'order-1')).resolves.toBeUndefined();
     expect(mockPrismaVialCreateMany).not.toHaveBeenCalled();
   });
 
+  it('AC-2b: SOLUTION items create RECONSTITUTED vials (not DRY)', async () => {
+    const { receiveOrder } = await import('@/lib/ordering/application/OrderService');
+    mockPrismaOrderFindFirst.mockResolvedValueOnce({
+      id: 'order-1', userId: 'user-1', status: 'PAYMENT_SENT',
+      items: [
+        { id: 'item-1', compoundId: 'c-1', form: 'SOLUTION', vialSizeMg: new Decimal('5'), quantity: 1 },
+        { id: 'item-2', compoundId: 'c-2', form: 'LYOPHILIZED_POWDER', vialSizeMg: new Decimal('10'), quantity: 1 },
+      ],
+    });
+    mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
+    mockPrismaVialCreateMany.mockResolvedValueOnce({ count: 2 });
+
+    await receiveOrder('user-1', 'order-1');
+
+    const createManyCall = mockPrismaVialCreateMany.mock.calls[0][0];
+    const solutionVial = createManyCall.data.find((v: { orderItemId: string }) => v.orderItemId === 'item-1');
+    const powderVial = createManyCall.data.find((v: { orderItemId: string }) => v.orderItemId === 'item-2');
+    expect(solutionVial.status).toBe('RECONSTITUTED');
+    expect(powderVial.status).toBe('DRY');
+  });
+
   it('AC-5: audits ORDER_RECEIVED', async () => {
     const { receiveOrder } = await import('@/lib/ordering/application/OrderService');
     mockPrismaOrderFindFirst.mockResolvedValueOnce({
       id: 'order-1', userId: 'user-1', status: 'PAYMENT_SENT',
-      items: [{ id: 'item-1', compoundId: 'c-1', vialSizeMg: new Decimal('5'), quantity: 1 }],
+      items: [{ id: 'item-1', compoundId: 'c-1', form: 'LYOPHILIZED_POWDER', vialSizeMg: new Decimal('5'), quantity: 1 }],
     });
     mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
     mockPrismaVialCreateMany.mockResolvedValueOnce({ count: 1 });

@@ -48,10 +48,14 @@ export async function confirmQuoteAction(
   redirect(`/ordering/orders/${orderId}/confirm`);
 }
 
-export async function markPaymentSentAction(orderId: string) {
+export async function markPaymentSentAction(orderId: string): Promise<ActionResult | null> {
   const session = await auth();
   if (!session?.user?.id) throw new Error('Unauthorized');
-  await markPaymentSent(session.user.id, orderId);
+  try {
+    await markPaymentSent(session.user.id, orderId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Something went wrong. Please try again.' };
+  }
   revalidatePath('/ordering/orders', 'layout');
   redirect(`/ordering/orders/${orderId}`);
 }

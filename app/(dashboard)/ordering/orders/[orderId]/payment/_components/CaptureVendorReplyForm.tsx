@@ -5,9 +5,10 @@ import type { ActionResult } from '../../../_actions';
 
 interface Props {
   action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult | null>;
+  defaultValues?: { walletAddress?: string; amount?: string; currency?: string };
 }
 
-export function CaptureVendorReplyForm({ action }: Props) {
+export function CaptureVendorReplyForm({ action, defaultValues }: Props) {
   const [state, formAction] = useActionState(action, null);
 
   return (
@@ -27,6 +28,7 @@ export function CaptureVendorReplyForm({ action }: Props) {
           name="walletAddress"
           type="text"
           required
+          defaultValue={defaultValues?.walletAddress}
           placeholder="e.g. TQn9Y2khDD2bHM4dK..."
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
@@ -43,6 +45,7 @@ export function CaptureVendorReplyForm({ action }: Props) {
             type="text"
             required
             inputMode="decimal"
+            defaultValue={defaultValues?.amount}
             placeholder="0.00"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
@@ -54,7 +57,7 @@ export function CaptureVendorReplyForm({ action }: Props) {
           <select
             id="currency"
             name="currency"
-            defaultValue="USDT"
+            defaultValue={defaultValues?.currency ?? 'USDT'}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option>USDT</option>

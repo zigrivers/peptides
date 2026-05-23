@@ -513,12 +513,14 @@ export async function confirmQuote(
 ): Promise<void> {
   const order = await prisma.order.findFirst({ where: { id: orderId, userId } });
   if (!order) throw new Error('order_not_found');
-  if (order.status !== 'SENT' && order.status !== 'STALE') throw new Error('invalid_order_transition');
+  if (order.status !== 'SENT' && order.status !== 'STALE' && order.status !== 'CONFIRMED') {
+    throw new Error('invalid_order_transition');
+  }
   const now = new Date();
   await withAudit(
     async (tx) => {
       const { count } = await tx.order.updateMany({
-        where: { id: orderId, userId, status: { in: ['SENT', 'STALE'] } },
+        where: { id: orderId, userId, status: { in: ['SENT', 'STALE', 'CONFIRMED'] } },
         data: {
           status: 'CONFIRMED',
           confirmedAt: now,
@@ -572,7 +574,7 @@ export async function markPaymentSent(userId: string, orderId: string): Promise<
 export async function receiveOrder(userId: string, orderId: string): Promise<void> {
   const order = await prisma.order.findFirst({
     where: { id: orderId, userId },
-    include: { items: { select: { id: true, compoundId: true, vialSizeMg: true, quantity: true } } },
+    include: { items: { select: { id: true, compoundId: true, form: true, vialSizeMg: true, quantity: true } } },
   });
   if (!order) throw new Error('order_not_found');
   // Idempotent: already received — safe to return without creating duplicate vials
@@ -587,7 +589,8 @@ export async function receiveOrder(userId: string, orderId: string): Promise<voi
       orderItemId: item.id,
       totalMg: item.vialSizeMg,
       remainingMg: item.vialSizeMg,
-      status: 'DRY',
+      // SOLUTION items arrive pre-mixed; LYOPHILIZED_POWDER arrives dry
+      status: item.form === 'SOLUTION' ? 'RECONSTITUTED' : 'DRY',
     }))
   );
 
@@ -621,7 +624,7 @@ export async function getPriorWalletAddress(
     where: {
       userId,
       vendorId,
-      paymentConfirmation: { not: Prisma.JsonNull },
+      paymentConfirmation: { not: Prisma.AnyNull },
       ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}),
     },
     select: { paymentConfirmation: true },
