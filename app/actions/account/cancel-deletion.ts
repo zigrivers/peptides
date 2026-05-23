@@ -1,0 +1,30 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { auth } from '@/lib/auth';
+import { cancelSelfDeletion } from '@/lib/auth/application/scheduleAccountDeletion';
+
+export interface CancelDeletionState {
+  error?: string;
+  success?: string;
+}
+
+export async function cancelDeletionAction(
+  _prev: CancelDeletionState | null,
+  _formData: FormData
+): Promise<CancelDeletionState> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: 'Please sign in again.' };
+  try {
+    await cancelSelfDeletion(session.user.id);
+    revalidatePath('/settings');
+    revalidatePath('/dashboard');
+    return { success: 'Account deletion cancelled. Your account is active.' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown';
+    if (msg === 'no_pending_deletion') {
+      return { error: 'There is no pending deletion to cancel.' };
+    }
+    return { error: 'Could not cancel the deletion. Please try again.' };
+  }
+}

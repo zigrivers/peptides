@@ -9,6 +9,14 @@ import { updateReminderPreferencesAction } from '@/app/actions/notifications/upd
 import { RemindersForm } from './_components/RemindersForm';
 import { PushSubscriptionPanel } from './_components/PushSubscriptionPanel';
 import { buildTimezoneSuggestions } from '@/lib/notifications/domain/timezones';
+import { prisma } from '@/lib/shared/prisma';
+import {
+  scheduleDeletionAction,
+  deleteImmediatelyAction,
+} from '@/app/actions/account/schedule-deletion';
+import { cancelDeletionAction } from '@/app/actions/account/cancel-deletion';
+import { DeleteAccountSection } from './_components/DeleteAccountSection';
+import { CancelDeletionBanner } from './_components/CancelDeletionBanner';
 
 /**
  * Account settings index. Surfaces the data-export request button (Task 6.2,
@@ -24,9 +32,22 @@ export default async function SettingsPage() {
   const defaultTimezone = process.env.TZ || 'UTC';
   const timezoneSuggestions = buildTimezoneSuggestions(reminderPreference?.timezone);
 
+  const pendingDeletion = await prisma.accountDeletionRequest.findUnique({
+    where: { userId: session.user.id },
+    select: { scheduledFor: true, status: true },
+  });
+  const isDeletionPending = pendingDeletion?.status === 'PENDING';
+
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
       <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
+
+      {isDeletionPending && pendingDeletion && (
+        <CancelDeletionBanner
+          action={cancelDeletionAction}
+          scheduledFor={pendingDeletion.scheduledFor}
+        />
+      )}
 
       <section aria-labelledby="reminders-heading" className="rounded-lg border border-gray-200 bg-white p-5">
         <h2 id="reminders-heading" className="text-sm font-semibold text-gray-900 mb-1">Dose reminders</h2>
@@ -62,6 +83,22 @@ export default async function SettingsPage() {
           <Link href="/settings/telegram" className="text-sm text-indigo-600 hover:underline">
             Manage Telegram setup →
           </Link>
+        </section>
+      )}
+
+      {!isDeletionPending && (
+        <section
+          aria-labelledby="delete-account-heading"
+          className="rounded-lg border border-red-200 bg-red-50/30 p-5"
+        >
+          <h2 id="delete-account-heading" className="text-sm font-semibold text-red-900 mb-1">
+            Danger zone
+          </h2>
+          <DeleteAccountSection
+            scheduleAction={scheduleDeletionAction}
+            immediateAction={deleteImmediatelyAction}
+            userEmail={session.user.email ?? ''}
+          />
         </section>
       )}
     </main>

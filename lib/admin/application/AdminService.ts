@@ -406,20 +406,19 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
         continue;
       }
 
-      // Managed-user deletion requires a recorded requestor that still matches
-      // the user's current managedBy. Null requestedByUserId rows are treated as
-      // malformed/stale for this cron (the managed-user path always records the
-      // requestor; null is reserved for a future self-deletion path with its own
-      // authorization invariant). Delete the stale ADR to avoid infinite retry.
-      // TODO: when self-deletion is implemented, branch here to handle
-      //   `req.requestedByUserId === null && user.managedBy === null` as the
-      //   approved self-deletion case with its own ownership check.
-      if (!req.requestedByUserId || user.managedBy !== req.requestedByUserId) {
-        console.error('[processPendingDeletions] missing or mismatched requestor — aborting and restoring user', {
+      // Two approved deletion shapes — managed and self:
+      //   Managed: req.requestedByUserId is set AND === user.managedBy.
+      //   Self:    req.requestedByUserId is null AND user.managedBy is null.
+      // Anything else is malformed/stale (e.g. managed-user transferred to
+      // a different Power User between request and dispatch); abort and
+      // restore the user to DEACTIVATED so they don't get stuck.
+      const isManagedDelete =
+        req.requestedByUserId !== null && user.managedBy === req.requestedByUserId;
+      const isSelfDelete = req.requestedByUserId === null && user.managedBy === null;
+      if (!isManagedDelete && !isSelfDelete) {
+        console.error('[processPendingDeletions] mismatched requestor — aborting and restoring user', {
           adrId: req.id, userId: req.userId, recordedRequestor: req.requestedByUserId, currentManagedBy: user.managedBy,
         });
-        // Atomically delete the stale ADR AND restore the user to DEACTIVATED so
-        // the account doesn't get stuck in DELETION_PENDING with no cancel handle
         await prisma.$transaction([
           prisma.accountDeletionRequest.delete({ where: { id: req.id } }),
           prisma.user.updateMany({
@@ -431,6 +430,10 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
         });
         continue;
       }
+
+      const auditAction = isSelfDelete ? 'ACCOUNT_DELETED' : 'MANAGED_USER_DELETED';
+      const auditCategory = isSelfDelete ? 'Auth' : 'Admin';
+      const auditMode = isSelfDelete ? 'delayed_self' : 'delayed';
 
       await withAudit(
         async (tx) => {
@@ -449,28 +452,30 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
             select: { id: true },
           });
           if (userVendors.length > 0) {
-            // Defense-in-depth: only delete orders that belong to THIS user.
-            // If a cross-owner order is referencing this user's vendor, leave
-            // it for manual remediation rather than destroying another user's data.
             await tx.order.deleteMany({
               where: { vendorId: { in: userVendors.map((v) => v.id) }, userId: req.userId },
             });
           }
-          // Scope the user delete with managedBy = recorded requestor so the
-          // destructive op carries the original authorization predicate
+          // Scope the user delete with managedBy === recorded requestor (or
+          // both null for self-delete) so the destructive op carries the
+          // original authorization predicate.
           const { count: userCount } = await tx.user.deleteMany({
-            where: { id: req.userId, status: 'DELETION_PENDING', managedBy: req.requestedByUserId },
+            where: {
+              id: req.userId,
+              status: 'DELETION_PENDING',
+              managedBy: req.requestedByUserId,
+            },
           });
           if (userCount === 0) throw new Error('user_not_in_deletion_pending');
         },
         {
           actorUserId: 'SYSTEM',
           subjectUserId: req.userId,
-          category: 'Admin' as const,
-          action: 'MANAGED_USER_DELETED' as const,
+          category: auditCategory as 'Auth' | 'Admin',
+          action: auditAction as 'ACCOUNT_DELETED' | 'MANAGED_USER_DELETED',
           resourceId: req.userId,
           resourceType: 'User',
-          metadata: { mode: 'delayed', originalRequestor: req.requestedByUserId },
+          metadata: { mode: auditMode, originalRequestor: req.requestedByUserId },
         }
       );
       deleted++;
