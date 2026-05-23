@@ -418,9 +418,10 @@ export async function cancelOrder(userId: string, orderId: string): Promise<void
 }
 
 // markOrdersStale is a system-level cron operation (ADR-012, POST /api/cron/stale-orders).
-// It intentionally queries orders across all users — this is an approved exception to the
-// userId-scoping rule, documented in AGENTS.md § Cross-User Exceptions. The mutation still
-// includes userId in the WHERE predicate for defence-in-depth.
+// It intentionally queries orders across all users — approved exception in AGENTS.md.
+// Each per-order updateMany includes both id AND userId for defence-in-depth, and audit
+// events are only written for rows where count === 1 (guarding against TOCTOU races where
+// the order status changed between the initial findMany and the transaction).
 export async function markOrdersStale(now: Date): Promise<number> {
   const cutoff = new Date(now.getTime() - STALE_ORDER_THRESHOLD_DAYS * 24 * 60 * 60 * 1000);
   const staleOrders = await prisma.order.findMany({
@@ -429,26 +430,29 @@ export async function markOrdersStale(now: Date): Promise<number> {
   });
   if (staleOrders.length === 0) return 0;
 
-  const orderIds = staleOrders.map((o) => o.id);
+  let actuallyStaled = 0;
   await prisma.$transaction(async (tx) => {
-    await tx.order.updateMany({
-      where: { id: { in: orderIds }, status: 'SENT' },
-      data: { status: 'STALE', staleFlaggedAt: now },
-    });
     for (const order of staleOrders) {
-      await PrismaAuditRepo.create(tx, {
-        actorUserId: 'SYSTEM',
-        subjectUserId: order.userId,
-        category: 'Order',
-        action: 'ORDER_MARKED_STALE',
-        resourceId: order.id,
-        resourceType: 'Order',
-        oldValues: { status: 'SENT' },
-        newValues: { status: 'STALE' },
+      const { count } = await tx.order.updateMany({
+        where: { id: order.id, userId: order.userId, status: 'SENT' },
+        data: { status: 'STALE', staleFlaggedAt: now },
       });
+      if (count === 1) {
+        actuallyStaled++;
+        await PrismaAuditRepo.create(tx, {
+          actorUserId: 'SYSTEM',
+          subjectUserId: order.userId,
+          category: 'Order',
+          action: 'ORDER_MARKED_STALE',
+          resourceId: order.id,
+          resourceType: 'Order',
+          oldValues: { status: 'SENT' },
+          newValues: { status: 'STALE' },
+        });
+      }
     }
   });
-  return staleOrders.length;
+  return actuallyStaled;
 }
 
 export async function getStaleOrderCount(userId: string): Promise<number> {
