@@ -294,11 +294,23 @@ async function generateManagedUserExport(managedUserId: string, managedUserEmail
     prisma.dataExportRequest.findMany({ where: { userId: managedUserId } }),
     prisma.invite.findMany({ where: { powerUserId: managedUserId } }),
   ]);
+  // Original Invite that created this user account (acceptedByUserId match) and full audit history.
+  const [originalInvite, auditEvents] = await Promise.all([
+    prisma.invite.findFirst({
+      where: { acceptedByUserId: managedUserId },
+      select: { id: true, email: true, powerUserId: true, status: true, expiresAt: true, createdAt: true, acceptedAt: true, acceptedByUserId: true },
+    }),
+    prisma.auditEvent.findMany({
+      where: { OR: [{ subjectUserId: managedUserId }, { actorUserId: managedUserId }] },
+      orderBy: { timestamp: 'asc' },
+    }),
+  ]);
   return JSON.stringify(
     {
       userId: managedUserId,
       email: managedUserEmail,
       exportedAt: new Date().toISOString(),
+      originalInvite,
       protocols,
       cycles,
       doseLogs,
@@ -311,6 +323,7 @@ async function generateManagedUserExport(managedUserId: string, managedUserEmail
       emailChangeRequests,
       dataExportRequests,
       invitesSent,
+      auditEvents,
     },
     null,
     2
@@ -318,15 +331,13 @@ async function generateManagedUserExport(managedUserId: string, managedUserEmail
 }
 
 export interface DeletionRequestResult {
-  status: 'scheduled' | 'deleted' | 'needs_second_confirm';
-  scheduledFor?: Date;
+  status: 'scheduled';
+  scheduledFor: Date;
 }
 
 export async function requestManagedUserDeletion(
   powerUserId: string,
-  managedUserId: string,
-  immediate: boolean,
-  secondConfirm = false
+  managedUserId: string
 ): Promise<DeletionRequestResult> {
   const managedUser = await prisma.user.findFirst({
     where: { id: managedUserId, managedBy: powerUserId },
@@ -343,42 +354,12 @@ export async function requestManagedUserDeletion(
   // Only DEACTIVATED users can be deleted — active sessions must be revoked first
   if (managedUser.status !== 'DEACTIVATED') throw new Error('user_must_be_deactivated');
 
-  if (immediate && !secondConfirm) {
-    return { status: 'needs_second_confirm' };
-  }
-
-  // Export-first: generate and deliver the data export BEFORE any deletion side-effect
+  // Generate export before scheduling. Email is deferred via after() so we only
+  // notify the admin after the DB transaction has succeeded — the 48h cron delay
+  // means no user data is destroyed during this request, so deferred email is safe.
   const exportJson = await generateManagedUserExport(managedUserId, managedUser.email);
-  const { error: emailError } = await resend.emails.send({
-    from: FROM_ADDRESS,
-    to: powerUser.email,
-    subject: `Data export for ${managedUser.email} — before account deletion`,
-    html: `<p>The deletion of managed user <strong>${managedUser.email}</strong> has been ${immediate ? 'executed immediately' : 'scheduled'}. Their data export is attached.</p>`,
-    attachments: [{ filename: `export-${managedUserId}.json`, content: Buffer.from(exportJson).toString('base64') }],
-  });
-  if (emailError) {
-    console.error('[requestManagedUserDeletion] export email failed:', emailError.message);
-    throw new Error('export_email_failed');
-  }
-
-  if (immediate) {
-    await withAudit(
-      async (tx) => {
-        const { count } = await tx.user.deleteMany({ where: { id: managedUserId, managedBy: powerUserId, status: 'DEACTIVATED' } });
-        if (count === 0) throw new Error('managed_user_not_found');
-      },
-      {
-        actorUserId: powerUserId,
-        subjectUserId: managedUserId,
-        category: 'Admin' as const,
-        action: 'MANAGED_USER_DELETED' as const,
-        resourceId: managedUserId,
-        resourceType: 'User',
-        metadata: { mode: 'immediate' },
-      }
-    );
-    return { status: 'deleted' };
-  }
+  const adminEmail = powerUser.email;
+  const managedEmail = managedUser.email;
 
   const scheduledFor = new Date(Date.now() + 48 * 3_600_000);
   await withAudit(
@@ -402,6 +383,19 @@ export async function requestManagedUserDeletion(
       metadata: { scheduledFor: scheduledFor.toISOString(), mode: 'delayed' },
     }
   );
+
+  // Deferred: send export email only after the transaction has committed
+  after(async () => {
+    const { error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: adminEmail,
+      subject: `Data export for ${managedEmail} — before account deletion`,
+      html: `<p>The deletion of managed user <strong>${managedEmail}</strong> has been scheduled. Their data export is attached.</p>`,
+      attachments: [{ filename: `export-${managedUserId}.json`, content: Buffer.from(exportJson).toString('base64') }],
+    });
+    if (error) console.error('[requestManagedUserDeletion] export email failed:', error.message);
+  });
+
   return { status: 'scheduled', scheduledFor };
 }
 

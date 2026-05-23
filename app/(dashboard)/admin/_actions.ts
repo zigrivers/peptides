@@ -70,35 +70,23 @@ export async function triggerPasswordResetAction(
 export async function requestDeletionAction(
   managedUserId: string,
   _prevState: AdminActionResult | null,
-  formData: FormData
+  _formData: FormData
 ): Promise<AdminActionResult | null> {
   const session = await auth();
   if (!session?.user?.id) return { error: 'Unauthorized' };
   if (session.user.role === 'MANAGED_USER') return { error: 'Forbidden' };
 
-  const immediate = formData.get('immediate') === 'true';
-  const secondConfirm = formData.get('secondConfirm') === 'true';
   try {
-    const result = await requestManagedUserDeletion(session.user.id, managedUserId, immediate, secondConfirm);
-    if (result.status === 'needs_second_confirm') {
-      return { warning: 'This will permanently delete all data. Are you sure? Click again to confirm.' };
-    }
-    if (result.status === 'scheduled') {
-      const dateStr = result.scheduledFor!.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-      revalidatePath('/admin', 'layout');
-      return { success: `Deletion scheduled for ${dateStr}. A data export has been emailed to you.` };
-    }
+    const result = await requestManagedUserDeletion(session.user.id, managedUserId);
+    const dateStr = result.scheduledFor.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
     revalidatePath('/admin', 'layout');
-    return { success: 'User deleted. A data export has been emailed to you.' };
+    return { success: `Deletion scheduled for ${dateStr}. A data export will be emailed to you.` };
   } catch (err) {
     if (err instanceof Error && err.message === 'managed_user_not_found') {
       return { error: 'User not found.' };
     }
     if (err instanceof Error && err.message === 'user_must_be_deactivated') {
       return { error: 'User must be deactivated before deletion.' };
-    }
-    if (err instanceof Error && err.message === 'export_email_failed') {
-      return { error: 'Failed to deliver data export email. Deletion aborted.' };
     }
     return { error: 'Something went wrong.' };
   }
