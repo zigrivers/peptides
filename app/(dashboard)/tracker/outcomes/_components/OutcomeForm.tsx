@@ -155,6 +155,10 @@ export function OutcomeForm({
               }
             }}
             placeholder="e.g. energy"
+            // 32-char limit per outcomeUpsertSchema's TAG_MAX_LEN — enforced
+            // server-side as well; the input attr just gives immediate UX
+            // feedback before submit.
+            maxLength={32}
             className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
           />
           <button

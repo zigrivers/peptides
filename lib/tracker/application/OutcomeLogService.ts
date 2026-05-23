@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/shared/prisma';
 import { PrismaAuditRepo } from '@/lib/audit/infrastructure/PrismaAuditRepo';
+import { utcMidnightOf as utcMidnightOfShared } from '@/lib/shared/date';
 import { OutcomeLogRepo, type OutcomeRow } from '../infrastructure/OutcomeLogRepo';
 import { outcomeUpsertSchema } from '../domain/outcomeValidation';
 
@@ -15,9 +16,9 @@ function utcMidnightDaysAgo(days: number, now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - days));
 }
 
-function utcMidnightOf(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
+// Local alias kept for in-module call sites — implementation lives in
+// `lib/shared/date.ts` so the dashboard and other consumers share the rule.
+const utcMidnightOf = utcMidnightOfShared;
 
 export async function getSevenDayRatingAverage(userId: string): Promise<number | null> {
   const now = new Date();

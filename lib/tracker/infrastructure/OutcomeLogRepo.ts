@@ -100,18 +100,25 @@ export const OutcomeLogRepo = {
     }
 
     // Update: replace protocolRatings (delete-then-insert) so the new set
-    // exactly matches the input. Both writes are inside the same transaction.
-    // We `update` by primary key (the existing row was already userId-scoped
-    // in the findFirst above; ownership is therefore established).
-    await client.outcomeLog.update({
-      where: { id: existing.id },
+    // exactly matches the input. The OutcomeLog update uses `updateMany`
+    // with both `id` and `userId` predicates for defense-in-depth (matches
+    // CLAUDE.md's identity-scoping rule on mutations). ProtocolRating's
+    // delete is scoped through the parent's userId via a relation filter:
+    // `outcomeLog: { is: { userId } }` — Prisma supports relation filters
+    // on `deleteMany`, so we can enforce ownership without trusting a
+    // bare `outcomeLogId`.
+    const updated = await client.outcomeLog.updateMany({
+      where: { id: existing.id, userId },
       data: {
         overallRating: input.overallRating,
         tags: input.tags,
         note: input.note,
       },
     });
-    await client.protocolRating.deleteMany({ where: { outcomeLogId: existing.id } });
+    if (updated.count === 0) throw new Error('outcome_not_owned_by_actor');
+    await client.protocolRating.deleteMany({
+      where: { outcomeLogId: existing.id, outcomeLog: { is: { userId } } },
+    });
     if (input.protocolRatings.length > 0) {
       await client.protocolRating.createMany({
         data: input.protocolRatings.map((r) => ({

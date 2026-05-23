@@ -7,15 +7,11 @@ import {
   getTopTagSuggestions,
 } from '@/lib/tracker/application/OutcomeLogService';
 import { prisma } from '@/lib/shared/prisma';
+import { utcMidnightToday } from '@/lib/shared/date';
 import { logOutcomeAction } from '@/app/actions/tracker/log-outcome';
 import { OutcomeForm } from './_components/OutcomeForm';
 import { CorrelationTimeline } from './_components/CorrelationTimeline';
 import { CorrelationStats } from './_components/CorrelationStats';
-
-function todayUTCMidnight(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-}
 
 interface PageProps {
   searchParams: Promise<{ window?: string }>;
@@ -27,7 +23,7 @@ export default async function OutcomesPage({ searchParams }: PageProps) {
   const userId = session.user.id;
   const params = await searchParams;
   const windowDays = params.window === '90' ? 90 : 30;
-  const today = todayUTCMidnight();
+  const today = utcMidnightToday();
 
   const [todayOutcome, protocolRows, suggestedTags, timeline, stats] = await Promise.all([
     getOutcomeForDate(userId, today),

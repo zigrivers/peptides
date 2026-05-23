@@ -66,6 +66,7 @@ export async function logOutcomeAction(
       protocolRatings,
     });
     revalidatePath('/tracker/outcomes');
+    revalidatePath('/tracker');
     revalidatePath('/dashboard');
     return { success: 'Outcome saved.' };
   } catch (err) {

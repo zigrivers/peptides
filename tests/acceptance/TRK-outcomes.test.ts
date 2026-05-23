@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockOutcomeFindFirst = vi.fn();
 const mockOutcomeFindMany = vi.fn();
 const mockOutcomeCreate = vi.fn();
-const mockOutcomeUpdate = vi.fn();
+const mockOutcomeUpdateMany = vi.fn();
 const mockProtocolFindMany = vi.fn();
 const mockProtocolRatingDeleteMany = vi.fn();
 const mockProtocolRatingCreateMany = vi.fn();
@@ -21,7 +21,7 @@ vi.mock('@/lib/shared/prisma', () => ({
       findFirst: mockOutcomeFindFirst,
       findMany: mockOutcomeFindMany,
       create: mockOutcomeCreate,
-      update: mockOutcomeUpdate,
+      updateMany: mockOutcomeUpdateMany,
     },
     protocolRating: {
       deleteMany: mockProtocolRatingDeleteMany,
@@ -34,7 +34,7 @@ vi.mock('@/lib/shared/prisma', () => ({
         outcomeLog: {
           findFirst: mockOutcomeFindFirst,
           create: mockOutcomeCreate,
-          update: mockOutcomeUpdate,
+          updateMany: mockOutcomeUpdateMany,
         },
         protocolRating: {
           deleteMany: mockProtocolRatingDeleteMany,
@@ -52,7 +52,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   mockOutcomeFindFirst.mockResolvedValue(null);
   mockOutcomeCreate.mockResolvedValue({ id: 'ol-new' });
-  mockOutcomeUpdate.mockResolvedValue({ count: 1 });
+  mockOutcomeUpdateMany.mockResolvedValue({ count: 1 });
   mockProtocolRatingDeleteMany.mockResolvedValue({ count: 0 });
   mockProtocolRatingCreateMany.mockResolvedValue({ count: 0 });
   mockProtocolFindMany.mockResolvedValue([]);
@@ -105,14 +105,14 @@ describe('US-TRK-06: upsertOutcome', () => {
       overallRating: 3,
       tags: [],
     });
-    expect(mockOutcomeUpdate).toHaveBeenCalledWith(
+    expect(mockOutcomeUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'ol-1' },
+        where: { id: 'ol-1', userId: USER_ID },
         data: expect.objectContaining({ overallRating: 3 }),
       })
     );
     expect(mockProtocolRatingDeleteMany).toHaveBeenCalledWith({
-      where: { outcomeLogId: 'ol-1' },
+      where: { outcomeLogId: 'ol-1', outcomeLog: { is: { userId: USER_ID } } },
     });
     expect(mockAuditCreate).toHaveBeenCalledWith(
       expect.objectContaining({
