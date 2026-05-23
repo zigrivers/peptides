@@ -41,6 +41,7 @@ export async function acceptInviteAction(
     switch (msg) {
       case 'invite_not_found':
       case 'invite_revoked':
+      case 'invite_no_longer_valid':
         return { error: 'This invitation link is not valid.' };
       case 'invite_already_used':
         return { error: 'This invitation has already been used. Please sign in instead.' };
