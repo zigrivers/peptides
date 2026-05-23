@@ -138,8 +138,20 @@ async function runWithRetry<T>(
   timeoutMs: number,
   errors: string[]
 ): Promise<T | null> {
-  const model = await getModelFor(attempt);
-  if (!model) return null;
+  // Provider initialisation (dynamic import, shape check, env-var resolution)
+  // is inside the try/catch so a missing/broken SDK doesn't escape the
+  // graceful-degradation contract — the orchestrator falls through to the
+  // next provider and ultimately throws AIUnavailableError if all fail.
+  let model: NonNullable<Awaited<ReturnType<typeof getModelFor>>>;
+  try {
+    const resolved = await getModelFor(attempt);
+    if (!resolved) return null;
+    model = resolved;
+  } catch (initErr) {
+    errors.push(`${attempt.provider}_init:${classifyError(initErr)}`);
+    return null;
+  }
+
   try {
     return await withTimeout((signal) => task(model, signal), timeoutMs);
   } catch (err) {

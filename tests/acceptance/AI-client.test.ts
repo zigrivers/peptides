@@ -149,6 +149,20 @@ describe('AIClient.callObject — provider fail-over', () => {
     expect(mockGenerateObject).not.toHaveBeenCalled();
   });
 
+  it('AC-5c: a provider whose init throws still falls through to the next provider', async () => {
+    // Anthropic init blows up (e.g. broken SDK shape, env-var malformed).
+    mockGetAnthropicModel.mockRejectedValueOnce(new Error('anthropic_sdk_shape_unexpected'));
+    mockGenerateObject.mockResolvedValueOnce({ object: { ok: true } });
+    const result = await callObject({
+      operation: 'extract_citation',
+      system: 's',
+      prompt: 'p',
+      schema,
+    });
+    expect(result).toEqual({ ok: true });
+    expect(mockGetGeminiModel).toHaveBeenCalled();
+  });
+
   it('AC-6: Anthropic returns Zod-invalid output → falls over to Gemini', async () => {
     mockGenerateObject
       .mockResolvedValueOnce({ object: { ok: 'not-a-bool' } }) // first Anthropic attempt: parse() throws
