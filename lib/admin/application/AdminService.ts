@@ -390,7 +390,7 @@ export async function requestManagedUserDeletion(
   const exportBuffer = Buffer.from(exportJson);
   // Resend hard limit is 25MB for attachments. Base64 encoding inflates size by
   // ~33%, so the raw payload threshold is ~18MB to stay safely under the limit.
-  if (exportBuffer.byteLength > 18 * 1024 * 1024) {
+  if (exportBuffer.byteLength > 17 * 1024 * 1024) {
     console.error('[requestManagedUserDeletion] export too large:', exportBuffer.byteLength);
     throw new Error('export_too_large');
   }
@@ -507,10 +507,20 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
       //   `req.requestedByUserId === null && user.managedBy === null` as the
       //   approved self-deletion case with its own ownership check.
       if (!req.requestedByUserId || user.managedBy !== req.requestedByUserId) {
-        console.error('[processPendingDeletions] missing or mismatched requestor — aborting and cleaning up ADR', {
+        console.error('[processPendingDeletions] missing or mismatched requestor — aborting and restoring user', {
           adrId: req.id, userId: req.userId, recordedRequestor: req.requestedByUserId, currentManagedBy: user.managedBy,
         });
-        await prisma.accountDeletionRequest.delete({ where: { id: req.id } }).catch(() => {});
+        // Atomically delete the stale ADR AND restore the user to DEACTIVATED so
+        // the account doesn't get stuck in DELETION_PENDING with no cancel handle
+        await prisma.$transaction([
+          prisma.accountDeletionRequest.delete({ where: { id: req.id } }),
+          prisma.user.updateMany({
+            where: { id: req.userId, status: 'DELETION_PENDING' },
+            data: { status: 'DEACTIVATED' },
+          }),
+        ]).catch((err) => {
+          console.error('[processPendingDeletions] stale ADR cleanup failed', { adrId: req.id, err });
+        });
         continue;
       }
 
