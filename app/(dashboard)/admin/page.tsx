@@ -3,13 +3,16 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getManagedUsersWithAdherence } from '@/lib/admin/application/AdminService';
 import type { InviteStatus, ManagedUserRow, PendingInviteRow } from '@/lib/admin/application/AdminService';
-import { deactivateManagedUserAction, triggerPasswordResetAction } from './_actions';
+import { deactivateManagedUserAction, triggerPasswordResetAction, requestDeletionAction, cancelDeletionAction } from './_actions';
 import { DeactivateUserButton } from './_components/DeactivateUserButton';
 import { ResetPasswordButton } from './_components/ResetPasswordButton';
+import { DeleteUserButton } from './_components/DeleteUserButton';
+import { CancelDeletionButton } from './_components/CancelDeletionButton';
 
 const BADGE_STYLES: Record<InviteStatus, string> = {
   ACTIVE: 'bg-green-50 text-green-700 border-green-200',
   DEACTIVATED: 'bg-gray-100 text-gray-500 border-gray-200',
+  DELETION_PENDING: 'bg-orange-50 text-orange-700 border-orange-200',
   INVITED: 'bg-blue-50 text-blue-700 border-blue-200',
   INVITE_EXPIRED: 'bg-red-50 text-red-700 border-red-200',
 };
@@ -17,6 +20,7 @@ const BADGE_STYLES: Record<InviteStatus, string> = {
 const BADGE_LABELS: Record<InviteStatus, string> = {
   ACTIVE: 'Active',
   DEACTIVATED: 'Deactivated',
+  DELETION_PENDING: 'Deletion Pending',
   INVITED: 'Invited',
   INVITE_EXPIRED: 'Invite Expired',
 };
@@ -70,16 +74,23 @@ function ManagedUserCard({ user }: { user: ManagedUserRow }) {
       </div>
       {user.inviteStatus === 'ACTIVE' && (
         <div className="flex items-center justify-between pt-1">
-          <Link
-            href={`/admin/users/${user.id}`}
-            className="text-xs text-indigo-600 hover:underline"
-          >
+          <Link href={`/admin/users/${user.id}`} className="text-xs text-indigo-600 hover:underline">
             View dose history →
           </Link>
           <div className="flex gap-3">
             <ResetPasswordButton action={triggerPasswordResetAction.bind(null, user.id)} />
             <DeactivateUserButton action={deactivateManagedUserAction.bind(null, user.id)} />
           </div>
+        </div>
+      )}
+      {user.inviteStatus === 'DEACTIVATED' && (
+        <div className="flex items-center justify-end pt-1">
+          <DeleteUserButton action={requestDeletionAction.bind(null, user.id)} />
+        </div>
+      )}
+      {user.inviteStatus === 'DELETION_PENDING' && (
+        <div className="flex items-center justify-end pt-1">
+          <CancelDeletionButton action={cancelDeletionAction.bind(null, user.id)} />
         </div>
       )}
     </li>

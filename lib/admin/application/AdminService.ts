@@ -5,7 +5,7 @@ import { withAudit } from '@/lib/audit/application/withAudit';
 import { resend, FROM_ADDRESS } from '@/lib/shared/email';
 import { PasswordResetRepo } from '@/lib/auth/infrastructure/PasswordResetRepo';
 
-export type InviteStatus = 'ACTIVE' | 'DEACTIVATED' | 'INVITED' | 'INVITE_EXPIRED';
+export type InviteStatus = 'ACTIVE' | 'DEACTIVATED' | 'DELETION_PENDING' | 'INVITED' | 'INVITE_EXPIRED';
 
 export interface AdherenceResult {
   logged: number;
@@ -94,7 +94,11 @@ export async function getManagedUsersWithAdherence(powerUserId: string): Promise
     id: u.id,
     email: u.email,
     name: u.name ?? null,
-    inviteStatus: (u.status === 'DEACTIVATED' ? 'DEACTIVATED' : 'ACTIVE') as InviteStatus,
+    inviteStatus: (
+      u.status === 'DEACTIVATED' ? 'DEACTIVATED' :
+      u.status === 'DELETION_PENDING' ? 'DELETION_PENDING' :
+      'ACTIVE'
+    ) as InviteStatus,
     inviteExpiresAt: null,
     adherence7Day: adherence7Map.get(u.id) ?? { logged: 0, total: 0, percent: 0 },
     adherence30Day: adherence30Map.get(u.id) ?? { logged: 0, total: 0, percent: 0 },
@@ -244,4 +248,165 @@ export async function triggerManagedUserPasswordReset(
     });
     if (error) console.error('[triggerManagedUserPasswordReset] email send failed:', error.message);
   });
+}
+
+async function generateManagedUserExport(managedUserId: string, managedUserEmail: string): Promise<string> {
+  const [protocols, doseLogs, vials, outcomeLogs] = await Promise.all([
+    prisma.protocol.findMany({ where: { userId: managedUserId } }),
+    prisma.doseLog.findMany({ where: { userId: managedUserId } }),
+    prisma.vial.findMany({ where: { userId: managedUserId } }),
+    prisma.outcomeLog.findMany({ where: { userId: managedUserId } }),
+  ]);
+  return JSON.stringify(
+    { userId: managedUserId, email: managedUserEmail, exportedAt: new Date().toISOString(), protocols, doseLogs, vials, outcomeLogs },
+    null,
+    2
+  );
+}
+
+export interface DeletionRequestResult {
+  status: 'scheduled' | 'deleted' | 'needs_second_confirm';
+  scheduledFor?: Date;
+}
+
+export async function requestManagedUserDeletion(
+  powerUserId: string,
+  managedUserId: string,
+  immediate: boolean,
+  secondConfirm = false
+): Promise<DeletionRequestResult> {
+  const managedUser = await prisma.user.findFirst({
+    where: { id: managedUserId, managedBy: powerUserId },
+    select: { id: true, email: true, status: true },
+  });
+  if (!managedUser) throw new Error('managed_user_not_found');
+
+  const powerUser = await prisma.user.findFirst({
+    where: { id: powerUserId },
+    select: { id: true, email: true },
+  });
+  if (!powerUser) throw new Error('managed_user_not_found');
+
+  if (immediate && !secondConfirm) {
+    return { status: 'needs_second_confirm' };
+  }
+
+  const exportJson = await generateManagedUserExport(managedUserId, managedUser.email);
+  const adminEmail = powerUser.email;
+  const managedEmail = managedUser.email;
+
+  after(async () => {
+    const { error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: adminEmail,
+      subject: `Data export for ${managedEmail} — before account deletion`,
+      html: `<p>The deletion of managed user <strong>${managedEmail}</strong> has been ${immediate ? 'executed immediately' : 'scheduled'}. Their data export is attached.</p>`,
+      attachments: [{ filename: `export-${managedUserId}.json`, content: Buffer.from(exportJson).toString('base64') }],
+    });
+    if (error) console.error('[requestManagedUserDeletion] export email failed:', error.message);
+  });
+
+  if (immediate) {
+    await withAudit(
+      async (tx) => { await tx.user.delete({ where: { id: managedUserId } }); },
+      {
+        actorUserId: powerUserId,
+        subjectUserId: managedUserId,
+        category: 'Admin' as const,
+        action: 'MANAGED_USER_DELETED' as const,
+        resourceId: managedUserId,
+        resourceType: 'User',
+        metadata: { mode: 'immediate' },
+      }
+    );
+    return { status: 'deleted' };
+  }
+
+  const scheduledFor = new Date(Date.now() + 48 * 3_600_000);
+  await withAudit(
+    async (tx) => {
+      await tx.user.updateMany({
+        where: { id: managedUserId },
+        data: { status: 'DELETION_PENDING' },
+      });
+      await tx.accountDeletionRequest.create({
+        data: { userId: managedUserId, scheduledFor, status: 'PENDING' },
+      });
+    },
+    {
+      actorUserId: powerUserId,
+      subjectUserId: managedUserId,
+      category: 'Admin' as const,
+      action: 'MANAGED_USER_DELETION_REQUESTED' as const,
+      resourceId: managedUserId,
+      resourceType: 'User',
+      metadata: { scheduledFor: scheduledFor.toISOString(), mode: 'delayed' },
+    }
+  );
+  return { status: 'scheduled', scheduledFor };
+}
+
+export async function cancelManagedUserDeletion(
+  powerUserId: string,
+  managedUserId: string
+): Promise<void> {
+  const managedUser = await prisma.user.findFirst({
+    where: { id: managedUserId, managedBy: powerUserId },
+    select: { id: true },
+  });
+  if (!managedUser) throw new Error('managed_user_not_found');
+
+  const request = await prisma.accountDeletionRequest.findFirst({
+    where: { userId: managedUserId, status: 'PENDING' },
+    select: { id: true },
+  });
+  if (!request) throw new Error('no_pending_deletion');
+
+  await withAudit(
+    async (tx) => {
+      await tx.accountDeletionRequest.delete({ where: { id: request.id } });
+      await tx.user.updateMany({ where: { id: managedUserId }, data: { status: 'DEACTIVATED' } });
+    },
+    {
+      actorUserId: powerUserId,
+      subjectUserId: managedUserId,
+      category: 'Admin' as const,
+      action: 'MANAGED_USER_DELETION_CANCELLED' as const,
+      resourceId: managedUserId,
+      resourceType: 'User',
+    }
+  );
+}
+
+export async function processPendingDeletions(): Promise<{ deleted: number }> {
+  const now = new Date();
+  const pending = await prisma.accountDeletionRequest.findMany({
+    where: { status: 'PENDING', scheduledFor: { lte: now } },
+    select: { userId: true },
+  });
+
+  let deleted = 0;
+  for (const req of pending) {
+    const user = await prisma.user.findFirst({
+      where: { id: req.userId },
+      select: { id: true, managedBy: true },
+    });
+    if (!user) continue;
+
+    await withAudit(
+      async (tx) => { await tx.user.delete({ where: { id: req.userId } }); },
+      {
+        actorUserId: user.managedBy ?? req.userId,
+        subjectUserId: req.userId,
+        category: 'Admin' as const,
+        action: 'MANAGED_USER_DELETED' as const,
+        resourceId: req.userId,
+        resourceType: 'User',
+        metadata: { mode: 'delayed' },
+      }
+    );
+    deleted++;
+  }
+
+  return { deleted };
 }

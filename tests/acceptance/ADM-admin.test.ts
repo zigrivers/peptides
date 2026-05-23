@@ -7,8 +7,15 @@ const mockUpdate = vi.fn();
 const mockUpdateMany = vi.fn();
 const mockUserFindFirst = vi.fn();
 const mockUserFindMany = vi.fn();
+const mockUserDelete = vi.fn();
 const mockDoseLogFindMany = vi.fn();
 const mockProtocolFindMany = vi.fn();
+const mockOutcomeLogFindMany = vi.fn();
+const mockVialFindMany = vi.fn();
+const mockADRCreate = vi.fn();
+const mockADRFindFirst = vi.fn();
+const mockADRFindMany = vi.fn();
+const mockADRDelete = vi.fn();
 const mockWithAudit = vi.fn();
 const mockSend = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
@@ -22,9 +29,12 @@ vi.mock('next/server', () => ({ unstable_after: mockAfter }));
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
     invite: { create: mockCreate, findFirst: mockFindFirst, findMany: mockFindMany, updateMany: mockUpdateMany },
-    user: { findFirst: mockUserFindFirst, findMany: mockUserFindMany, update: mockUpdate },
+    user: { findFirst: mockUserFindFirst, findMany: mockUserFindMany, update: mockUpdate, delete: mockUserDelete },
     doseLog: { findMany: mockDoseLogFindMany },
     protocol: { findMany: mockProtocolFindMany },
+    outcomeLog: { findMany: mockOutcomeLogFindMany },
+    vial: { findMany: mockVialFindMany },
+    accountDeletionRequest: { create: mockADRCreate, findFirst: mockADRFindFirst, findMany: mockADRFindMany, delete: mockADRDelete },
     auditEvent: { create: mockAuditEventCreate },
   },
 }));
@@ -38,7 +48,8 @@ function setupWithAudit() {
   mockWithAudit.mockImplementation(async (mutation: (tx: unknown) => Promise<unknown>) =>
     mutation({
       invite: { create: mockCreate, updateMany: mockUpdateMany },
-      user: { update: mockUpdate, updateMany: mockUpdateMany },
+      user: { update: mockUpdate, updateMany: mockUpdateMany, delete: mockUserDelete },
+      accountDeletionRequest: { create: mockADRCreate, delete: mockADRDelete },
     })
   );
 }
@@ -56,6 +67,13 @@ beforeEach(() => {
   mockAuditEventCreate.mockResolvedValue({});
   mockPasswordResetCreate.mockResolvedValue('raw-token-test');
   mockUpdateMany.mockResolvedValue({ count: 1 });
+  mockUserDelete.mockResolvedValue({});
+  mockADRCreate.mockResolvedValue({});
+  mockADRFindFirst.mockResolvedValue(null);
+  mockADRFindMany.mockResolvedValue([]);
+  mockADRDelete.mockResolvedValue({});
+  mockOutcomeLogFindMany.mockResolvedValue([]);
+  mockVialFindMany.mockResolvedValue([]);
 });
 
 const { createInvite } = await import('@/lib/auth/application/createInvite');
@@ -65,6 +83,9 @@ const {
   getManagedUserDoseHistory,
   deactivateManagedUser,
   triggerManagedUserPasswordReset,
+  requestManagedUserDeletion,
+  cancelManagedUserDeletion,
+  processPendingDeletions,
 } = await import('@/lib/admin/application/AdminService');
 
 /**
@@ -408,5 +429,176 @@ describe('US-ADM-03: triggerManagedUserPasswordReset', () => {
     mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', email: 'user@e.com' });
     await triggerManagedUserPasswordReset('pu-1', 'mu-1');
     expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_PASSWORD_RESET_TRIGGERED', actorUserId: 'pu-1' });
+  });
+});
+
+/**
+ * Story: US-ADM-04 - Managed User Deletion with Export-First
+ */
+describe('US-ADM-04: requestManagedUserDeletion', () => {
+  const activeUser = { id: 'mu-1', email: 'user@e.com', status: 'ACTIVE' };
+  const powerUser = { id: 'pu-1', email: 'admin@e.com' };
+
+  it('AC-1: throws managed_user_not_found when user does not belong to powerUser', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(null);
+    await expect(requestManagedUserDeletion('pu-1', 'stranger', false)).rejects.toThrow('managed_user_not_found');
+  });
+
+  it('AC-1: generates export JSON and dispatches email to admin before deletion', async () => {
+    let deferred: (() => Promise<void>) | undefined;
+    mockAfter.mockImplementationOnce((fn: () => Promise<void>) => { deferred = fn; });
+    mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockDoseLogFindMany.mockResolvedValueOnce([]);
+    mockVialFindMany.mockResolvedValueOnce([]);
+    mockOutcomeLogFindMany.mockResolvedValueOnce([]);
+    mockADRCreate.mockResolvedValueOnce({});
+
+    await requestManagedUserDeletion('pu-1', 'mu-1', false);
+    await deferred!();
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'admin@e.com', subject: expect.stringContaining('user@e.com') })
+    );
+  });
+
+  it('AC-2 (immediate, no secondConfirm): returns needs_second_confirm without performing deletion', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+
+    const result = await requestManagedUserDeletion('pu-1', 'mu-1', true, false);
+    expect(result.status).toBe('needs_second_confirm');
+    expect(mockUserDelete).not.toHaveBeenCalled();
+    expect(mockADRCreate).not.toHaveBeenCalled();
+  });
+
+  it('AC-2 (immediate, secondConfirm=true): deletes user immediately', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockDoseLogFindMany.mockResolvedValueOnce([]);
+    mockVialFindMany.mockResolvedValueOnce([]);
+    mockOutcomeLogFindMany.mockResolvedValueOnce([]);
+
+    const result = await requestManagedUserDeletion('pu-1', 'mu-1', true, true);
+    expect(result.status).toBe('deleted');
+    expect(mockUserDelete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'mu-1' } }));
+  });
+
+  it('AC-2 (delayed): schedules deletion 48h in future and returns scheduled status', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockDoseLogFindMany.mockResolvedValueOnce([]);
+    mockVialFindMany.mockResolvedValueOnce([]);
+    mockOutcomeLogFindMany.mockResolvedValueOnce([]);
+
+    const before = Date.now();
+    const result = await requestManagedUserDeletion('pu-1', 'mu-1', false);
+    expect(result.status).toBe('scheduled');
+    expect(result.scheduledFor!.getTime()).toBeGreaterThan(before + 47 * 3_600_000);
+    expect(mockADRCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ userId: 'mu-1', status: 'PENDING' }) })
+    );
+  });
+
+  it('AC-3: writes MANAGED_USER_DELETED audit event for immediate deletion', async () => {
+    let capturedAudit: unknown = null;
+    mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+      const result = await mutation({ user: { delete: mockUserDelete }, accountDeletionRequest: { delete: mockADRDelete } });
+      capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
+      return result;
+    });
+    mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockDoseLogFindMany.mockResolvedValueOnce([]);
+    mockVialFindMany.mockResolvedValueOnce([]);
+    mockOutcomeLogFindMany.mockResolvedValueOnce([]);
+
+    await requestManagedUserDeletion('pu-1', 'mu-1', true, true);
+    expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DELETED', actorUserId: 'pu-1', subjectUserId: 'mu-1' });
+  });
+
+  it('AC-3: writes MANAGED_USER_DELETION_REQUESTED audit event for delayed mode', async () => {
+    let capturedAudit: unknown = null;
+    mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+      const result = await mutation({ accountDeletionRequest: { create: mockADRCreate }, user: { updateMany: mockUpdateMany } });
+      capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
+      return result;
+    });
+    mockUserFindFirst.mockResolvedValueOnce(activeUser).mockResolvedValueOnce(powerUser);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockDoseLogFindMany.mockResolvedValueOnce([]);
+    mockVialFindMany.mockResolvedValueOnce([]);
+    mockOutcomeLogFindMany.mockResolvedValueOnce([]);
+
+    await requestManagedUserDeletion('pu-1', 'mu-1', false);
+    expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DELETION_REQUESTED', actorUserId: 'pu-1', subjectUserId: 'mu-1' });
+  });
+});
+
+describe('US-ADM-04: cancelManagedUserDeletion', () => {
+  it('throws managed_user_not_found when user does not belong to powerUser', async () => {
+    mockUserFindFirst.mockResolvedValueOnce(null);
+    await expect(cancelManagedUserDeletion('pu-1', 'stranger')).rejects.toThrow('managed_user_not_found');
+  });
+
+  it('throws no_pending_deletion when no PENDING request exists', async () => {
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1' });
+    mockADRFindFirst.mockResolvedValueOnce(null);
+    await expect(cancelManagedUserDeletion('pu-1', 'mu-1')).rejects.toThrow('no_pending_deletion');
+  });
+
+  it('cancels deletion and restores user status to DEACTIVATED', async () => {
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1' });
+    mockADRFindFirst.mockResolvedValueOnce({ id: 'adr-1' });
+
+    await cancelManagedUserDeletion('pu-1', 'mu-1');
+    expect(mockADRDelete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'adr-1' } }));
+    expect(mockUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'mu-1' }, data: { status: 'DEACTIVATED' } })
+    );
+  });
+
+  it('writes MANAGED_USER_DELETION_CANCELLED audit event', async () => {
+    let capturedAudit: unknown = null;
+    mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+      const result = await mutation({ accountDeletionRequest: { delete: mockADRDelete }, user: { updateMany: mockUpdateMany } });
+      capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
+      return result;
+    });
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1' });
+    mockADRFindFirst.mockResolvedValueOnce({ id: 'adr-1' });
+
+    await cancelManagedUserDeletion('pu-1', 'mu-1');
+    expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DELETION_CANCELLED', actorUserId: 'pu-1', subjectUserId: 'mu-1' });
+  });
+});
+
+describe('US-ADM-04: processPendingDeletions', () => {
+  it('returns 0 deleted when no pending deletions are due', async () => {
+    mockADRFindMany.mockResolvedValueOnce([]);
+    const result = await processPendingDeletions();
+    expect(result.deleted).toBe(0);
+    expect(mockUserDelete).not.toHaveBeenCalled();
+  });
+
+  it('deletes users whose scheduled deletion time has passed', async () => {
+    mockADRFindMany.mockResolvedValueOnce([{ userId: 'mu-1' }]);
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', managedBy: 'pu-1' });
+
+    const result = await processPendingDeletions();
+    expect(result.deleted).toBe(1);
+    expect(mockUserDelete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'mu-1' } }));
+  });
+
+  it('writes MANAGED_USER_DELETED audit event for each processed deletion', async () => {
+    let capturedAudit: unknown = null;
+    mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
+      const result = await mutation({ user: { delete: mockUserDelete } });
+      capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
+      return result;
+    });
+    mockADRFindMany.mockResolvedValueOnce([{ userId: 'mu-1' }]);
+    mockUserFindFirst.mockResolvedValueOnce({ id: 'mu-1', managedBy: 'pu-1' });
+
+    await processPendingDeletions();
+    expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DELETED', actorUserId: 'pu-1', subjectUserId: 'mu-1' });
   });
 });
