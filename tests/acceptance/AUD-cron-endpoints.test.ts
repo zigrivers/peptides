@@ -7,13 +7,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockPurge = vi.fn();
+const mockQueryRaw = vi.fn();
+const mockUserFindFirst = vi.fn();
+
 vi.mock('@/lib/audit/application/AuditPurgeService', () => ({
   purgeOldAuditEvents: mockPurge,
+}));
+vi.mock('@/lib/shared/prisma', () => ({
+  prisma: {
+    $queryRaw: mockQueryRaw,
+    user: { findFirst: mockUserFindFirst },
+  },
 }));
 
 beforeEach(() => {
   vi.resetAllMocks();
   mockPurge.mockResolvedValue({ deleted: 0, cutoff: new Date('2026-02-22T00:00:00Z') });
+  mockQueryRaw.mockResolvedValue([{ '?column?': 1 }]);
+  mockUserFindFirst.mockResolvedValue({ updatedAt: new Date() });
 });
 
 function makeRequest(path: string, authHeader?: string): Request {
@@ -81,13 +92,37 @@ describe('POST /api/cron/backup-verify', () => {
     }
   });
 
-  it('returns 200 + verifiedAt with the correct bearer', async () => {
+  it('returns 200 + verifiedAt with the correct bearer when the DB is healthy and fresh', async () => {
     process.env.CRON_SECRET = 'correct';
     const { POST } = await import('@/app/api/cron/backup-verify/route');
     const res = await POST(makeRequest('/api/cron/backup-verify', 'Bearer correct'));
     expect(res.status).toBe(200);
-    const json = (await res.json()) as { ok: boolean; verifiedAt: string };
+    const json = (await res.json()) as { ok: boolean; verifiedAt: string; lastUserUpdate: string };
     expect(json.ok).toBe(true);
     expect(typeof json.verifiedAt).toBe('string');
+    expect(mockQueryRaw).toHaveBeenCalled();
+  });
+
+  it('returns 500 db_unreachable when prisma.$queryRaw throws', async () => {
+    process.env.CRON_SECRET = 'correct';
+    mockQueryRaw.mockRejectedValueOnce(new Error('connection refused'));
+    const { POST } = await import('@/app/api/cron/backup-verify/route');
+    const res = await POST(makeRequest('/api/cron/backup-verify', 'Bearer correct'));
+    expect(res.status).toBe(500);
+    const json = (await res.json()) as { error: string };
+    expect(json.error).toBe('db_unreachable');
+  });
+
+  it('returns 503 db_stale when most-recent User.updatedAt is older than 72h', async () => {
+    process.env.CRON_SECRET = 'correct';
+    mockUserFindFirst.mockResolvedValueOnce({
+      updatedAt: new Date(Date.now() - 73 * 60 * 60 * 1000),
+    });
+    const { POST } = await import('@/app/api/cron/backup-verify/route');
+    const res = await POST(makeRequest('/api/cron/backup-verify', 'Bearer correct'));
+    expect(res.status).toBe(503);
+    const json = (await res.json()) as { error: string; lastUserUpdate: string };
+    expect(json.error).toBe('db_stale');
+    expect(typeof json.lastUserUpdate).toBe('string');
   });
 });
