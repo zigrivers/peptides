@@ -54,14 +54,16 @@ export type AuditAction =
   | 'VENDOR_PRODUCT_UPDATED'
   | 'VENDOR_PRODUCT_ARCHIVED'
   | 'ORDER_DRAFTED'
+  | 'ORDER_SEND_ATTEMPTED'
   | 'ORDER_SENT'
+  | 'ORDER_MANUAL_FALLBACK_PROVIDED'  // written when no Telegram session; order stays DRAFT
   | 'ORDER_CONFIRMED'
   | 'PAYMENT_ACKNOWLEDGED'
   | 'ORDER_PAYMENT_SENT'
   | 'ORDER_RECEIVED'
   | 'ORDER_CANCELLED'
   | 'ORDER_MARKED_STALE'
-  | 'DUPLICATE_SEND_BLOCKED'
+  | 'DUPLICATE_SEND_BLOCKED'  // written when a 60s duplicate guard fires
   // Reconstitution
   | 'VIAL_RECONSTITUTED'
   | 'SAFETY_WARNING_TRIGGERED'

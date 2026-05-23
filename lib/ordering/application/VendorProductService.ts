@@ -2,7 +2,23 @@ import Decimal from 'decimal.js';
 import type { VendorProduct as PrismaVendorProduct } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
+import { ITEM_FORMS } from '@/lib/ordering/domain/types';
 import type { VendorProduct } from '@/lib/ordering/domain/types';
+
+function validateProductForm(form: string | null | undefined): void {
+  if (form == null) return;
+  if (!(ITEM_FORMS as readonly string[]).includes(form)) throw new Error('invalid_form');
+}
+
+function validateProductVialSize(vialSizeMg: string | null | undefined): void {
+  if (vialSizeMg == null) return;
+  let d: Decimal;
+  try { d = new Decimal(vialSizeMg); } catch { throw new Error(`invalid_vial_size: ${vialSizeMg}`); }
+  if (!d.isFinite() || d.lte(0)) throw new Error(`invalid_vial_size: ${vialSizeMg}`);
+  // Mirror the 3-decimal precision limit from OrderService.normalizeVialSize — products with
+  // more precision can't be matched against normalized order line items (DECIMAL(10,3)).
+  if (d.decimalPlaces() > 3) throw new Error(`invalid_vial_size: ${vialSizeMg}`);
+}
 
 export interface CreateVendorProductInput {
   userId: string;
@@ -11,6 +27,8 @@ export interface CreateVendorProductInput {
   name: string;
   priceUsd: string;
   inStock: boolean;
+  form?: string;
+  vialSizeMg?: string;
 }
 
 export interface UpdateVendorProductInput {
@@ -19,6 +37,8 @@ export interface UpdateVendorProductInput {
   name?: string;
   priceUsd?: string;
   inStock?: boolean;
+  form?: string | null;
+  vialSizeMg?: string | null;
 }
 
 function toVendorProduct(row: PrismaVendorProduct): VendorProduct {
@@ -29,10 +49,14 @@ function toVendorProduct(row: PrismaVendorProduct): VendorProduct {
     name: row.name,
     priceUsd: new Decimal(row.priceUsd).toFixed(2),
     inStock: row.inStock,
+    form: row.form ?? null,
+    vialSizeMg: row.vialSizeMg != null ? new Decimal(row.vialSizeMg).toString() : null,
   };
 }
 
 export async function createVendorProduct(input: CreateVendorProductInput): Promise<VendorProduct> {
+  validateProductForm(input.form);
+  validateProductVialSize(input.vialSizeMg);
   return withAudit(
     async (tx) => {
       const vendor = await tx.vendor.findFirst({
@@ -48,6 +72,8 @@ export async function createVendorProduct(input: CreateVendorProductInput): Prom
           name: input.name,
           priceUsd: new Decimal(input.priceUsd),
           inStock: input.inStock,
+          ...(input.form !== undefined ? { form: input.form } : {}),
+          ...(input.vialSizeMg !== undefined ? { vialSizeMg: new Decimal(input.vialSizeMg) } : {}),
         },
       });
       return toVendorProduct(row);
@@ -72,6 +98,8 @@ export async function listVendorProducts(userId: string, vendorId: string): Prom
 }
 
 export async function updateVendorProduct(input: UpdateVendorProductInput): Promise<VendorProduct> {
+  validateProductForm(input.form);
+  validateProductVialSize(input.vialSizeMg);
   return withAudit(
     async (tx) => {
       // Verify ownership inside the same transaction (eliminates TOCTOU); update by verified ID
@@ -84,6 +112,8 @@ export async function updateVendorProduct(input: UpdateVendorProductInput): Prom
       if (input.name !== undefined) data.name = input.name;
       if (input.priceUsd !== undefined) data.priceUsd = new Decimal(input.priceUsd);
       if (input.inStock !== undefined) data.inStock = input.inStock;
+      if (input.form !== undefined) data.form = input.form ?? null;
+      if (input.vialSizeMg !== undefined) data.vialSizeMg = input.vialSizeMg != null ? new Decimal(input.vialSizeMg) : null;
 
       const row = await tx.vendorProduct.update({ where: { id: existing.id }, data });
       return toVendorProduct(row);

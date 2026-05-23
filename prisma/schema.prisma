@@ -348,7 +348,9 @@ model VendorProduct {
   name        String
   priceUsd    Decimal   @db.Decimal(10, 2)
   inStock     Boolean   @default(true)
-  
+  form        String?   // "LYOPHILIZED_POWDER" | "SOLUTION" — if set, line items must match
+  vialSizeMg  Decimal?  @db.Decimal(10, 3) // if set, line items must match
+
   orderItems  OrderItem[]
 
   @@index([vendorId, inStock])

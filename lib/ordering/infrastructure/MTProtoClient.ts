@@ -100,6 +100,24 @@ export async function logoutSession(plainSessionString: string): Promise<void> {
   }
 }
 
+export async function sendTelegramMessage(
+  sessionString: string,
+  recipientUsername: string,
+  text: string
+): Promise<{ messageId: string }> {
+  const client = makeClient(sessionString);
+  await client.connect();
+  try {
+    const result = await client.sendMessage(recipientUsername, { message: text });
+    return { messageId: String(result.id) };
+  } finally {
+    // Catch disconnect errors separately: a disconnect failure must not mask a successful
+    // sendMessage, which would cause OrderService to offer manual fallback for a
+    // message that Telegram already delivered (duplicate-send risk).
+    try { await client.disconnect(); } catch (err) { console.error('[MTProtoClient] disconnect error (non-fatal):', err); }
+  }
+}
+
 export async function checkSession(encryptedSession: string, decryptFn: (s: string) => string): Promise<boolean> {
   let client: ReturnType<typeof makeClient> | null = null;
   try {
