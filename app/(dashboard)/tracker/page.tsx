@@ -73,6 +73,20 @@ export default async function TrackerPage() {
       )}
 
       <section>
+        <Link
+          href="/tracker/outcomes"
+          className="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 hover:bg-emerald-100 transition-colors"
+        >
+          <div>
+            <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Outcomes</p>
+            <p className="text-sm font-semibold text-emerald-800 mt-0.5">
+              Log today&apos;s rating and see your dose-outcome correlation →
+            </p>
+          </div>
+        </Link>
+      </section>
+
+      <section>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-semibold text-gray-900">Protocols</h1>
           <Link

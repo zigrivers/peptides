@@ -297,6 +297,7 @@ model ProtocolRating {
   protocolId    String
   rating        Int        // 1-5
 
+  @@unique([outcomeLogId, protocolId])
   @@index([protocolId])
 }
 

@@ -57,6 +57,9 @@ export type AuditAction =
   | 'CYCLE_CREATED'
   | 'CYCLE_UPDATED'
   | 'CYCLE_RESTARTED'
+  | 'OUTCOME_LOGGED'
+  | 'OUTCOME_UPDATED'
+  | 'PROTOCOL_RATED'
   // Order
   | 'VENDOR_CREATED'
   | 'VENDOR_UPDATED'
