@@ -511,6 +511,19 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
             where: { id: req.id, userId: req.userId, status: 'PENDING' },
           });
           if (adrCount === 0) throw new Error('already_cancelled');
+          // Pre-delete dependent ordering rows so the User → Vendor cascade
+          // doesn't hit Order.vendorId FK restrict. Order.userId Cascade
+          // handles the user's own orders; we explicitly clear any orders
+          // referencing this user's vendors (in case ownership has diverged).
+          const userVendors = await tx.vendor.findMany({
+            where: { userId: req.userId },
+            select: { id: true },
+          });
+          if (userVendors.length > 0) {
+            await tx.order.deleteMany({
+              where: { vendorId: { in: userVendors.map((v) => v.id) } },
+            });
+          }
           // Scope the user delete with managedBy = recorded requestor so the
           // destructive op carries the original authorization predicate
           const { count: userCount } = await tx.user.deleteMany({

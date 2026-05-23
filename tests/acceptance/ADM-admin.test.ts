@@ -27,6 +27,7 @@ const mockEmailChangeFindMany = vi.fn();
 const mockDataExportFindMany = vi.fn();
 const mockAuditEventFindMany = vi.fn();
 const mockOrderFindMany = vi.fn();
+const mockOrderDeleteMany = vi.fn();
 const mockWithAudit = vi.fn();
 const mockSend = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
@@ -69,6 +70,8 @@ function setupWithAudit() {
       invite: { create: mockCreate, updateMany: mockUpdateMany },
       user: { update: mockUpdate, updateMany: mockUpdateMany, delete: mockUserDelete, deleteMany: mockUserDeleteMany },
       accountDeletionRequest: { create: mockADRCreate, delete: mockADRDelete, deleteMany: mockADRDeleteMany },
+      vendor: { findMany: mockVendorFindMany },
+      order: { deleteMany: mockOrderDeleteMany },
     })
   );
 }
@@ -104,6 +107,7 @@ beforeEach(() => {
   mockDataExportFindMany.mockResolvedValue([]);
   mockAuditEventFindMany.mockResolvedValue([]);
   mockOrderFindMany.mockResolvedValue([]);
+  mockOrderDeleteMany.mockResolvedValue({ count: 0 });
 });
 
 const { createInvite } = await import('@/lib/auth/application/createInvite');
@@ -656,7 +660,12 @@ describe('US-ADM-04: processPendingDeletions', () => {
   it('writes MANAGED_USER_DELETED audit event for each processed deletion', async () => {
     let capturedAudit: unknown = null;
     mockWithAudit.mockImplementationOnce(async (mutation: (tx: unknown) => Promise<unknown>, buildAudit: unknown) => {
-      const result = await mutation({ user: { deleteMany: mockUserDeleteMany }, accountDeletionRequest: { deleteMany: mockADRDeleteMany } });
+      const result = await mutation({
+        user: { deleteMany: mockUserDeleteMany },
+        accountDeletionRequest: { deleteMany: mockADRDeleteMany },
+        vendor: { findMany: mockVendorFindMany },
+        order: { deleteMany: mockOrderDeleteMany },
+      });
       capturedAudit = typeof buildAudit === 'function' ? buildAudit(result) : buildAudit;
       return result;
     });
