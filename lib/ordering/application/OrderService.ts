@@ -9,7 +9,7 @@ import { sendTelegramMessage } from '@/lib/ordering/infrastructure/MTProtoClient
 import { getDecryptedSession, buildFallbackDeepLink } from './TelegramAuthService';
 import { findCompoundsByIds } from '@/lib/reference/infrastructure/CompoundRepo';
 
-type OrderWithDetails = Prisma.OrderGetPayload<{
+type OrderForSend = Prisma.OrderGetPayload<{
   include: {
     vendor: true;
     items: { include: { compound: { select: { name: true } } } };
@@ -196,7 +196,7 @@ export async function sendOrder(
   orderId: string,
   force = false
 ): Promise<SendOrderResult> {
-  const order: OrderWithDetails | null = await prisma.order.findFirst({
+  const order: OrderForSend | null = await prisma.order.findFirst({
     where: { id: orderId, userId },
     include: {
       vendor: true,
@@ -375,6 +375,7 @@ export async function sendOrder(
 // ---------------------------------------------------------------------------
 
 const TERMINAL_STATUSES = ['RECEIVED', 'CANCELLED'] as const;
+export const NON_TERMINAL_STATUSES = ['DRAFT', 'SENT', 'CONFIRMED', 'PAYMENT_SENT', 'STALE'] as const;
 
 export interface OrderSummary {
   id: string;
@@ -423,10 +424,11 @@ export async function markOrdersStale(now: Date): Promise<number> {
   for (const order of staleOrders) {
     await withAudit(
       async (tx) => {
-        await tx.order.updateMany({
-          where: { id: order.id, status: 'SENT' },
+        const { count } = await tx.order.updateMany({
+          where: { id: order.id, userId: order.userId, status: 'SENT' },
           data: { status: 'STALE', staleFlaggedAt: now },
         });
+        if (count === 0) throw new Error('stale_transition_conflict');
       },
       () => ({
         actorUserId: order.userId,
@@ -461,4 +463,24 @@ export async function listOrders(userId: string): Promise<OrderSummary[]> {
     cancelledAt: o.cancelledAt,
     staleFlaggedAt: o.staleFlaggedAt,
   }));
+}
+
+export type OrderWithDetails = Prisma.OrderGetPayload<{
+  include: {
+    vendor: { select: { name: true; telegramUsername: true } };
+    items: { include: { compound: { select: { name: true } } } };
+  };
+}>;
+
+export async function getOrderWithDetails(
+  userId: string,
+  orderId: string
+): Promise<OrderWithDetails | null> {
+  return prisma.order.findFirst({
+    where: { id: orderId, userId },
+    include: {
+      vendor: { select: { name: true, telegramUsername: true } },
+      items: { include: { compound: { select: { name: true } } } },
+    },
+  });
 }

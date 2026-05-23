@@ -8,5 +8,5 @@ export async function cancelOrderAction(orderId: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error('Unauthorized');
   await cancelOrder(session.user.id, orderId);
-  revalidatePath('/ordering/orders');
+  revalidatePath('/ordering/orders', 'layout');
 }

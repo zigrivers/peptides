@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/shared/prisma';
+import { getOrderWithDetails, NON_TERMINAL_STATUSES } from '@/lib/ordering/application/OrderService';
 import { OrderStatusBadge } from '../../_components/OrderStatusBadge';
 import { CancelOrderButton } from '../_components/CancelOrderButton';
 
@@ -9,22 +9,12 @@ interface Props {
   params: Promise<{ orderId: string }>;
 }
 
-const NON_TERMINAL_STATUSES = ['DRAFT', 'SENT', 'CONFIRMED', 'PAYMENT_SENT', 'STALE'];
-
 export default async function OrderDetailPage({ params }: Props) {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
 
   const { orderId } = await params;
-  const order = await prisma.order.findFirst({
-    where: { id: orderId, userId: session.user.id },
-    include: {
-      vendor: { select: { name: true, telegramUsername: true } },
-      items: {
-        include: { compound: { select: { name: true } } },
-      },
-    },
-  });
+  const order = await getOrderWithDetails(session.user.id, orderId);
 
   if (!order) notFound();
 
@@ -102,7 +92,7 @@ export default async function OrderDetailPage({ params }: Props) {
         {order.cancelledAt && <TimelineRow label="Cancelled" date={order.cancelledAt} />}
       </section>
 
-      {NON_TERMINAL_STATUSES.includes(order.status) && (
+      {(NON_TERMINAL_STATUSES as readonly string[]).includes(order.status) && (
         <div className="flex justify-end">
           <CancelOrderButton orderId={order.id} />
         </div>

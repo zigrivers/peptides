@@ -1,11 +1,9 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
-import { listOrders } from '@/lib/ordering/application/OrderService';
+import { listOrders, NON_TERMINAL_STATUSES } from '@/lib/ordering/application/OrderService';
 import { OrderStatusBadge } from '../_components/OrderStatusBadge';
 import { CancelOrderButton } from './_components/CancelOrderButton';
-
-const NON_TERMINAL_STATUSES = ['DRAFT', 'SENT', 'CONFIRMED', 'PAYMENT_SENT', 'STALE'];
 
 export default async function OrderHistoryPage() {
   const session = await auth();
@@ -56,7 +54,7 @@ export default async function OrderHistoryPage() {
                     <Link href={`/ordering/orders/${order.id}`} className="text-xs text-indigo-600 hover:underline">
                       View
                     </Link>
-                    {NON_TERMINAL_STATUSES.includes(order.status) && (
+                    {(NON_TERMINAL_STATUSES as readonly string[]).includes(order.status) && (
                       <CancelOrderButton orderId={order.id} />
                     )}
                   </div>
