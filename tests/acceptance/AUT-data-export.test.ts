@@ -91,7 +91,7 @@ describe('US-AUT-02: requestDataExport (self-serve)', () => {
     expect(mockDERUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'der-1', userId: 'u-1' },
-        data: { status: 'COMPLETED' },
+        data: expect.objectContaining({ status: 'COMPLETED' }),
       })
     );
   });
@@ -139,7 +139,7 @@ describe('US-AUT-02: requestDataExport (self-serve)', () => {
     );
     // Phase 3a COMPLETED updateMany did NOT happen
     expect(mockDERUpdateMany).not.toHaveBeenCalledWith(
-      expect.objectContaining({ data: { status: 'COMPLETED' } })
+      expect.objectContaining({ data: expect.objectContaining({ status: 'COMPLETED' }) })
     );
     // Best-effort FAILED status updateMany happened (outer prisma, userId-scoped)
     expect(mockDERUpdateMany).toHaveBeenCalledWith(

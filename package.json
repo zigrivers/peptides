@@ -28,6 +28,8 @@
     "@ai-sdk/anthropic": "^3.0.79",
     "@ai-sdk/google": "^3.0.79",
     "@auth/prisma-adapter": "^2.11.2",
+    "@aws-sdk/client-s3": "^3.1053.0",
+    "@aws-sdk/s3-request-presigner": "^3.1053.0",
     "@prisma/client": "^5.14.0",
     "ai": "^6.0.191",
     "bcryptjs": "^3.0.3",
