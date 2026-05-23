@@ -285,7 +285,7 @@ export async function requestManagedUserDeletion(
     where: { id: powerUserId },
     select: { id: true, email: true },
   });
-  if (!powerUser) throw new Error('managed_user_not_found');
+  if (!powerUser) throw new Error('power_user_not_found');
 
   if (immediate && !secondConfirm) {
     return { status: 'needs_second_confirm' };
@@ -295,20 +295,25 @@ export async function requestManagedUserDeletion(
   const adminEmail = powerUser.email;
   const managedEmail = managedUser.email;
 
-  after(async () => {
-    const { error } = await resend.emails.send({
-      from: FROM_ADDRESS,
-      to: adminEmail,
-      subject: `Data export for ${managedEmail} — before account deletion`,
-      html: `<p>The deletion of managed user <strong>${managedEmail}</strong> has been ${immediate ? 'executed immediately' : 'scheduled'}. Their data export is attached.</p>`,
-      attachments: [{ filename: `export-${managedUserId}.json`, content: Buffer.from(exportJson).toString('base64') }],
+  function dispatchExportEmail(mode: 'immediate' | 'delayed') {
+    after(async () => {
+      const { error } = await resend.emails.send({
+        from: FROM_ADDRESS,
+        to: adminEmail,
+        subject: `Data export for ${managedEmail} — before account deletion`,
+        html: `<p>The deletion of managed user <strong>${managedEmail}</strong> has been ${mode === 'immediate' ? 'executed immediately' : 'scheduled'}. Their data export is attached.</p>`,
+        attachments: [{ filename: `export-${managedUserId}.json`, content: Buffer.from(exportJson).toString('base64') }],
+      });
+      if (error) console.error('[requestManagedUserDeletion] export email failed:', error.message);
     });
-    if (error) console.error('[requestManagedUserDeletion] export email failed:', error.message);
-  });
+  }
 
   if (immediate) {
     await withAudit(
-      async (tx) => { await tx.user.delete({ where: { id: managedUserId } }); },
+      async (tx) => {
+        const { count } = await tx.user.deleteMany({ where: { id: managedUserId, managedBy: powerUserId } });
+        if (count === 0) throw new Error('managed_user_not_found');
+      },
       {
         actorUserId: powerUserId,
         subjectUserId: managedUserId,
@@ -319,16 +324,18 @@ export async function requestManagedUserDeletion(
         metadata: { mode: 'immediate' },
       }
     );
+    dispatchExportEmail('immediate');
     return { status: 'deleted' };
   }
 
   const scheduledFor = new Date(Date.now() + 48 * 3_600_000);
   await withAudit(
     async (tx) => {
-      await tx.user.updateMany({
-        where: { id: managedUserId },
+      const { count } = await tx.user.updateMany({
+        where: { id: managedUserId, managedBy: powerUserId },
         data: { status: 'DELETION_PENDING' },
       });
+      if (count === 0) throw new Error('managed_user_not_found');
       await tx.accountDeletionRequest.create({
         data: { userId: managedUserId, scheduledFor, status: 'PENDING' },
       });
@@ -343,6 +350,7 @@ export async function requestManagedUserDeletion(
       metadata: { scheduledFor: scheduledFor.toISOString(), mode: 'delayed' },
     }
   );
+  dispatchExportEmail('delayed');
   return { status: 'scheduled', scheduledFor };
 }
 
@@ -387,25 +395,29 @@ export async function processPendingDeletions(): Promise<{ deleted: number }> {
 
   let deleted = 0;
   for (const req of pending) {
-    const user = await prisma.user.findFirst({
-      where: { id: req.userId },
-      select: { id: true, managedBy: true },
-    });
-    if (!user) continue;
+    try {
+      const user = await prisma.user.findFirst({
+        where: { id: req.userId },
+        select: { id: true, managedBy: true },
+      });
+      if (!user) continue;
 
-    await withAudit(
-      async (tx) => { await tx.user.delete({ where: { id: req.userId } }); },
-      {
-        actorUserId: user.managedBy ?? req.userId,
-        subjectUserId: req.userId,
-        category: 'Admin' as const,
-        action: 'MANAGED_USER_DELETED' as const,
-        resourceId: req.userId,
-        resourceType: 'User',
-        metadata: { mode: 'delayed' },
-      }
-    );
-    deleted++;
+      await withAudit(
+        async (tx) => { await tx.user.delete({ where: { id: req.userId } }); },
+        {
+          actorUserId: user.managedBy ?? req.userId,
+          subjectUserId: req.userId,
+          category: 'Admin' as const,
+          action: 'MANAGED_USER_DELETED' as const,
+          resourceId: req.userId,
+          resourceType: 'User',
+          metadata: { mode: 'delayed' },
+        }
+      );
+      deleted++;
+    } catch (err) {
+      console.error('[processPendingDeletions] failed for userId', req.userId, err);
+    }
   }
 
   return { deleted };
