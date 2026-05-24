@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { PWARegistry } from './PWARegistry';
 
 interface NavItem {
   label: string;
@@ -135,6 +136,11 @@ export function DashboardNav({ orderingEnabled }: DashboardNavProps) {
               </Link>
             );
           })}
+        </div>
+
+        {/* Sidebar Footer for PWA Status Indicator */}
+        <div className="p-4 border-t border-border mt-auto flex justify-center lg:justify-start">
+          <PWARegistry />
         </div>
       </nav>
     </>

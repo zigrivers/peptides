@@ -10,7 +10,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <DashboardNav orderingEnabled={orderingEnabled} />
       
       <div className="flex-1 flex flex-col min-w-0 pb-16 sm:pb-0 sm:pl-16 lg:pl-64">
-        <div className="fixed bottom-20 sm:bottom-4 right-4 z-50">
+        <div className="fixed bottom-20 right-4 z-50 sm:hidden">
           <PWARegistry />
         </div>
         <div className="flex-1">
