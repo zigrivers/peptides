@@ -46,8 +46,8 @@ export default async function AcceptInvitePage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4 mb-6">
-        <p className="text-sm text-indigo-900">
+      <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 mb-6">
+        <p className="text-sm text-slate-800 dark:text-slate-200">
           <strong>What this means:</strong> {inviterLabel} configures your protocols and can view
           your adherence data. You can request a data export or account deletion at any time.
           Submitting this form confirms you agree to this arrangement.
@@ -61,7 +61,7 @@ export default async function AcceptInvitePage({ searchParams }: PageProps) {
 
       <p className="text-xs text-gray-500 mt-6 text-center">
         Already accepted?{' '}
-        <Link href="/login" className="text-indigo-600 hover:underline">Sign in</Link>
+        <Link href="/login" className="text-primary hover:underline font-medium">Sign in</Link>
       </p>
     </main>
   );
@@ -92,7 +92,7 @@ function InvalidInvite({
       <p className="text-sm text-gray-600 mb-6">{messages[reason]}</p>
       {reason === 'used' && (
         <p className="text-sm text-gray-600 mb-6">
-          If this is your account, please <Link href="/login" className="text-indigo-600 hover:underline">sign in</Link> instead.
+          If this is your account, please <Link href="/login" className="text-primary hover:underline font-medium">sign in</Link> instead.
         </p>
       )}
       {reason === 'expired' && (
@@ -100,7 +100,7 @@ function InvalidInvite({
           Ask your administrator to send a new invitation.
         </p>
       )}
-      <Link href="/login" className="text-sm text-indigo-600 hover:underline">
+      <Link href="/login" className="text-sm text-primary hover:underline font-medium">
         ← Back to sign in
       </Link>
     </main>
