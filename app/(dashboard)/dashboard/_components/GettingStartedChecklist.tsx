@@ -77,7 +77,7 @@ export function GettingStartedChecklist({ state, userRole, orderingEnabled }: Ge
       {/* Progress bar */}
       <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4" aria-hidden="true">
         <div
-          className="bg-indigo-600 h-1.5 rounded-full transition-all"
+          className="bg-primary h-1.5 rounded-full transition-all"
           style={{ width: `${totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0}%` }}
         />
       </div>
@@ -92,7 +92,7 @@ export function GettingStartedChecklist({ state, userRole, orderingEnabled }: Ge
               <span
                 className={[
                   'w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0',
-                  done ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400',
+                  done ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-400',
                 ].join(' ')}
                 aria-hidden="true"
               >
@@ -107,7 +107,7 @@ export function GettingStartedChecklist({ state, userRole, orderingEnabled }: Ge
                 {step.label}
               </span>
               {isCurrent && (
-                <span className="ml-auto text-xs text-indigo-600 font-medium">Current</span>
+                <span className="ml-auto text-xs text-primary font-medium">Current</span>
               )}
             </li>
           );
@@ -117,7 +117,7 @@ export function GettingStartedChecklist({ state, userRole, orderingEnabled }: Ge
       <button
         type="button"
         onClick={handleContinue}
-        className="w-full py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+        className="w-full py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
       >
         Continue Setup
       </button>
