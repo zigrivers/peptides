@@ -57,7 +57,7 @@ export default async function ProtocolDetailPage({
             {compound?.name ?? protocol.compoundId}
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {protocol.dose.amount} {protocol.dose.unit} — {formatSchedule(protocol.schedule)}
+            <span className="font-mono">{protocol.dose.amount}</span> {protocol.dose.unit} — {formatSchedule(protocol.schedule)}
           </p>
         </div>
         <span className={`text-xs rounded-full px-2 py-1 font-medium ${statusColors[protocol.status] ?? 'text-gray-600 bg-gray-100'}`}>
@@ -92,7 +92,7 @@ export default async function ProtocolDetailPage({
         <div className="mt-6">
           <Link
             href={`/tracker/protocols/${protocol.id}/edit`}
-            className="text-sm text-indigo-600 hover:underline"
+            className="text-sm text-primary hover:underline"
           >
             Edit protocol →
           </Link>

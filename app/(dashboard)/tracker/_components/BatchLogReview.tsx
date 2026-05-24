@@ -120,7 +120,7 @@ export function BatchLogReview({ items, compoundNames }: Props) {
               <li key={item.protocol.id} className="flex items-center gap-3 rounded-lg border border-green-100 bg-green-50 px-3 py-2">
                 <span className="text-green-600 text-sm">&#10003;</span>
                 <span className="text-sm text-green-700">
-                  {compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId} — {item.protocol.dose.amount} {item.protocol.dose.unit}
+                  {compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId} — <span className="font-mono">{item.protocol.dose.amount}</span> {item.protocol.dose.unit}
                 </span>
               </li>
             );
@@ -131,14 +131,14 @@ export function BatchLogReview({ items, compoundNames }: Props) {
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600"
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                   checked={isSelected && item.isAvailable}
                   disabled={!item.isAvailable || isPending}
                   onChange={() => item.isAvailable && toggleProtocol(item.protocol.id)}
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-gray-900">
-                    {compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId} — {item.protocol.dose.amount} {item.protocol.dose.unit}
+                    {compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId} — <span className="font-mono">{item.protocol.dose.amount}</span> {item.protocol.dose.unit}
                   </p>
                   {state === 'skipped' && item.isAvailable && (
                     <p className="text-xs text-yellow-700 mt-0.5">Previously skipped — log now?</p>
@@ -162,7 +162,7 @@ export function BatchLogReview({ items, compoundNames }: Props) {
       <button
         disabled={isPending || selected.size === 0}
         onClick={handleConfirm}
-        className="w-full rounded-md bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+        className="w-full rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors"
       >
         {isPending ? 'Logging...' : `Confirm (${selected.size} dose${selected.size !== 1 ? 's' : ''})`}
       </button>
