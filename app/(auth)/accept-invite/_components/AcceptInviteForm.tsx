@@ -41,17 +41,18 @@ export function AcceptInviteForm({ action, email }: Props) {
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-foreground mb-1">Email</label>
         <input
+          id="email"
           type="email"
           value={email}
           readOnly
-          className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
+          className="w-full rounded-md border border-gray-200 bg-gray-50 dark:bg-muted dark:border-border px-3 py-2.5 text-sm text-gray-700 dark:text-slate-300 focus:outline-none"
         />
       </div>
 
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Your name</label>
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-foreground mb-1">Your name</label>
         <input
           id="name"
           name="name"
@@ -60,12 +61,12 @@ export function AcceptInviteForm({ action, email }: Props) {
           onChange={(e) => setName(e.target.value)}
           required
           autoComplete="name"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded-md border border-gray-300 dark:border-border dark:bg-card px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-foreground mb-1">
           Password <span className="text-xs text-gray-400">(at least 8 characters)</span>
         </label>
         <input
@@ -77,12 +78,12 @@ export function AcceptInviteForm({ action, email }: Props) {
           minLength={8}
           required
           autoComplete="new-password"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded-md border border-gray-300 dark:border-border dark:bg-card px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
 
       <div>
-        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-foreground mb-1">
           Confirm password
         </label>
         <input
@@ -94,14 +95,14 @@ export function AcceptInviteForm({ action, email }: Props) {
           minLength={8}
           required
           autoComplete="new-password"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded-md border border-gray-300 dark:border-border dark:bg-card px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
         {confirmPassword.length > 0 && password !== confirmPassword && (
           <p className="text-xs text-red-600 mt-1">Passwords do not match.</p>
         )}
       </div>
 
-      <label className="flex items-start gap-2 text-sm text-gray-700 mt-4">
+      <label className="flex items-start gap-3 text-sm text-gray-700 dark:text-muted-foreground mt-4 cursor-pointer p-1.5 hover:bg-gray-50 dark:hover:bg-muted/30 transition-colors rounded">
         <input
           type="checkbox"
           name="acknowledged"
@@ -109,7 +110,7 @@ export function AcceptInviteForm({ action, email }: Props) {
           checked={acknowledged}
           onChange={(e) => setAcknowledged(e.target.checked)}
           required
-          className="mt-0.5"
+          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
         />
         <span>
           I acknowledge that my administrator configures my protocols and can view my adherence data,
@@ -120,7 +121,7 @@ export function AcceptInviteForm({ action, email }: Props) {
       <button
         type="submit"
         disabled={isPending || !canSubmit}
-        className="w-full py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="w-full py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
       >
         {isPending ? 'Creating your account…' : 'Accept invitation'}
       </button>
