@@ -1,14 +1,14 @@
 # Advanced UI/UX Enhancements Tasks
 
 ## Phase 1: Centralized HSL Colors for SVGs & Log Selectors
-- [ ] Replace hardcoded hex colors (`#6366f1` and `#10b981`) in `CorrelationTimeline.tsx` with HSL theme token variables
-- [ ] Replace hardcoded `indigo-600` and `indigo-50` colors in `DoseLogActions.tsx` site buttons with standard HSL theme classes
+- [x] Replace hardcoded hex colors (`#6366f1` and `#10b981`) in `CorrelationTimeline.tsx` with HSL theme token variables
+- [x] Replace hardcoded `indigo-600` and `indigo-50` colors in `DoseLogActions.tsx` site buttons with standard HSL theme classes
 
 ## Phase 2: Interactive SVG Injection Site Map (Full-body)
-- [ ] Re-engineer `SitePicker` inside `DoseLogActions.tsx` to display an interactive SVG diagram representing the human body
-- [ ] Implement site hotspots for Deltoids, Abdomen, Ventrogluteals, and Thighs dynamically rendered based on route (SubQ vs IM)
-- [ ] Style hotspots to show Suggested (glowing), Rested (success green), and Selected (primary fill) states
-- [ ] Ensure full keyboard accessibility and screen reader labels for the interactive SVG button zones
+- [x] Re-engineer `SitePicker` inside `DoseLogActions.tsx` to display an interactive SVG diagram representing the human body
+- [x] Implement site hotspots for Deltoids, Abdomen, Ventrogluteals, and Thighs dynamically rendered based on route (SubQ vs IM)
+- [x] Style hotspots to show Suggested (glowing), Rested (success green), and Selected (primary fill) states
+- [x] Ensure full keyboard accessibility and screen reader labels for the interactive SVG button zones
 
 ## Phase 3: Reconstitution Interactive SVG Syringe Preview
 - [ ] Create `SyringePreview.tsx` client component inside `app/(dashboard)/reconstitution/_components/SyringePreview.tsx`
