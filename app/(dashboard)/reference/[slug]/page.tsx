@@ -20,7 +20,7 @@ function CitationLink({ citation }: { citation: Citation }) {
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline hover:text-indigo-600"
+          className="underline hover:text-primary"
         >
           {citation.title}
         </a>
@@ -38,7 +38,7 @@ function DoseRow({ label, amount, unit }: { label: string; amount: string; unit:
     <tr>
       <td className="py-1 pr-4 text-sm text-gray-500">{label}</td>
       <td className="py-1 text-sm font-medium text-gray-900">
-        {amount} {unit}
+        <span className="font-mono">{amount}</span> {unit}
       </td>
     </tr>
   );
@@ -62,7 +62,7 @@ export default async function CompoundProfilePage({
   return (
     <main className="max-w-2xl mx-auto px-4 py-8">
       <nav className="mb-4">
-        <Link href="/reference" className="text-sm text-indigo-600 hover:underline">
+        <Link href="/reference" className="text-sm text-primary hover:underline">
           ← Catalog
         </Link>
       </nav>
@@ -72,7 +72,7 @@ export default async function CompoundProfilePage({
       </h1>
 
       {compound.iupacName && (
-        <p className="mt-1 text-xs text-gray-400 font-mono break-all">{compound.iupacName}</p>
+        <p className="mt-1 text-xs text-gray-500 font-mono break-all">{compound.iupacName}</p>
       )}
 
       {compound.synonyms.length > 0 && (
@@ -86,7 +86,7 @@ export default async function CompoundProfilePage({
           {compound.tags.map((tag) => (
             <span
               key={tag}
-              className="text-xs bg-indigo-50 text-indigo-700 rounded-full px-2 py-0.5"
+              className="text-xs bg-primary/5 text-primary rounded-full px-2 py-0.5"
             >
               {tag}
             </span>

@@ -55,11 +55,11 @@ export default async function TrackerPage() {
         <section>
           <Link
             href="/tracker/cycles"
-            className="flex items-center justify-between rounded-lg bg-indigo-50 border border-indigo-200 px-4 py-3 hover:bg-indigo-100 transition-colors"
+            className="flex items-center justify-between rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/20 px-4 py-3 hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors"
           >
             <div>
-              <p className="text-xs text-indigo-500 font-medium uppercase tracking-wide">Active Cycle</p>
-              <p className="text-sm font-semibold text-indigo-800 mt-0.5">
+              <p className="text-xs text-primary/70 font-medium uppercase tracking-wide">Active Cycle</p>
+              <p className="text-sm font-semibold text-primary mt-0.5">
                 {weekInfo.cycleName}
                 {' — '}
                 {weekInfo.totalWeeks
@@ -67,7 +67,7 @@ export default async function TrackerPage() {
                   : `Week ${weekInfo.weekNumber}`}
               </p>
             </div>
-            <span className="text-indigo-400 text-sm">→</span>
+            <span className="text-primary/60 text-sm">→</span>
           </Link>
         </section>
       )}
@@ -91,7 +91,7 @@ export default async function TrackerPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Protocols</h1>
           <Link
             href="/tracker/protocols/new"
-            className="rounded-md bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 transition-colors"
+            className="rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors"
           >
             + New Protocol
           </Link>
@@ -102,7 +102,7 @@ export default async function TrackerPage() {
             <p className="text-gray-500 text-sm mb-4">No protocols yet.</p>
             <Link
               href="/tracker/protocols/new"
-              className="text-indigo-600 text-sm font-medium hover:underline"
+              className="text-primary text-sm font-medium hover:underline"
             >
               Create your first protocol →
             </Link>
@@ -113,12 +113,12 @@ export default async function TrackerPage() {
               <li key={p.id}>
                 <Link
                   href={`/tracker/protocols/${p.id}`}
-                  className="block rounded-lg border border-gray-200 p-4 hover:border-indigo-400 hover:shadow-sm transition-all"
+                  className="block rounded-lg border border-gray-200 p-4 hover:border-primary/40 hover:shadow-sm transition-all"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 text-sm">
-                        {p.dose.amount} {p.dose.unit} — {formatSchedule(p.schedule)}
+                        <span className="font-mono">{p.dose.amount}</span> {p.dose.unit} — {formatSchedule(p.schedule)}
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">
                         {p.administrationRoute} · Started {p.startDate.toLocaleDateString(undefined, { timeZone: 'UTC' })}
