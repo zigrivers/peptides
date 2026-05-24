@@ -17,6 +17,7 @@ export interface ScheduleDeletionState {
 const HUMAN_ERRORS: Record<string, string> = {
   unauthorized: 'Please sign in again.',
   email_mismatch: 'The email you entered does not match the email on your account.',
+  confirm_text_mismatch: 'Please type DELETE exactly to confirm deletion.',
   acknowledgment_required: 'Please tick the "I understand" checkbox to confirm.',
   deletion_already_pending: 'Your account is already scheduled for deletion.',
   export_too_large: 'Your data export is too large to email automatically — please contact support.',
@@ -40,6 +41,11 @@ export async function scheduleDeletionAction(
 ): Promise<ScheduleDeletionState> {
   const session = await auth();
   if (!session?.user?.id) return { error: humanError('unauthorized') };
+
+  const confirmText = String(formData.get('confirmText') ?? '');
+  if (confirmText.trim().toUpperCase() !== 'DELETE') {
+    return { error: humanError('confirm_text_mismatch') };
+  }
 
   const confirmEmail = String(formData.get('confirmEmail') ?? '');
   try {
@@ -74,6 +80,11 @@ export async function deleteImmediatelyAction(
 ): Promise<ScheduleDeletionState> {
   const session = await auth();
   if (!session?.user?.id) return { error: humanError('unauthorized') };
+
+  const confirmText = String(formData.get('confirmText') ?? '');
+  if (confirmText.trim().toUpperCase() !== 'DELETE') {
+    return { error: humanError('confirm_text_mismatch') };
+  }
 
   const confirmEmail = String(formData.get('confirmEmail') ?? '');
   const acknowledged = formData.get('acknowledged') === 'on';
