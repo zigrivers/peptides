@@ -6,6 +6,7 @@ import { ReconstitutionCalculator } from '@/lib/reconstitution/domain/Reconstitu
 import { WarningPolicy, type WarningType } from '@/lib/reconstitution/domain/WarningPolicy';
 import { saveVialAction } from '@/app/actions/reconstitution/save-vial';
 import type { Compound } from '@/lib/reference/domain/types';
+import { SyringePreview } from './SyringePreview';
 
 interface Props {
   compounds: Pick<Compound, 'id' | 'name' | 'profile'>[];
@@ -238,39 +239,50 @@ export function ReconstitutionCalculatorForm({
 
       {/* Calculation result */}
       {calcResult && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 space-y-3" aria-live="polite">
-          <p className="text-sm font-semibold text-gray-700">Calculation Results</p>
+        <div className="flex flex-col sm:flex-row gap-4 items-stretch" aria-live="polite">
+          {/* Text results */}
+          <div className="flex-1 rounded-lg border border-border bg-gray-50 dark:bg-slate-900/50 px-4 py-4 space-y-3">
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Calculation Results</p>
 
-          {/* Read-back summary line (AC-6) */}
-          <p className="text-base font-medium text-primary">
-            Draw{' '}
-            <span className="font-bold font-mono">
-              {calcResult.syringeUnitsPerDose.toFixed(1)}
-            </span>{' '}
-            units (
-            <span className="font-mono">
-              {calcResult.injectionVolMl.toFixed(4)}
-            </span>{' '}
-            mL) for a <span className="font-mono">{targetDoseMcg}</span> mcg dose
-          </p>
+            {/* Read-back summary line (AC-6) */}
+            <p className="text-base font-medium text-primary">
+              Draw{' '}
+              <span className="font-bold font-mono">
+                {calcResult.syringeUnitsPerDose.toFixed(1)}
+              </span>{' '}
+              units (
+              <span className="font-mono">
+                {calcResult.injectionVolMl.toFixed(4)}
+              </span>{' '}
+              mL) for a <span className="font-mono">{targetDoseMcg}</span> mcg dose
+            </p>
 
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-            <dt className="text-gray-500">Concentration</dt>
-            <dd className="font-medium text-gray-900">
-              <span className="font-mono">{calcResult.concentrationMgPerMl.toFixed(2)}</span> mg/mL (
-              <span className="font-mono">{calcResult.concentrationMcgPerMl.toFixed(0)}</span> mcg/mL)
-            </dd>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+              <dt className="text-gray-500 dark:text-gray-400">Concentration</dt>
+              <dd className="font-medium text-gray-900 dark:text-gray-100">
+                <span className="font-mono">{calcResult.concentrationMgPerMl.toFixed(2)}</span> mg/mL (
+                <span className="font-mono">{calcResult.concentrationMcgPerMl.toFixed(0)}</span> mcg/mL)
+              </dd>
 
-            <dt className="text-gray-500">Injection volume</dt>
-            <dd className="font-medium text-gray-900">
-              <span className="font-mono">{calcResult.injectionVolMl.toFixed(4)}</span> mL
-            </dd>
+              <dt className="text-gray-500 dark:text-gray-400">Injection volume</dt>
+              <dd className="font-medium text-gray-900 dark:text-gray-100">
+                <span className="font-mono">{calcResult.injectionVolMl.toFixed(4)}</span> mL
+              </dd>
 
-            <dt className="text-gray-500">Syringe units (U-100)</dt>
-            <dd className="text-primary font-semibold">
-              <span className="font-mono">{calcResult.syringeUnitsPerDose.toFixed(1)}</span> units
-            </dd>
-          </dl>
+              <dt className="text-gray-500 dark:text-gray-400">Syringe units (U-100)</dt>
+              <dd className="text-primary font-semibold">
+                <span className="font-mono">{calcResult.syringeUnitsPerDose.toFixed(1)}</span> units
+              </dd>
+            </dl>
+          </div>
+
+          {/* Visual Syringe Preview */}
+          <div className="w-full sm:w-44 shrink-0 rounded-lg border border-border bg-gray-50 dark:bg-slate-900/50 p-4 flex items-center justify-center">
+            <SyringePreview
+              units={calcResult.syringeUnitsPerDose.toNumber()}
+              warnings={warnings}
+            />
+          </div>
         </div>
       )}
 
