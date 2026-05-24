@@ -94,7 +94,7 @@ export default async function SettingsPage() {
           <p className="text-sm text-gray-600 mb-4">
             Connect your Telegram account to automate vendor ordering.
           </p>
-          <Link href="/settings/telegram" className="text-sm text-indigo-600 hover:underline">
+          <Link href="/settings/telegram" className="text-sm text-primary hover:underline">
             Manage Telegram setup →
           </Link>
         </section>

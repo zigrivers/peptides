@@ -40,7 +40,7 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
           type="time"
           defaultValue={initial?.reminderTime ?? DEFAULT_REMINDER_TIME}
           required
-          className="rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+          className="rounded border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
         />
       </div>
 
@@ -57,7 +57,7 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
           required
           placeholder="e.g. America/Denver"
           autoComplete="off"
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+          className="w-full rounded border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
         />
         <datalist id="timezone-suggestions">
           {timezoneSuggestions.map((tz) => (
@@ -79,7 +79,7 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
                 name="channel"
                 value={opt.value}
                 defaultChecked={(initial?.channel ?? DEFAULT_FORM_CHANNEL) === opt.value}
-                className="mt-0.5"
+                className="mt-1 text-primary focus:ring-primary h-4 w-4 border-gray-300"
               />
               <span>
                 <span className="block text-sm text-gray-900">{opt.label}</span>
@@ -95,6 +95,7 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
           type="checkbox"
           name="enabled"
           defaultChecked={initial?.enabled ?? true}
+          className="text-primary focus:ring-primary h-4 w-4 border-gray-300 rounded"
         />
         <span className="text-sm text-gray-700">Send daily reminders</span>
       </label>
@@ -104,6 +105,7 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
           type="checkbox"
           name="emailFallbackEnabled"
           defaultChecked={initial?.emailFallbackEnabled ?? true}
+          className="text-primary focus:ring-primary h-4 w-4 border-gray-300 rounded"
         />
         <span className="text-sm text-gray-700">
           Fall back to email if push fails (recommended)
@@ -124,7 +126,7 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:ring-2 focus:ring-primary focus:outline-none"
       >
         {isPending ? 'Saving…' : 'Save preferences'}
       </button>

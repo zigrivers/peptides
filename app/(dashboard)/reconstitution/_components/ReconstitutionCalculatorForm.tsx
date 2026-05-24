@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import Decimal from 'decimal.js';
 import { ReconstitutionCalculator } from '@/lib/reconstitution/domain/ReconstitutionCalculator';
 import { WarningPolicy, type WarningType } from '@/lib/reconstitution/domain/WarningPolicy';
@@ -9,6 +9,10 @@ import type { Compound } from '@/lib/reference/domain/types';
 
 interface Props {
   compounds: Pick<Compound, 'id' | 'name' | 'profile'>[];
+  initialCompoundId?: string;
+  initialTotalMg?: string;
+  initialBacWaterMl?: string;
+  initialTargetDoseMcg?: string;
 }
 
 const WARNING_LABELS: Record<WarningType, string> = {
@@ -27,11 +31,17 @@ function isPositiveDecimalString(s: string): boolean {
   }
 }
 
-export function ReconstitutionCalculatorForm({ compounds }: Props) {
-  const [compoundId, setCompoundId] = useState('');
-  const [totalMg, setTotalMg] = useState('');
-  const [bacWaterMl, setBacWaterMl] = useState('');
-  const [targetDoseMcg, setTargetDoseMcg] = useState('');
+export function ReconstitutionCalculatorForm({
+  compounds,
+  initialCompoundId = '',
+  initialTotalMg = '',
+  initialBacWaterMl = '',
+  initialTargetDoseMcg = '',
+}: Props) {
+  const [compoundId, setCompoundId] = useState(initialCompoundId);
+  const [totalMg, setTotalMg] = useState(initialTotalMg);
+  const [bacWaterMl, setBacWaterMl] = useState(initialBacWaterMl);
+  const [targetDoseMcg, setTargetDoseMcg] = useState(initialTargetDoseMcg);
   const [expiresAt, setExpiresAt] = useState('');
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveError, setSaveError] = useState('');
@@ -139,7 +149,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
             setCompoundId(e.target.value);
             resetSaveState();
           }}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="">Select a compound…</option>
           {compounds.map((c) => (
@@ -152,31 +162,30 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
 
       {/* Reference dosing chips */}
       {profile && (
-        <div className="rounded-lg bg-indigo-50 border border-indigo-200 px-4 py-3">
-          <p className="text-xs font-semibold text-indigo-700 mb-2">Reference Dosing</p>
+        <div className="rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/20 px-4 py-3">
+          <p className="text-xs font-semibold text-primary mb-2">Reference Dosing</p>
           <div className="flex flex-wrap gap-3 text-sm">
             <span className="text-gray-600">
               Low:{' '}
-              <span className="font-medium text-gray-900">
-                {profile.dosingLow.amount} {profile.dosingLow.unit}
-              </span>
+              <span className="font-medium text-gray-900 font-mono">
+                {profile.dosingLow.amount}</span> <span className="text-gray-600 text-xs">{profile.dosingLow.unit}</span>
             </span>
             <span className="text-gray-600">
               Typical:{' '}
               <button
                 type="button"
                 onClick={useTypicalDose}
-                className="font-medium text-indigo-700 underline underline-offset-2 hover:text-indigo-900"
+                className="font-medium text-primary underline underline-offset-2 hover:text-primary/80 font-mono"
                 title="Use typical dose"
               >
-                {profile.dosingTypical.amount} {profile.dosingTypical.unit}
-              </button>
+                {profile.dosingTypical.amount}
+              </button>{' '}
+              <span className="text-gray-600 text-xs">{profile.dosingTypical.unit}</span>
             </span>
             <span className="text-gray-600">
               High:{' '}
-              <span className="font-medium text-gray-900">
-                {profile.dosingHigh.amount} {profile.dosingHigh.unit}
-              </span>
+              <span className="font-medium text-gray-900 font-mono">
+                {profile.dosingHigh.amount}</span> <span className="text-gray-600 text-xs">{profile.dosingHigh.unit}</span>
             </span>
           </div>
         </div>
@@ -194,7 +203,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
             value={totalMg}
             onChange={(e) => { setTotalMg(e.target.value); resetSaveState(); }}
             placeholder="e.g. 5"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
         <div>
@@ -207,7 +216,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
             value={bacWaterMl}
             onChange={(e) => { setBacWaterMl(e.target.value); resetSaveState(); }}
             placeholder="e.g. 2"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
       </div>
@@ -223,39 +232,43 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
           value={targetDoseMcg}
           onChange={(e) => { setTargetDoseMcg(e.target.value); resetSaveState(); }}
           placeholder="e.g. 250"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
 
       {/* Calculation result */}
       {calcResult && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 space-y-3">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 space-y-3" aria-live="polite">
           <p className="text-sm font-semibold text-gray-700">Calculation Results</p>
 
           {/* Read-back summary line (AC-6) */}
-          <p className="text-base font-medium text-indigo-700">
+          <p className="text-base font-medium text-primary">
             Draw{' '}
-            <span className="font-bold">
-              {calcResult.syringeUnitsPerDose.toFixed(1)} units
+            <span className="font-bold font-mono">
+              {calcResult.syringeUnitsPerDose.toFixed(1)}
             </span>{' '}
-            ({calcResult.injectionVolMl.toFixed(4)} mL) for a {targetDoseMcg} mcg dose
+            units (
+            <span className="font-mono">
+              {calcResult.injectionVolMl.toFixed(4)}
+            </span>{' '}
+            mL) for a <span className="font-mono">{targetDoseMcg}</span> mcg dose
           </p>
 
           <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
             <dt className="text-gray-500">Concentration</dt>
             <dd className="font-medium text-gray-900">
-              {calcResult.concentrationMgPerMl.toFixed(2)} mg/mL (
-              {calcResult.concentrationMcgPerMl.toFixed(0)} mcg/mL)
+              <span className="font-mono">{calcResult.concentrationMgPerMl.toFixed(2)}</span> mg/mL (
+              <span className="font-mono">{calcResult.concentrationMcgPerMl.toFixed(0)}</span> mcg/mL)
             </dd>
 
             <dt className="text-gray-500">Injection volume</dt>
             <dd className="font-medium text-gray-900">
-              {calcResult.injectionVolMl.toFixed(4)} mL
+              <span className="font-mono">{calcResult.injectionVolMl.toFixed(4)}</span> mL
             </dd>
 
             <dt className="text-gray-500">Syringe units (U-100)</dt>
-            <dd className="font-medium text-gray-900">
-              {calcResult.syringeUnitsPerDose.toFixed(1)} units
+            <dd className="text-primary font-semibold">
+              <span className="font-mono">{calcResult.syringeUnitsPerDose.toFixed(1)}</span> units
             </dd>
           </dl>
         </div>
@@ -298,7 +311,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
           type="date"
           value={expiresAt}
           onChange={(e) => setExpiresAt(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
 
@@ -307,7 +320,7 @@ export function ReconstitutionCalculatorForm({ compounds }: Props) {
         <button
           type="submit"
           disabled={!canSave}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {saveState === 'saving' ? 'Saving…' : 'Save to Inventory'}
         </button>
