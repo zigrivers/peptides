@@ -20,7 +20,7 @@ const RATING_MAX = 5;
 export function CorrelationTimeline({ buckets }: Props) {
   if (buckets.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-muted-foreground">
         No data yet — log a dose and rate today&apos;s outcome to start the timeline.
       </p>
     );
@@ -49,7 +49,7 @@ export function CorrelationTimeline({ buckets }: Props) {
         preserveAspectRatio="none"
         role="img"
         aria-label={`Dose events and outcome rating for the past ${buckets.length} days`}
-        className="w-full h-40 border border-gray-200 rounded bg-gray-50"
+        className="w-full h-40 border border-border rounded bg-card"
       >
         {/*
           `preserveAspectRatio="none"` lets the chart stretch responsively to
@@ -71,7 +71,7 @@ export function CorrelationTimeline({ buckets }: Props) {
               y={y}
               width={barWidth * 0.8}
               height={barH}
-              fill={b.doseEvents > 0 ? '#6366f1' : 'transparent'}
+              className={b.doseEvents > 0 ? 'fill-primary' : 'fill-transparent'}
             />
           );
         })}
@@ -81,7 +81,7 @@ export function CorrelationTimeline({ buckets }: Props) {
           y1={BAR_AREA_HEIGHT}
           x2={width}
           y2={BAR_AREA_HEIGHT}
-          stroke="#d1d5db"
+          className="stroke-border"
           strokeWidth={1}
           vectorEffect="non-scaling-stroke"
         />
@@ -89,23 +89,22 @@ export function CorrelationTimeline({ buckets }: Props) {
         {ratingPoints.length > 1 && (
           <polyline
             points={polylinePoints}
-            fill="none"
-            stroke="#10b981"
+            className="stroke-success fill-none"
             strokeWidth={2}
             vectorEffect="non-scaling-stroke"
           />
         )}
         {ratingPoints.map((p) => (
-          <circle key={`pt-${p.date}`} cx={p.x} cy={p.y} r={0.6} fill="#10b981" />
+          <circle key={`pt-${p.date}`} cx={p.x} cy={p.y} r={0.6} className="fill-success" />
         ))}
       </svg>
       <details className="mt-3 text-xs">
-        <summary className="cursor-pointer text-gray-600 hover:text-gray-900">
+        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
           Show data table
         </summary>
         <table className="mt-2 w-full text-left text-xs">
           <thead>
-            <tr className="text-gray-600">
+            <tr className="text-muted-foreground">
               <th className="py-1 pr-3">Date</th>
               <th className="py-1 pr-3">Doses logged</th>
               <th className="py-1">Outcome (1-5)</th>
@@ -113,10 +112,10 @@ export function CorrelationTimeline({ buckets }: Props) {
           </thead>
           <tbody>
             {buckets.map((b) => (
-              <tr key={b.date} className="border-t border-gray-100">
-                <td className="py-1 pr-3 text-gray-700">{b.date}</td>
-                <td className="py-1 pr-3 text-gray-700">{b.doseEvents}</td>
-                <td className="py-1 text-gray-700">{b.outcomeRating ?? '—'}</td>
+              <tr key={b.date} className="border-t border-border">
+                <td className="py-1 pr-3 text-foreground">{b.date}</td>
+                <td className="py-1 pr-3 text-foreground">{b.doseEvents}</td>
+                <td className="py-1 text-foreground">{b.outcomeRating ?? '—'}</td>
               </tr>
             ))}
           </tbody>

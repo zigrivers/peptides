@@ -42,10 +42,10 @@ function SitePicker({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium text-gray-600">
-        Injection site <span className="text-red-500">*</span>
+      <p className="text-xs font-medium text-muted-foreground">
+        Injection site <span className="text-destructive">*</span>
         {siteData.suggestion && (
-          <span className="ml-1 text-indigo-600">(suggested: {formatSiteLabel(siteData.suggestion)})</span>
+          <span className="ml-1 text-primary">(suggested: {formatSiteLabel(siteData.suggestion)})</span>
         )}
       </p>
       <div className="grid grid-cols-2 gap-1.5">
@@ -65,21 +65,21 @@ function SitePicker({
               type="button"
               onClick={() => onSelect(site)}
               aria-pressed={isSelected}
-              className={`flex flex-col items-start px-2 py-1.5 rounded border text-left text-xs transition-colors ${
+              className={`flex flex-col items-start px-2 py-1.5 rounded border text-left text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 outline-none ${
                 isSelected
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-800'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  ? 'border-primary bg-primary/10 text-primary font-semibold'
+                  : 'border-border bg-card text-foreground hover:bg-accent hover:text-accent-foreground'
               }`}
             >
               <span className="font-medium">
                 {formatSiteLabel(site)}
                 {isSuggested && !isSelected && (
-                  <span className="ml-1 text-indigo-500">★</span>
+                  <span className="ml-1 text-primary">★</span>
                 )}
               </span>
-              <span className="text-gray-400 mt-0.5">{daysLabel}</span>
+              <span className="text-muted-foreground mt-0.5">{daysLabel}</span>
               {meta?.isRested ? (
-                <span className="mt-0.5 rounded-full bg-green-100 text-green-700 px-1 py-0.5 text-[10px] font-medium">
+                <span className="mt-0.5 rounded-full bg-success/15 text-success px-1 py-0.5 text-[10px] font-medium">
                   Rested
                 </span>
               ) : null}
@@ -137,18 +137,18 @@ export function DoseLogActions({ protocolId, amount, existingStatus, existingInj
     return (
       <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <span className={`text-sm font-medium ${status === 'LOGGED' ? 'text-green-700' : 'text-gray-500'}`}>
+          <span className={`text-sm font-medium ${status === 'LOGGED' ? 'text-success' : 'text-muted-foreground'}`}>
             {status === 'LOGGED' ? 'Dose logged ✓' : 'Skipped'}
           </span>
           <button
             onClick={() => setShowChangeOptions(true)}
-            className="text-xs text-indigo-600 hover:underline"
+            className="text-xs text-primary hover:underline"
           >
             Change
           </button>
         </div>
         {warnings.map((w) => (
-          <p key={w.code} className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
+          <p key={w.code} className="text-xs text-warning bg-warning/10 border border-warning/20 rounded px-2 py-1">
             {w.message}
           </p>
         ))}
@@ -159,7 +159,7 @@ export function DoseLogActions({ protocolId, amount, existingStatus, existingInj
   return (
     <div className="space-y-3">
       {error && (
-        <p role="alert" className="text-sm text-red-700">{error}</p>
+        <p role="alert" className="text-sm text-destructive">{error}</p>
       )}
       {siteData && (
         <SitePicker
@@ -172,7 +172,7 @@ export function DoseLogActions({ protocolId, amount, existingStatus, existingInj
         <button
           disabled={isPending || (siteRequired)}
           onClick={() => handleLog('LOGGED')}
-          className="rounded-md bg-green-600 text-white px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-60 transition-colors"
+          className="rounded-md bg-success text-success-foreground px-4 py-2 text-sm font-semibold hover:bg-success/90 disabled:opacity-60 transition-colors"
           title={siteRequired ? 'Select an injection site first' : undefined}
         >
           Log Dose
@@ -180,21 +180,21 @@ export function DoseLogActions({ protocolId, amount, existingStatus, existingInj
         <button
           disabled={isPending}
           onClick={() => handleLog('SKIPPED')}
-          className="rounded-md border border-gray-300 text-gray-600 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-60 transition-colors"
+          className="rounded-md border border-border bg-card text-foreground px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-60 transition-colors"
         >
           Skip
         </button>
         {showChangeOptions && (
           <button
             onClick={() => setShowChangeOptions(false)}
-            className="text-sm text-gray-400 hover:text-gray-600"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
             Cancel
           </button>
         )}
       </div>
       {warnings.map((w) => (
-        <p key={w.code} className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
+        <p key={w.code} className="text-xs text-warning bg-warning/10 border border-warning/20 rounded px-2 py-1">
           {w.message}
         </p>
       ))}
