@@ -88,10 +88,10 @@ function ManagedUserActiveView({ weekInfo, fetchedAt }: { weekInfo: CycleWeekInf
       )}
       <Link
         href="/tracker"
-        className="block rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-6 hover:bg-indigo-100 transition-colors shadow-sm text-center"
+        className="block rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 px-5 py-6 hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors shadow-sm text-center"
       >
-        <p className="text-base font-semibold text-indigo-700">View Today&#x27;s Doses &rarr;</p>
-        <p className="text-sm text-indigo-500 mt-1">Confirm or skip your scheduled doses</p>
+        <p className="text-base font-semibold text-primary">View Today&#x27;s Doses &rarr;</p>
+        <p className="text-sm text-muted-foreground mt-1">Confirm or skip your scheduled doses</p>
       </Link>
     </div>
   );
@@ -113,25 +113,25 @@ function EmptyState({ userRole }: { userRole: 'POWER_USER' | 'MANAGED_USER' }) {
   return (
     <div
       role="status"
-      className="rounded-xl border border-indigo-100 bg-indigo-50 px-6 py-8 shadow-sm"
+      className="rounded-xl border border-primary/10 bg-primary/5 dark:bg-primary/10 px-6 py-8 shadow-sm"
     >
-      <h2 className="text-lg font-semibold text-indigo-900 mb-4">Get started</h2>
+      <h2 className="text-lg font-semibold text-primary mb-4">Get started</h2>
       <div className="flex flex-col gap-3">
         <Link
           href="/reference"
-          className="rounded-md bg-white border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors text-center"
+          className="rounded-md bg-white dark:bg-card border border-primary/20 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors text-center"
         >
           Browse Catalog
         </Link>
         <Link
           href="/tracker/protocols/new"
-          className="rounded-md bg-white border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors text-center"
+          className="rounded-md bg-white dark:bg-card border border-primary/20 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors text-center"
         >
           Create Protocol
         </Link>
         <Link
           href="/tracker"
-          className="rounded-md bg-white border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors text-center"
+          className="rounded-md bg-white dark:bg-card border border-primary/20 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors text-center"
         >
           Log First Dose
         </Link>
@@ -254,9 +254,9 @@ export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActive
       {/* Quick link to tracker */}
       <Link
         href="/tracker"
-        className="block rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-4 hover:bg-indigo-100 transition-colors shadow-sm text-center"
+        className="block rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 px-5 py-4 hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors shadow-sm text-center"
       >
-        <span className="text-sm font-semibold text-indigo-700">View Today&#x27;s Doses &rarr;</span>
+        <span className="text-sm font-semibold text-primary">View Today&#x27;s Doses &rarr;</span>
       </Link>
     </div>
   );
