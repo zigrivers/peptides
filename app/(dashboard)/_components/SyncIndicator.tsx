@@ -1,35 +1,47 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline' | 'synced';
 
 export function SyncIndicator() {
   const [status, setStatus] = useState<SyncStatus>('idle');
   const [pendingCount, setPendingCount] = useState(0);
+  const [lastChecked, setLastChecked] = useState(Date.now());
 
+  const isMountedRef = useRef(true);
+
+  // Component level mount tracking
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Online/Offline listener - uses functional state update to prevent stale closures (F-003)
   useEffect(() => {
     function updateOnlineStatus() {
       if (!navigator.onLine) {
         setStatus('offline');
-      } else if (status === 'offline') {
-        setStatus('idle');
+      } else {
+        setStatus((current) => (current === 'offline' ? 'idle' : current));
       }
     }
 
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
 
-    if (!navigator.onLine) {
-      setStatus('offline');
-    }
+    // Initialize state on mount (F-004)
+    updateOnlineStatus();
 
     return () => {
       window.removeEventListener('online', updateOnlineStatus);
       window.removeEventListener('offline', updateOnlineStatus);
     };
-  }, [status]);
+  }, []);
 
+  // Periodic queue checker - updates lastChecked to allow sync retries on interval (F-002)
   useEffect(() => {
     let cancelled = false;
 
@@ -38,7 +50,10 @@ export function SyncIndicator() {
         const { OfflineQueue } = await import('@/lib/offline/application/OfflineQueue');
         const q = new OfflineQueue();
         const pending = await q.getPending();
-        if (!cancelled) setPendingCount(pending.length);
+        if (!cancelled) {
+          setPendingCount(pending.length);
+          setLastChecked(Date.now());
+        }
       } catch {
         // IndexedDB not available (SSR or private browsing)
       }
@@ -52,14 +67,20 @@ export function SyncIndicator() {
     };
   }, []);
 
+  // Sync replayer - uses isMountedRef (F-005) to prevent cancelling slow requests on interval rechecks
   useEffect(() => {
     async function triggerForegroundSync() {
       if (!navigator.onLine || pendingCount === 0) return;
+      if (status === 'syncing') return;
+
       setStatus('syncing');
       try {
         const { OfflineQueue } = await import('@/lib/offline/application/OfflineQueue');
         const q = new OfflineQueue();
         const pending = await q.getPending();
+
+        if (!isMountedRef.current) return;
+
         if (!pending.length) {
           setStatus('idle');
           return;
@@ -76,31 +97,40 @@ export function SyncIndicator() {
           results: { id: string; ok: boolean }[];
         };
 
+        if (!isMountedRef.current) return;
+
         await Promise.all(results.filter((r) => r.ok).map((r) => q.markSynced(r.id)));
         const remaining = await q.getPending();
-        setPendingCount(remaining.length);
 
+        if (!isMountedRef.current) return;
+
+        setPendingCount(remaining.length);
         if (remaining.length > 0) {
           setStatus('error');
         } else {
           setStatus('synced');
-          // Automatically transition back to idle/hidden after 3 seconds
-          const timer = setTimeout(() => {
-            setStatus('idle');
-          }, 3000);
-          return () => clearTimeout(timer);
         }
       } catch {
-        setStatus('error');
+        if (isMountedRef.current) setStatus('error');
       }
     }
 
     triggerForegroundSync();
-  }, [pendingCount]);
+  }, [pendingCount, lastChecked]);
+
+  // Separate effect for synced-to-idle timer with proper cleanup (F-001 / F-006)
+  useEffect(() => {
+    if (status !== 'synced') return;
+
+    const timer = setTimeout(() => {
+      setStatus('idle');
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [status]);
 
   const isVisible = status !== 'idle' || pendingCount > 0;
 
-  // Render nothing if not visible to keep DOM clean when fully synced & idle
   if (!isVisible) return null;
 
   let label = '';

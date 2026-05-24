@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, cleanup, act } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
 import { SyncIndicator } from './SyncIndicator';
 
 const mockGetPending = vi.fn().mockResolvedValue([]);
@@ -31,26 +31,20 @@ describe('SyncIndicator Component', () => {
 
   it('renders nothing when idle and pending count is 0', async () => {
     mockGetPending.mockResolvedValue([]);
-    let container: HTMLElement;
-    await act(async () => {
-      const rendered = render(<SyncIndicator />);
-      container = rendered.container;
-      await new Promise((r) => setTimeout(r, 50));
-    });
-    expect(container!.firstChild).toBeNull();
+    const { container } = render(<SyncIndicator />);
+    
+    // Check initially empty
+    expect(container.firstChild).toBeNull();
   });
 
   it('renders offline indicator when navigator.onLine is false', async () => {
     vi.stubGlobal('navigator', { onLine: false });
     mockGetPending.mockResolvedValue([]);
     
-    await act(async () => {
-      render(<SyncIndicator />);
-      await new Promise((r) => setTimeout(r, 50));
-    });
+    render(<SyncIndicator />);
     
-    expect(screen.getByRole('status')).toBeDefined();
-    expect(screen.getByText('Offline')).toBeDefined();
+    expect(await screen.findByRole('status')).toBeDefined();
+    expect(await screen.findByText('Offline')).toBeDefined();
   });
 
   it('renders pending count when offline and entries are in queue', async () => {
@@ -67,12 +61,9 @@ describe('SyncIndicator Component', () => {
       },
     ]);
     
-    await act(async () => {
-      render(<SyncIndicator />);
-      await new Promise((r) => setTimeout(r, 100));
-    });
+    render(<SyncIndicator />);
     
-    expect(screen.getByText('1 pending (offline)')).toBeDefined();
+    expect(await screen.findByText('1 pending (offline)')).toBeDefined();
   });
 
   it('renders syncing and success checkmark synced states when online and pending items sync successfully', async () => {
@@ -106,11 +97,8 @@ describe('SyncIndicator Component', () => {
       json: () => Promise.resolve({ results: [{ id: '1', ok: true }] }),
     }));
 
-    await act(async () => {
-      render(<SyncIndicator />);
-      await new Promise((r) => setTimeout(r, 150));
-    });
+    render(<SyncIndicator />);
 
-    expect(screen.getByText('Synced')).toBeDefined();
+    expect(await screen.findByText('Synced')).toBeDefined();
   });
 });

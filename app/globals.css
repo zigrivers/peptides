@@ -67,3 +67,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .btn-tactile {
+    @apply transition-transform duration-100 active:scale-95 hover:scale-[1.01];
+  }
+}

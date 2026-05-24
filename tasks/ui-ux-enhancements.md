@@ -17,15 +17,15 @@
 - [x] Integrate the `SyringePreview` alongside the reconstitution calculations layout
 
 ## Phase 4: Glassmorphic PWA Offline & Sync Widget
-- [ ] Upgrade `SyncIndicator.tsx` to a floating glassmorphic pill badge with smooth entry/exit animations
-- [ ] Add distinct state icons (rotating sync arrow, offline cloud-alert, error pulse, success checkmark)
-- [ ] Render the sync badge docked at the bottom footer of the desktop navigation sidebar in `DashboardNav.tsx`
-- [ ] Render the sync badge floating above the mobile bottom nav in `layout.tsx` (hiding on desktop sm:hidden)
+- [x] Upgrade `SyncIndicator.tsx` to a floating glassmorphic pill badge with smooth entry/exit animations
+- [x] Add distinct state icons (rotating sync arrow, offline cloud-alert, error pulse, success checkmark)
+- [x] Render the sync badge docked at the bottom footer of the desktop navigation sidebar in `DashboardNav.tsx`
+- [x] Render the sync badge floating above the mobile bottom nav in `layout.tsx` (hiding on desktop sm:hidden)
 
 ## Phase 5: Tactile Micro-Animations & Page Transitions
-- [ ] Add CTA hover/active click scaling utilities inside `globals.css` and apply to primary actions
-- [ ] Standardize high-contrast inputs focus rings across settings, calculator, and logging components
+- [x] Add CTA hover/active click scaling utilities inside `globals.css` and apply to primary actions
+- [x] Standardize high-contrast inputs focus rings across settings, calculator, and logging components
 
 ## Verification & Testing
-- [ ] Verify Vitest unit and integration suite compiles and runs successfully (`pnpm check`)
-- [ ] Verify Playwright E2E browser tests pass cleanly (`pnpm e2e`)
+- [x] Verify Vitest unit and integration suite compiles and runs successfully (`pnpm check`)
+- [x] Verify Playwright E2E browser tests pass cleanly (`pnpm e2e`)

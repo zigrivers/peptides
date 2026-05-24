@@ -309,7 +309,7 @@ export function DoseLogActions({ protocolId, amount, existingStatus, existingInj
         <button
           disabled={isPending || (siteRequired)}
           onClick={() => handleLog('LOGGED')}
-          className="rounded-md bg-success text-success-foreground px-4 py-2 text-sm font-semibold hover:bg-success/90 disabled:opacity-60 transition-colors"
+          className="rounded-md bg-success text-success-foreground px-4 py-2 text-sm font-semibold hover:bg-success/90 disabled:opacity-60 transition-colors btn-tactile"
           title={siteRequired ? 'Select an injection site first' : undefined}
         >
           Log Dose
@@ -317,7 +317,7 @@ export function DoseLogActions({ protocolId, amount, existingStatus, existingInj
         <button
           disabled={isPending}
           onClick={() => handleLog('SKIPPED')}
-          className="rounded-md border border-border bg-card text-foreground px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-60 transition-colors"
+          className="rounded-md border border-border bg-card text-foreground px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-60 transition-colors btn-tactile"
         >
           Skip
         </button>

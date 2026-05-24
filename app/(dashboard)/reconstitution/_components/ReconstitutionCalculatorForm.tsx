@@ -150,7 +150,7 @@ export function ReconstitutionCalculatorForm({
             setCompoundId(e.target.value);
             resetSaveState();
           }}
-          className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-slate-900"
         >
           <option value="">Select a compound…</option>
           {compounds.map((c) => (
@@ -204,7 +204,7 @@ export function ReconstitutionCalculatorForm({
             value={totalMg}
             onChange={(e) => { setTotalMg(e.target.value); resetSaveState(); }}
             placeholder="e.g. 5"
-            className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-slate-900"
           />
         </div>
         <div>
@@ -217,7 +217,7 @@ export function ReconstitutionCalculatorForm({
             value={bacWaterMl}
             onChange={(e) => { setBacWaterMl(e.target.value); resetSaveState(); }}
             placeholder="e.g. 2"
-            className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-slate-900"
           />
         </div>
       </div>
@@ -233,7 +233,7 @@ export function ReconstitutionCalculatorForm({
           value={targetDoseMcg}
           onChange={(e) => { setTargetDoseMcg(e.target.value); resetSaveState(); }}
           placeholder="e.g. 250"
-          className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-slate-900"
         />
       </div>
 
@@ -323,7 +323,7 @@ export function ReconstitutionCalculatorForm({
           type="date"
           value={expiresAt}
           onChange={(e) => setExpiresAt(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-slate-900"
         />
       </div>
 
@@ -332,7 +332,7 @@ export function ReconstitutionCalculatorForm({
         <button
           type="submit"
           disabled={!canSave}
-          className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors btn-tactile"
         >
           {saveState === 'saving' ? 'Saving…' : 'Save to Inventory'}
         </button>
