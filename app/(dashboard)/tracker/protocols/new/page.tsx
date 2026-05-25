@@ -5,12 +5,12 @@ import { getCyclesForUser } from '@/lib/tracker/application/CycleService';
 import { prisma } from '@/lib/shared/prisma';
 import { CreateProtocolForm } from './_components/CreateProtocolForm';
 
-type ManagedUser = { id: string; name: string | null; email: string };
+type ManagedUser = { id: string; name: string | null; email: string; syringeStandard: string };
 
 async function getManagedUsers(powerUserId: string): Promise<ManagedUser[]> {
   return prisma.user.findMany({
     where: { managedBy: powerUserId, status: 'ACTIVE' },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, syringeStandard: true },
     orderBy: { name: 'asc' },
   });
 }
@@ -28,8 +28,12 @@ export default async function NewProtocolPage({
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
 
-  const [compounds, managedUsers, actorCycles, cloneSource] = await Promise.all([
+  const [compounds, currentUser, managedUsers, actorCycles, cloneSource] = await Promise.all([
     listCompounds(),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, name: true, syringeStandard: true },
+    }),
     session.user.role === 'POWER_USER'
       ? getManagedUsers(session.user.id)
       : Promise.resolve([] as ManagedUser[]),
@@ -49,6 +53,15 @@ export default async function NewProtocolPage({
         })
       : Promise.resolve(null),
   ]);
+
+  if (!currentUser) redirect('/login');
+
+  const serializedCurrentUser = {
+    id: currentUser.id,
+    name: currentUser.name ?? 'Me',
+    email: '',
+    syringeStandard: currentUser.syringeStandard,
+  };
 
   // Load active cycles for each managed user so the form can show the right cycles per subject.
   const managedCycleEntries = await Promise.all(
@@ -76,7 +89,7 @@ export default async function NewProtocolPage({
       <CreateProtocolForm
         compounds={compounds}
         managedUsers={managedUsers}
-        currentUserId={session.user.id}
+        currentUser={serializedCurrentUser}
         cyclesByUserId={cyclesByUserId}
         cloneSource={serializedCloneSource}
       />

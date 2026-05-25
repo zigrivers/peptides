@@ -10,7 +10,6 @@ import { parseCompoundDosing } from '@/lib/reference/domain/validation';
 type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 const DAYS: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-type ManagedUser = { id: string; name: string | null; email: string };
 type CycleOption = { id: string; name: string };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,10 +23,21 @@ function formatScheduleText(schedule: any): string {
   return 'Custom schedule';
 }
 
+type ManagedUser = {
+  id: string;
+  name: string | null;
+  email: string;
+  syringeStandard: string;
+};
+
 type Props = {
   compounds: Compound[];
   managedUsers: ManagedUser[];
-  currentUserId: string;
+  currentUser: {
+    id: string;
+    name: string;
+    syringeStandard: string;
+  };
   cyclesByUserId: Record<string, CycleOption[]>;
   cloneSource?: {
     id: string;
@@ -43,10 +53,11 @@ type Props = {
 export function CreateProtocolForm({
   compounds,
   managedUsers,
-  currentUserId,
+  currentUser,
   cyclesByUserId,
   cloneSource,
 }: Props) {
+  const currentUserId = currentUser.id;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -114,26 +125,64 @@ export function CreateProtocolForm({
     }
   }, [doseAmount, dosingHigh]);
 
-  // Compute reconstitution concentration dynamically
-  const [calculatedConcentration, setCalculatedConcentration] = useState<string | null>(null);
+  // Automatically calculate default expiration date if seeding inventory
   useEffect(() => {
-    if (!vialTotalMg || !vialBacWaterMl) {
-      setCalculatedConcentration(null);
-      return;
+    if (seedInventory && selectedCompound?.profile?.reconstitutedShelfLifeDays) {
+      const shelfLife = selectedCompound.profile.reconstitutedShelfLifeDays;
+      const expDate = new Date();
+      expDate.setDate(expDate.getDate() + shelfLife);
+      const year = expDate.getFullYear();
+      const month = String(expDate.getMonth() + 1).padStart(2, '0');
+      const day = String(expDate.getDate()).padStart(2, '0');
+      setVialExpiresAt(`${year}-${month}-${day}`);
+    } else if (!seedInventory) {
+      setVialExpiresAt('');
     }
+  }, [seedInventory, compoundId, selectedCompound]);
+
+  // Dynamic calculations for reconstitution and syringe logging guidance
+  let concentrationMgPerMl: number | null = null;
+  let concentrationMcgPerMl: number | null = null;
+  let mcgPerUnit: number | null = null;
+  let unitsToPull: number | null = null;
+
+  const selectedSubject = [currentUser, ...managedUsers].find((u) => u.id === subjectUserId);
+  const syringeStandard = selectedSubject?.syringeStandard ?? 'U100';
+  const unitVolumeMl = syringeStandard === 'U40' ? 0.025 : 0.01;
+
+  if (vialTotalMg && vialBacWaterMl) {
     try {
-      const mg = new Decimal(vialTotalMg);
-      const ml = new Decimal(vialBacWaterMl);
-      if (ml.gt(0)) {
-        const conc = mg.dividedBy(ml);
-        setCalculatedConcentration(`${conc.toFixed(2)} mg/mL`);
-      } else {
-        setCalculatedConcentration(null);
+      const mgVal = parseFloat(vialTotalMg);
+      const mlVal = parseFloat(vialBacWaterMl);
+      if (mgVal > 0 && mlVal > 0) {
+        concentrationMgPerMl = mgVal / mlVal;
+        concentrationMcgPerMl = concentrationMgPerMl * 1000;
+        mcgPerUnit = concentrationMcgPerMl * unitVolumeMl;
+
+        if (doseAmount) {
+          const doseVal = parseFloat(doseAmount);
+          if (doseVal > 0) {
+            let doseMcg = 0;
+            if (doseUnit === 'mcg') {
+              doseMcg = doseVal;
+            } else if (doseUnit === 'mg') {
+              doseMcg = doseVal * 1000;
+            } else if (doseUnit === 'mL') {
+              doseMcg = doseVal * concentrationMcgPerMl;
+            } else if (doseUnit === 'IU') {
+              doseMcg = doseVal * unitVolumeMl * concentrationMcgPerMl;
+            }
+
+            if (mcgPerUnit > 0) {
+              unitsToPull = doseMcg / mcgPerUnit;
+            }
+          }
+        }
       }
-    } catch {
-      setCalculatedConcentration(null);
+    } catch (e) {
+      console.error('[CreateProtocolForm] failed to calculate concentration:', e);
     }
-  }, [vialTotalMg, vialBacWaterMl]);
+  }
 
   function handleSubjectChange(newSubjectId: string) {
     setSubjectUserId(newSubjectId);
@@ -205,7 +254,7 @@ export function CreateProtocolForm({
   }
 
   const allUsers: ManagedUser[] = [
-    { id: currentUserId, name: 'Me', email: '' },
+    { id: currentUserId, name: 'Me', email: '', syringeStandard: currentUser.syringeStandard },
     ...managedUsers,
   ];
 
@@ -541,10 +590,58 @@ export function CreateProtocolForm({
                   />
                 </div>
 
-                {calculatedConcentration && (
-                  <div className="sm:col-span-2 bg-white dark:bg-gray-950 border border-gray-200/50 dark:border-gray-800 rounded-lg p-2.5 flex items-center justify-between text-xs">
-                    <span className="text-gray-400">Calculated concentration:</span>
-                    <span className="font-bold text-primary">{calculatedConcentration}</span>
+                {concentrationMgPerMl !== null && (
+                  <div className="sm:col-span-2 bg-white dark:bg-gray-950 border border-gray-200/50 dark:border-gray-800/80 rounded-xl p-4 space-y-3.5 text-xs">
+                    <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-900 pb-2">
+                      <span className="text-gray-500 font-medium">Reconstitution Details</span>
+                      <span className="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                        {syringeStandard} Syringe
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <span className="text-gray-400 block font-medium">Concentration</span>
+                        <span className="font-extrabold text-gray-900 dark:text-gray-100 text-sm">
+                          {concentrationMgPerMl.toFixed(2)} mg/mL
+                        </span>
+                        <span className="text-[10px] text-gray-400 block">
+                          ({(concentrationMgPerMl * 1000).toLocaleString()} mcg/mL)
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-gray-400 block font-medium">Medication / Unit</span>
+                        <span className="font-extrabold text-gray-900 dark:text-gray-100 text-sm">
+                          {mcgPerUnit && mcgPerUnit >= 1000 
+                            ? `${(mcgPerUnit / 1000).toFixed(2)} mg`
+                            : `${Math.round(mcgPerUnit || 0)} mcg`
+                          }
+                        </span>
+                        <span className="text-[10px] text-gray-400 block">
+                          per 1 unit ({unitVolumeMl} mL)
+                        </span>
+                      </div>
+                    </div>
+
+                    {unitsToPull !== null && (
+                      <div className="bg-primary/5 dark:bg-primary/10 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border border-primary/10">
+                        <div>
+                          <span className="text-primary/80 block font-medium">Target Dose Delivery</span>
+                          <span className="text-[10px] text-gray-400">
+                            For a selected dose of {doseAmount} {doseUnit}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-extrabold text-primary text-base block">
+                            Pull to {unitsToPull.toFixed(1)} units
+                          </span>
+                          <span className="text-[10px] text-gray-400 block">
+                            ({(unitsToPull * unitVolumeMl).toFixed(3)} mL injection volume)
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
