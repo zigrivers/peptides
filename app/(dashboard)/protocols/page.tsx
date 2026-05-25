@@ -113,9 +113,9 @@ export default async function ProtocolsPage() {
     id: v.id,
     userId: v.userId,
     compoundId: v.compoundId,
-    totalMg: v.totalMg,
-    bacWaterMl: v.bacWaterMl,
-    remainingMg: v.remainingMg,
+    totalMg: v.totalMg.toString(),
+    bacWaterMl: v.bacWaterMl ? v.bacWaterMl.toString() : null,
+    remainingMg: v.remainingMg.toString(),
     status: v.status,
   }));
 
