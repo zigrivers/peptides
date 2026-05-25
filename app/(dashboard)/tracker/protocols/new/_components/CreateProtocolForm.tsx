@@ -482,7 +482,9 @@ export function CreateProtocolForm({
             <div className="flex items-start justify-between">
               <div>
                 <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100">Seed Starting Inventory</h4>
-                <p className="text-xs text-gray-500">Reconstitute your first vial for this protocol immediately</p>
+                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                  Create your first active, reconstituted vial of this compound right now. This calculates the dilution ratio (concentration) and allows you to start logging doses immediately, bypassing the need to configure a vial on the Reconstitute screen first.
+                </p>
               </div>
               <input
                 type="checkbox"
