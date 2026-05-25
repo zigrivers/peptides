@@ -53,6 +53,32 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         <meta name="theme-color" content="#4f46e5" />
+        {process.env.NODE_ENV === 'development' && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    var unregistered = false;
+                    for (var i = 0; i < registrations.length; i++) {
+                      registrations[i].unregister();
+                      unregistered = true;
+                    }
+                    if (unregistered) {
+                      if ('caches' in window) {
+                        caches.keys().then(function(keys) {
+                          keys.forEach(function(key) { caches.delete(key); });
+                        });
+                      }
+                      console.log('[Dev SW Cleanup] Unregistered service worker and cleared cache');
+                      window.location.reload();
+                    }
+                  });
+                }
+              `,
+            }}
+          />
+        )}
       </head>
       <body>{children}</body>
     </html>
