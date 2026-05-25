@@ -9,6 +9,8 @@ import {
   confirmQuote,
   markPaymentSent,
   receiveOrder,
+  sendOrder,
+  confirmManualSent,
 } from '@/lib/ordering/application/OrderService';
 import { VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
 import { assertOrderingEnabled } from '@/lib/shared/featureFlags';
@@ -97,4 +99,32 @@ export async function receiveOrderAction(
   }
   revalidatePath('/ordering/orders', 'layout');
   redirect(`/ordering/orders/${orderId}`);
+}
+
+export async function sendOrderAction(orderId: string, force = false) {
+  assertOrderingEnabled();
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Unauthorized');
+  
+  try {
+    const result = await sendOrder(session.user.id, orderId, force);
+    revalidatePath('/ordering/orders', 'layout');
+    return { success: true, ...result };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Something went wrong.' };
+  }
+}
+
+export async function confirmManualSentAction(orderId: string) {
+  assertOrderingEnabled();
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Unauthorized');
+
+  try {
+    await confirmManualSent(session.user.id, orderId);
+    revalidatePath('/ordering/orders', 'layout');
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Something went wrong.' };
+  }
 }

@@ -4,8 +4,17 @@ import React from 'react';
 import { render, screen, cleanup } from '@testing-library/react';
 import { SyncIndicator } from './SyncIndicator';
 
-const mockGetPending = vi.fn().mockResolvedValue([]);
-const mockMarkSynced = vi.fn().mockResolvedValue(undefined);
+const { mockRefresh, mockGetPending, mockMarkSynced } = vi.hoisted(() => ({
+  mockRefresh: vi.fn(),
+  mockGetPending: vi.fn().mockResolvedValue([]),
+  mockMarkSynced: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: mockRefresh,
+  }),
+}));
 
 vi.mock('@/lib/offline/application/OfflineQueue', () => {
   return {

@@ -6,6 +6,10 @@ vi.mock('@/app/actions/reconstitution/save-vial', () => ({
   saveVialAction: vi.fn(),
 }));
 
+vi.mock('@/app/actions/reconstitution/save-syringe-preferences', () => ({
+  saveSyringePreferencesAction: vi.fn(),
+}));
+
 import { Compound } from '@/lib/reference/domain/types';
 import { ReconstitutionCalculatorForm } from './ReconstitutionCalculatorForm';
 
@@ -18,10 +22,11 @@ describe('ReconstitutionCalculatorForm UI Warnings', () => {
     vi.restoreAllMocks();
   });
 
-  const mockCompounds: Pick<Compound, 'id' | 'name' | 'profile'>[] = [
+  const mockCompounds: Pick<Compound, 'id' | 'name' | 'profile' | 'slug'>[] = [
     {
       id: 'c-1',
       name: 'BPC-157',
+      slug: 'bpc-157',
       profile: {
         id: 'p-1',
         compoundId: 'c-1',

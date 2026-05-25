@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import type {
   ChannelPreference,
   ReminderPreferenceRecord,
@@ -27,6 +27,18 @@ const CHANNEL_OPTIONS: { value: ChannelPreference; label: string; description: s
 
 export function RemindersForm({ action, initial, defaultTimezone, timezoneSuggestions }: Props) {
   const [state, formAction, isPending] = useActionState(action, null);
+  const [timezone, setTimezone] = useState(initial?.timezone ?? defaultTimezone);
+
+  const handleDetectTimezone = () => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz) {
+        setTimezone(tz);
+      }
+    } catch (e) {
+      console.error('Failed to detect timezone', e);
+    }
+  };
 
   return (
     <form action={formAction} className="space-y-4">
@@ -48,17 +60,27 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
         <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 mb-1">
           Time zone
         </label>
-        <input
-          id="timezone"
-          name="timezone"
-          type="text"
-          list="timezone-suggestions"
-          defaultValue={initial?.timezone ?? defaultTimezone}
-          required
-          placeholder="e.g. America/Denver"
-          autoComplete="off"
-          className="w-full rounded border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
-        />
+        <div className="flex gap-2">
+          <input
+            id="timezone"
+            name="timezone"
+            type="text"
+            list="timezone-suggestions"
+            value={timezone}
+            onChange={(e) => setTimezone(e.target.value)}
+            required
+            placeholder="e.g. America/Denver"
+            autoComplete="off"
+            className="flex-1 rounded border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={handleDetectTimezone}
+            className="rounded border border-gray-300 px-3.5 py-2.5 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors"
+          >
+            Detect
+          </button>
+        </div>
         <datalist id="timezone-suggestions">
           {timezoneSuggestions.map((tz) => (
             <option key={tz} value={tz} />

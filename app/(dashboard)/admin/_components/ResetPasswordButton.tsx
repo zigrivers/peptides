@@ -17,7 +17,7 @@ export function ResetPasswordButton({ action }: Props) {
       <button
         type="submit"
         disabled={isPending || !!state?.success}
-        className="text-xs text-indigo-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+        className="text-xs text-primary hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {isPending ? 'Sending…' : state?.success ? 'Email Sent' : 'Send Password Reset'}
       </button>

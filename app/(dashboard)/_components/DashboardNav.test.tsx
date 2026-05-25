@@ -3,9 +3,12 @@ import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { DashboardNav } from './DashboardNav';
 
-// Mock next/navigation's usePathname to return a fixed path for layout rendering
+// Mock next/navigation for router and pathname
 vi.mock('next/navigation', () => ({
   usePathname: () => '/dashboard',
+  useRouter: () => ({
+    refresh: vi.fn(),
+  }),
 }));
 
 describe('DashboardNav Component', () => {

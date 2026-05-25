@@ -41,25 +41,25 @@ export default async function ConfirmPage({ params }: Props) {
   const hasPrior = !!priorWallet && priorWallet !== conf.walletAddress;
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <main className="max-w-2xl mx-auto px-4 py-8 space-y-6 animate-page-enter">
       <div>
-        <Link href={`/ordering/orders/${orderId}/payment`} className="text-sm text-indigo-600 hover:underline">
+        <Link href={`/ordering/orders/${orderId}/payment`} className="text-sm text-primary hover:underline">
           ← Edit vendor reply
         </Link>
-        <h1 className="text-2xl font-semibold text-gray-900 mt-2">Verify Payment Details</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-2xl font-semibold text-foreground mt-2">Verify Payment Details</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Review carefully — crypto payments are irreversible.
         </p>
       </div>
 
-      <section className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm space-y-3">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</p>
-        <p className="text-2xl font-bold text-gray-900 font-mono">
-          {conf.amount} <span className="text-base font-semibold text-gray-500">{conf.currency}</span>
+      <section className="rounded-xl border border-border bg-card text-card-foreground px-5 py-4 shadow-sm space-y-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</p>
+        <p className="text-2xl font-bold text-foreground font-mono">
+          {conf.amount} <span className="text-base font-semibold text-muted-foreground">{conf.currency}</span>
         </p>
 
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-3">Wallet Address</p>
-        <p className="font-mono text-sm text-gray-900 break-all tracking-wide leading-relaxed">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-3">Wallet Address</p>
+        <p className="font-mono text-sm text-foreground break-all tracking-wide leading-relaxed">
           {chunkAddress(conf.walletAddress)}
         </p>
 
@@ -69,10 +69,10 @@ export default async function ConfirmPage({ params }: Props) {
       </section>
 
       {hasPrior && (
-        <section className="rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 space-y-2">
-          <p className="text-sm font-semibold text-amber-800">Previous wallet address for {order.vendor.name}:</p>
-          <p className="font-mono text-xs text-amber-700 break-all">{chunkAddress(priorWallet!)}</p>
-          <p className="text-xs text-amber-600">The address above differs from the prior order. Verify with the vendor&apos;s current Telegram reply.</p>
+        <section className="rounded-xl border border-warning/30 bg-warning/10 text-warning px-5 py-4 space-y-2">
+          <p className="text-sm font-semibold text-warning">Previous wallet address for {order.vendor.name}:</p>
+          <p className="font-mono text-xs text-warning break-all">{chunkAddress(priorWallet!)}</p>
+          <p className="text-xs text-warning/80">The address above differs from the prior order. Verify with the vendor&apos;s current Telegram reply.</p>
         </section>
       )}
 

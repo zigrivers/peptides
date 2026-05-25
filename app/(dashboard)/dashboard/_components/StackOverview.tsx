@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Flame } from 'lucide-react';
 import type { CycleWeekInfo } from '@/lib/tracker/domain/types';
 import type { AdherenceResult } from '@/lib/tracker/application/OutcomeLogService';
 import type { SerializedVial } from '@/app/(dashboard)/reconstitution/_components/VialInventory';
@@ -22,6 +23,11 @@ interface Props {
   hasDoseToday: boolean;
   userRole: 'POWER_USER' | 'MANAGED_USER';
   fetchedAt: string; // ISO string
+  streak?: {
+    currentStreak: number;
+    longestStreak: number;
+    isCapped: boolean;
+  };
 }
 
 function RatingStars({ rating }: { rating: number }) {
@@ -29,7 +35,7 @@ function RatingStars({ rating }: { rating: number }) {
   return (
     <span aria-label={`${rating.toFixed(1)} out of 5 stars`} role="img">
       {[1, 2, 3, 4, 5].map((n) => (
-        <span key={n} className={n <= rounded ? 'text-amber-400' : 'text-gray-300'} aria-hidden="true">
+        <span key={n} className={n <= rounded ? 'text-amber-400' : 'text-border'} aria-hidden="true">
           ★
         </span>
       ))}
@@ -75,12 +81,12 @@ function ManagedUserActiveView({ weekInfo, fetchedAt }: { weekInfo: CycleWeekInf
     <div className="space-y-4">
       <StaleAnnouncer fetchedAt={fetchedAt} />
       {weekInfo && (
-        <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Current Cycle</p>
-          <p className="text-lg font-bold text-gray-900">
+        <div className="rounded-xl border border-border bg-card text-card-foreground px-5 py-4 shadow-sm">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Current Cycle</p>
+          <p className="text-lg font-bold text-foreground">
             {weekInfo.cycleName} — Week {weekInfo.weekNumber}
             {weekInfo.totalWeeks && (
-              <span className="text-gray-400 font-normal text-sm"> of {weekInfo.totalWeeks}</span>
+              <span className="text-muted-foreground font-normal text-sm"> of {weekInfo.totalWeeks}</span>
             )}
           </p>
           <StaleIndicator fetchedAt={fetchedAt} />
@@ -102,10 +108,10 @@ function EmptyState({ userRole }: { userRole: 'POWER_USER' | 'MANAGED_USER' }) {
     return (
       <div
         role="status"
-        className="rounded-xl border border-gray-200 bg-white px-6 py-8 text-center shadow-sm"
+        className="rounded-xl border border-border bg-card text-card-foreground px-6 py-8 text-center shadow-sm"
       >
-        <p className="text-gray-600 font-medium">No dose scheduled today</p>
-        <p className="text-sm text-gray-400 mt-1">Your administrator will configure your protocol.</p>
+        <p className="text-foreground font-medium">No dose scheduled today</p>
+        <p className="text-sm text-muted-foreground mt-1">Your administrator will configure your protocol.</p>
       </div>
     );
   }
@@ -140,7 +146,17 @@ function EmptyState({ userRole }: { userRole: 'POWER_USER' | 'MANAGED_USER' }) {
   );
 }
 
-export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActiveProtocols, hasDoseToday, userRole, fetchedAt }: Props) {
+export function StackOverview({
+  weekInfo,
+  vials,
+  ratingAvg,
+  adherence,
+  hasActiveProtocols,
+  hasDoseToday,
+  userRole,
+  fetchedAt,
+  streak = { currentStreak: 0, longestStreak: 0, isCapped: false },
+}: Props) {
   const lowSupplyVials = vials.filter(isVialLowSupply);
 
   if (!hasActiveProtocols) {
@@ -152,10 +168,10 @@ export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActive
       return (
         <div
           role="status"
-          className="rounded-xl border border-gray-200 bg-white px-6 py-8 text-center shadow-sm"
+          className="rounded-xl border border-border bg-card text-card-foreground px-6 py-8 text-center shadow-sm"
         >
-          <p className="text-gray-600 font-medium">No dose scheduled today</p>
-          <p className="text-sm text-gray-400 mt-1">Check back on your next scheduled day.</p>
+          <p className="text-foreground font-medium">No dose scheduled today</p>
+          <p className="text-sm text-muted-foreground mt-1">Check back on your next scheduled day.</p>
         </div>
       );
     }
@@ -168,12 +184,12 @@ export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActive
       <StaleAnnouncer fetchedAt={fetchedAt} />
       {/* Cycle Week tile */}
       {weekInfo && (
-        <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Current Cycle</p>
-          <p className="text-lg font-bold text-gray-900">
+        <div className="rounded-xl border border-border bg-card text-card-foreground px-5 py-4 shadow-sm">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Current Cycle</p>
+          <p className="text-lg font-bold text-foreground">
             {weekInfo.cycleName} — Week {weekInfo.weekNumber}
             {weekInfo.totalWeeks && (
-              <span className="text-gray-400 font-normal text-sm"> of {weekInfo.totalWeeks}</span>
+              <span className="text-muted-foreground font-normal text-sm"> of {weekInfo.totalWeeks}</span>
             )}
           </p>
           <StaleIndicator fetchedAt={fetchedAt} />
@@ -182,8 +198,8 @@ export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActive
 
       {/* Vial supply tile */}
       {vials.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Vial Supply</p>
+        <div className="rounded-xl border border-border bg-card text-card-foreground px-5 py-4 shadow-sm">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Vial Supply</p>
           {lowSupplyVials.length > 0 ? (
             <ul className="space-y-1" aria-label="Low-supply vials">
               {lowSupplyVials.map((v) => {
@@ -193,10 +209,10 @@ export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActive
                 const label = isExpired ? 'Expired' : isLowInventory ? 'Low inventory' : `${daysUntil}d left`;
                 const ariaLabel = isExpired ? 'Expired' : isLowInventory ? 'Low inventory warning' : 'Low supply warning';
                 const style = isExpired
-                  ? 'bg-red-50 border-red-200 text-red-700'
+                  ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900/30 dark:text-red-400'
                   : isLowInventory
-                  ? 'bg-orange-50 border-orange-200 text-orange-700'
-                  : 'bg-amber-50 border-amber-200 text-amber-700';
+                  ? 'bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950/20 dark:border-orange-900/30 dark:text-orange-400'
+                  : 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/30 dark:text-amber-400';
                 const icon = isExpired ? '✕' : '⚠';
                 return (
                   <li key={v.id} className="flex items-center gap-2 text-sm">
@@ -207,45 +223,81 @@ export function StackOverview({ weekInfo, vials, ratingAvg, adherence, hasActive
                       <span aria-hidden="true">{icon}</span>
                       {label}
                     </span>
-                    <span className="text-gray-700">{v.compoundName}</span>
+                    <span className="text-foreground">{v.compoundName}</span>
                   </li>
                 );
               })}
             </ul>
           ) : (
-            <p className="text-sm text-green-700 font-medium">&#10003; All vials have at least {LOW_SUPPLY_DAYS} days supply</p>
+            <p className="text-sm text-green-700 dark:text-green-400 font-medium">&#10003; All vials have at least {LOW_SUPPLY_DAYS} days supply</p>
           )}
           <StaleIndicator fetchedAt={fetchedAt} />
         </div>
       )}
 
-      {/* Ratings & Adherence tile */}
-      <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Last 7 Days</p>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-gray-500 mb-0.5">Wellbeing avg</p>
-            {ratingAvg !== null ? (
-              <div>
-                <RatingStars rating={ratingAvg} />
-                <p className="text-xs text-gray-500 mt-0.5">{ratingAvg.toFixed(1)} / 5</p>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400">No ratings yet</p>
-            )}
+      {/* Ratings, Adherence, & Streak tile */}
+      <div className="rounded-xl border border-border bg-card text-card-foreground px-5 py-4 shadow-sm">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Stats Overview</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Wellbeing Avg */}
+          <div className="flex flex-col justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground font-medium mb-1">Wellbeing Avg</p>
+              {ratingAvg !== null ? (
+                <div>
+                  <RatingStars rating={ratingAvg} />
+                  <p className="text-xs text-muted-foreground mt-1">{ratingAvg.toFixed(1)} / 5</p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground/60">No ratings yet</p>
+              )}
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-gray-500 mb-0.5">Adherence</p>
-            {adherence.total > 0 ? (
-              <div>
-                <p className="text-xl font-bold text-gray-900">{Math.round(adherence.percent)}%</p>
-                <p className="text-xs text-gray-500">
-                  {adherence.logged}/{adherence.total} doses logged
+
+          {/* Adherence Circular Progress Ring */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex items-center justify-center shrink-0">
+              <svg className="w-12 h-12 transform -rotate-90">
+                <circle cx="24" cy="24" r="20" className="stroke-muted fill-none" strokeWidth="4" />
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  className="stroke-primary fill-none transition-all duration-500 ease-out"
+                  strokeWidth="4"
+                  strokeDasharray={2 * Math.PI * 20}
+                  strokeDashoffset={2 * Math.PI * 20 * (1 - (adherence.total > 0 ? adherence.percent : 0) / 100)}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className="absolute text-xs font-bold text-foreground">{Math.round(adherence.percent)}%</span>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium">Adherence</p>
+              {adherence.total > 0 ? (
+                <p className="text-xs text-muted-foreground font-semibold mt-0.5">
+                  {adherence.logged}/{adherence.total} logged
                 </p>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400">No doses yet</p>
-            )}
+              ) : (
+                <p className="text-xs text-muted-foreground/60 mt-0.5">No doses yet</p>
+              )}
+            </div>
+          </div>
+
+          {/* Timezone-Agnostic Streak Counter */}
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 border border-orange-500/20 text-orange-500 flex items-center justify-center shrink-0">
+              <Flame className="w-6 h-6 fill-orange-500 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium">Streak</p>
+              <p className="text-sm font-bold text-foreground mt-0.5">
+                {streak.currentStreak}
+                {streak.isCapped && '+'}
+                <span className="text-xs font-normal text-muted-foreground ml-1">days</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground">Longest: {streak.longestStreak}d</p>
+            </div>
           </div>
         </div>
         <StaleIndicator fetchedAt={fetchedAt} />

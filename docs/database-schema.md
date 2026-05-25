@@ -49,6 +49,8 @@ model User {
   managedUsers    User[]   @relation("ManagedUsers")
 
   onboardingState Json?
+  syringeStandard String @default("U100")
+  syringeSize     String @default("1.0")
 
   // Auth.js adapter relations
   accounts            Account[]

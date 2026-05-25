@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { PWARegistry } from './PWARegistry';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 interface NavItem {
   label: string;
@@ -13,9 +14,10 @@ interface NavItem {
 
 interface DashboardNavProps {
   orderingEnabled: boolean;
+  hasUnloggedDoses?: boolean;
 }
 
-export function DashboardNav({ orderingEnabled }: DashboardNavProps) {
+export function DashboardNav({ orderingEnabled, hasUnloggedDoses = false }: DashboardNavProps) {
   const pathname = usePathname();
 
   const items: NavItem[] = [
@@ -82,6 +84,22 @@ export function DashboardNav({ orderingEnabled }: DashboardNavProps) {
 
   return (
     <>
+      {/* Mobile Top Header Bar */}
+      <header className="fixed top-0 left-0 right-0 h-[var(--mobile-header-height,3.5rem)] bg-white dark:bg-card border-b border-border flex items-center justify-between px-4 z-40 sm:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <span className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg leading-none shrink-0" aria-hidden="true">
+            P
+          </span>
+          <span className="text-base font-bold text-foreground tracking-tight">
+            Peptides
+          </span>
+        </Link>
+        <div className="scale-90 origin-right">
+          <ThemeSwitcher />
+        </div>
+      </header>
+
+      {/* Mobile Bottom Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-card border-t border-border flex justify-around items-center h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] sm:hidden" aria-label="Mobile Navigation">
         {items.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -94,7 +112,15 @@ export function DashboardNav({ orderingEnabled }: DashboardNavProps) {
                 isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <span className="mb-0.5" aria-hidden="true">{item.icon}</span>
+              <span className="mb-0.5 relative" aria-hidden="true">
+                {item.icon}
+                {item.label === 'Tracker' && hasUnloggedDoses && (
+                  <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+                  </span>
+                )}
+              </span>
               <span>{item.label}</span>
             </Link>
           );
@@ -131,16 +157,29 @@ export function DashboardNav({ orderingEnabled }: DashboardNavProps) {
                 } lg:px-4 justify-center lg:justify-start`}
                 title={item.label}
               >
-                <span className="shrink-0" aria-hidden="true">{item.icon}</span>
+                <span className="shrink-0 relative" aria-hidden="true">
+                  {item.icon}
+                  {item.label === 'Tracker' && hasUnloggedDoses && (
+                    <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 animate-pulse">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+                    </span>
+                  )}
+                </span>
                 <span className="lg:block hidden">{item.label}</span>
               </Link>
             );
           })}
         </div>
 
-        {/* Sidebar Footer for PWA Status Indicator */}
-        <div className="p-4 border-t border-border mt-auto flex justify-center lg:justify-start">
-          <PWARegistry />
+        {/* Sidebar Footer with ThemeSwitcher and PWARegistry */}
+        <div className="p-4 border-t border-border mt-auto flex flex-col gap-4 items-center lg:items-stretch">
+          <div className="lg:block hidden">
+            <ThemeSwitcher />
+          </div>
+          <div className="w-full flex justify-center lg:justify-start">
+            <PWARegistry />
+          </div>
         </div>
       </nav>
     </>

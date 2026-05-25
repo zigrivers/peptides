@@ -66,16 +66,16 @@ export function GettingStartedChecklist({ state, userRole, orderingEnabled }: Ge
   };
 
   return (
-    <section aria-label="Getting Started" className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+    <section aria-label="Getting Started" className="bg-card border border-border text-card-foreground rounded-xl p-5 mb-6">
       <div className="mb-4">
-        <h2 className="text-sm font-semibold text-gray-900">Getting Started</h2>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <h2 className="text-sm font-semibold text-foreground">Getting Started</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
           {completedCount} of {totalSteps} steps completed
         </p>
       </div>
 
       {/* Progress bar */}
-      <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4" aria-hidden="true">
+      <div className="w-full bg-muted rounded-full h-1.5 mb-4" aria-hidden="true">
         <div
           className="bg-primary h-1.5 rounded-full transition-all"
           style={{ width: `${totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0}%` }}
@@ -92,7 +92,7 @@ export function GettingStartedChecklist({ state, userRole, orderingEnabled }: Ge
               <span
                 className={[
                   'w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0',
-                  done ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-400',
+                  done ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
                 ].join(' ')}
                 aria-hidden="true"
               >
@@ -101,7 +101,7 @@ export function GettingStartedChecklist({ state, userRole, orderingEnabled }: Ge
               <span
                 className={[
                   'text-sm',
-                  done ? 'text-gray-400 line-through' : isCurrent ? 'text-gray-900 font-medium' : 'text-gray-500',
+                  done ? 'text-muted-foreground/60 line-through' : isCurrent ? 'text-foreground font-medium' : 'text-muted-foreground',
                 ].join(' ')}
               >
                 {step.label}

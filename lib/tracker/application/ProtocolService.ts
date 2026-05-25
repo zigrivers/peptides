@@ -16,6 +16,10 @@ type LifecycleInput = { actorUserId: string; protocolId: string };
 type CloneInput = LifecycleInput & { newStartDate: Date };
 type AnyClient = Prisma.TransactionClient | PrismaClient;
 
+/**
+ * Resolves the active managed user IDs for a given actor user ID.
+ * Supports passing an optional transaction client.
+ */
 export async function getManagedUserIds(actorUserId: string, client: AnyClient = prisma): Promise<string[]> {
   const users = await client.user.findMany({
     where: { managedBy: actorUserId, status: 'ACTIVE' },

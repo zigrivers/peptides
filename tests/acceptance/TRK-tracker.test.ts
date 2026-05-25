@@ -76,7 +76,7 @@ beforeEach(() => {
 const { createProtocol, updateProtocol, pauseProtocol, resumeProtocol, cloneProtocol, deactivateProtocol } = await import(
   '@/lib/tracker/application/ProtocolService'
 );
-const { generateScheduleDates, isScheduledOn } = await import(
+const { generateScheduleDates, isScheduledOn, getScheduledDatesInRange } = await import(
   '@/lib/tracker/domain/ScheduleGenerator'
 );
 const { logDose } = await import('@/lib/tracker/application/DoseLogService');
@@ -469,6 +469,74 @@ describe('ScheduleGenerator', () => {
       expect(isScheduledOn({ frequency: 'Daily' }, s, end, new Date(Date.UTC(2026, 5, 6)))).toBe(false);
     });
   });
+
+  describe('getScheduledDatesInRange', () => {
+    const pStart = new Date(Date.UTC(2026, 5, 1)); // Mon June 1, 2026
+    const pEnd = new Date(Date.UTC(2026, 5, 15));  // Mon June 15, 2026
+
+    it('Daily: returns all dates within the intersection of protocol and viewport range', () => {
+      const rangeStart = new Date(Date.UTC(2026, 4, 28)); // May 28
+      const rangeEnd = new Date(Date.UTC(2026, 5, 3));    // June 3
+      const dates = getScheduledDatesInRange({ frequency: 'Daily' }, pStart, pEnd, rangeStart, rangeEnd);
+      // Intersection: June 1, June 2, June 3
+      expect(dates).toHaveLength(3);
+      expect(dates[0].toISOString().slice(0, 10)).toBe('2026-06-01');
+      expect(dates[1].toISOString().slice(0, 10)).toBe('2026-06-02');
+      expect(dates[2].toISOString().slice(0, 10)).toBe('2026-06-03');
+    });
+
+    it('EOD: generates dates on even offsets from protocol start', () => {
+      const rangeStart = new Date(Date.UTC(2026, 5, 1)); // June 1
+      const rangeEnd = new Date(Date.UTC(2026, 5, 6));   // June 6
+      const dates = getScheduledDatesInRange({ frequency: 'EOD' }, pStart, pEnd, rangeStart, rangeEnd);
+      // Scheduled: June 1 (offset 0), June 3 (offset 2), June 5 (offset 4)
+      expect(dates).toHaveLength(3);
+      expect(dates[0].toISOString().slice(0, 10)).toBe('2026-06-01');
+      expect(dates[1].toISOString().slice(0, 10)).toBe('2026-06-03');
+      expect(dates[2].toISOString().slice(0, 10)).toBe('2026-06-05');
+    });
+
+    it('SpecificDaysOfWeek: returns days of week matching protocol settings', () => {
+      const rangeStart = new Date(Date.UTC(2026, 5, 1)); // Mon June 1
+      const rangeEnd = new Date(Date.UTC(2026, 5, 7));   // Sun June 7
+      // Days: Mon, Wed, Fri
+      const dates = getScheduledDatesInRange(
+        { frequency: 'SpecificDaysOfWeek', daysOfWeek: ['Mon', 'Wed', 'Fri'] },
+        pStart,
+        pEnd,
+        rangeStart,
+        rangeEnd
+      );
+      expect(dates).toHaveLength(3);
+      expect(dates[0].toISOString().slice(0, 10)).toBe('2026-06-01'); // Mon
+      expect(dates[1].toISOString().slice(0, 10)).toBe('2026-06-03'); // Wed
+      expect(dates[2].toISOString().slice(0, 10)).toBe('2026-06-05'); // Fri
+    });
+
+    it('CustomInterval: returns dates on exact intervals', () => {
+      const rangeStart = new Date(Date.UTC(2026, 5, 1)); // June 1
+      const rangeEnd = new Date(Date.UTC(2026, 5, 10));  // June 10
+      const dates = getScheduledDatesInRange(
+        { frequency: 'CustomInterval', intervalDays: 4 },
+        pStart,
+        null,
+        rangeStart,
+        rangeEnd
+      );
+      // June 1 (offset 0), June 5 (offset 4), June 9 (offset 8)
+      expect(dates).toHaveLength(3);
+      expect(dates[0].toISOString().slice(0, 10)).toBe('2026-06-01');
+      expect(dates[1].toISOString().slice(0, 10)).toBe('2026-06-05');
+      expect(dates[2].toISOString().slice(0, 10)).toBe('2026-06-09');
+    });
+
+    it('returns empty array if ranges do not overlap', () => {
+      const rangeStart = new Date(Date.UTC(2026, 5, 20));
+      const rangeEnd = new Date(Date.UTC(2026, 5, 25));
+      const dates = getScheduledDatesInRange({ frequency: 'Daily' }, pStart, pEnd, rangeStart, rangeEnd);
+      expect(dates).toHaveLength(0);
+    });
+  });
 });
 
 /**
@@ -845,6 +913,48 @@ describe('US-TRK-03: Individual Dose Logging', () => {
 
   // AC-3 deferred to Task 2.6 — requires IndexedDB offline queue (PWA Sync)
   it.todo('AC-3: queues dose log while offline');
+
+  it('rejects logging for an off-schedule date', async () => {
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    mockProtocolFindFirst.mockResolvedValue({
+      ...baseProtocolRow,
+      schedule: { frequency: 'SpecificDaysOfWeek', daysOfWeek: ['Mon'] }, // 2026-05-21 is Thursday
+    });
+
+    await expect(
+      logDose({
+        actorUserId: logActorUserId,
+        protocolId: logProtocolId,
+        scheduledDate, // May 21 (Thursday)
+        amount,
+        status: 'LOGGED',
+        injectionSite,
+      })
+    ).rejects.toThrow(/dose_log_off_schedule/);
+  });
+
+  it('bypasses schedule check for an off-schedule date when isOffline is true', async () => {
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    mockProtocolFindFirst.mockResolvedValue({
+      ...baseProtocolRow,
+      schedule: { frequency: 'SpecificDaysOfWeek', daysOfWeek: ['Mon'] }, // 2026-05-21 is Thursday
+    });
+    mockVialCount.mockResolvedValue(1);
+    mockDoseLogCreate.mockResolvedValue(baseDoseLogRow);
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await logDose({
+      actorUserId: logActorUserId,
+      protocolId: logProtocolId,
+      scheduledDate, // May 21 (Thursday)
+      amount,
+      status: 'LOGGED',
+      injectionSite,
+      isOffline: true,
+    });
+
+    expect(result.doseLog).toBeDefined();
+  });
 
   it('AC-4: shows insufficient_inventory warning when no vials available', async () => {
     mockDoseLogFindFirst.mockResolvedValue(null);

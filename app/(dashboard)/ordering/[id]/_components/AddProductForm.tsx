@@ -47,7 +47,7 @@ export function AddProductForm({ vendorId, compounds }: Props) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="rounded-md bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 transition-colors"
+        className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:bg-primary/90 transition-colors"
       >
         + Add Product
       </button>
@@ -55,16 +55,16 @@ export function AddProductForm({ vendorId, compounds }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-4 space-y-4">
-      <h3 className="text-sm font-semibold text-gray-800">New Product</h3>
+    <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-card text-card-foreground px-4 py-4 space-y-4">
+      <h3 className="text-sm font-semibold text-foreground">New Product</h3>
 
       <div>
-        <label htmlFor="compoundId" className="block text-xs font-medium text-gray-600 mb-1">Compound</label>
+        <label htmlFor="compoundId" className="block text-xs font-medium text-muted-foreground mb-1">Compound</label>
         <select
           id="compoundId"
           name="compoundId"
           required
-          className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+          className="w-full rounded border border-border bg-background text-foreground px-2 py-1.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
         >
           <option value="">Select compound…</option>
           {compounds.map((c) => (
@@ -74,19 +74,19 @@ export function AddProductForm({ vendorId, compounds }: Props) {
       </div>
 
       <div>
-        <label htmlFor="name" className="block text-xs font-medium text-gray-600 mb-1">Product Name</label>
+        <label htmlFor="name" className="block text-xs font-medium text-muted-foreground mb-1">Product Name</label>
         <input
           id="name"
           name="name"
           type="text"
           required
           placeholder="e.g. BPC-157 5mg"
-          className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+          className="w-full rounded border border-border bg-background text-foreground px-2 py-1.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
         />
       </div>
 
       <div>
-        <label htmlFor="priceUsd" className="block text-xs font-medium text-gray-600 mb-1">Price (USD)</label>
+        <label htmlFor="priceUsd" className="block text-xs font-medium text-muted-foreground mb-1">Price (USD)</label>
         <input
           id="priceUsd"
           name="priceUsd"
@@ -94,7 +94,7 @@ export function AddProductForm({ vendorId, compounds }: Props) {
           required
           pattern="\d+(\.\d{1,2})?"
           placeholder="45.00"
-          className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+          className="w-full rounded border border-border bg-background text-foreground px-2 py-1.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
         />
       </div>
 
@@ -104,14 +104,14 @@ export function AddProductForm({ vendorId, compounds }: Props) {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-indigo-600 text-white px-3 py-1.5 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          className="rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
           {pending ? 'Saving…' : 'Save'}
         </button>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+          className="rounded-md border border-border bg-secondary px-3 py-1.5 text-sm text-secondary-foreground hover:bg-secondary/80 transition-colors"
         >
           Cancel
         </button>

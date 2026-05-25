@@ -38,6 +38,16 @@ model User {
   // Onboarding
   onboardingState Json?   // { step: string, completedAt: Date, dismissed: boolean }
 
+  // Syringe Preferences
+  // Note: Keep in sync with user settings validations
+  syringeStandard String   @default("U100")
+  syringeSize     String   @default("1.0")
+  
+  // Personalization settings
+  accentColor     String   @default("indigo")
+  theme           String   @default("system")
+  personalizationVersion Int @default(1)
+
   // Relationships
   accounts      Account[]
   sessions      Session[]
@@ -317,10 +327,12 @@ model Vial {
   status                String    @default("DRY")
   reconstitutedAt       DateTime?
   expiresAt             DateTime?
+  shelfOrder            Int       @default(0)
   
   doseLogs              DoseLog[]
 
   @@index([userId, compoundId, status])
+  @@index([userId, status, shelfOrder, expiresAt])
 }
 
 // --- Ordering Domain ---

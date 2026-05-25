@@ -371,6 +371,42 @@ export async function sendOrder(
   };
 }
 
+export async function confirmManualSent(userId: string, orderId: string): Promise<void> {
+  const order = await prisma.order.findFirst({ where: { id: orderId, userId } });
+  if (!order) throw new Error('order_not_found');
+  if (order.status !== 'DRAFT') {
+    throw new Error('invalid_order_transition');
+  }
+  if (order.sendMethod !== 'MANUAL_FALLBACK' || !order.messageText || !order.sentAt) {
+    throw new Error('invalid_order_transition');
+  }
+
+  await withAudit(
+    async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: {
+          id: orderId,
+          userId,
+          status: 'DRAFT',
+          sendMethod: 'MANUAL_FALLBACK',
+          messageText: { not: null },
+          sentAt: { not: null },
+        },
+        data: { status: 'SENT' },
+      });
+      if (count === 0) throw new Error('invalid_order_transition');
+    },
+    () => ({
+      actorUserId: userId,
+      category: 'Order' as const,
+      action: 'ORDER_SENT' as const,
+      resourceId: orderId,
+      resourceType: 'Order',
+      newValues: { status: 'SENT' },
+    })
+  );
+}
+
 // ---------------------------------------------------------------------------
 // State machine helpers
 // ---------------------------------------------------------------------------

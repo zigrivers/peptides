@@ -95,3 +95,81 @@ export function isScheduledOn(
     }
   }
 }
+
+/**
+ * Resolves all scheduled dates for a given protocol schedule within a specific viewport range [rangeStart, rangeEnd].
+ * All input dates and output dates are normalized to UTC midnight.
+ * Optimized range-based lookup to avoid O(N * M) calendar cell loops (MMR F-003).
+ */
+export function getScheduledDatesInRange(
+  schedule: Schedule,
+  protocolStart: Date,
+  protocolEnd: Date | null,
+  rangeStart: Date,
+  rangeEnd: Date
+): Date[] {
+  const pStartUTC = new Date(Date.UTC(protocolStart.getUTCFullYear(), protocolStart.getUTCMonth(), protocolStart.getUTCDate()));
+  const pEndUTC = protocolEnd 
+    ? new Date(Date.UTC(protocolEnd.getUTCFullYear(), protocolEnd.getUTCMonth(), protocolEnd.getUTCDate()))
+    : null;
+  const rStartUTC = new Date(Date.UTC(rangeStart.getUTCFullYear(), rangeStart.getUTCMonth(), rangeStart.getUTCDate()));
+  const rEndUTC = new Date(Date.UTC(rangeEnd.getUTCFullYear(), rangeEnd.getUTCMonth(), rangeEnd.getUTCDate()));
+
+  const startBound = new Date(Math.max(pStartUTC.getTime(), rStartUTC.getTime()));
+  const endBound = new Date(pEndUTC ? Math.min(pEndUTC.getTime(), rEndUTC.getTime()) : rEndUTC.getTime());
+
+  if (startBound > endBound) return [];
+
+  const results: Date[] = [];
+  let cursor = new Date(Date.UTC(startBound.getUTCFullYear(), startBound.getUTCMonth(), startBound.getUTCDate()));
+  const limitUTC = new Date(Date.UTC(endBound.getUTCFullYear(), endBound.getUTCMonth(), endBound.getUTCDate()));
+
+  switch (schedule.frequency) {
+    case 'Daily': {
+      while (cursor <= limitUTC) {
+        results.push(new Date(cursor));
+        cursor = addDays(cursor, 1);
+      }
+      break;
+    }
+    case 'EOD': {
+      const diffDays = Math.round((cursor.getTime() - pStartUTC.getTime()) / 86_400_000);
+      const remainder = diffDays % 2;
+      if (remainder !== 0) {
+        cursor = addDays(cursor, (2 - remainder));
+      }
+      while (cursor <= limitUTC) {
+        results.push(new Date(cursor));
+        cursor = addDays(cursor, 2);
+      }
+      break;
+    }
+    case 'SpecificDaysOfWeek': {
+      const targetIndices = schedule.daysOfWeek.map((d) => DAY_INDEX[d]);
+      if (targetIndices.length === 0) break;
+      while (cursor <= limitUTC) {
+        if (targetIndices.includes(cursor.getUTCDay())) {
+          results.push(new Date(cursor));
+        }
+        cursor = addDays(cursor, 1);
+      }
+      break;
+    }
+    case 'CustomInterval': {
+      const interval = Math.max(1, schedule.intervalDays);
+      const diffDays = Math.round((cursor.getTime() - pStartUTC.getTime()) / 86_400_000);
+      const remainder = diffDays % interval;
+      if (remainder !== 0) {
+        cursor = addDays(cursor, (interval - remainder));
+      }
+      while (cursor <= limitUTC) {
+        results.push(new Date(cursor));
+        cursor = addDays(cursor, interval);
+      }
+      break;
+    }
+  }
+
+  return results;
+}
+

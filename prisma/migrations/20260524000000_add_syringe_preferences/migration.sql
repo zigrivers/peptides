@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN "syringeStandard" TEXT NOT NULL DEFAULT 'U100',
+ADD COLUMN "syringeSize" TEXT NOT NULL DEFAULT '1.0';

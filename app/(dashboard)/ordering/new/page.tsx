@@ -8,15 +8,15 @@ export default async function NewVendorPage() {
   if (!session?.user?.id) redirect('/login');
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8">
+    <main className="max-w-2xl mx-auto px-4 py-8 animate-page-enter">
       <div className="mb-6">
-        <Link href="/ordering" className="text-sm text-indigo-600 hover:underline">
+        <Link href="/ordering" className="text-sm text-primary hover:underline">
           ← Back to Vendors
         </Link>
-        <h1 className="text-2xl font-semibold text-gray-900 mt-2">Add Vendor</h1>
+        <h1 className="text-2xl font-semibold text-foreground mt-2">Add Vendor</h1>
       </div>
 
-      <section className="rounded-xl border border-gray-200 bg-white px-6 py-6 shadow-sm">
+      <section className="rounded-xl border border-border bg-card text-card-foreground px-6 py-6 shadow-sm">
         <CreateVendorForm />
       </section>
     </main>

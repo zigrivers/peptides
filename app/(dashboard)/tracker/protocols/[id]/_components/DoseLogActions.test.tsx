@@ -16,6 +16,14 @@ vi.mock('@/app/actions/tracker/log-dose', () => ({
   ),
 }));
 
+const mockOfflineEnqueue = vi.fn();
+
+vi.mock('@/lib/offline/application/OfflineQueue', () => ({
+  OfflineQueue: vi.fn().mockImplementation(() => ({
+    enqueue: mockOfflineEnqueue,
+  })),
+}));
+
 describe('DoseLogActions Component UI/UX with JSDOM', () => {
   const mockSiteData = {
     suggestion: { bodyPart: 'abdomen', side: 'left' } as InjectionSite,
@@ -114,6 +122,112 @@ describe('DoseLogActions Component UI/UX with JSDOM', () => {
       amount: { amount: '250', unit: 'mcg' },
       status: 'LOGGED',
       injectionSite: { bodyPart: 'abdomen', side: 'left' },
+    });
+  });
+
+  it('renders rotation alert when selecting the same site as the last dose', () => {
+    const conflictSiteData = {
+      ...mockSiteData,
+      recentSites: [{ bodyPart: 'abdomen', side: 'left' } as InjectionSite],
+    };
+    render(<DoseLogActions {...defaultProps} siteData={conflictSiteData} />);
+
+    // Since initial select (suggested) is Left Abdomen, it should immediately trigger conflict alert
+    expect(screen.getByText(/Rotation Alert/)).toBeDefined();
+    expect(screen.getByText(/This site was used for your last dose/)).toBeDefined();
+  });
+
+  it('does not render rotation alert when a different/rested site is selected', () => {
+    const conflictSiteData = {
+      ...mockSiteData,
+      recentSites: [{ bodyPart: 'abdomen', side: 'right' } as InjectionSite],
+    };
+    render(<DoseLogActions {...defaultProps} siteData={conflictSiteData} />);
+
+    // Selected site is Left Abdomen, last used is Right Abdomen. No conflict alert.
+    expect(screen.queryByText(/Rotation Alert/)).toBeNull();
+  });
+
+  describe('Offline Intercept Fallback Checks', () => {
+    const originalOnLine = navigator.onLine;
+
+    afterEach(() => {
+      Object.defineProperty(navigator, 'onLine', {
+        writable: true,
+        value: originalOnLine,
+      });
+      mockOfflineEnqueue.mockReset();
+    });
+
+    it('enqueues offline when browser is offline and navigator.onLine is false', async () => {
+      Object.defineProperty(navigator, 'onLine', {
+        writable: true,
+        value: false,
+      });
+
+      mockOfflineEnqueue.mockResolvedValueOnce({ ok: true, id: 'entry-id' });
+
+      render(<DoseLogActions {...defaultProps} />);
+      
+      const logButton = screen.getByRole('button', { name: 'Log Dose' });
+      fireEvent.click(logButton);
+
+      // Verify "Pending Sync" badge shows up
+      const badge = await screen.findByText('Pending Sync');
+      expect(badge).toBeDefined();
+
+      // Verify offline queue enqueued
+      expect(mockOfflineEnqueue).toHaveBeenCalledWith(expect.objectContaining({
+        protocolId: 'proto-1',
+        amount: { amount: '250', unit: 'mcg' },
+        status: 'LOGGED',
+        injectionSite: { bodyPart: 'abdomen', side: 'left' },
+      }));
+    });
+
+    it('enqueues offline when a network TypeError occurs during online log attempt', async () => {
+      Object.defineProperty(navigator, 'onLine', {
+        writable: true,
+        value: true,
+      });
+
+      const { logDoseAction } = await import('@/app/actions/tracker/log-dose');
+      vi.mocked(logDoseAction).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      mockOfflineEnqueue.mockResolvedValueOnce({ ok: true, id: 'entry-id' });
+
+      render(<DoseLogActions {...defaultProps} />);
+      
+      const logButton = screen.getByRole('button', { name: 'Log Dose' });
+      fireEvent.click(logButton);
+
+      // Verify offline queue enqueued
+      const badge = await screen.findByText('Pending Sync');
+      expect(badge).toBeDefined();
+      expect(mockOfflineEnqueue).toHaveBeenCalled();
+    });
+
+    it('does not enqueue offline when an application error is returned from the server', async () => {
+      Object.defineProperty(navigator, 'onLine', {
+        writable: true,
+        value: true,
+      });
+
+      const { logDoseAction } = await import('@/app/actions/tracker/log-dose');
+      vi.mocked(logDoseAction).mockResolvedValueOnce({
+        ok: false,
+        error: 'invalid_injection_site',
+        message: 'Invalid injection site for this protocol route.',
+      });
+
+      render(<DoseLogActions {...defaultProps} />);
+      
+      const logButton = screen.getByRole('button', { name: 'Log Dose' });
+      fireEvent.click(logButton);
+
+      // Verify error is shown but NOT queued offline
+      const errorMsg = await screen.findByText('Invalid injection site for this protocol route.');
+      expect(errorMsg).toBeDefined();
+      expect(mockOfflineEnqueue).not.toHaveBeenCalled();
     });
   });
 });

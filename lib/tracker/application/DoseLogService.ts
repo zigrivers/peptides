@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 import type { LogDoseInput, LogDoseResult, SafetyWarning, DoseLog, InjectionSite } from '../domain/types';
@@ -13,6 +13,9 @@ import {
 import { findProtocolByIdForActor } from '../infrastructure/ProtocolRepo';
 import { getManagedUserIds } from './ProtocolService';
 import { getSitesForRoute, sitesEqual } from '../domain/SiteRotation';
+import { isScheduledOn } from '../domain/ScheduleGenerator';
+import { parseSchedule, parseDoseAmount, parseInjectionSite } from '../domain/validation';
+import type { DoseLogStatus } from '../domain/types';
 
 function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date): string {
   const dateStr = scheduledDate.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -40,14 +43,27 @@ export async function getTodaysDoseLog(userId: string, protocolId: string): Prom
   return findDoseLogForDate(prisma, protocol.userId, protocolId, todayUTC);
 }
 
-export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
+async function runInTx<T>(
+  client: Prisma.TransactionClient | { $transaction: (cb: (tx: Prisma.TransactionClient) => Promise<T>) => Promise<T> },
+  fn: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+  if ('$transaction' in client && typeof client.$transaction === 'function') {
+    return client.$transaction(fn);
+  }
+  return fn(client as Prisma.TransactionClient);
+}
+
+export async function logDose(
+  input: LogDoseInput,
+  tx: Prisma.TransactionClient | PrismaClient = prisma
+): Promise<LogDoseResult> {
   if (isFutureCalendarDay(input.scheduledDate)) {
     throw new Error('dose_log_too_late: Cannot log a dose for a future date');
   }
 
   // Resolve protocol first to obtain the authoritative subject userId.
-  const managedIds = await getManagedUserIds(input.actorUserId);
-  const protocol = await findProtocolByIdForActor(prisma, input.protocolId, input.actorUserId, managedIds);
+  const managedIds = await getManagedUserIds(input.actorUserId, tx);
+  const protocol = await findProtocolByIdForActor(tx, input.protocolId, input.actorUserId, managedIds);
   if (!protocol) {
     throw new Error(`Protocol not found: ${input.protocolId}`);
   }
@@ -57,6 +73,20 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
 
   // Dose log is stored under the protocol owner's userId.
   const subjectUserId = protocol.userId;
+
+  // Always derive idempotency key from the authoritative (subjectUserId, protocolId, scheduledDate) triple.
+  // This ensures one dose log per day per protocol regardless of which device or sync path calls logDose.
+  const idempotencyKey = buildIdempotencyKey(subjectUserId, input.protocolId, input.scheduledDate);
+  const existing = await findDoseLogByIdempotencyKey(tx, idempotencyKey, subjectUserId);
+
+  // If there is an existing log (e.g. updating an entry), we bypass the schedule check.
+  // Otherwise, we must validate that the date matches the protocol's schedule (unless it is an offline sync replay).
+  if (!existing && !input.isOffline) {
+    const schedule = parseSchedule(protocol.schedule);
+    if (!isScheduledOn(schedule, protocol.startDate, protocol.endDate, input.scheduledDate)) {
+      throw new Error('dose_log_off_schedule: Cannot log a dose for an off-schedule date');
+    }
+  }
 
   // Validate injectionSite against the protocol's administration route.
   const validSitesForRoute = getSitesForRoute(protocol.administrationRoute);
@@ -78,21 +108,16 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
 
   // Validate vialId ownership before any writes.
   if (input.vialId) {
-    const valid = await validateVialOwnership(prisma, input.vialId, subjectUserId, protocol.compoundId);
+    const valid = await validateVialOwnership(tx, input.vialId, subjectUserId, protocol.compoundId);
     if (!valid) {
       throw new Error(`vial_not_found: vial ${input.vialId} does not belong to this user or compound`);
     }
   }
 
-  // Always derive idempotency key from the authoritative (subjectUserId, protocolId, scheduledDate) triple.
-  // This ensures one dose log per day per protocol regardless of which device or sync path calls logDose.
-  const idempotencyKey = buildIdempotencyKey(subjectUserId, input.protocolId, input.scheduledDate);
-  const existing = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, subjectUserId);
-
   // Always check inventory; warnings apply to both new logs and same-day edits to LOGGED.
   const warnings: SafetyWarning[] = [];
   if (input.status === 'LOGGED') {
-    const vialCount = await countActiveVialsForCompound(prisma, subjectUserId, protocol.compoundId);
+    const vialCount = await countActiveVialsForCompound(tx, subjectUserId, protocol.compoundId);
     if (vialCount === 0) {
       warnings.push({ code: 'insufficient_inventory', message: 'No reconstituted vials available for this compound.' });
     }
@@ -113,15 +138,17 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
       return { doseLog: existing, warnings };
     }
     // Same-calendar-day edit: update status and/or injection site.
-    const updated = await prisma.$transaction(async (tx) => {
-      const log = await updateDoseLog(tx, existing.id, subjectUserId, {
+    const updated = await runInTx<DoseLog>(tx, async (innerTx) => {
+      const log = await updateDoseLog(innerTx, existing.id, subjectUserId, {
         status: input.status,
         // Explicitly null for SKIPPED; preserve or override for LOGGED.
         injectionSite: input.status === 'SKIPPED' ? null : (input.injectionSite ?? existing.injectionSite),
         note: input.note ?? existing.note,
         vialId: input.status === 'SKIPPED' ? null : (input.vialId ?? existing.vialId),
+        loggedByUserId: input.actorUserId,
+        loggedAt: new Date(), // Update timestamp on actual logging action
       });
-      await tx.auditEvent.create({
+      await innerTx.auditEvent.create({
         data: {
           actorUserId: input.actorUserId,
           subjectUserId,
@@ -142,8 +169,8 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
   const amount = protocol.dose;
 
   try {
-    const doseLog = await prisma.$transaction(async (tx) => {
-      const log = await createDoseLog(tx, {
+    const doseLog = await runInTx<DoseLog>(tx, async (innerTx) => {
+      const log = await createDoseLog(innerTx, {
         protocolId: input.protocolId,
         userId: subjectUserId,
         idempotencyKey,
@@ -156,7 +183,7 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
         loggedByUserId: input.actorUserId,
       });
 
-      await tx.auditEvent.create({
+      await innerTx.auditEvent.create({
         data: {
           actorUserId: input.actorUserId,
           subjectUserId,
@@ -181,9 +208,57 @@ export async function logDose(input: LogDoseInput): Promise<LogDoseResult> {
     // Concurrent create hit the @@unique([userId, protocolId, scheduledDate]) constraint.
     // Use findDoseLogForDate (not idempotencyKey) so we find the record regardless of who won.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      const winner = await findDoseLogForDate(prisma, subjectUserId, input.protocolId, toUTCDay(input.scheduledDate));
+      const winner = await findDoseLogForDate(tx, subjectUserId, input.protocolId, toUTCDay(input.scheduledDate));
       if (winner) return { doseLog: winner, warnings };
     }
     throw err;
   }
+}
+
+export async function getRecentDoseLogsForUser(userId: string, limitDays = 60): Promise<DoseLog[]> {
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - limitDays);
+  
+  const rows = await prisma.doseLog.findMany({
+    where: { userId, scheduledDate: { gte: since } },
+    orderBy: { scheduledDate: 'desc' },
+  });
+  
+  return rows.map((r) => ({
+    id: r.id,
+    protocolId: r.protocolId,
+    userId: r.userId,
+    vialId: r.vialId,
+    idempotencyKey: r.idempotencyKey,
+    loggedAt: r.loggedAt,
+    scheduledDate: r.scheduledDate,
+    amount: parseDoseAmount(r.amount),
+    status: r.status as DoseLogStatus,
+    injectionSite: parseInjectionSite(r.injectionSite),
+    isBatchLog: r.isBatchLog,
+    note: r.note,
+    loggedByUserId: r.loggedByUserId,
+  }));
+}
+
+export async function getDoseLogsRange(userId: string, since: Date): Promise<DoseLog[]> {
+  const rows = await prisma.doseLog.findMany({
+    where: { userId, scheduledDate: { gte: since } },
+    orderBy: { scheduledDate: 'asc' },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    protocolId: r.protocolId,
+    userId: r.userId,
+    vialId: r.vialId,
+    idempotencyKey: r.idempotencyKey,
+    loggedAt: r.loggedAt,
+    scheduledDate: r.scheduledDate,
+    amount: parseDoseAmount(r.amount),
+    status: r.status as DoseLogStatus,
+    injectionSite: parseInjectionSite(r.injectionSite),
+    isBatchLog: r.isBatchLog,
+    note: r.note,
+    loggedByUserId: r.loggedByUserId,
+  }));
 }

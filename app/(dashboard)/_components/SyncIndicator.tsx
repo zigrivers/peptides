@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 
 type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline' | 'synced';
 
@@ -8,6 +9,7 @@ export function SyncIndicator() {
   const [status, setStatus] = useState<SyncStatus>('idle');
   const [pendingCount, setPendingCount] = useState(0);
   const [lastChecked, setLastChecked] = useState(Date.now());
+  const router = useRouter();
 
   const isMountedRef = useRef(true);
 
@@ -46,6 +48,9 @@ export function SyncIndicator() {
     let cancelled = false;
 
     async function checkPending() {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
       try {
         const { OfflineQueue } = await import('@/lib/offline/application/OfflineQueue');
         const q = new OfflineQueue();
@@ -60,10 +65,16 @@ export function SyncIndicator() {
     }
 
     checkPending();
+
+    window.addEventListener('online', checkPending);
+    window.addEventListener('offline-sync-queue-updated', checkPending);
+
     const interval = setInterval(checkPending, 30_000);
     return () => {
       cancelled = true;
       clearInterval(interval);
+      window.removeEventListener('online', checkPending);
+      window.removeEventListener('offline-sync-queue-updated', checkPending);
     };
   }, []);
 
@@ -109,6 +120,8 @@ export function SyncIndicator() {
           setStatus('error');
         } else {
           setStatus('synced');
+          // Successful sync completed - refresh Next.js components to pull latest DB data
+          router.refresh();
         }
       } catch {
         if (isMountedRef.current) setStatus('error');

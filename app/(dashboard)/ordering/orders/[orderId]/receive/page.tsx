@@ -24,33 +24,33 @@ export default async function ReceivePage({ params }: Props) {
   const boundAction = receiveOrderAction.bind(null, orderId);
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <main className="max-w-2xl mx-auto px-4 py-8 space-y-6 animate-page-enter">
       <div>
-        <Link href={`/ordering/orders/${orderId}`} className="text-sm text-indigo-600 hover:underline">
+        <Link href={`/ordering/orders/${orderId}`} className="text-sm text-primary hover:underline">
           ← Back to order
         </Link>
-        <h1 className="text-2xl font-semibold text-gray-900 mt-2">Confirm Receipt</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-2xl font-semibold text-foreground mt-2">Confirm Receipt</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Confirm you have received the following items. Pre-mixed solutions are added directly to your
           active inventory. Powder items should be reconstituted in the tracker before tracking doses.
         </p>
       </div>
 
-      <section className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Items</h2>
+      <section className="rounded-xl border border-border bg-card text-card-foreground px-5 py-4 shadow-sm">
+        <h2 className="text-sm font-semibold text-muted-foreground mb-3">Items</h2>
         <ul className="space-y-2">
           {order.items.map((item) => (
-            <li key={item.id} className="flex justify-between text-sm text-gray-700">
+            <li key={item.id} className="flex justify-between text-sm text-foreground">
               <span>
                 {item.compound.name} — {item.form.toLowerCase().replace('_', ' ')} {item.vialSizeMg.toString()}mg
               </span>
-              <span className="font-medium">
+              <span className="font-medium text-muted-foreground">
                 × {item.quantity} vial{item.quantity !== 1 ? 's' : ''}
               </span>
             </li>
           ))}
         </ul>
-        <p className="text-xs text-gray-400 mt-3">
+        <p className="text-xs text-muted-foreground/80 mt-3">
           Total: {order.items.reduce((sum, i) => sum + i.quantity, 0)} vials
         </p>
       </section>

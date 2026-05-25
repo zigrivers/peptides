@@ -69,4 +69,31 @@ describe('SyringePreview', () => {
     const fluidRectLow = Array.from(rectsLow).find(r => r.getAttribute('class')?.includes('fill-primary'));
     expect(fluidRectLow).toBeUndefined();
   });
+
+  it('supports alternative U-100 syringe capacities (e.g. 0.5 mL = 50 U limit)', () => {
+    const { container } = render(<SyringePreview units={25} warnings={[]} syringeStandard="U100" syringeSize="0.5" />);
+    // Under 50 U limit, 25 units is exactly 50% capacity (height = 90)
+    const rects = container.querySelectorAll('rect');
+    const fluidRect = Array.from(rects).find(r => r.getAttribute('class')?.includes('fill-primary'));
+    expect(fluidRect).toBeDefined();
+    expect(fluidRect?.getAttribute('height')).toBe('90');
+    // Verify maximum capacity warnings is not present
+    const warningText = screen.queryByText(/max 50 U capacity/);
+    expect(warningText).toBeNull();
+  });
+
+  it('supports U-40 syringe standard and capacities (e.g. 1.0 mL = 40 U limit)', () => {
+    const { container } = render(<SyringePreview units={20} warnings={[]} syringeStandard="U40" syringeSize="1.0" />);
+    // Under 40 U limit, 20 units is exactly 50% capacity (height = 90)
+    const rects = container.querySelectorAll('rect');
+    const fluidRect = Array.from(rects).find(r => r.getAttribute('class')?.includes('fill-primary'));
+    expect(fluidRect).toBeDefined();
+    expect(fluidRect?.getAttribute('height')).toBe('90');
+  });
+
+  it('displays a warning when units exceed standard/size capacity', () => {
+    render(<SyringePreview units={15} warnings={[]} syringeStandard="U40" syringeSize="0.3" />);
+    // U40 + 0.3 mL has 12 U limit. 15 units exceeds this.
+    expect(screen.getByText(/max 12 U capacity/)).toBeDefined();
+  });
 });

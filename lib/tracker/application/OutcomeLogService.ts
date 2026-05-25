@@ -286,3 +286,147 @@ export async function getTopTagSuggestions(userId: string, limit = 3): Promise<s
   const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
   return OutcomeLogRepo.topTagsLastNDays(userId, since, tomorrow, limit);
 }
+
+export async function getOutcomeLogsRange(userId: string, since: Date) {
+  return prisma.outcomeLog.findMany({
+    where: { userId, scheduledDate: { gte: since } },
+    orderBy: { scheduledDate: 'asc' },
+  });
+}
+
+export interface WellbeingSentimentInsightsData {
+  averageRating: number | null;
+  tagFrequencies: { tag: string; count: number; avgRating: number }[];
+  notesSummary: { date: string; rating: number; note: string }[];
+  compoundCorrelations: {
+    compoundName: string;
+    averageRatingOnDosedDays: number | null;
+    averageRatingOnNotDosedDays: number | null;
+    dosedDaysCount: number;
+    notDosedDaysCount: number;
+  }[];
+}
+
+export async function getWellbeingSentimentInsights(userId: string): Promise<WellbeingSentimentInsightsData> {
+  const since180 = new Date();
+  since180.setUTCDate(since180.getUTCDate() - 180);
+
+  // Optimized database queries selecting only necessary columns covered by index
+  const [outcomes, doses, protocols] = await Promise.all([
+    prisma.outcomeLog.findMany({
+      where: { userId, scheduledDate: { gte: since180 } },
+      select: { overallRating: true, tags: true, note: true, scheduledDate: true },
+      orderBy: { scheduledDate: 'desc' },
+    }),
+    prisma.doseLog.findMany({
+      where: { userId, status: 'LOGGED', scheduledDate: { gte: since180 } },
+      select: { protocolId: true, scheduledDate: true },
+    }),
+    prisma.protocol.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        compound: {
+          select: { name: true },
+        },
+      },
+    }),
+  ]);
+
+  // Resolve protocol IDs to compound names
+  const protocolCompoundMap = new Map<string, string>();
+  for (const p of protocols) {
+    if (p.compound?.name) {
+      protocolCompoundMap.set(p.id, p.compound.name);
+    }
+  }
+
+  // Group dose events by logical UTC date string
+  const dosesByDate = new Map<string, Set<string>>();
+  for (const d of doses) {
+    const dateStr = d.scheduledDate.toISOString().split('T')[0];
+    const compoundName = protocolCompoundMap.get(d.protocolId);
+    if (compoundName) {
+      let set = dosesByDate.get(dateStr);
+      if (!set) {
+        set = new Set<string>();
+        dosesByDate.set(dateStr, set);
+      }
+      set.add(compoundName);
+    }
+  }
+
+  // Calculate tag frequencies, average rating, and extract recent notes
+  const tagStats = new Map<string, { count: number; sumRating: number }>();
+  let totalRatingSum = 0;
+  const recentNotes: { date: string; rating: number; note: string }[] = [];
+
+  for (const o of outcomes) {
+    totalRatingSum += o.overallRating;
+
+    if (o.note && o.note.trim() && recentNotes.length < 5) {
+      recentNotes.push({
+        date: o.scheduledDate.toISOString().split('T')[0],
+        rating: o.overallRating,
+        note: o.note,
+      });
+    }
+
+    for (const tag of o.tags) {
+      const stats = tagStats.get(tag) || { count: 0, sumRating: 0 };
+      stats.count++;
+      stats.sumRating += o.overallRating;
+      tagStats.set(tag, stats);
+    }
+  }
+
+  const averageRating = outcomes.length > 0 ? totalRatingSum / outcomes.length : null;
+
+  const tagFrequencies = Array.from(tagStats.entries())
+    .map(([tag, stats]) => ({
+      tag,
+      count: stats.count,
+      avgRating: stats.sumRating / stats.count,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  // Compute correlation stats for each compound the user has a protocol for
+  const compoundNames = Array.from(new Set(protocolCompoundMap.values()));
+  const compoundCorrelations = compoundNames.map((compoundName) => {
+    let dosedSum = 0;
+    let dosedCount = 0;
+    let notDosedSum = 0;
+    let notDosedCount = 0;
+
+    for (const o of outcomes) {
+      const dateStr = o.scheduledDate.toISOString().split('T')[0];
+      const dosedSet = dosesByDate.get(dateStr);
+      const wasDosed = dosedSet ? dosedSet.has(compoundName) : false;
+
+      if (wasDosed) {
+        dosedSum += o.overallRating;
+        dosedCount++;
+      } else {
+        notDosedSum += o.overallRating;
+        notDosedCount++;
+      }
+    }
+
+    return {
+      compoundName,
+      averageRatingOnDosedDays: dosedCount > 0 ? dosedSum / dosedCount : null,
+      averageRatingOnNotDosedDays: notDosedCount > 0 ? notDosedSum / notDosedCount : null,
+      dosedDaysCount: dosedCount,
+      notDosedDaysCount: notDosedCount,
+    };
+  });
+
+  return {
+    averageRating,
+    tagFrequencies,
+    notesSummary: recentNotes,
+    compoundCorrelations,
+  };
+}
+
+

@@ -33,7 +33,10 @@ const mockSend = vi.fn();
 const mockAfter = vi.fn((_fn: () => Promise<void>) => {});
 const mockAuditEventCreate = vi.fn();
 const mockPasswordResetCreate = vi.fn();
+const mockAuth = vi.fn();
 
+vi.mock('@/lib/auth', () => ({ auth: mockAuth }));
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/lib/auth/infrastructure/PasswordResetRepo', () => ({
   PasswordResetRepo: { create: mockPasswordResetCreate },
 }));
@@ -121,6 +124,8 @@ const {
   cancelManagedUserDeletion,
   processPendingDeletions,
 } = await import('@/lib/admin/application/AdminService');
+const { inviteUserAction } = await import('@/app/(dashboard)/admin/_actions');
+
 
 /**
  * Story: US-ADM-01 - Create Managed User
@@ -716,3 +721,52 @@ describe('US-ADM-04: processPendingDeletions', () => {
     expect(capturedAudit).toMatchObject({ action: 'MANAGED_USER_DELETED', actorUserId: 'SYSTEM', subjectUserId: 'mu-1' });
   });
 });
+
+describe('inviteUserAction', () => {
+  it('returns unauthorized when no session exists', async () => {
+    mockAuth.mockResolvedValueOnce(null);
+    const formData = new FormData();
+    formData.append('email', 'test@example.com');
+    const result = await inviteUserAction(null, formData);
+    expect(result).toEqual({ error: 'Unauthorized' });
+  });
+
+  it('returns forbidden for a MANAGED_USER', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: 'pu-1', role: 'MANAGED_USER' } });
+    const formData = new FormData();
+    formData.append('email', 'test@example.com');
+    const result = await inviteUserAction(null, formData);
+    expect(result).toEqual({ error: 'Forbidden' });
+  });
+
+  it('returns error when email is missing or invalid', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: 'pu-1', role: 'POWER_USER' } });
+    const formData = new FormData();
+    const result1 = await inviteUserAction(null, formData);
+    expect(result1).toEqual({ error: 'Email is required.' });
+
+    mockAuth.mockResolvedValueOnce({ user: { id: 'pu-1', role: 'POWER_USER' } });
+    formData.append('email', 'invalid-email');
+    const result2 = await inviteUserAction(null, formData);
+    expect(result2).toEqual({ error: 'Invalid email address.' });
+  });
+
+  it('invites user successfully for POWER_USER', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: 'pu-1', role: 'POWER_USER' } });
+    mockCreate.mockResolvedValueOnce({ id: 'invite-1', email: 'test@example.com' });
+    const formData = new FormData();
+    formData.append('email', 'test@example.com');
+    const result = await inviteUserAction(null, formData);
+    expect(result).toEqual({ success: 'Invitation sent to test@example.com.' });
+  });
+
+  it('handles duplicate errors gracefully', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: 'pu-1', role: 'POWER_USER' } });
+    mockFindFirst.mockResolvedValueOnce({ id: 'existing-invite', status: 'PENDING' });
+    const formData = new FormData();
+    formData.append('email', 'pending@e.com');
+    const result = await inviteUserAction(null, formData);
+    expect(result).toEqual({ error: 'A pending invitation already exists for this email.' });
+  });
+});
+

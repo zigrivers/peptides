@@ -2,6 +2,7 @@ import Decimal from 'decimal.js';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import { getReconstitutedShelfLifeDays } from '@/lib/reference/infrastructure/CompoundRepo';
+import type { Protocol } from '@/lib/tracker/domain/types';
 
 const DEFAULT_SHELF_LIFE_DAYS = 14;
 const LOW_INVENTORY_PERCENT = new Decimal('0.20');
@@ -24,6 +25,7 @@ export interface VialWithBadges {
   userId: string;
   compoundId: string;
   compoundName: string;
+  compoundSlug: string;
   totalMg: Decimal;
   bacWaterMl: Decimal | null;
   remainingMg: Decimal;
@@ -65,7 +67,7 @@ export async function saveVial(input: SaveVialInput): Promise<VialWithBadges> {
           reconstitutedAt: now,
           expiresAt,
         },
-        include: { compound: { select: { name: true } } },
+        include: { compound: { select: { name: true, slug: true } } },
       });
     },
     (vialRow) => ({
@@ -89,8 +91,8 @@ export async function saveVial(input: SaveVialInput): Promise<VialWithBadges> {
 export async function getVialsForUser(userId: string): Promise<VialWithBadges[]> {
   const vials = await prisma.vial.findMany({
     where: { userId, status: 'RECONSTITUTED' },
-    include: { compound: { select: { name: true } } },
-    orderBy: { expiresAt: 'asc' },
+    include: { compound: { select: { name: true, slug: true } } },
+    orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }],
   });
 
   return vials.map(toVialWithBadges);
@@ -107,7 +109,7 @@ function toVialWithBadges(
     status: string;
     reconstitutedAt: Date | null;
     expiresAt: Date | null;
-    compound: { name: string };
+    compound: { name: string; slug: string };
   }
 ): VialWithBadges {
   const badges: VialBadge[] = [];
@@ -134,6 +136,7 @@ function toVialWithBadges(
     userId: vial.userId,
     compoundId: vial.compoundId,
     compoundName: vial.compound.name,
+    compoundSlug: vial.compound.slug,
     totalMg: new Decimal(vial.totalMg),
     bacWaterMl,
     remainingMg,
@@ -146,26 +149,99 @@ function toVialWithBadges(
 
 export interface SerializedVialData {
   id: string;
+  compoundId: string;
   compoundName: string;
+  compoundSlug: string;
   totalMg: string;
   bacWaterMl: string | null;
   remainingMg: string;
   status: string;
+  reconstitutedAt: string | null;
   expiresAt: string | null;
   daysUntilExpiry: number | null;
   badges: VialBadge[];
+  
+  potentialDrawWaste?: boolean;
+  insufficientMedication?: boolean;
+  maxDoseFormatted?: string | null;
 }
 
-export function serializeVial(v: VialWithBadges, nowUtcMidnight: Date): SerializedVialData {
+export function serializeVial(
+  v: VialWithBadges,
+  nowUtcMidnight: Date,
+  activeProtocols?: Protocol[],
+  syringeStandard?: string
+): SerializedVialData {
+  let potentialDrawWaste = false;
+  let insufficientMedication = false;
+  let maxDoseFormatted: string | null = null;
+
+  if (activeProtocols && activeProtocols.length > 0) {
+    const compoundProtocols = activeProtocols.filter(
+      (p) => p.compoundId === v.compoundId && p.status === 'ACTIVE'
+    );
+    if (compoundProtocols.length > 0) {
+      const dosesMg = compoundProtocols.map((p) => {
+        const amt = new Decimal(p.dose.amount);
+        if (p.dose.unit === 'mcg') {
+          return amt.dividedBy(1000);
+        }
+        if (p.dose.unit === 'mg') {
+          return amt;
+        }
+        if (v.bacWaterMl && v.bacWaterMl.gt(0)) {
+          const concentration = v.totalMg.dividedBy(v.bacWaterMl);
+          if (p.dose.unit === 'mL') {
+            return amt.times(concentration);
+          }
+          if (p.dose.unit === 'IU') {
+            // 100 IU = 1 mL => 1 IU = 0.01 mL for U-100 syringe preference
+            // 40 IU = 1 mL => 1 IU = 0.025 mL for U-40 syringe preference
+            const conversionFactor = syringeStandard === 'U40' ? '0.025' : '0.01';
+            const doseMl = amt.times(conversionFactor);
+            return doseMl.times(concentration);
+          }
+        }
+        return amt;
+      });
+
+      const maxDoseMg = Decimal.max(...dosesMg);
+      const minDoseMg = Decimal.min(...dosesMg);
+      const remainingMg = v.remainingMg;
+
+      // Insufficient Medication takes precedence over Potential Draw Waste (MMR F-002)
+      if (remainingMg.lt(minDoseMg)) {
+        insufficientMedication = true;
+      } else if (remainingMg.lt(maxDoseMg)) {
+        potentialDrawWaste = true;
+      }
+
+      const maxProto = compoundProtocols.find((p) => {
+        const amt = new Decimal(p.dose.amount);
+        const mg = p.dose.unit === 'mcg' ? amt.dividedBy(1000) : amt;
+        return mg.eq(maxDoseMg);
+      });
+      if (maxProto) {
+        maxDoseFormatted = `${maxProto.dose.amount} ${maxProto.dose.unit}`;
+      }
+    }
+  }
+
   return {
     id: v.id,
+    compoundId: v.compoundId,
     compoundName: v.compoundName,
+    compoundSlug: v.compoundSlug,
     totalMg: v.totalMg.toFixed(3),
     bacWaterMl: v.bacWaterMl ? v.bacWaterMl.toFixed(3) : null,
     remainingMg: v.remainingMg.toFixed(3),
     status: v.status,
+    reconstitutedAt: v.reconstitutedAt ? v.reconstitutedAt.toISOString() : null,
     expiresAt: v.expiresAt ? v.expiresAt.toISOString() : null,
     daysUntilExpiry: v.expiresAt ? Math.ceil((v.expiresAt.getTime() - nowUtcMidnight.getTime()) / 86400_000) : null,
     badges: v.badges,
+    potentialDrawWaste,
+    insufficientMedication,
+    maxDoseFormatted,
   };
 }

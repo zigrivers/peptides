@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { nameToSlug } from '../lib/reference/domain/slug';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -235,7 +236,178 @@ async function main() {
     }
   }
 
-  console.log('Seed complete — 8 QSC compounds upserted.');
+  // 1. Create default Power User
+  const email = 'test@example.com';
+  const password = 'Password123!';
+  const salt = await bcrypt.genSalt(12);
+  const passwordHash = await bcrypt.hash(password, salt);
+
+  const testUser = await prisma.user.upsert({
+    where: { email },
+    update: { passwordHash },
+    create: {
+      email,
+      name: 'Test Power User',
+      passwordHash,
+      role: 'POWER_USER',
+      status: 'ACTIVE',
+    },
+  });
+
+  // 2. Fetch seeded compounds
+  const bpc = await prisma.compound.findFirst({ where: { name: 'BPC-157' } });
+  const tb500 = await prisma.compound.findFirst({ where: { name: 'TB-500' } });
+  const tirz = await prisma.compound.findFirst({ where: { name: 'Tirzepatide' } });
+
+  if (bpc && tb500 && tirz) {
+    // 3. Upsert Vendor
+    const vendor = await prisma.vendor.upsert({
+      where: {
+        id: '00000000-0000-0000-0000-000000000009',
+      },
+      update: {
+        status: 'ACTIVE',
+      },
+      create: {
+        id: '00000000-0000-0000-0000-000000000009',
+        userId: testUser.id,
+        name: 'Peptide Depot',
+        telegramUsername: 'peptidedepot_bot',
+        preferredCurrency: 'USD',
+        status: 'ACTIVE',
+      },
+    });
+
+    // 4. Upsert VendorProducts
+    const products = [
+      {
+        id: '00000000-0000-0000-0000-000000000091',
+        vendorId: vendor.id,
+        compoundId: bpc.id,
+        name: 'BPC-157 5mg vial',
+        priceUsd: '35.00',
+        inStock: true,
+        form: 'LYOPHILIZED_POWDER',
+        vialSizeMg: '5.0',
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000092',
+        vendorId: vendor.id,
+        compoundId: bpc.id,
+        name: '10x BPC-157 10mg (10-pack)',
+        priceUsd: '250.00',
+        inStock: true,
+        form: 'LYOPHILIZED_POWDER',
+        vialSizeMg: '10.0',
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000093',
+        vendorId: vendor.id,
+        compoundId: tb500.id,
+        name: 'TB-500 5mg vial',
+        priceUsd: '45.00',
+        inStock: true,
+        form: 'LYOPHILIZED_POWDER',
+        vialSizeMg: '5.0',
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000094',
+        vendorId: vendor.id,
+        compoundId: tirz.id,
+        name: 'Tirzepatide 10mg vial',
+        priceUsd: '80.00',
+        inStock: true,
+        form: 'LYOPHILIZED_POWDER',
+        vialSizeMg: '10.0',
+      },
+    ];
+
+    for (const p of products) {
+      await prisma.vendorProduct.upsert({
+        where: { id: p.id },
+        update: p,
+        create: p,
+      });
+    }
+
+    // 5. Upsert active/reconstituted Vials
+    // To calculate depletion correctly, let's create a vial of BPC-157 with low remaining Mg
+    await prisma.vial.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000081' },
+      update: {
+        remainingMg: 1.2,
+      },
+      create: {
+        id: '00000000-0000-0000-0000-000000000081',
+        userId: testUser.id,
+        compoundId: bpc.id,
+        totalMg: 5.0,
+        remainingMg: 1.2,
+        bacWaterMl: 2.0,
+        status: 'RECONSTITUTED',
+        reconstitutedAt: new Date(Date.now() - 5 * 24 * 3600 * 1000),
+        expiresAt: new Date(Date.now() + 25 * 24 * 3600 * 1000),
+      },
+    });
+
+    // TB-500 reconstituted vial
+    await prisma.vial.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000082' },
+      update: {
+        remainingMg: 8.5,
+      },
+      create: {
+        id: '00000000-0000-0000-0000-000000000082',
+        userId: testUser.id,
+        compoundId: tb500.id,
+        totalMg: 10.0,
+        remainingMg: 8.5,
+        bacWaterMl: 2.0,
+        status: 'RECONSTITUTED',
+        reconstitutedAt: new Date(Date.now() - 2 * 24 * 3600 * 1000),
+        expiresAt: new Date(Date.now() + 28 * 24 * 3600 * 1000),
+      },
+    });
+
+    // 6. Upsert active Protocols
+    // BPC-157 Protocol: 250 mcg daily (depletes 0.25 mg per day)
+    await prisma.protocol.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000071' },
+      update: {
+        status: 'ACTIVE',
+      },
+      create: {
+        id: '00000000-0000-0000-0000-000000000071',
+        userId: testUser.id,
+        compoundId: bpc.id,
+        dose: { amount: '250', unit: 'mcg' } as any,
+        schedule: { frequency: 'Daily' } as any,
+        administrationRoute: 'SUBCUTANEOUS',
+        status: 'ACTIVE',
+        startDate: new Date(Date.now() - 10 * 24 * 3600 * 1000),
+      },
+    });
+
+    // TB-500 Protocol: 2.5 mg EOD (depletes 1.25 mg per day on average)
+    await prisma.protocol.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000072' },
+      update: {
+        status: 'ACTIVE',
+      },
+      create: {
+        id: '00000000-0000-0000-0000-000000000072',
+        userId: testUser.id,
+        compoundId: tb500.id,
+        dose: { amount: '2.5', unit: 'mg' } as any,
+        schedule: { frequency: 'EOD' } as any,
+        administrationRoute: 'SUBCUTANEOUS',
+        status: 'ACTIVE',
+        startDate: new Date(Date.now() - 10 * 24 * 3600 * 1000),
+      },
+    });
+  }
+
+  console.log('Seed complete — 8 QSC compounds and 1 test user seeded.');
 }
 
 main()

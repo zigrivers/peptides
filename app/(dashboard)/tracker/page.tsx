@@ -4,10 +4,14 @@ import { auth } from '@/lib/auth';
 import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
 import { getDueTodayForBatch } from '@/lib/tracker/application/BatchLogService';
 import { getCurrentWeekInfo } from '@/lib/tracker/application/CycleService';
-import { findCompoundsByIds } from '@/lib/reference/infrastructure/CompoundRepo';
+import { findCompoundsByIds, getCompoundsMinimal } from '@/lib/reference/infrastructure/CompoundRepo';
+import { getRecentDoseLogsForUser } from '@/lib/tracker/application/DoseLogService';
 import type { Protocol } from '@/lib/tracker/domain/types';
 import { formatSchedule } from '@/lib/tracker/domain/formatters';
 import { BatchLogReview } from './_components/BatchLogReview';
+import { TrackerCalendar } from './_components/TrackerCalendar';
+import { getSiteSuggestion } from '@/lib/tracker/application/SiteRotationService';
+import type { SiteSuggestion } from '@/lib/tracker/domain/SiteRotation';
 
 function statusBadge(status: Protocol['status']) {
   const styles: Record<Protocol['status'], string> = {
@@ -29,11 +33,26 @@ export default async function TrackerPage() {
 
   const userId = session.user.id;
 
-  const [protocols, dueToday, weekInfo] = await Promise.all([
+  const [protocols, dueToday, weekInfo, doseLogs, compoundsList] = await Promise.all([
     getProtocolsForUser(userId),
     getDueTodayForBatch(userId),
     getCurrentWeekInfo(userId),
+    getRecentDoseLogsForUser(userId),
+    getCompoundsMinimal(),
   ]);
+
+  const compoundsMap = Object.fromEntries(
+    compoundsList.map((c) => [c.id, { name: c.name, slug: c.slug }])
+  );
+
+  const serializedDoseLogs = doseLogs.map((log) => ({
+    ...log,
+    loggedAt: log.loggedAt.toISOString(),
+    scheduledDate: log.scheduledDate.toISOString(),
+    amount: log.amount,
+    injectionSite: log.injectionSite,
+    status: log.status,
+  }));
 
   // Resolve compound names for batch review display — single bulk query
   const compoundIds = [...new Set(dueToday.map((i) => i.protocol.compoundId))];
@@ -43,8 +62,23 @@ export default async function TrackerPage() {
     compoundIds.map((id) => [id, compoundNamesRaw[id] ?? id])
   );
 
+  // Bulk fetch site suggestions for all active protocols
+  const siteSuggestions: Record<string, SiteSuggestion> = {};
+  await Promise.all(
+    protocols
+      .filter((p) => p.status === 'ACTIVE')
+      .map(async (p) => {
+        try {
+          const suggestion = await getSiteSuggestion(userId, p.id);
+          siteSuggestions[p.id] = suggestion;
+        } catch (e) {
+          console.error(`Failed to fetch site suggestion for protocol ${p.id}:`, e);
+        }
+      })
+  );
+
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+    <main className="max-w-2xl mx-auto px-4 py-8 space-y-8 animate-page-enter">
       {dueToday.length > 0 && (
         <section>
           <BatchLogReview items={dueToday} compoundNames={compoundNames} />
@@ -84,6 +118,16 @@ export default async function TrackerPage() {
             </p>
           </div>
         </Link>
+      </section>
+
+      <section>
+        <TrackerCalendar
+          protocols={protocols}
+          doseLogs={serializedDoseLogs}
+          compounds={compoundsMap}
+          siteSuggestions={siteSuggestions}
+          initialDateISO={new Date().toISOString()}
+        />
       </section>
 
       <section>

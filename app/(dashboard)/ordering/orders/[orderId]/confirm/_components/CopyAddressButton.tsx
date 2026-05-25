@@ -26,7 +26,7 @@ export function CopyAddressButton({ address }: { address: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="text-xs text-indigo-600 hover:underline"
+      className="text-xs text-primary hover:underline"
     >
       {copied ? 'Copied!' : 'Copy address'}
     </button>

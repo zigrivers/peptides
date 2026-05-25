@@ -21,7 +21,7 @@ export function CaptureVendorReplyForm({ action, defaultValues }: Props) {
       )}
 
       <div>
-        <label htmlFor="walletAddress" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="walletAddress" className="block text-sm font-medium text-muted-foreground mb-1">
           Wallet Address
         </label>
         <input
@@ -31,13 +31,13 @@ export function CaptureVendorReplyForm({ action, defaultValues }: Props) {
           required
           defaultValue={defaultValues?.walletAddress}
           placeholder="e.g. TQn9Y2khDD2bHM4dK..."
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full rounded-md border border-border bg-background text-foreground px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
         />
       </div>
 
       <div className="flex gap-3">
         <div className="flex-1">
-          <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="amount" className="block text-sm font-medium text-muted-foreground mb-1">
             Amount
           </label>
           <input
@@ -48,18 +48,18 @@ export function CaptureVendorReplyForm({ action, defaultValues }: Props) {
             inputMode="decimal"
             defaultValue={defaultValues?.amount}
             placeholder="0.00"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-md border border-border bg-background text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
           />
         </div>
         <div className="w-32">
-          <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="currency" className="block text-sm font-medium text-muted-foreground mb-1">
             Currency
           </label>
           <select
             id="currency"
             name="currency"
             defaultValue={defaultValues?.currency ?? 'USDT'}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-md border border-border bg-background text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
           >
             {VENDOR_CURRENCIES.map((c) => (
               <option key={c}>{c}</option>
@@ -71,7 +71,7 @@ export function CaptureVendorReplyForm({ action, defaultValues }: Props) {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full rounded-md bg-indigo-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         {isPending ? 'Processing…' : 'Review Payment →'}
       </button>

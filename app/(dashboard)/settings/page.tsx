@@ -46,13 +46,13 @@ export default async function SettingsPage() {
   // the UI is the more defensive layer.
   if (isDeletionPending && pendingDeletion) {
     return (
-      <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
+      <main className="max-w-2xl mx-auto px-4 py-8 space-y-6 animate-page-enter">
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Settings</h1>
         <CancelDeletionBanner
           action={cancelDeletionAction}
           scheduledForISO={pendingDeletion.scheduledFor.toISOString()}
         />
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           Other settings are temporarily disabled while your account is scheduled for deletion. Cancel the deletion above to restore full access.
         </p>
       </main>
@@ -60,12 +60,12 @@ export default async function SettingsPage() {
   }
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
-      <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
+    <main className="max-w-2xl mx-auto px-4 py-8 space-y-8 animate-page-enter">
+      <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Settings</h1>
 
-      <section aria-labelledby="reminders-heading" className="rounded-lg border border-gray-200 bg-white p-5">
-        <h2 id="reminders-heading" className="text-sm font-semibold text-gray-900 mb-1">Dose reminders</h2>
-        <p className="text-sm text-gray-600 mb-4">
+      <section aria-labelledby="reminders-heading" className="rounded-xl border border-border bg-card text-card-foreground p-6 shadow-sm">
+        <h2 id="reminders-heading" className="text-base font-semibold text-foreground mb-1">Dose reminders</h2>
+        <p className="text-sm text-muted-foreground mb-4">
           Choose when to be reminded about today&apos;s doses and how the reminder reaches you.
         </p>
         <RemindersForm
@@ -75,23 +75,23 @@ export default async function SettingsPage() {
           timezoneSuggestions={timezoneSuggestions}
         />
         <div className="mt-6 border-t border-gray-100 pt-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Web push on this device</h3>
+          <h3 className="text-sm font-semibold text-foreground/90 mb-2">Web push on this device</h3>
           <PushSubscriptionPanel />
         </div>
       </section>
 
-      <section aria-labelledby="data-export-heading" className="rounded-lg border border-gray-200 bg-white p-5">
-        <h2 id="data-export-heading" className="text-sm font-semibold text-gray-900 mb-1">Your data</h2>
-        <p className="text-sm text-gray-600 mb-4">
+      <section aria-labelledby="data-export-heading" className="rounded-xl border border-border bg-card text-card-foreground p-6 shadow-sm">
+        <h2 id="data-export-heading" className="text-base font-semibold text-foreground mb-1">Your data</h2>
+        <p className="text-sm text-muted-foreground mb-4">
           Request a full JSON export of your account data — protocols, dose logs, vials, orders, outcomes, and your full audit history. The export is emailed to you as an attachment.
         </p>
         <RequestExportButton action={requestExportAction} userEmail={session.user.email ?? ''} />
       </section>
 
       {!isOrderingDisabled() && (
-        <section aria-labelledby="ordering-heading" className="rounded-lg border border-gray-200 bg-white p-5">
-          <h2 id="ordering-heading" className="text-sm font-semibold text-gray-900 mb-1">Ordering</h2>
-          <p className="text-sm text-gray-600 mb-4">
+        <section aria-labelledby="ordering-heading" className="rounded-xl border border-border bg-card text-card-foreground p-6 shadow-sm">
+          <h2 id="ordering-heading" className="text-base font-semibold text-foreground mb-1">Ordering</h2>
+          <p className="text-sm text-muted-foreground mb-4">
             Connect your Telegram account to automate vendor ordering.
           </p>
           <Link href="/settings/telegram" className="text-sm text-primary hover:underline">

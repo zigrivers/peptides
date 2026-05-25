@@ -31,18 +31,18 @@ export function MarkPaymentSentButton({ orderId, hasPriorDiff }: Props) {
           type="checkbox"
           checked={acknowledged}
           onChange={(e) => setAcknowledged(e.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-        />
-        <span className="text-sm text-gray-700">{label}</span>
-      </label>
+        className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary bg-background"
+      />
+      <span className="text-sm text-muted-foreground">{label}</span>
+    </label>
 
-      {/* Server-validated acknowledgement — checkbox state mirrored as form field */}
-      <input type="hidden" name="acknowledged" value={acknowledged ? 'true' : 'false'} />
+    {/* Server-validated acknowledgement — checkbox state mirrored as form field */}
+    <input type="hidden" name="acknowledged" value={acknowledged ? 'true' : 'false'} />
 
-      <button
-        type="submit"
-        disabled={!acknowledged || isPending}
-        className="w-full rounded-md bg-indigo-600 text-white px-4 py-3 text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    <button
+      type="submit"
+      disabled={!acknowledged || isPending}
+      className="w-full rounded-md bg-primary text-primary-foreground px-4 py-3 text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         {isPending ? 'Processing…' : 'Mark Payment Sent'}
       </button>

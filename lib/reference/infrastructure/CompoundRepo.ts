@@ -133,3 +133,11 @@ export async function listCompounds(opts?: { includeArchived?: boolean }): Promi
   });
   return rows.map(mapCompound);
 }
+
+export async function getCompoundsMinimal(): Promise<{ id: string; name: string; slug: string }[]> {
+  return prisma.compound.findMany({
+    select: { id: true, name: true, slug: true },
+    orderBy: { name: 'asc' },
+  });
+}
+

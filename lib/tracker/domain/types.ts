@@ -59,7 +59,7 @@ export type InjectionSite = {
   side: 'left' | 'right';
 };
 
-export type DoseLogStatus = 'LOGGED' | 'SKIPPED';
+export type DoseLogStatus = 'LOGGED' | 'SKIPPED' | 'PENDING' | 'RESCHEDULED';
 
 export type DoseLog = {
   id: string;
@@ -93,6 +93,8 @@ export type LogDoseInput = {
   vialId?: string;
   /** When true, logDose enforces that a site is provided for injectable LOGGED doses. */
   requireInjectionSite?: boolean;
+  /** When true, skips schedule validation checks (used for offline sync replay where current schedule might differ from the past schedule). */
+  isOffline?: boolean;
 };
 
 export type LogDoseResult = {

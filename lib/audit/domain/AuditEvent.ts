@@ -32,6 +32,7 @@ export type AuditAction =
   // Auth — Onboarding
   | 'ONBOARDING_STEP_ADVANCED'
   | 'ONBOARDING_DISMISSED'
+  | 'PERSONALIZATION_UPDATED'
   // Admin
   | 'USER_INVITED'
   | 'INVITE_RESENT'
@@ -53,6 +54,7 @@ export type AuditAction =
   | 'PROTOCOL_DEACTIVATED'
   | 'DOSE_LOGGED'
   | 'DOSE_SKIPPED'
+  | 'DOSE_RESCHEDULED'
   | 'DOSE_LOG_REVERTED'
   | 'CYCLE_CREATED'
   | 'CYCLE_UPDATED'
@@ -81,7 +83,9 @@ export type AuditAction =
   // Reconstitution
   | 'VIAL_RECONSTITUTED'
   | 'VIAL_EXPIRED'
+  | 'VIALS_REORDERED'
   | 'SAFETY_WARNING_TRIGGERED'
+  | 'SYRINGE_PREFERENCES_UPDATED'
   // Security
   | 'TELEGRAM_SESSION_LINK_INITIATED'
   | 'TELEGRAM_SESSION_LINKED'
@@ -94,6 +98,8 @@ export type AuditAction =
   | 'PUSH_PERMISSION_STATE_CHANGED'
   | 'PUSH_SUBSCRIPTION_REGISTERED'
   | 'PUSH_SUBSCRIPTION_REMOVED'
+  | 'PUSH_SUBSCRIPTION_PRUNED'
+  | 'TEST_PUSH_SENT'
   | 'REMINDER_DISPATCHED';
 
 export interface CreateAuditEventInput {

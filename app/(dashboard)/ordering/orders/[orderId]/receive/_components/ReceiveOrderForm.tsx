@@ -20,7 +20,7 @@ export function ReceiveOrderForm({ action }: Props) {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full rounded-md bg-green-600 text-white px-4 py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full rounded-md bg-success text-success-foreground px-4 py-3 text-sm font-semibold hover:bg-success/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2"
       >
         {isPending ? 'Processing…' : 'Confirm Receipt & Add to Inventory'}
       </button>

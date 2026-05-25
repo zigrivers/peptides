@@ -121,6 +121,7 @@ export async function updateDoseLog(
     vialId: string | null;
     isBatchLog: boolean;
     loggedByUserId: string | null;
+    loggedAt: Date;
   }>
 ): Promise<DoseLog> {
   const data: Record<string, unknown> = {};
@@ -135,6 +136,7 @@ export async function updateDoseLog(
   if (updates.vialId !== undefined) data.vialId = updates.vialId;
   if (updates.isBatchLog !== undefined) data.isBatchLog = updates.isBatchLog;
   if (updates.loggedByUserId !== undefined) data.loggedByUserId = updates.loggedByUserId;
+  if (updates.loggedAt !== undefined) data.loggedAt = updates.loggedAt;
 
   // updateMany allows non-unique fields (userId) in the where clause for ownership enforcement.
   const result = await tx.doseLog.updateMany({ where: { id, userId }, data });

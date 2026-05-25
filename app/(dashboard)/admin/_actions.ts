@@ -8,6 +8,7 @@ import {
   requestManagedUserDeletion,
   cancelManagedUserDeletion,
 } from '@/lib/admin/application/AdminService';
+import { createInvite } from '@/lib/auth/application/createInvite';
 
 export interface AdminActionResult {
   error?: string;
@@ -127,3 +128,35 @@ export async function cancelDeletionAction(
     return { error: 'Something went wrong.' };
   }
 }
+
+export async function inviteUserAction(
+  _prevState: AdminActionResult | null,
+  formData: FormData
+): Promise<AdminActionResult | null> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: 'Unauthorized' };
+  if (session.user.role === 'MANAGED_USER') return { error: 'Forbidden' };
+
+  const email = formData.get('email')?.toString().trim() ?? '';
+  if (!email) return { error: 'Email is required.' };
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) return { error: 'Invalid email address.' };
+
+  try {
+    await createInvite({ powerUserId: session.user.id, email });
+    revalidatePath('/admin', 'layout');
+    return { success: `Invitation sent to ${email}.` };
+  } catch (err) {
+    if (err instanceof Error) {
+      if (err.message === 'invite_email_exists') {
+        return { error: 'This email is already in use by another user.' };
+      }
+      if (err.message === 'invite_already_pending') {
+        return { error: 'A pending invitation already exists for this email.' };
+      }
+    }
+    return { error: 'Something went wrong.' };
+  }
+}
+

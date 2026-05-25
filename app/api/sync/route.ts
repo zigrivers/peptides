@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { logDose } from '@/lib/tracker/application/DoseLogService';
+import { InjectionSiteSchema } from '@/lib/tracker/domain/validation';
 
 const syncEntrySchema = z.object({
   id: z.string(),
@@ -12,6 +13,8 @@ const syncEntrySchema = z.object({
     unit: z.enum(['mcg', 'mg', 'IU', 'mL']),
   }),
   status: z.enum(['LOGGED', 'SKIPPED']),
+  injectionSite: InjectionSiteSchema.optional().nullable(),
+  note: z.string().optional().nullable(),
 });
 
 type SyncEntry = z.infer<typeof syncEntrySchema>;
@@ -53,6 +56,9 @@ export async function POST(req: Request): Promise<NextResponse> {
           scheduledDate: new Date(`${entry.scheduledDate}T00:00:00Z`),
           amount: entry.amount,
           status: entry.status,
+          injectionSite: entry.injectionSite ?? undefined,
+          note: entry.note ?? undefined,
+          isOffline: true,
         });
         return { id: entry.id, ok: true };
       } catch (err) {

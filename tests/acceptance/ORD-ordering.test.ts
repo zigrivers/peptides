@@ -1132,3 +1132,76 @@ describe('US-ORD-07: Track Order Status', () => {
     // Hint: check StaleOrderChecker cron implementation
   });
 });
+
+describe('confirmManualSent', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('AC-1: transitions manual fallback order from DRAFT to SENT and writes audit log', async () => {
+    const { confirmManualSent } = await import('@/lib/ordering/application/OrderService');
+
+    const draftOrder = {
+      id: 'order-1',
+      userId: 'user-1',
+      status: 'DRAFT',
+      sendMethod: 'MANUAL_FALLBACK',
+      messageText: 'Order Details Here',
+      sentAt: new Date(),
+    };
+
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(draftOrder);
+    mockPrismaOrderUpdateMany.mockResolvedValueOnce({ count: 1 });
+    mockPrismaAuditEventCreate.mockResolvedValue({});
+
+    await confirmManualSent('user-1', 'order-1');
+
+    expect(mockPrismaOrderFindFirst).toHaveBeenCalledWith({
+      where: { id: 'order-1', userId: 'user-1' },
+    });
+    expect(mockPrismaOrderUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: 'order-1',
+          userId: 'user-1',
+          status: 'DRAFT',
+          sendMethod: 'MANUAL_FALLBACK',
+          messageText: { not: null },
+          sentAt: { not: null },
+        },
+        data: { status: 'SENT' },
+      })
+    );
+    
+    expect(mockPrismaAuditEventCreate).toHaveBeenCalledOnce();
+    const auditCall = mockPrismaAuditEventCreate.mock.calls[0][0];
+    expect(auditCall.data.action).toBe('ORDER_SENT');
+    expect(auditCall.data.actorUserId).toBe('user-1');
+  });
+
+  it('AC-2: throws order_not_found when order does not exist', async () => {
+    const { confirmManualSent } = await import('@/lib/ordering/application/OrderService');
+
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(null);
+
+    await expect(confirmManualSent('user-1', 'nonexistent')).rejects.toThrow('order_not_found');
+    expect(mockPrismaOrderUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('AC-3: throws invalid_order_transition when order is not in DRAFT status', async () => {
+    const { confirmManualSent } = await import('@/lib/ordering/application/OrderService');
+
+    const sentOrder = {
+      id: 'order-1',
+      userId: 'user-1',
+      status: 'SENT',
+      sendMethod: 'MANUAL_FALLBACK',
+    };
+
+    mockPrismaOrderFindFirst.mockResolvedValueOnce(sentOrder);
+
+    await expect(confirmManualSent('user-1', 'order-1')).rejects.toThrow('invalid_order_transition');
+    expect(mockPrismaOrderUpdateMany).not.toHaveBeenCalled();
+  });
+});
+

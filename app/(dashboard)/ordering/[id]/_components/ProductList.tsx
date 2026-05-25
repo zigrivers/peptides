@@ -82,21 +82,21 @@ export function ProductList({ products, vendorId }: Props) {
       )}
       <ul className="space-y-2">
         {products.map((p) => (
-          <li key={p.id} className="rounded-lg border border-gray-200 bg-white">
+          <li key={p.id} className="rounded-lg border border-border bg-card text-card-foreground">
             {editState?.productId === p.id ? (
               <form onSubmit={handleEditSubmit} className="px-4 py-3 space-y-3">
                 <div className="flex gap-2">
                   <input
                     value={editState.name}
                     onChange={(e) => setEditState({ ...editState, name: e.target.value })}
-                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
+                    className="flex-1 rounded border border-border bg-background text-foreground px-2 py-1 text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                     required
                   />
                   <input
                     value={editState.priceUsd}
                     onChange={(e) => setEditState({ ...editState, priceUsd: e.target.value })}
                     pattern="\d+(\.\d{1,2})?"
-                    className="w-24 rounded border border-gray-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
+                    className="w-24 rounded border border-border bg-background text-foreground px-2 py-1 text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                     required
                   />
                 </div>
@@ -105,14 +105,14 @@ export function ProductList({ products, vendorId }: Props) {
                   <button
                     type="submit"
                     disabled={editPending}
-                    className="rounded bg-indigo-600 text-white px-3 py-1 text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50"
+                    className="rounded bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold hover:bg-primary/90 disabled:opacity-50"
                   >
                     {editPending ? 'Saving…' : 'Save'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditState(null)}
-                    className="rounded border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                    className="rounded border border-border bg-secondary px-3 py-1 text-xs text-secondary-foreground hover:bg-secondary/80"
                   >
                     Cancel
                   </button>
@@ -121,13 +121,15 @@ export function ProductList({ products, vendorId }: Props) {
             ) : (
               <div className="flex items-center justify-between px-4 py-3">
                 <div>
-                  <p className={`text-sm font-medium ${p.inStock ? 'text-gray-900' : 'text-gray-400'}`}>{p.name}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">${p.priceUsd}</p>
+                  <p className={`text-sm font-medium ${p.inStock ? 'text-foreground' : 'text-muted-foreground'}`}>{p.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">${p.priceUsd}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span
-                    className={`text-xs rounded-full px-2 py-0.5 font-medium ${
-                      p.inStock ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
+                    className={`text-xs rounded-full px-2 py-0.5 border font-medium ${
+                      p.inStock
+                        ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/20 dark:text-green-400 dark:border-green-900/30'
+                        : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/50'
                     }`}
                   >
                     {p.inStock ? 'In stock' : 'Archived'}
@@ -136,14 +138,14 @@ export function ProductList({ products, vendorId }: Props) {
                     <>
                       <button
                         onClick={() => startEdit(p)}
-                        className="text-xs text-indigo-600 hover:text-indigo-800"
+                        className="text-xs text-primary hover:text-primary/80"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleArchive(p.id)}
                         disabled={archivingId === p.id}
-                        className="text-xs text-red-600 hover:text-red-800 disabled:opacity-50"
+                        className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
                       >
                         {archivingId === p.id ? 'Archiving…' : 'Archive'}
                       </button>

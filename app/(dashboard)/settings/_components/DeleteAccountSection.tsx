@@ -106,7 +106,7 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
 
   if (delayedState?.success || immediateState?.success) {
     return (
-      <div className="rounded-lg border border-green-300 bg-green-50 dark:bg-green-950/20 dark:border-green-800 p-4 text-sm text-green-800 dark:text-green-400">
+      <div className="rounded-lg border border-success/30 bg-success/10 p-4 text-sm text-success">
         {delayedState?.success ?? immediateState?.success}
       </div>
     );
@@ -114,13 +114,13 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
 
   return (
     <div>
-      <p className="text-sm text-red-800/80 mb-4">
+      <p className="text-sm text-destructive/80 mb-4">
         Permanently delete your account, protocols, doses, vials, orders, and history. We&apos;ll email you a complete JSON export first.
       </p>
       <button
         type="button"
         onClick={openModal}
-        className="rounded-md bg-red-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-red-700 transition-colors focus:ring-2 focus:ring-red-500 focus:outline-none"
+        className="rounded-md bg-destructive text-destructive-foreground px-4 py-2.5 text-sm font-semibold hover:bg-destructive/90 transition-colors focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 focus:outline-none"
       >
         Delete my account
       </button>
@@ -136,20 +136,20 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
           {/* Modal Card container */}
           <div
             ref={modalRef}
-            className="relative bg-white dark:bg-card border border-border rounded-xl shadow-xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200"
+            className="relative bg-card text-card-foreground border border-border rounded-xl shadow-xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200"
             role="dialog"
             aria-modal="true"
             aria-labelledby="modal-title"
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 id="modal-title" className="text-lg font-bold text-gray-900 dark:text-foreground">
+              <h3 id="modal-title" className="text-lg font-bold text-foreground">
                 {step === 1 ? 'Delete Account' : 'Final Confirmation'}
               </h3>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-600 rounded-md p-1 hover:bg-gray-100 dark:hover:bg-muted focus:ring-2 focus:ring-primary focus:outline-none"
+                className="text-muted-foreground hover:text-foreground rounded-md p-1 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary focus:outline-none"
                 aria-label="Close modal"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -160,44 +160,44 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
 
             {step === 1 ? (
               <div className="space-y-4">
-                <p className="text-sm text-gray-600 dark:text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Permanently delete your account, protocols, doses, vials, orders, and history. We&apos;ll email you a complete JSON export first.
                 </p>
 
                 {/* Mode Select Radio Buttons */}
                 <div className="space-y-2.5">
-                  <span className="block text-sm font-semibold text-gray-700 dark:text-foreground">
+                  <span className="block text-sm font-semibold text-foreground">
                     When should we delete it?
                   </span>
                   
                   <div className="space-y-2">
-                    <label className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-muted/30 transition-colors focus-within:ring-2 focus-within:ring-primary">
+                    <label className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:bg-muted/30 transition-colors focus-within:ring-2 focus-within:ring-primary">
                       <input
                         type="radio"
                         name="deleteMode"
                         value="delayed"
                         checked={mode === 'delayed'}
                         onChange={() => setMode('delayed')}
-                        className="mt-1 text-primary focus:ring-primary h-4 w-4 border-gray-300"
+                        className="mt-1 text-primary focus:ring-primary h-4 w-4 border-input bg-background"
                       />
                       <div className="flex-1 text-sm">
-                        <strong className="block text-gray-900 dark:text-foreground">Delay 48 hours (Recommended)</strong>
-                        <span className="text-xs text-gray-500 dark:text-muted-foreground">Sign back in any time within the window to cancel.</span>
+                        <strong className="block text-foreground">Delay 48 hours (Recommended)</strong>
+                        <span className="text-xs text-muted-foreground">Sign back in any time within the window to cancel.</span>
                       </div>
                     </label>
 
-                    <label className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50/10 p-3 cursor-pointer hover:bg-red-50/20 transition-colors focus-within:ring-2 focus-within:ring-red-500">
+                    <label className="flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 cursor-pointer hover:bg-destructive/20 transition-colors focus-within:ring-2 focus-within:ring-destructive">
                       <input
                         type="radio"
                         name="deleteMode"
                         value="immediate"
                         checked={mode === 'immediate'}
                         onChange={() => setMode('immediate')}
-                        className="mt-1 text-red-600 focus:ring-red-500 h-4 w-4 border-gray-300"
+                        className="mt-1 text-destructive focus:ring-destructive h-4 w-4 border-input bg-background"
                       />
                       <div className="flex-1 text-sm">
-                        <strong className="block text-red-700 dark:text-red-400">Delete immediately</strong>
-                        <span className="text-xs text-red-600/80 dark:text-red-300/80">Irreversible. Requires a second confirmation screen.</span>
+                        <strong className="block text-destructive">Delete immediately</strong>
+                        <span className="text-xs text-destructive/80">Irreversible. Requires a second confirmation screen.</span>
                       </div>
                     </label>
                   </div>
@@ -205,8 +205,8 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
 
                 {/* 5-Character "DELETE" text confirmation */}
                 <div className="space-y-2">
-                  <label htmlFor="confirm-delete-text" className="block text-sm font-medium text-gray-700 dark:text-foreground">
-                    To proceed, please type <span className="font-mono font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 px-1 py-0.5 rounded">DELETE</span> below:
+                  <label htmlFor="confirm-delete-text" className="block text-sm font-medium text-foreground">
+                    To proceed, please type <span className="font-mono font-bold text-destructive bg-destructive/10 px-1 py-0.5 rounded">DELETE</span> below:
                   </label>
                   <input
                     id="confirm-delete-text"
@@ -216,12 +216,12 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
                     value={deleteConfirmText}
                     onChange={(e) => setDeleteConfirmText(e.target.value)}
                     placeholder="Type DELETE"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 uppercase"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 text-foreground uppercase"
                   />
                 </div>
 
                 {delayedState?.error && (
-                  <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+                  <p role="alert" className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded px-3 py-2">
                     {delayedState.error}
                   </p>
                 )}
@@ -231,7 +231,7 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
                   <button
                     type="button"
                     onClick={() => setIsOpen(false)}
-                    className="rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-primary focus:outline-none"
+                    className="rounded-md border border-input bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus:outline-none"
                   >
                     Cancel
                   </button>
@@ -243,7 +243,7 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
                       <button
                         type="submit"
                         disabled={isStep1SubmitDisabled || delayedPending}
-                        className="rounded-md bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 focus:ring-2 focus:ring-red-500 focus:outline-none"
+                        className="rounded-md bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 focus:outline-none"
                       >
                         {delayedPending ? 'Scheduling…' : 'Confirm & Schedule'}
                       </button>
@@ -253,7 +253,7 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
                       type="button"
                       onClick={() => setStep(2)}
                       disabled={isStep1SubmitDisabled}
-                      className="rounded-md bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 focus:ring-2 focus:ring-red-500 focus:outline-none"
+                      className="rounded-md bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 focus:outline-none"
                     >
                       Continue
                     </button>
@@ -265,7 +265,7 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
                 <input type="hidden" name="confirmEmail" value={userEmail} />
                 <input type="hidden" name="confirmText" value={deleteConfirmText} />
 
-                <div className="rounded-md bg-red-50 border border-red-200 p-4 text-sm text-red-800 space-y-2">
+                <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive space-y-2">
                   <p className="font-semibold">⚠️ WARNING: Irreversible Action</p>
                   <p>
                     This will permanently delete your account immediately. We&apos;ll send your data export first, but the deletion cannot be undone.
@@ -273,14 +273,14 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
                 </div>
 
                 {/* Second-step checkbox confirmation */}
-                <label className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-muted-foreground cursor-pointer focus-within:ring-2 focus-within:ring-red-500 rounded p-1">
+                <label className="flex items-start gap-2.5 text-sm text-muted-foreground cursor-pointer focus-within:ring-2 focus-within:ring-destructive rounded p-1">
                   <input
                     type="checkbox"
                     name="acknowledged"
                     required
                     checked={acknowledged}
                     onChange={(e) => setAcknowledged(e.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    className="mt-1 h-4 w-4 rounded border-input bg-background text-destructive focus:ring-destructive"
                   />
                   <span>
                     I understand this is irreversible and I want to delete my account now.
@@ -288,7 +288,7 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
                 </label>
 
                 {immediateState?.error && (
-                  <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                  <p role="alert" className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded px-3 py-2">
                     {immediateState.error}
                   </p>
                 )}
@@ -298,7 +298,7 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-primary focus:outline-none"
+                    className="rounded-md border border-input bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus:outline-none"
                   >
                     Back
                   </button>
@@ -306,7 +306,7 @@ export function DeleteAccountSection({ scheduleAction, immediateAction, userEmai
                   <button
                     type="submit"
                     disabled={!acknowledged || immediatePending}
-                    className="rounded-md bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 focus:ring-2 focus:ring-red-500 focus:outline-none"
+                    className="rounded-md bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 focus:outline-none"
                   >
                     {immediatePending ? 'Deleting…' : 'Delete account now'}
                   </button>

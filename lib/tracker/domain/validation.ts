@@ -1,5 +1,6 @@
 import { Decimal } from 'decimal.js';
-import type { CreateProtocolInput, UpdateProtocolInput } from './types';
+import { z } from 'zod';
+import type { CreateProtocolInput, UpdateProtocolInput, DoseAmount, Schedule, InjectionSite } from './types';
 
 export class ProtocolValidationError extends Error {
   constructor(message: string) {
@@ -32,3 +33,47 @@ function validateDoseAmount(amount: string): void {
     throw new ProtocolValidationError('dose amount must be greater than zero');
   }
 }
+
+// Strict Zod schemas for JSON fields to prevent type system bypasses (F-003, F-004)
+export const DoseUnitSchema = z.enum(['mcg', 'mg', 'IU', 'mL']);
+
+export const DoseAmountSchema = z.object({
+  amount: z.string(),
+  unit: DoseUnitSchema,
+});
+
+export const DayOfWeekSchema = z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+
+export const ScheduleSchema = z.discriminatedUnion('frequency', [
+  z.object({ frequency: z.literal('Daily') }),
+  z.object({ frequency: z.literal('EOD') }),
+  z.object({
+    frequency: z.literal('SpecificDaysOfWeek'),
+    daysOfWeek: z.array(DayOfWeekSchema),
+  }),
+  z.object({
+    frequency: z.literal('CustomInterval'),
+    intervalDays: z.number().int().positive(),
+  }),
+]);
+
+export const InjectionSiteSchema = z.object({
+  bodyPart: z.string(),
+  side: z.enum(['left', 'right']),
+});
+
+export function parseDoseAmount(val: unknown): DoseAmount {
+  return DoseAmountSchema.parse(val) as DoseAmount;
+}
+
+export function parseInjectionSite(val: unknown): InjectionSite | null {
+  if (val === null || val === undefined) return null;
+  // If it is Prisma JsonNull, it reads as null or is equivalent to null
+  if (typeof val === 'object' && Object.keys(val).length === 0) return null;
+  return InjectionSiteSchema.parse(val) as InjectionSite;
+}
+
+export function parseSchedule(val: unknown): Schedule {
+  return ScheduleSchema.parse(val) as Schedule;
+}
+

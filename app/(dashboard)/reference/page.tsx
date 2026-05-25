@@ -121,8 +121,8 @@ export default async function ReferencePage({
   const { q = '', tag = '' } = await searchParams;
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-semibold text-gray-900 mb-6">Compound Catalog</h1>
+    <main className="max-w-2xl mx-auto px-4 py-8 animate-page-enter">
+      <h1 className="text-3xl font-extrabold tracking-tight text-foreground mb-6">Compound Catalog</h1>
       <Suspense fallback={null}>
         <CatalogSearch />
       </Suspense>

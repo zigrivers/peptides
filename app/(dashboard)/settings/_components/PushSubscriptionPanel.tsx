@@ -5,6 +5,7 @@ import { registerPushSubscriptionAction } from '@/app/actions/notifications/regi
 import { removePushSubscriptionAction } from '@/app/actions/notifications/remove-push-subscription';
 import { setPushPermissionStateAction } from '@/app/actions/notifications/set-push-permission-state';
 import { checkPushSubscriptionOwnershipAction } from '@/app/actions/notifications/check-push-subscription-ownership';
+import { sendTestPushAction } from '@/app/actions/notifications/send-test-push';
 import type { PushPermissionState } from '@/lib/notifications/domain/types';
 
 type SubscriptionState =
@@ -45,6 +46,31 @@ export function PushSubscriptionPanel() {
   const [vapidKey, setVapidKey] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testPushing, setTestPushing] = useState(false);
+  const [testSuccess, setTestSuccess] = useState<string | null>(null);
+
+  const sendTestPush = useCallback(async () => {
+    setError(null);
+    setTestSuccess(null);
+    setTestPushing(true);
+    try {
+      const result = await sendTestPushAction();
+      if (!result.ok) {
+        throw new Error(result.error ?? 'test_failed');
+      }
+      setTestSuccess('Test notification sent successfully!');
+      setTimeout(() => setTestSuccess(null), 5000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      if (msg === 'rate_limited') {
+        setError('Too many test notifications. Please wait a few minutes before trying again.');
+      } else {
+        setError('Failed to send test notification. Make sure permissions are granted and try again.');
+      }
+    } finally {
+      setTestPushing(false);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     if (typeof window === 'undefined') return;
@@ -219,14 +245,24 @@ export function PushSubscriptionPanel() {
         Push permission: <strong className="text-gray-900">{state.permission}</strong>
       </p>
       {state.subscribed ? (
-        <button
-          type="button"
-          onClick={disablePush}
-          disabled={working}
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          {working ? 'Disabling…' : 'Disable push on this device'}
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={disablePush}
+            disabled={working || testPushing}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            {working ? 'Disabling…' : 'Disable push on this device'}
+          </button>
+          <button
+            type="button"
+            onClick={sendTestPush}
+            disabled={working || testPushing}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {testPushing ? 'Sending test…' : 'Send Test Notification'}
+          </button>
+        </div>
       ) : (
         <button
           type="button"
@@ -241,6 +277,9 @@ export function PushSubscriptionPanel() {
         <p className="text-xs text-gray-500">
           Notifications were blocked in your browser settings. Re-enable them there to use push.
         </p>
+      )}
+      {testSuccess && (
+        <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">{testSuccess}</p>
       )}
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>
