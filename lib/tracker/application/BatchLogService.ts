@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/shared/prisma';
+import Decimal from 'decimal.js';
+import { decrementVialInventory } from '@/lib/reconstitution/application/InventoryService';
 import type {
   BatchDueItem,
   BatchLogInput,
@@ -107,9 +109,29 @@ async function logOneInBatch(
   // SKIPPED → LOGGED same-day edit via updateDoseLog
   if (existing?.status === 'SKIPPED') {
     const updated = await prisma.$transaction(async (tx) => {
+      const activeVial = await tx.vial.findFirst({
+        where: { userId: subjectUserId, compoundId: protocol.compoundId, status: 'RECONSTITUTED' },
+        orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }],
+      });
+      if (!activeVial) {
+        throw new Error('insufficient_inventory: No reconstituted vials available for this compound');
+      }
+
+      const user = await tx.user.findUnique({
+        where: { id: subjectUserId },
+        select: { syringeStandard: true },
+      });
+      const syringeStandard = user?.syringeStandard ?? 'U100';
+
+      const doseAmountVal = new Decimal(amount.amount);
+      const doseUnit = amount.unit;
+
+      await decrementVialInventory(tx, subjectUserId, activeVial.id, doseAmountVal, doseUnit, syringeStandard);
+
       const log = await updateDoseLog(tx, existing.id, subjectUserId, {
         status: 'LOGGED',
         isBatchLog: true,
+        vialId: activeVial.id,
         loggedByUserId: actorUserId,
       });
       await tx.auditEvent.create({
@@ -137,6 +159,25 @@ async function logOneInBatch(
 
   try {
     const doseLog = await prisma.$transaction(async (tx) => {
+      const activeVial = await tx.vial.findFirst({
+        where: { userId: subjectUserId, compoundId: protocol.compoundId, status: 'RECONSTITUTED' },
+        orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }],
+      });
+      if (!activeVial) {
+        throw new Error('insufficient_inventory: No reconstituted vials available for this compound');
+      }
+
+      const user = await tx.user.findUnique({
+        where: { id: subjectUserId },
+        select: { syringeStandard: true },
+      });
+      const syringeStandard = user?.syringeStandard ?? 'U100';
+
+      const doseAmountVal = new Decimal(amount.amount);
+      const doseUnit = amount.unit;
+
+      await decrementVialInventory(tx, subjectUserId, activeVial.id, doseAmountVal, doseUnit, syringeStandard);
+
       const log = await createDoseLog(tx, {
         protocolId,
         userId: subjectUserId,
@@ -144,6 +185,7 @@ async function logOneInBatch(
         scheduledDate: toUTCDay(scheduledDate),
         amount,
         status: 'LOGGED',
+        vialId: activeVial.id,
         isBatchLog: true,
         loggedByUserId: actorUserId,
       });
@@ -177,9 +219,29 @@ async function logOneInBatch(
         if (winner.status === 'LOGGED') return { doseLog: winner, warnings };
         // Race: concurrent request wrote a SKIPPED log — update it to LOGGED to match batch intent.
         const updated = await prisma.$transaction(async (tx) => {
+          const activeVial = await tx.vial.findFirst({
+            where: { userId: subjectUserId, compoundId: protocol.compoundId, status: 'RECONSTITUTED' },
+            orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }],
+          });
+          if (!activeVial) {
+            throw new Error('insufficient_inventory: No reconstituted vials available for this compound');
+          }
+
+          const user = await tx.user.findUnique({
+            where: { id: subjectUserId },
+            select: { syringeStandard: true },
+          });
+          const syringeStandard = user?.syringeStandard ?? 'U100';
+
+          const doseAmountVal = new Decimal(amount.amount);
+          const doseUnit = amount.unit;
+
+          await decrementVialInventory(tx, subjectUserId, activeVial.id, doseAmountVal, doseUnit, syringeStandard);
+
           const log = await updateDoseLog(tx, winner.id, subjectUserId, {
             status: 'LOGGED',
             isBatchLog: true,
+            vialId: activeVial.id,
             loggedByUserId: actorUserId,
           });
           await tx.auditEvent.create({

@@ -1,5 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
+import Decimal from 'decimal.js';
+import { decrementVialInventory, incrementVialInventory } from '@/lib/reconstitution/application/InventoryService';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 import type { LogDoseInput, LogDoseResult, SafetyWarning, DoseLog, InjectionSite } from '../domain/types';
 import {
@@ -139,6 +141,40 @@ export async function logDose(
     }
     // Same-calendar-day edit: update status and/or injection site.
     const updated = await runInTx<DoseLog>(tx, async (innerTx) => {
+      const user = await innerTx.user.findUnique({
+        where: { id: subjectUserId },
+        select: { syringeStandard: true },
+      });
+      const syringeStandard = user?.syringeStandard ?? 'U100';
+
+      const oldStatus = existing.status;
+      const newStatus = input.status;
+      const oldVialId = existing.vialId;
+      const newVialId = input.status === 'SKIPPED' ? null : (input.vialId ?? existing.vialId);
+
+      const existingAmount = existing.amount as Record<string, unknown>;
+      const doseAmountVal = new Decimal(existingAmount.amount as string);
+      const doseUnit = existingAmount.unit as string;
+
+      if (oldStatus === 'LOGGED' && newStatus === 'SKIPPED') {
+        if (oldVialId) {
+          await incrementVialInventory(innerTx, subjectUserId, oldVialId, doseAmountVal, doseUnit, syringeStandard);
+        }
+      } else if (oldStatus === 'SKIPPED' && newStatus === 'LOGGED') {
+        if (newVialId) {
+          await decrementVialInventory(innerTx, subjectUserId, newVialId, doseAmountVal, doseUnit, syringeStandard);
+        }
+      } else if (oldStatus === 'LOGGED' && newStatus === 'LOGGED') {
+        if (oldVialId !== newVialId) {
+          if (oldVialId) {
+            await incrementVialInventory(innerTx, subjectUserId, oldVialId, doseAmountVal, doseUnit, syringeStandard);
+          }
+          if (newVialId) {
+            await decrementVialInventory(innerTx, subjectUserId, newVialId, doseAmountVal, doseUnit, syringeStandard);
+          }
+        }
+      }
+
       const log = await updateDoseLog(innerTx, existing.id, subjectUserId, {
         status: input.status,
         // Explicitly null for SKIPPED; preserve or override for LOGGED.
@@ -170,6 +206,23 @@ export async function logDose(
 
   try {
     const doseLog = await runInTx<DoseLog>(tx, async (innerTx) => {
+      const user = await innerTx.user.findUnique({
+        where: { id: subjectUserId },
+        select: { syringeStandard: true },
+      });
+      const syringeStandard = user?.syringeStandard ?? 'U100';
+
+      if (input.status === 'LOGGED' && input.vialId) {
+        await decrementVialInventory(
+          innerTx,
+          subjectUserId,
+          input.vialId,
+          new Decimal(amount.amount),
+          amount.unit,
+          syringeStandard
+        );
+      }
+
       const log = await createDoseLog(innerTx, {
         protocolId: input.protocolId,
         userId: subjectUserId,

@@ -10,8 +10,13 @@ const mockDoseLogCreate = vi.fn();
 const mockDoseLogFindFirst = vi.fn();
 const mockDoseLogFindMany = vi.fn();
 const mockDoseLogUpdate = vi.fn();
+const mockDoseLogUpdateMany = vi.fn();
+const mockDoseLogDeleteMany = vi.fn();
 const mockVialCount = vi.fn();
 const mockVialFindFirst = vi.fn();
+const mockVialUpdateMany = vi.fn();
+const mockVialFindUnique = vi.fn();
+const mockVialCreate = vi.fn();
 const mockCycleCreate = vi.fn();
 const mockCycleFindFirst = vi.fn();
 const mockCycleFindMany = vi.fn();
@@ -38,17 +43,22 @@ vi.mock('@/lib/shared/prisma', () => ({
       findFirst: mockDoseLogFindFirst,
       findMany: mockDoseLogFindMany,
       update: mockDoseLogUpdate,
+      updateMany: mockDoseLogUpdate,
+      deleteMany: mockDoseLogDeleteMany,
     },
     vial: {
       count: mockVialCount,
       findFirst: mockVialFindFirst,
+      updateMany: mockVialUpdateMany,
+      findUnique: mockVialFindUnique,
+      create: mockVialCreate,
     },
     cycle: {
       create: mockCycleCreate,
       findFirst: mockCycleFindFirst,
       findMany: mockCycleFindMany,
     },
-    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
+    $transaction: vi.fn(async (fn: (tx: any) => Promise<any>) => {
       const tx = {
         protocol: {
           create: mockProtocolCreate,
@@ -58,9 +68,24 @@ vi.mock('@/lib/shared/prisma', () => ({
           findMany: mockProtocolFindMany,
         },
         auditEvent: { create: mockAuditCreate },
-        user: { findMany: mockUserFindMany },
-        doseLog: { create: mockDoseLogCreate, updateMany: mockDoseLogUpdate, findFirst: mockDoseLogFindFirst },
+        user: { findUnique: mockUserFindUnique, findMany: mockUserFindMany },
+        doseLog: {
+          create: mockDoseLogCreate,
+          updateMany: mockDoseLogUpdate,
+          update: mockDoseLogUpdate,
+          deleteMany: mockDoseLogDeleteMany,
+          findFirst: mockDoseLogFindFirst,
+        },
+        vial: {
+          findFirst: mockVialFindFirst,
+          updateMany: mockVialUpdateMany,
+          findUnique: mockVialFindUnique,
+          create: mockVialCreate,
+        },
         cycle: { create: mockCycleCreate, findFirst: mockCycleFindFirst, findMany: mockCycleFindMany, updateMany: mockCycleUpdateMany },
+        compoundProfile: {
+          findFirst: vi.fn().mockResolvedValue({ reconstitutedShelfLifeDays: 14 }),
+        },
       };
       return fn(tx);
     }),
@@ -71,6 +96,26 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Default: actor has no managed users
   mockUserFindMany.mockResolvedValue([]);
+  mockUserFindUnique.mockResolvedValue({ id: 'user-1', syringeStandard: 'U100' });
+  mockVialFindFirst.mockResolvedValue({
+    id: 'vial-1',
+    userId: 'user-1',
+    compoundId: 'compound-bpc157',
+    totalMg: 5,
+    bacWaterMl: 2,
+    remainingMg: 5,
+    status: 'RECONSTITUTED',
+  });
+  mockVialUpdateMany.mockResolvedValue({ count: 1 });
+  mockVialFindUnique.mockResolvedValue({
+    id: 'vial-1',
+    userId: 'user-1',
+    compoundId: 'compound-bpc157',
+    totalMg: 5,
+    bacWaterMl: 2,
+    remainingMg: 5,
+    status: 'RECONSTITUTED',
+  });
 });
 
 const { createProtocol, updateProtocol, pauseProtocol, resumeProtocol, cloneProtocol, deactivateProtocol } = await import(
@@ -663,6 +708,26 @@ describe('US-TRK-02: Protocol Lifecycle', () => {
       expect(mockAuditCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ action: 'PROTOCOL_DEACTIVATED' }),
+        })
+      );
+    });
+
+    it('deletes future pending dose logs starting today, but keeps historical logs', async () => {
+      mockProtocolFindFirst.mockResolvedValueOnce(activeProtocolRow).mockResolvedValueOnce({ ...activeProtocolRow, status: 'DEACTIVATED' });
+      mockProtocolUpdateMany.mockResolvedValue({ count: 1 });
+      mockAuditCreate.mockResolvedValue({});
+      mockDoseLogDeleteMany.mockResolvedValue({ count: 5 });
+
+      await deactivateProtocol({ actorUserId, protocolId });
+
+      expect(mockDoseLogDeleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            protocolId,
+            userId: activeProtocolRow.userId,
+            status: 'PENDING',
+            scheduledDate: expect.objectContaining({ gte: expect.any(Date) }),
+          }),
         })
       );
     });

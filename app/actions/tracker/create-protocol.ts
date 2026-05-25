@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { createProtocol, isAuthorizedSubject } from '@/lib/tracker/application/ProtocolService';
 import { revalidatePath } from 'next/cache';
+import Decimal from 'decimal.js';
 
 const DoseAmountSchema = z.object({
   amount: z.string().min(1),
@@ -23,6 +24,24 @@ const ScheduleSchema = z.discriminatedUnion('frequency', [
   }),
 ]);
 
+const InitialVialSchema = z.object({
+  totalMg: z.string().refine((v) => {
+    try {
+      return new Decimal(v).gt(0);
+    } catch {
+      return false;
+    }
+  }, 'Must be a positive number'),
+  bacWaterMl: z.string().refine((v) => {
+    try {
+      return new Decimal(v).gt(0);
+    } catch {
+      return false;
+    }
+  }, 'Must be a positive number'),
+  expiresAt: z.coerce.date().optional(),
+});
+
 const InputSchema = z.object({
   subjectUserId: z.string().uuid(),
   compoundId: z.string().min(1),
@@ -33,6 +52,7 @@ const InputSchema = z.object({
   startDate: z.coerce.date(),
   endDate: z.coerce.date().optional(),
   notes: z.string().max(2000).optional(),
+  initialVial: InitialVialSchema.optional(),
 });
 
 export type CreateProtocolError =
@@ -74,8 +94,11 @@ export async function createProtocolAction(
       startDate: parsed.data.startDate,
       endDate: parsed.data.endDate,
       notes: parsed.data.notes,
+      initialVial: parsed.data.initialVial,
     });
     revalidatePath('/tracker');
+    revalidatePath('/protocols');
+    revalidatePath('/reconstitution');
     revalidatePath('/dashboard');
     return { ok: true, protocolId: protocol.id };
   } catch (err) {

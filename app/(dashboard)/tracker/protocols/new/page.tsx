@@ -20,16 +20,34 @@ async function getActiveCycles(userId: string) {
   return cycles.filter((c) => c.status === 'ACTIVE').map((c) => ({ id: c.id, name: c.name }));
 }
 
-export default async function NewProtocolPage() {
+export default async function NewProtocolPage({
+  searchParams,
+}: {
+  searchParams: { cloneFrom?: string };
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
 
-  const [compounds, managedUsers, actorCycles] = await Promise.all([
+  const [compounds, managedUsers, actorCycles, cloneSource] = await Promise.all([
     listCompounds(),
     session.user.role === 'POWER_USER'
       ? getManagedUsers(session.user.id)
       : Promise.resolve([] as ManagedUser[]),
     getActiveCycles(session.user.id),
+    searchParams.cloneFrom
+      ? prisma.protocol.findUnique({
+          where: { id: searchParams.cloneFrom },
+          select: {
+            id: true,
+            userId: true,
+            compoundId: true,
+            dose: true,
+            schedule: true,
+            administrationRoute: true,
+            notes: true,
+          },
+        })
+      : Promise.resolve(null),
   ]);
 
   // Load active cycles for each managed user so the form can show the right cycles per subject.
@@ -42,14 +60,25 @@ export default async function NewProtocolPage() {
     ...Object.fromEntries(managedCycleEntries),
   };
 
+  const serializedCloneSource = cloneSource
+    ? {
+        ...cloneSource,
+        dose: {
+          amount: (cloneSource.dose as Record<string, unknown>).amount as string,
+          unit: (cloneSource.dose as Record<string, unknown>).unit as string,
+        },
+        schedule: cloneSource.schedule,
+      }
+    : undefined;
+
   return (
-    <main className="max-w-lg mx-auto px-4 py-8">
-      <h1 className="text-2xl font-semibold text-gray-900 mb-6">New Protocol</h1>
+    <main className="max-w-2xl mx-auto px-4 py-8">
       <CreateProtocolForm
         compounds={compounds}
         managedUsers={managedUsers}
         currentUserId={session.user.id}
         cyclesByUserId={cyclesByUserId}
+        cloneSource={serializedCloneSource}
       />
     </main>
   );

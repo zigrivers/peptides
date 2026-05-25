@@ -4,6 +4,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import type { Compound, DoseAmount } from '../domain/types';
+import { parseCompoundDosing } from '../domain/validation';
 
 type PrismaCompoundResult = Prisma.CompoundGetPayload<{
   include: {
@@ -13,17 +14,8 @@ type PrismaCompoundResult = Prisma.CompoundGetPayload<{
   };
 }>;
 
-function parseDoseAmount(value: Prisma.JsonValue, field: string): DoseAmount {
-  if (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    typeof (value as Record<string, unknown>).amount === 'string' &&
-    typeof (value as Record<string, unknown>).unit === 'string'
-  ) {
-    return value as unknown as DoseAmount;
-  }
-  throw new Error(`CompoundProfile.${field} is not a valid DoseAmount: ${JSON.stringify(value)}`);
+function parseDoseAmount(value: Prisma.JsonValue, _field: string): DoseAmount {
+  return parseCompoundDosing(value);
 }
 
 function mapCompound(raw: PrismaCompoundResult): Compound {

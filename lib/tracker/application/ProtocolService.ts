@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
+import { utcMidnightToday } from '@/lib/shared/date';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 import { validateCreateInput, validateUpdateInput } from '../domain/validation';
@@ -42,7 +43,8 @@ export async function isAuthorizedSubject(
 }
 
 export async function getProtocolsForUser(userId: string): Promise<Protocol[]> {
-  return listProtocolsForUser(prisma, userId);
+  const managedIds = await getManagedUserIds(userId);
+  return listProtocolsForUser(prisma, [userId, ...managedIds]);
 }
 
 export async function getProtocolById(
@@ -63,6 +65,50 @@ export async function createProtocol(input: CreateProtocolInput): Promise<Protoc
         const cycle = await tx.cycle.findFirst({ where: { id: input.cycleId, userId: input.subjectUserId, status: 'ACTIVE' } });
         if (!cycle) throw new Error(`cycle_not_found: cycle does not belong to this user or is not active`);
       }
+
+      if (input.initialVial) {
+        const profile = await tx.compoundProfile.findFirst({
+          where: { compoundId: input.compoundId },
+          select: { reconstitutedShelfLifeDays: true },
+        });
+        const shelfLifeDays = profile?.reconstitutedShelfLifeDays ?? 14;
+        const now = new Date();
+        const expiresAt = input.initialVial.expiresAt ?? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays));
+
+        const totalMgDecimal = new Prisma.Decimal(input.initialVial.totalMg);
+        const bacWaterMlDecimal = new Prisma.Decimal(input.initialVial.bacWaterMl);
+
+        const vial = await tx.vial.create({
+          data: {
+            userId: input.subjectUserId,
+            compoundId: input.compoundId,
+            totalMg: totalMgDecimal,
+            bacWaterMl: bacWaterMlDecimal,
+            remainingMg: totalMgDecimal,
+            status: 'RECONSTITUTED',
+            reconstitutedAt: now,
+            expiresAt,
+          }
+        });
+
+        await tx.auditEvent.create({
+          data: {
+            actorUserId: input.actorUserId,
+            subjectUserId: input.subjectUserId,
+            category: 'Reconstitution',
+            action: 'VIAL_RECONSTITUTED',
+            resourceId: vial.id,
+            resourceType: 'Vial',
+            newValues: {
+              compoundId: input.compoundId,
+              totalMg: totalMgDecimal.toFixed(3),
+              bacWaterMl: bacWaterMlDecimal.toFixed(3),
+              expiresAt: expiresAt.toISOString(),
+            },
+          }
+        });
+      }
+
       return createProtocolRecord(tx, {
         userId: input.subjectUserId,
         compoundId: input.compoundId,
@@ -250,6 +296,15 @@ export async function deactivateProtocol(input: LifecycleInput): Promise<Protoco
     }
 
     const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'DEACTIVATED', protocol.status);
+
+    await tx.doseLog.deleteMany({
+      where: {
+        protocolId: input.protocolId,
+        userId: protocol.userId,
+        status: 'PENDING',
+        scheduledDate: { gte: utcMidnightToday() },
+      },
+    });
 
     await tx.auditEvent.create({
       data: {

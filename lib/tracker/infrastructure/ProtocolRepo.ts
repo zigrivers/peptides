@@ -139,10 +139,11 @@ export async function transitionProtocolStatus(
 
 export async function listProtocolsForUser(
   client: PrismaClient,
-  userId: string
+  userIds: string | string[]
 ): Promise<Protocol[]> {
+  const whereClause = typeof userIds === 'string' ? { userId: userIds } : { userId: { in: userIds } };
   const rows = await client.protocol.findMany({
-    where: { userId },
+    where: whereClause,
     orderBy: [{ status: 'asc' }, { startDate: 'desc' }],
   });
   return rows.map(mapProtocol);

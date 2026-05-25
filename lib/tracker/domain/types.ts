@@ -40,6 +40,11 @@ export type CreateProtocolInput = {
   startDate: Date;
   endDate?: Date;
   notes?: string;
+  initialVial?: {
+    totalMg: string;
+    bacWaterMl: string;
+    expiresAt?: Date;
+  };
 };
 
 export type UpdateProtocolInput = {

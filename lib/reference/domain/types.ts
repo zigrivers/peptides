@@ -1,6 +1,8 @@
 export type DoseAmount = {
   amount: string;
   unit: string;
+  researchBenefits?: string;
+  recommendedFrequency?: string;
 };
 
 export type Citation = {
