@@ -79,7 +79,7 @@ interface Vial {
   status: string;
 }
 
-interface ProtocolsClientProps {
+interface RegimenClientProps {
   initialProtocols: Protocol[];
   vials: Vial[];
   users: User[];
@@ -194,7 +194,7 @@ function calculateRunout(
   };
 }
 
-export function ProtocolsClient({ initialProtocols, vials, users, actorUserId }: ProtocolsClientProps) {
+export function RegimenClient({ initialProtocols, vials, users, actorUserId }: RegimenClientProps) {
   const [selectedUserId, setSelectedUserId] = useState<string>(actorUserId);
   const [showDeactivated, setShowDeactivated] = useState<boolean>(false);
   const [protocols, setProtocols] = useState<Protocol[]>(initialProtocols);
@@ -312,7 +312,7 @@ export function ProtocolsClient({ initialProtocols, vials, users, actorUserId }:
       {/* Top Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Protocols</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Regimen</h1>
           <p className="text-sm text-gray-500 mt-1">Configure, track, and optimize your peptide regimens</p>
         </div>
         <Link

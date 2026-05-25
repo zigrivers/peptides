@@ -97,7 +97,7 @@ export async function createProtocolAction(
       initialVial: parsed.data.initialVial,
     });
     revalidatePath('/tracker');
-    revalidatePath('/protocols');
+    revalidatePath('/regimen');
     revalidatePath('/reconstitution');
     revalidatePath('/dashboard');
     return { ok: true, protocolId: protocol.id };

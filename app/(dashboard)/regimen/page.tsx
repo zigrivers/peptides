@@ -1,14 +1,14 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/shared/prisma';
-import { ProtocolsClient } from './_components/ProtocolsClient';
+import { RegimenClient } from './_components/RegimenClient';
 
 export const metadata = {
-  title: 'My Protocols | Peptides',
+  title: 'My Regimen | Peptides',
   description: 'Manage your peptide regimens, view benefits, side effects, and check inventory runout forecasting.',
 };
 
-export default async function ProtocolsPage() {
+export default async function RegimenPage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
   const userId = session.user.id;
@@ -127,7 +127,7 @@ export default async function ProtocolsPage() {
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
-      <ProtocolsClient
+      <RegimenClient
         initialProtocols={protocols}
         vials={vials}
         users={users}

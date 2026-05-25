@@ -197,7 +197,7 @@ export function CreateProtocolForm({
     startTransition(async () => {
       const result = await createProtocolAction(input);
       if (result.ok) {
-        router.push('/protocols');
+        router.push('/regimen');
       } else {
         setError(result.message ?? result.error);
       }

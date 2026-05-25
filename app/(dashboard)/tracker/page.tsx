@@ -123,10 +123,10 @@ export default async function TrackerPage() {
             </p>
           </div>
           <Link
-            href="/protocols"
+            href="/regimen"
             className="text-primary hover:text-primary/90 text-sm font-semibold flex items-center gap-1 transition-colors"
           >
-            Manage Protocols →
+            Manage Regimen →
           </Link>
         </div>
 

@@ -62,6 +62,7 @@ export async function updateProtocolAction(
       ...parsed.data,
     });
     revalidatePath('/tracker');
+    revalidatePath('/regimen');
     revalidatePath('/dashboard');
     revalidatePath(`/tracker/protocols/${protocol.id}`);
     return { ok: true, protocolId: protocol.id };

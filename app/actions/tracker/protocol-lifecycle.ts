@@ -29,7 +29,7 @@ async function runLifecycle(
   try {
     const result = await fn(session.user.id, parsed.data.protocolId);
     revalidatePath('/tracker');
-    revalidatePath('/protocols');
+    revalidatePath('/regimen');
     revalidatePath('/dashboard');
     revalidatePath(`/tracker/protocols/${result.id}`);
     return { ok: true, protocolId: result.id };
@@ -83,7 +83,7 @@ export async function cloneProtocolAction(rawInput: unknown): Promise<LifecycleR
       newStartDate: parsed.data.newStartDate,
     });
     revalidatePath('/tracker');
-    revalidatePath('/protocols');
+    revalidatePath('/regimen');
     revalidatePath('/dashboard');
     revalidatePath(`/tracker/protocols/${result.id}`);
     return { ok: true, protocolId: result.id };
