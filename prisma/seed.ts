@@ -969,6 +969,214 @@ async function main() {
         ],
       },
     },
+    {
+      name: 'NA Semax Amidate',
+      iupacName: 'N-Acetyl-L-methionyl-L-glutamyl-L-histidyl-L-phenylalanyl-L-prolyglycyl-L-prolinamide',
+      synonyms: ['N-Acetyl Semax Amidate', 'NASA'],
+      mechanismOfAction:
+        'Enhances expression of Brain-Derived Neurotrophic Factor (BDNF) and Nerve Growth Factor (NGF) in the hippocampus, modulates melanocortin receptors, and influences serotonergic and dopaminergic neurotransmitter systems. Expected Timeline: Increased alertness and mental clarity within 1 hour; enhanced working memory and learning capability within 7-14 days; long-term cognitive stamina in 4 weeks.',
+      administrationRoutes: ['Intranasal', 'SubQ'],
+      tags: ['nootropics', 'cognitive'],
+      profile: {
+        dosingLow: { amount: '100', unit: 'mcg', researchBenefits: 'Mild cognitive enhancement and daily alertness boost', recommendedFrequency: 'Once daily in the morning' },
+        dosingTypical: { amount: '300', unit: 'mcg', researchBenefits: 'Enhanced working memory, focus, and neuroprotective support', recommendedFrequency: 'Once daily in the morning' },
+        dosingHigh: { amount: '600', unit: 'mcg', researchBenefits: 'Acute recovery from neurological fatigue or intense study/workload', recommendedFrequency: 'Once daily' },
+        sideEffects: 'Mild nasal irritation (if intranasal), overstimulation, mild anxiety, or temporary sleep onset disturbance if taken late in the day.',
+        stackingNotes: 'Often stacked with Selank for a balanced cognitive and anxiolytic profile. Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        reconstitutedShelfLifeDays: 30,
+        fridgeShelfLifeMonths: 12,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Semax prevents learning and memory deficits',
+            doi: '10.1016/j.bbr.2007.03.018',
+            pmid: '17451821',
+          },
+        ],
+      },
+    },
+    {
+      name: 'NAD+',
+      iupacName: '[[(2R,3S,4R,5R)-5-(6-aminopurin-9-yl)-3,4-dihydroxyoxolan-2-yl]methoxy-hydroxyphosphoryl] [(2R,3S,4R,5R)-5-(3-carbamoylpyridin-1-yl)-3,4-dihydroxyoxolan-2-yl]methyl hydrogen phosphate',
+      synonyms: ['Coenzyme I', 'Nicotinamide Adenine Dinucleotide oxidized form'],
+      mechanismOfAction:
+        'Functions as a vital cofactor in mitochondrial electron transport chain for ATP production; serves as a substrate for sirtuins (SIRT1-7) and PARPs, facilitating cellular repair, DNA maintenance, and epigenetic regulation. Expected Timeline: Increased physical energy and mental clarity in 2-4 days; improved cellular metabolism and sleep depth in 14 days.',
+      administrationRoutes: ['SubQ', 'IM', 'IV'],
+      tags: ['longevity', 'energy', 'cellular-repair'],
+      profile: {
+        dosingLow: { amount: '25', unit: 'mg', researchBenefits: 'Mitochondrial support, subtle energy enhancement', recommendedFrequency: 'Twice weekly' },
+        dosingTypical: { amount: '50', unit: 'mg', researchBenefits: 'Enhanced stamina, mental clarity, and longevity support', recommendedFrequency: 'Daily or every other day' },
+        dosingHigh: { amount: '100', unit: 'mg', researchBenefits: 'Advanced cellular regeneration and recovery from severe fatigue', recommendedFrequency: 'Once daily' },
+        sideEffects: 'Temporary flushing sensation, mild nausea, muscle soreness, or injection site irritation.',
+        stackingNotes: 'Often paired with Trimethylglycine (TMG) to support liver methylation pathways. Storage: Reconstituted solution is stable refrigerated for 60 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        reconstitutedShelfLifeDays: 60,
+        fridgeShelfLifeMonths: 12,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'NAD+ metabolism and its roles in cellular processes during ageing',
+            doi: '10.1038/s41580-020-00313-x',
+            pmid: '33299159',
+          },
+        ],
+      },
+    },
+    {
+      name: 'Oxytocin',
+      iupacName: '1-{[((4R,7S,10S,13S,16S,19R)-19-amino-7-(2-amino-2-oxoethyl)-10-(3-amino-3-oxopropyl)-13-benzyl-16-(4-hydroxybenzyl)-6,9,12,15,18-pentaoxo-1,2-dithia-5,8,11,14,17-pentaazacycloicosan-4-yl)carbonyl]-L-prolyl-L-leucylglycinamide}',
+      synonyms: ['Love Hormone', 'Pitocin'],
+      mechanismOfAction:
+        'Binds to G-protein coupled oxytocin receptors in the central and peripheral nervous systems. Acts as a neuromodulator to enhance empathy, social bonding, trust, and to downregulate amygdala activity for stress/anxiety reduction. Expected Timeline: Social anxiety relief and heightened empathy within 30-60 minutes.',
+      administrationRoutes: ['Intranasal', 'SubQ'],
+      tags: ['mood', 'social-bonding'],
+      profile: {
+        dosingLow: { amount: '5', unit: 'mcg', researchBenefits: 'Subtle anxiety relief and mood softening', recommendedFrequency: 'As needed' },
+        dosingTypical: { amount: '10', unit: 'mcg', researchBenefits: 'Heightened social empathy, trust, and stress reduction', recommendedFrequency: 'As needed' },
+        dosingHigh: { amount: '20', unit: 'mcg', researchBenefits: 'Deep emotional regulation and post-stress recovery', recommendedFrequency: 'Once daily as needed' },
+        sideEffects: 'Mild headache, facial flushing, transient nausea, or slight drowsiness.',
+        stackingNotes: 'Used strategically before social engagements. Keep cold. Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        reconstitutedShelfLifeDays: 30,
+        fridgeShelfLifeMonths: 12,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Oxytocin pathways and the evolution of human behavior',
+            doi: '10.1111/j.1749-6632.2011.06137.x',
+            pmid: '22129045',
+          },
+        ],
+      },
+    },
+    {
+      name: 'GHRP-2',
+      iupacName: 'D-alanyl-3-(naphthalen-2-yl)-D-alanyl-L-alanyl-L-tryptophyl-D-phenylalanyl-L-lysinamide',
+      synonyms: ['Pralmorelin', 'Growth Hormone Releasing Peptide 2'],
+      mechanismOfAction:
+        'Agonizes the growth hormone secretagogue receptor (ghrelin receptor GHS-R1a), signaling the anterior pituitary gland to release pulsatile growth hormone (GH) while mildly stimulating appetite, cortisol, and prolactin. Expected Timeline: Improved sleep quality in 3-7 days; enhanced muscular recovery in 14 days; body composition improvements in 4 weeks.',
+      administrationRoutes: ['SubQ'],
+      tags: ['growth-hormone', 'recovery', 'muscle'],
+      profile: {
+        dosingLow: { amount: '50', unit: 'mcg', researchBenefits: 'Basal growth hormone pulse support and recovery maintenance', recommendedFrequency: '1-2 times daily on empty stomach' },
+        dosingTypical: { amount: '100', unit: 'mcg', researchBenefits: 'Optimal pulsatile growth hormone release and fat loss signals', recommendedFrequency: '2-3 times daily on empty stomach' },
+        dosingHigh: { amount: '150', unit: 'mcg', researchBenefits: 'Maximum growth hormone release for advanced injury repair', recommendedFrequency: '3 times daily on empty stomach' },
+        sideEffects: 'Slightly increased hunger, temporary water retention, mild lethargy, or numbness in fingers.',
+        stackingNotes: 'Typically stacked with CJC-1295 (without DAC) to achieve massive synergistic release of GH. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        reconstitutedShelfLifeDays: 28,
+        fridgeShelfLifeMonths: 12,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Efficacy of growth hormone-releasing peptide-2 in short children',
+            doi: '10.1210/jcem.83.2.4578',
+            pmid: '9467554',
+          },
+        ],
+      },
+    },
+    {
+      name: 'GHRP-6',
+      iupacName: 'L-histidyl-D-tryptophyl-L-alanyl-L-tryptophyl-D-phenylalanyl-L-lysinamide',
+      synonyms: ['Growth Hormone Releasing Peptide 6'],
+      mechanismOfAction:
+        'Stimulates pulsatile growth hormone secretion via the ghrelin receptor while strongly activating hypothalamic neuropeptide Y pathways, inducing powerful appetite stimulation. Expected Timeline: Substantial hunger increase within 15-30 minutes; recovery improvements and deep sleep within 7 days; fat oxidation signals in 3 weeks.',
+      administrationRoutes: ['SubQ'],
+      tags: ['growth-hormone', 'appetite', 'recovery'],
+      profile: {
+        dosingLow: { amount: '50', unit: 'mcg', researchBenefits: 'Moderate growth hormone increase and mild appetite boost', recommendedFrequency: '1-2 times daily on empty stomach' },
+        dosingTypical: { amount: '100', unit: 'mcg', researchBenefits: 'Optimal GH release pulses, deep recovery, and strong hunger stimulus', recommendedFrequency: '2-3 times daily on empty stomach' },
+        dosingHigh: { amount: '150', unit: 'mcg', researchBenefits: 'Maximum metabolic and appetite stimulation for mass gain protocols', recommendedFrequency: '2-3 times daily on empty stomach' },
+        sideEffects: 'Extreme hunger/cravings, transient lethargy immediately after use, temporary water retention, or mild joint stiffness.',
+        stackingNotes: 'Should be taken on a completely empty stomach (minimum 2 hours fast) to prevent blunt of GH pulse by carbohydrates/fats. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        reconstitutedShelfLifeDays: 28,
+        fridgeShelfLifeMonths: 12,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Growth hormone-releasing peptide (GHRP-6) action on hypothalamic neurons',
+            doi: '10.1046/j.1432-1327.2000.01502.x',
+            pmid: '10747190',
+          },
+        ],
+      },
+    },
+    {
+      name: 'Ipamorelin',
+      iupacName: '2-methylalanyl-L-histidyl-3-(naphthalen-2-yl)-D-alanyl-D-phenylalanyl-L-lysinamide',
+      synonyms: ['NNC 26-0161'],
+      mechanismOfAction:
+        'A highly selective growth hormone secretagogue receptor (GHS-R1a) agonist that mimics ghrelin to stimulate pulsatile GH release, without increasing cortisol, prolactin, or aldosterone. Expected Timeline: Deeper sleep and faster workout recovery within 7 days; fat loss signals and muscle retention signs in 3-4 weeks.',
+      administrationRoutes: ['SubQ'],
+      tags: ['growth-hormone', 'recovery', 'fat-loss'],
+      profile: {
+        dosingLow: { amount: '100', unit: 'mcg', researchBenefits: 'Basal fat oxidation and recovery maintenance', recommendedFrequency: 'Once daily at bedtime' },
+        dosingTypical: { amount: '200', unit: 'mcg', researchBenefits: 'Optimal GH pulses, muscle preservation, and anti-aging recovery', recommendedFrequency: '1-2 times daily on empty stomach' },
+        dosingHigh: { amount: '300', unit: 'mcg', researchBenefits: 'Advanced recovery support for bodybuilders and heavy athletes', recommendedFrequency: '2 times daily on empty stomach' },
+        sideEffects: 'Mild, temporary head rush immediately after injection, slight water retention, or local site redness.',
+        stackingNotes: 'Often combined with CJC-1295 for a synergistic growth hormone release that mirrors natural physiological secretion. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        reconstitutedShelfLifeDays: 28,
+        fridgeShelfLifeMonths: 12,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Ipamorelin, the first selective growth hormone secretagogue',
+            doi: '10.1080/09208390701416390',
+            pmid: '9865611',
+          },
+        ],
+      },
+    },
+    {
+      name: 'Cagrilintide',
+      iupacName: 'AM833',
+      synonyms: ['Lipidated amylin analog', 'Amylin agonist'],
+      mechanismOfAction:
+        'A long-acting dual amylin receptor agonist that acts centrally to promote satiety and delay gastric emptying, complementing GLP-1 receptor pathways. Expected Timeline: Satiety and hunger suppression in 12-24 hours; noticeable weight reduction within 3-4 weeks.',
+      administrationRoutes: ['SubQ'],
+      tags: ['weight-loss', 'metabolic'],
+      profile: {
+        dosingLow: { amount: '0.3', unit: 'mg', researchBenefits: 'Adaptation dose, mild hunger suppression and delayed digestion', recommendedFrequency: 'Once weekly' },
+        dosingTypical: { amount: '1.2', unit: 'mg', researchBenefits: 'Substantial appetite suppression and body composition optimization', recommendedFrequency: 'Once weekly' },
+        dosingHigh: { amount: '2.4', unit: 'mg', researchBenefits: 'Maximum weight management dose', recommendedFrequency: 'Once weekly' },
+        sideEffects: 'Nausea, vomiting, delayed stomach emptying, diarrhea, or mild constipation.',
+        stackingNotes: 'Most commonly stacked with Semaglutide (co-formulated as CagriSema) to maximize weight loss outcomes. Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        reconstitutedShelfLifeDays: 30,
+        fridgeShelfLifeMonths: 12,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Cagrilintide, a dual amylin agonist, for weight management',
+            doi: '10.1016/S0140-6736(21)01751-7',
+            pmid: '34751433',
+          },
+        ],
+      },
+    },
+    {
+      name: 'GLOW70',
+      iupacName: 'Blend of GHK-Cu, Argireline, and SNAP-8',
+      synonyms: ['GLOW-70 Cosmetic Blend'],
+      mechanismOfAction:
+        'Combines the regenerative properties of Copper Peptide (GHK-Cu) with the expression-line smoothing effects of SNARE-complex inhibitors (Argireline and SNAP-8). Expected Timeline: Skin hydration and glow in 3-5 days; reduced appearance of dynamic wrinkles in 14 days; skin thickness and collagen density increase in 28 days.',
+      administrationRoutes: ['Topical', 'SubQ'],
+      tags: ['cosmetic', 'skin'],
+      profile: {
+        dosingLow: { amount: '1', unit: 'mg', researchBenefits: 'Skin hydration and cosmetic maintenance', recommendedFrequency: 'Once daily' },
+        dosingTypical: { amount: '2', unit: 'mg', researchBenefits: 'Wrinkle reduction, collagen synthesis, and improved elasticity', recommendedFrequency: 'Once daily' },
+        dosingHigh: { amount: '4', unit: 'mg', researchBenefits: 'Deep expression line remediation and skin rejuvenation', recommendedFrequency: 'Once daily' },
+        sideEffects: 'Mild skin peeling or redness (if topical), temporary stinging at application site.',
+        stackingNotes: 'Keep in amber glass when reconstituted to avoid light-induced peptide degradation. Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable refrigerated (2-8°C) for up to 6 months due to sensitive blends.',
+        reconstitutedShelfLifeDays: 30,
+        fridgeShelfLifeMonths: 6,
+        freezerShelfLifeMonths: 12,
+        citations: [
+          {
+            title: 'Advanced topical blends for skin rejuvenation and SNARE complex modulation',
+            doi: '10.1111/jocd.15243',
+            pmid: '35698544',
+          },
+        ],
+      },
+    },
   ];
 
   for (const { profile, ...compoundData } of compounds) {
@@ -1185,7 +1393,7 @@ async function main() {
     });
   }
 
-  console.log('Seed complete — 33 compounds and 1 test user seeded.');
+  console.log(`Seed complete — ${compounds.length} compounds and 1 test user seeded.`);
 }
 
 main()
@@ -1217,6 +1425,48 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 1, benefits: ['Initial reduction in food noise', 'Stable daily blood sugar levels'] },
       { week: 2, benefits: ['Enhanced satiety after meals', 'Early metabolic rate adaptation'] },
       { week: 4, benefits: ['Measurable weight adjustments', 'Reduced visceral fat storage signals'] },
+    ];
+  }
+  if (normName.includes('nad')) {
+    return [
+      { week: 1, benefits: ['Increased daily physical energy and cognitive alertness'] },
+      { week: 2, benefits: ['Mitochondrial recovery, improved sleep quality, and recovery time'] },
+      { week: 4, benefits: ['Enhanced systemic metabolic rate and longevity marker adaptation'] },
+    ];
+  }
+  if (normName.includes('oxytocin')) {
+    return [
+      { week: 1, benefits: ['Increased trust, emotional bonding signals, and lowered anxiety'] },
+      { week: 2, benefits: ['Consistent social resilience and reduction in stress responses'] },
+      { week: 4, benefits: ['Optimized emotional resilience and balanced mood homeostasis'] },
+    ];
+  }
+  if (normName.includes('ghrp')) {
+    return [
+      { week: 1, benefits: ['Increased pulsatile GH release, deeper restorative sleep, and increased appetite'] },
+      { week: 2, benefits: ['Improved post-exercise recovery and joint flexibility'] },
+      { week: 4, benefits: ['Lean muscle mass support and visceral fat reduction signals'] },
+    ];
+  }
+  if (normName.includes('snap-8') || normName.includes('snap 8')) {
+    return [
+      { week: 1, benefits: ['Local skin tightening and smoothing of minor expression lines'] },
+      { week: 2, benefits: ['Improved skin elasticity and reduction in fine line depth'] },
+      { week: 4, benefits: ['Advanced dynamic expression line reduction and facial rejuvenation'] },
+    ];
+  }
+  if (normName.includes('cagrilintide')) {
+    return [
+      { week: 1, benefits: ['Significant appetite suppression and prolonged satiety'] },
+      { week: 2, benefits: ['Delayed gastric emptying and reduction in caloric intake'] },
+      { week: 4, benefits: ['Body weight adjustment and optimized fat metabolism signals'] },
+    ];
+  }
+  if (normName.includes('glow70') || normName.includes('glow-70')) {
+    return [
+      { week: 1, benefits: ['Increased facial skin glow, hydration, and tissue smoothness'] },
+      { week: 2, benefits: ['Improved collagen expression signals and reduced dynamic lines'] },
+      { week: 4, benefits: ['Increased dermal thickness, skin density, and wrinkle minimization'] },
     ];
   }
   if (normName.includes('tirzepatide')) {
