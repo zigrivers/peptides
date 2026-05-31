@@ -1411,20 +1411,26 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 1, benefits: ['Subtle GI barrier support and gut lining adaptation', 'Reduced localized muscle soreness after exercise'] },
       { week: 2, benefits: ['Noticeable joint mobility improvements', 'Accelerated post-workout recovery'] },
       { week: 4, benefits: ['Initiation of soft tissue, tendon, and ligament structural repair'] },
+      { week: 8, benefits: ['Enhanced connective tissue integrity, increased synthesis of collagen type I'] },
+      { week: 12, benefits: ['Full consolidation of tendon-to-bone or ligament structural remodeling, gut mucosal stabilization'] },
     ];
   }
   if (normName.includes('tb-500') || normName.includes('tb 500') || normName.includes('thymosin beta')) {
     return [
       { week: 1, benefits: ['Reduction in systemic inflammation and muscle stiffness'] },
-      { week: 2, benefits: ['Drop in joint and movement discomfort', 'Improved flexibility'] },
-      { week: 4, benefits: ['Major structural healing of soft tissue strains'] },
+      { week: 2, benefits: ['Drop in joint and movement discomfort, improved flexibility'] },
+      { week: 4, benefits: ['Major structural healing of soft tissue strains and tears'] },
+      { week: 8, benefits: ['Promoted angiogenesis (new blood vessel growth) and cellular migration in damaged areas'] },
+      { week: 12, benefits: ['Advanced muscular/tendinous remodeling, peak flexibility, and protection against re-injury'] },
     ];
   }
   if (normName.includes('semaglutide')) {
     return [
-      { week: 1, benefits: ['Initial reduction in food noise', 'Stable daily blood sugar levels'] },
-      { week: 2, benefits: ['Enhanced satiety after meals', 'Early metabolic rate adaptation'] },
-      { week: 4, benefits: ['Measurable weight adjustments', 'Reduced visceral fat storage signals'] },
+      { week: 1, benefits: ['Initial reduction in food noise, stable daily blood sugar levels'] },
+      { week: 2, benefits: ['Enhanced satiety after meals, early metabolic rate adaptation'] },
+      { week: 4, benefits: ['Measurable weight adjustments, reduced visceral fat storage signals'] },
+      { week: 8, benefits: ['Substantial reduction in cardiovascular risk markers, adjusted leptin sensitivity'] },
+      { week: 12, benefits: ['Stabilized weight reduction, optimized metabolic homeostasis, and long-term appetite regulation'] },
     ];
   }
   if (normName.includes('nad')) {
@@ -1432,6 +1438,8 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 1, benefits: ['Increased daily physical energy and cognitive alertness'] },
       { week: 2, benefits: ['Mitochondrial recovery, improved sleep quality, and recovery time'] },
       { week: 4, benefits: ['Enhanced systemic metabolic rate and longevity marker adaptation'] },
+      { week: 8, benefits: ['Upregulated sirtuin activity, improved DNA repair mechanisms, and cellular detoxification'] },
+      { week: 12, benefits: ['Peak cellular repair, chronic fatigue reduction, and optimized mitochondrial biogenesis'] },
     ];
   }
   if (normName.includes('oxytocin')) {
@@ -1439,6 +1447,8 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 1, benefits: ['Increased trust, emotional bonding signals, and lowered anxiety'] },
       { week: 2, benefits: ['Consistent social resilience and reduction in stress responses'] },
       { week: 4, benefits: ['Optimized emotional resilience and balanced mood homeostasis'] },
+      { week: 8, benefits: ['Sustained downregulation of amygdala hyperactivity, improved interpersonal connectedness'] },
+      { week: 12, benefits: ['Established long-term stress response downregulation, stable mood integration'] },
     ];
   }
   if (normName.includes('ghrp')) {
@@ -1446,6 +1456,8 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 1, benefits: ['Increased pulsatile GH release, deeper restorative sleep, and increased appetite'] },
       { week: 2, benefits: ['Improved post-exercise recovery and joint flexibility'] },
       { week: 4, benefits: ['Lean muscle mass support and visceral fat reduction signals'] },
+      { week: 8, benefits: ['Optimized cell regeneration, increased fat oxidation, and enhanced physical stamina'] },
+      { week: 12, benefits: ['Peak muscle density enhancement, joint tissue fortification, and body composition optimization'] },
     ];
   }
   if (normName.includes('snap-8') || normName.includes('snap 8')) {
@@ -1453,6 +1465,8 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 1, benefits: ['Local skin tightening and smoothing of minor expression lines'] },
       { week: 2, benefits: ['Improved skin elasticity and reduction in fine line depth'] },
       { week: 4, benefits: ['Advanced dynamic expression line reduction and facial rejuvenation'] },
+      { week: 8, benefits: ['Maximum relaxation of facial micro-muscles, visibly smoother forehead and orbital areas'] },
+      { week: 12, benefits: ['Prolonged prevention of new expression line formation, peak cosmetic leveling'] },
     ];
   }
   if (normName.includes('cagrilintide')) {
@@ -1460,62 +1474,80 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 1, benefits: ['Significant appetite suppression and prolonged satiety'] },
       { week: 2, benefits: ['Delayed gastric emptying and reduction in caloric intake'] },
       { week: 4, benefits: ['Body weight adjustment and optimized fat metabolism signals'] },
+      { week: 8, benefits: ['Synergistic fat oxidation when combined with GLP-1, decreased food noise'] },
+      { week: 12, benefits: ['Major reductions in total body weight, sustained lifestyle adaptation, and gastric comfort'] },
     ];
   }
-  if (normName.includes('glow70') || normName.includes('glow-70')) {
+  if (normName.includes('glow70') || normName.includes('glow-70') || normName.includes('glow50') || normName.includes('glow-50')) {
     return [
       { week: 1, benefits: ['Increased facial skin glow, hydration, and tissue smoothness'] },
       { week: 2, benefits: ['Improved collagen expression signals and reduced dynamic lines'] },
       { week: 4, benefits: ['Increased dermal thickness, skin density, and wrinkle minimization'] },
+      { week: 8, benefits: ['Enhanced extracellular matrix synthesis, visible reduction in deep-set wrinkles'] },
+      { week: 12, benefits: ['Full skin remodeling cycle completed, peak elasticity, structure, and youthful texture'] },
     ];
   }
-  if (normName.includes('tirzepatide')) {
+  if (normName.includes('tirzepatide') || normName.includes('retatrutide')) {
     return [
-      { week: 1, benefits: ['Significant reduction in appetite and food noise', 'Highly stable glucose levels'] },
-      { week: 2, benefits: ['Consistent satiety and portion reduction', 'Enhanced glycemic control'] },
-      { week: 4, benefits: ['Accelerated weight loss', 'Optimized fat metabolism signals'] },
+      { week: 1, benefits: ['Significant reduction in appetite and food noise, highly stable glucose levels'] },
+      { week: 2, benefits: ['Consistent satiety and portion reduction, enhanced glycemic control'] },
+      { week: 4, benefits: ['Accelerated weight loss, optimized fat metabolism signals'] },
+      { week: 8, benefits: ['Profound adipose tissue lipolysis, reduced cardiovascular risk biomarkers'] },
+      { week: 12, benefits: ['Maximum glycemic balance, deep weight reduction milestone, and optimized insulin sensitivity'] },
     ];
   }
   if (normName.includes('ghk-cu') || normName.includes('copper peptide')) {
     return [
       { week: 1, benefits: ['Initial skin hydration and barrier function support'] },
-      { week: 2, benefits: ['Improved skin elasticity and tone', 'Reduced skin redness'] },
+      { week: 2, benefits: ['Improved skin elasticity and tone, reduced skin redness'] },
       { week: 4, benefits: ['Dermal collagen promotion, advanced hair follicle support, and wrinkle reduction'] },
+      { week: 8, benefits: ['Upregulated glycosaminoglycans and decorin, visible firming of sagging skin'] },
+      { week: 12, benefits: ['Restored microcirculation, comprehensive skin remodeling, and hair thickness improvement'] },
     ];
   }
   if (normName.includes('tesamorelin')) {
     return [
-      { week: 1, benefits: ['Increased growth hormone secretion signals', 'Improved sleep quality'] },
+      { week: 1, benefits: ['Increased growth hormone secretion signals, improved sleep quality'] },
       { week: 2, benefits: ['Enhanced nighttime recovery and morning energy'] },
-      { week: 4, benefits: ['Initiation of visceral adipose tissue reduction', 'Body composition improvements'] },
+      { week: 4, benefits: ['Initiation of visceral adipose tissue reduction, body composition improvements'] },
+      { week: 8, benefits: ['Noticeable decrease in abdominal fat, enhanced muscle tone and vascularity'] },
+      { week: 12, benefits: ['Peak reduction in visceral adipose tissue (VAT), stabilized IGF-1, optimized body composition'] },
     ];
   }
   if (normName.includes('sermorelin') || normName.includes('ipamorelin') || normName.includes('cjc')) {
     return [
-      { week: 1, benefits: ['Improved deep sleep quality', 'More vivid dreams', 'Enhanced recovery'] },
-      { week: 2, benefits: ['Improved skin elasticity', 'Higher daytime vitality'] },
-      { week: 4, benefits: ['Lean body mass support', 'Visceral fat reduction signals'] },
+      { week: 1, benefits: ['Improved deep sleep quality, more vivid dreams, enhanced recovery'] },
+      { week: 2, benefits: ['Improved skin elasticity, higher daytime vitality'] },
+      { week: 4, benefits: ['Lean body mass support, visceral fat reduction signals'] },
+      { week: 8, benefits: ['Enhanced physical repair kinetics, joint lubrication, and muscle density increase'] },
+      { week: 12, benefits: ['Substantial anti-aging somatic adjustments, optimized natural GH pulse peaks'] },
     ];
   }
   if (normName.includes('semax') || normName.includes('selank')) {
     return [
-      { week: 1, benefits: ['Acute focus improvement', 'Anxiolytic effects (calmer mood)', 'Mental clarity'] },
-      { week: 2, benefits: ['Enhanced working memory', 'Improved resistance to stress'] },
-      { week: 4, benefits: ['Neuroprotective effects', 'Consistent cognitive stamina'] },
+      { week: 1, benefits: ['Acute focus improvement, anxiolytic effects (calmer mood), mental clarity'] },
+      { week: 2, benefits: ['Enhanced working memory, improved resistance to stress'] },
+      { week: 4, benefits: ['Neuroprotective effects, consistent cognitive stamina'] },
+      { week: 8, benefits: ['Upregulated BDNF/NGF synthesis, improved neuroplasticity and learning metrics'] },
+      { week: 12, benefits: ['Peak cognitive baseline enhancement, long-term anxiety management, and neurogenesis promotion'] },
     ];
   }
   if (normName.includes('epitalon') || normName.includes('thymalin') || normName.includes('epithalon')) {
     return [
-      { week: 1, benefits: ['Circadian rhythm regulation', 'Improved sleep cycle onset'] },
+      { week: 1, benefits: ['Circadian rhythm regulation, improved sleep cycle onset'] },
       { week: 2, benefits: ['Enhanced cellular immune response activity'] },
-      { week: 4, benefits: ['Systemic longevity support', 'Optimized endocrine function'] },
+      { week: 4, benefits: ['Systemic longevity support, optimized endocrine function'] },
+      { week: 8, benefits: ['Upregulated telomerase activity signals, cellular senescence protection'] },
+      { week: 12, benefits: ['Peak endocrine and immune normalization, reset of bio-rhythms'] },
     ];
   }
   if (normName.includes('dsip')) {
     return [
-      { week: 1, benefits: ['Enhanced deep delta-wave sleep induction', 'Reduced sleep onset latency'] },
-      { week: 2, benefits: ['Morning alertness', 'Lower baseline cortisol and anxiety levels'] },
-      { week: 4, benefits: ['Optimized sleep architecture', 'Enhanced stress adaptation'] },
+      { week: 1, benefits: ['Enhanced deep delta-wave sleep induction, reduced sleep onset latency'] },
+      { week: 2, benefits: ['Morning alertness, lower baseline cortisol and anxiety levels'] },
+      { week: 4, benefits: ['Optimized sleep architecture, enhanced stress adaptation'] },
+      { week: 8, benefits: ['Stabilized circadian rhythm, normalized endocrine pulse secretion (LH/GH)'] },
+      { week: 12, benefits: ['Deep restorative sleep integration, persistent mitigation of chronic insomnia'] },
     ];
   }
 
@@ -1525,6 +1557,8 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 1, benefits: ['Initial recovery adaptation, reduced localized acute swelling'] },
       { week: 2, benefits: ['Improved muscle and joint tissue repair signals'] },
       { week: 4, benefits: ['Enhanced cellular regeneration and structural reinforcement'] },
+      { week: 8, benefits: ['Connective tissue remodeling and baseline joint stabilization'] },
+      { week: 12, benefits: ['Complete functional integration of repaired fibers, protection against re-injury'] },
     ];
   }
   if (tags.includes('weight-loss') || tags.includes('metabolic')) {
@@ -1532,6 +1566,8 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 1, benefits: ['Appetite reduction and glycemic adaptation'] },
       { week: 2, benefits: ['Consistent satiety and metabolic rate adjustments'] },
       { week: 4, benefits: ['Visceral fat storage signals decrease'] },
+      { week: 8, benefits: ['Optimized caloric efficiency and muscle tissue protection'] },
+      { week: 12, benefits: ['Stabilized weight homeostasis, sustainable metabolic adaptation'] },
     ];
   }
   if (tags.includes('longevity') || tags.includes('skin') || tags.includes('anti-aging')) {
@@ -1539,6 +1575,8 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 1, benefits: ['Restorative sleep cues, cellular vitality support'] },
       { week: 2, benefits: ['Subtle skin elasticity and hydration improvements'] },
       { week: 4, benefits: ['Systemic rejuvenation and longevity markers adaptation'] },
+      { week: 8, benefits: ['Improved cellular repair kinetics, visible dermal firming'] },
+      { week: 12, benefits: ['Comprehensive age-delaying physiological adjustments, enhanced overall vitality'] },
     ];
   }
   if (tags.includes('cognitive') || tags.includes('brain')) {
@@ -1546,6 +1584,8 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 1, benefits: ['Mental clarity, acute focus enhancements'] },
       { week: 2, benefits: ['Improved memory recall and stress resilience'] },
       { week: 4, benefits: ['Consistent cognitive stamina and neuroprotection'] },
+      { week: 8, benefits: ['Optimized synaptic plasticity and faster brain-derived learning speeds'] },
+      { week: 12, benefits: ['Established elevated cognitive performance baseline, sustained mental endurance'] },
     ];
   }
 
@@ -1554,5 +1594,7 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
     { week: 1, benefits: ['Systemic adaptation and initiation phase'] },
     { week: 2, benefits: ['Optimal saturation, improved daily energy'] },
     { week: 4, benefits: ['Consistent therapeutic outcomes and stabilization'] },
+    { week: 8, benefits: ['Advanced physiological integration and consolidation'] },
+    { week: 12, benefits: ['Peak cumulative therapeutic benefits and baseline maintenance'] },
   ];
 }
