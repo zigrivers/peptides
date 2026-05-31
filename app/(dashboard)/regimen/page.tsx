@@ -47,11 +47,11 @@ export default async function RegimenPage() {
     ],
   });
 
-  // Fetch all active, reconstituted vials for tracking runout estimates
+  // Fetch all active and dry reserve vials for tracking runout estimates and refill alerts
   const rawVials = await prisma.vial.findMany({
     where: {
       userId: { in: allUserIds },
-      status: 'RECONSTITUTED',
+      status: { in: ['RECONSTITUTED', 'DRY'] },
     },
     select: {
       id: true,
@@ -78,8 +78,8 @@ export default async function RegimenPage() {
     schedule: p.schedule as any,
     administrationRoute: p.administrationRoute,
     status: p.status as 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DEACTIVATED',
-    startDate: p.startDate,
-    endDate: p.endDate,
+    startDate: p.startDate.toISOString(),
+    endDate: p.endDate ? p.endDate.toISOString() : null,
     notes: p.notes,
     compound: {
       id: p.compound.id,

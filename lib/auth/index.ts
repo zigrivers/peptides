@@ -1,5 +1,7 @@
 import NextAuth from 'next-auth';
+import type { NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import Google from 'next-auth/providers/google';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 // bcryptjs v3+ ships its own TypeScript definitions; @types/bcryptjs not needed.
 import bcrypt from 'bcryptjs';
@@ -13,10 +15,16 @@ import { AuthRepository } from './infrastructure/AuthRepository';
 // hash, so using a real 60-char hash ensures comparable work to a real verify() call.
 const DUMMY_HASH = '$2b$12$uBubSQ6J8844KtMFcKvLsuIqchm3gaZe0Jt3VEbqY7KWYKvZWKvgG';
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const authOptions: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),
   ...authConfig,
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      // Allow linking google login to email-created accounts (safe because we check verification)
+      allowDangerousEmailAccountLinking: true,
+    }),
     Credentials({
       credentials: {
         email: { label: 'Email', type: 'email' },
@@ -54,6 +62,45 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    // Override the signIn callback to enforce status check & verified email for Google login
+    async signIn({ user, account, profile }) {
+      if (account?.provider === 'google') {
+        // 1. Enforce Google-side email verification to prevent hijack takeovers
+        const isVerified = (profile as { email_verified?: boolean })?.email_verified === true;
+        if (!isVerified) {
+          console.warn(`[NextAuth signIn] Blocked Google login for unverified email: ${user.email}`);
+          return false;
+        }
+
+        // 2. Perform DB status query based on verified profile email
+        const email = user.email?.toLowerCase();
+        if (!email) {
+          return false;
+        }
+
+        try {
+          const dbUser = await prisma.user.findFirst({
+            where: { email },
+            select: { status: true },
+          });
+
+          // If user already exists in DB, ensure status is ACTIVE or DELETION_PENDING
+          if (dbUser) {
+            const isAllowed = dbUser.status === 'ACTIVE' || dbUser.status === 'DELETION_PENDING';
+            if (!isAllowed) {
+              console.warn(`[NextAuth signIn] Blocked login for user ${email} with status ${dbUser.status}`);
+              return false;
+            }
+          }
+        } catch (err) {
+          console.error('[NextAuth signIn callback] Database lookup failed:', err);
+          // Fail-closed for security: do not authenticate if status cannot be verified
+          return false;
+        }
+      }
+      return true;
+    },
+
     // Re-use the edge-safe session callback from authConfig unchanged.
     session: authConfig.callbacks!.session!,
 
@@ -102,4 +149,82 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
   },
-});
+  events: {
+    async signIn({ user, account, isNewUser }) {
+      if (!user.id) return;
+
+      try {
+        // 1. Audit USER_REGISTERED if this is a newly created account
+        if (isNewUser) {
+          await prisma.auditEvent.create({
+            data: {
+              actorUserId: user.id,
+              subjectUserId: user.id,
+              category: 'Auth',
+              action: 'USER_REGISTERED',
+              resourceId: user.id,
+              resourceType: 'User',
+              metadata: { method: account?.provider ?? 'google' },
+            },
+          });
+        }
+
+        // 2. Audit USER_LOGGED_IN for every successful session creation
+        await prisma.auditEvent.create({
+          data: {
+            actorUserId: user.id,
+            subjectUserId: user.id,
+            category: 'Auth',
+            action: 'USER_LOGGED_IN',
+            resourceId: user.id,
+            resourceType: 'User',
+            metadata: { method: account?.provider ?? 'credentials' },
+          },
+        });
+      } catch (err) {
+        console.error('[NextAuth events:signIn] Failed to create audit logs:', err);
+      }
+    },
+    async signOut(message: { session?: unknown; token?: { id?: string } | null }) {
+      const token = message && 'token' in message ? message.token : null;
+      if (!token?.id) return;
+      try {
+        await prisma.auditEvent.create({
+          data: {
+            actorUserId: token.id,
+            subjectUserId: token.id,
+            category: 'Auth',
+            action: 'USER_LOGGED_OUT',
+            resourceId: token.id,
+            resourceType: 'User',
+          },
+        });
+      } catch (err) {
+        console.error('[NextAuth events:signOut] Failed to create audit log:', err);
+      }
+    },
+    async linkAccount({ user, account }) {
+      if (!user.id) return;
+      try {
+        await prisma.auditEvent.create({
+          data: {
+            actorUserId: user.id,
+            subjectUserId: user.id,
+            category: 'Auth',
+            action: 'OAUTH_ACCOUNT_LINKED',
+            resourceId: user.id,
+            resourceType: 'User',
+            metadata: { provider: account.provider },
+          },
+        });
+      } catch (err) {
+        console.error('[NextAuth events:linkAccount] Failed to create audit log:', err);
+      }
+    },
+  },
+};
+
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
+
+
+

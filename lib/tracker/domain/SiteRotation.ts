@@ -22,7 +22,20 @@ export const SITES_BY_ROUTE: Record<string, InjectionSite[]> = {
 };
 
 export function getSitesForRoute(administrationRoute: string): InjectionSite[] {
-  return SITES_BY_ROUTE[administrationRoute] ?? [];
+  const normalized = administrationRoute.trim().toLowerCase();
+  if (normalized === 'subq' || normalized === 'subcutaneous' || normalized === 'sub-q') {
+    return SITES_BY_ROUTE.SubQ;
+  }
+  if (normalized === 'im' || normalized === 'intramuscular' || normalized === 'intra-muscular') {
+    return SITES_BY_ROUTE.IM;
+  }
+  const matchKey = Object.keys(SITES_BY_ROUTE).find(
+    (k) => k.toLowerCase() === normalized
+  );
+  if (matchKey) {
+    return SITES_BY_ROUTE[matchKey];
+  }
+  return [];
 }
 
 export function sitesEqual(a: InjectionSite, b: InjectionSite): boolean {

@@ -2,6 +2,7 @@ export interface AudioSynthPlayer {
   playSwirlChime(): void;
   playSwoosh(): void;
   playNeedleSnap(): void;
+  playTickClick(frequency?: number): void;
   resume(): Promise<void>;
 }
 
@@ -9,6 +10,7 @@ class NullAudioPlayer implements AudioSynthPlayer {
   playSwirlChime() {}
   playSwoosh() {}
   playNeedleSnap() {}
+  playTickClick() {}
   async resume() {}
 }
 
@@ -115,6 +117,28 @@ class WebAudioPlayer implements AudioSynthPlayer {
 
     osc.start(now);
     osc.stop(now + 0.08);
+  }
+
+  playTickClick(frequency = 800) {
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    this.resume();
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(frequency, now);
+
+    gain.gain.setValueAtTime(0.015, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.015);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.02);
   }
 }
 

@@ -270,6 +270,17 @@
     }
   }
 
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   .animate-page-enter {
     animation: pageEnter 0.25s ease-out forwards;
   }
@@ -287,5 +298,8 @@
   .animate-flow-path {
     stroke-dasharray: 6, 4;
     animation: flowDashes 1.5s linear infinite;
+  }
+  .ambient-glow-wrapper {
+    transition: border-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }

@@ -4,8 +4,13 @@ import { ReconstitutionCalculator } from '@/lib/reconstitution/domain/Reconstitu
 import { WarningPolicy, type WarningType } from '@/lib/reconstitution/domain/WarningPolicy';
 
 const mockPrismaVialCreate = vi.fn();
+const mockPrismaVialCreateMany = vi.fn();
 const mockPrismaVialFindFirst = vi.fn();
 const mockPrismaVialFindMany = vi.fn();
+const mockPrismaVialUpdate = vi.fn();
+const mockPrismaVialDelete = vi.fn();
+const mockPrismaVialUpdateMany = vi.fn();
+const mockPrismaVialDeleteMany = vi.fn();
 const mockPrismaCompoundProfileFindFirst = vi.fn();
 const mockPrismaAuditEventCreate = vi.fn();
 
@@ -13,8 +18,13 @@ vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
     vial: {
       create: mockPrismaVialCreate,
+      createMany: mockPrismaVialCreateMany,
       findFirst: mockPrismaVialFindFirst,
       findMany: mockPrismaVialFindMany,
+      update: mockPrismaVialUpdate,
+      delete: mockPrismaVialDelete,
+      updateMany: mockPrismaVialUpdateMany,
+      deleteMany: mockPrismaVialDeleteMany,
     },
     compoundProfile: {
       findFirst: mockPrismaCompoundProfileFindFirst,
@@ -22,7 +32,16 @@ vi.mock('@/lib/shared/prisma', () => ({
     auditEvent: { create: mockPrismaAuditEventCreate },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
-        vial: { create: mockPrismaVialCreate },
+        vial: {
+          create: mockPrismaVialCreate,
+          createMany: mockPrismaVialCreateMany,
+          findFirst: mockPrismaVialFindFirst,
+          findMany: mockPrismaVialFindMany,
+          update: mockPrismaVialUpdate,
+          delete: mockPrismaVialDelete,
+          updateMany: mockPrismaVialUpdateMany,
+          deleteMany: mockPrismaVialDeleteMany,
+        },
         auditEvent: { create: mockPrismaAuditEventCreate },
         orderItem: { findFirst: vi.fn().mockResolvedValue(null) },
       };
@@ -284,5 +303,135 @@ describe('US-REC-02: Record Reconstitution', () => {
 
     const vials = await getVialsForUser('user-1');
     expect(vials[0].badges).toContain('EXPIRED');
+  });
+
+  it('saves dry vials with calculated freezer shelf-life and correct status', async () => {
+    const { saveDryVials } = await import('@/lib/reconstitution/application/VialService');
+
+    const now = new Date('2026-05-21T12:00:00Z');
+    vi.setSystemTime(now);
+
+    // Profile has 24 months freezer shelf-life
+    mockPrismaCompoundProfileFindFirst.mockResolvedValueOnce({ freezerShelfLifeMonths: 24 });
+
+    const expectedExpiry = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 24, now.getUTCDate()));
+
+    const vialRow = {
+      id: 'vial-dry-1',
+      userId: 'user-1',
+      compoundId: 'compound-1',
+      totalMg: new Decimal('10'),
+      bacWaterMl: null,
+      remainingMg: new Decimal('10'),
+      status: 'DRY',
+      reconstitutedAt: null,
+      expiresAt: expectedExpiry,
+      compound: { name: 'BPC-157' },
+    };
+    mockPrismaVialCreateMany.mockResolvedValue({ count: 2 });
+    mockPrismaVialFindMany.mockResolvedValue([vialRow, { ...vialRow, id: 'vial-dry-2' }]);
+
+    const result = await saveDryVials({
+      userId: 'user-1',
+      compoundId: 'compound-1',
+      totalMg: new Decimal('10'),
+      quantity: 2,
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result[0].status).toBe('DRY');
+    expect(mockPrismaVialCreateMany).toHaveBeenCalledTimes(1);
+    expect(mockPrismaVialCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            userId: 'user-1',
+            compoundId: 'compound-1',
+            status: 'DRY',
+            bacWaterMl: null,
+            expiresAt: expectedExpiry,
+          }),
+        ]),
+      })
+    );
+  });
+
+  it('reconstitutes a dry vial successfully and transitions its status and expiry', async () => {
+    const { reconstituteVial } = await import('@/lib/reconstitution/application/VialService');
+
+    const now = new Date('2026-05-21T12:00:00Z');
+    vi.setSystemTime(now);
+
+    const dryVialRow = {
+      id: 'vial-dry-1',
+      userId: 'user-1',
+      compoundId: 'compound-1',
+      totalMg: new Decimal('10'),
+      bacWaterMl: null,
+      remainingMg: new Decimal('10'),
+      status: 'DRY',
+      expiresAt: new Date(),
+    };
+    // findFirst mocks
+    mockPrismaVialFindFirst.mockResolvedValueOnce(dryVialRow); // initial check
+    mockPrismaVialFindFirst.mockResolvedValueOnce(dryVialRow); // inside transaction check
+
+    mockPrismaCompoundProfileFindFirst.mockResolvedValueOnce({ reconstitutedShelfLifeDays: 28 });
+
+    const expectedExpiry = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 28));
+
+    const updatedVialRow = {
+      ...dryVialRow,
+      status: 'RECONSTITUTED',
+      bacWaterMl: new Decimal('2'),
+      reconstitutedAt: now,
+      expiresAt: expectedExpiry,
+      compound: { name: 'BPC-157', slug: 'bpc-157' },
+    };
+    mockPrismaVialUpdateMany.mockResolvedValueOnce({ count: 1 });
+    mockPrismaVialFindFirst.mockResolvedValueOnce(updatedVialRow); // read-back in tx
+
+    const result = await reconstituteVial({
+      userId: 'user-1',
+      vialId: 'vial-dry-1',
+      bacWaterMl: new Decimal('2'),
+    });
+
+    expect(result.status).toBe('RECONSTITUTED');
+    expect(result.bacWaterMl?.toString()).toBe('2');
+    expect(mockPrismaVialUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'vial-dry-1', userId: 'user-1', status: 'DRY' },
+        data: expect.objectContaining({
+          status: 'RECONSTITUTED',
+          bacWaterMl: new Decimal('2'),
+          reconstitutedAt: now,
+          expiresAt: expectedExpiry,
+        }),
+      })
+    );
+  });
+
+  it('deletes a vial successfully and logs it', async () => {
+    const { deleteVial } = await import('@/lib/reconstitution/application/VialService');
+
+    const vialRow = {
+      id: 'vial-dry-1',
+      userId: 'user-1',
+      compoundId: 'compound-1',
+      totalMg: new Decimal('10'),
+      bacWaterMl: null,
+      remainingMg: new Decimal('10'),
+      status: 'DRY',
+    };
+    mockPrismaVialFindFirst.mockResolvedValueOnce(vialRow);
+    mockPrismaVialUpdateMany.mockResolvedValueOnce({ count: 1 });
+
+    await deleteVial('user-1', 'vial-dry-1');
+
+    expect(mockPrismaVialUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'vial-dry-1', userId: 'user-1' },
+      data: { status: 'DELETED' },
+    });
   });
 });

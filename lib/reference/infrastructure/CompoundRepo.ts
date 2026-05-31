@@ -4,7 +4,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import type { Compound, DoseAmount } from '../domain/types';
-import { parseCompoundDosing } from '../domain/validation';
+import { parseCompoundDosing, parseBenefitTimeline } from '../domain/validation';
 
 type PrismaCompoundResult = Prisma.CompoundGetPayload<{
   include: {
@@ -40,7 +40,9 @@ function mapCompound(raw: PrismaCompoundResult): Compound {
           sideEffects: raw.profile.sideEffects,
           stackingNotes: raw.profile.stackingNotes,
           reconstitutedShelfLifeDays: raw.profile.reconstitutedShelfLifeDays,
+          freezerShelfLifeMonths: raw.profile.freezerShelfLifeMonths,
           citations: raw.profile.citations,
+          benefitTimeline: parseBenefitTimeline(raw.profile.benefitTimeline),
         }
       : null,
   };
@@ -109,6 +111,14 @@ export async function getReconstitutedShelfLifeDays(compoundId: string): Promise
     select: { reconstitutedShelfLifeDays: true },
   });
   return profile?.reconstitutedShelfLifeDays ?? null;
+}
+
+export async function getFreezerShelfLifeMonths(compoundId: string): Promise<number | null> {
+  const profile = await prisma.compoundProfile.findFirst({
+    where: { compoundId },
+    select: { freezerShelfLifeMonths: true },
+  });
+  return profile?.freezerShelfLifeMonths ?? null;
 }
 
 export async function listCompounds(opts?: { includeArchived?: boolean }): Promise<Compound[]> {

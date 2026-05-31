@@ -211,7 +211,9 @@ model CompoundProfile {
   sideEffects                String?
   stackingNotes              String?
   reconstitutedShelfLifeDays Int?
+  freezerShelfLifeMonths     Int?      @default(24)
   citations                  Citation[]
+  benefitTimeline            Json?
 }
 
 model Citation {
@@ -241,6 +243,7 @@ model Protocol {
   startDate           DateTime
   endDate             DateTime?
   notes               String?
+  observedBenefits    Json?
   
   doseLogs            DoseLog[]
 

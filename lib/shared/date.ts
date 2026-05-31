@@ -7,6 +7,10 @@ export function utcMidnightOf(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
+export function toUTCDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
 /**
  * Strictly parses a YYYY-MM-DD string into a UTC midnight Date object.
  * Returns null if the format or calendar day is invalid.

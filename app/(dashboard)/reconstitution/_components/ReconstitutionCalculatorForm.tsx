@@ -9,6 +9,7 @@ import { saveSyringePreferencesAction } from '@/app/actions/reconstitution/save-
 import type { Compound } from '@/lib/reference/domain/types';
 import { SyringePreview } from './SyringePreview';
 import { ReconstitutionRehearsal } from './ReconstitutionRehearsal';
+import { getVolumePerUnit } from '@/lib/reconstitution/domain/syringe';
 
 interface Props {
   compounds: Pick<Compound, 'id' | 'name' | 'profile' | 'slug'>[];
@@ -97,6 +98,7 @@ export function ReconstitutionCalculatorForm({
         totalMg: new Decimal(totalMg),
         bacWaterMl: new Decimal(bacWaterMl),
         targetDoseMcg: new Decimal(targetDoseMcg),
+        syringeStandard,
       });
 
       const w = WarningPolicy.evaluate({
@@ -118,16 +120,12 @@ export function ReconstitutionCalculatorForm({
     } catch {
       return { calcResult: null, warnings: [] };
     }
-  }, [totalMg, bacWaterMl, targetDoseMcg, profileHighMcg]);
+  }, [totalMg, bacWaterMl, targetDoseMcg, profileHighMcg, syringeStandard]);
 
-  // U-40 syringe has 40 units per 1.0 mL (conversion multiplier = 0.4 relative to U-100 standard)
   const displayedUnits = useMemo(() => {
     if (!calcResult) return new Decimal(0);
-    if (syringeStandard === 'U40') {
-      return calcResult.syringeUnitsPerDose.times(new Decimal('0.4'));
-    }
     return calcResult.syringeUnitsPerDose;
-  }, [calcResult, syringeStandard]);
+  }, [calcResult]);
 
   const maxUnits = useMemo(() => {
     if (syringeStandard === 'U100') {
@@ -142,6 +140,19 @@ export function ReconstitutionCalculatorForm({
   }, [syringeStandard, syringeSize]);
 
   const capacityExceeded = calcResult && displayedUnits.gt(maxUnits);
+
+  const handleDragUnits = (draggedUnits: number) => {
+    if (!isPositiveDecimalString(totalMg) || !isPositiveDecimalString(bacWaterMl)) return;
+    try {
+      const conversionFactor = getVolumePerUnit(syringeStandard);
+      const concentrationMcgPerMl = new Decimal(totalMg).dividedBy(new Decimal(bacWaterMl)).times(1000);
+      const doseMcg = new Decimal(draggedUnits).times(conversionFactor).times(concentrationMcgPerMl);
+      const snappedDose = doseMcg.toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toString();
+      setTargetDoseMcg(snappedDose);
+    } catch {
+      // ignore
+    }
+  };
 
   const useTypicalDose = () => {
     if (!profileTypicalMcg) return;
@@ -375,6 +386,7 @@ export function ReconstitutionCalculatorForm({
               warnings={warnings}
               syringeStandard={syringeStandard}
               syringeSize={syringeSize}
+              onChangeUnits={handleDragUnits}
             />
           </div>
         </div>

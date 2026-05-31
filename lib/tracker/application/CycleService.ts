@@ -1,11 +1,10 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
+import { toUTCDay } from '@/lib/shared/date';
 import type { Cycle, CreateCycleInput, RestartCycleInput, CycleWeekInfo } from '../domain/types';
 import { createCycle as repoCreateCycle, findCycleById, findActiveCycleForUser, findCyclesForUser } from '../infrastructure/CycleRepo';
 
-function toUTCDay(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
+
 
 function computeWeekNumber(startDate: Date, today: Date): number {
   const startUTC = toUTCDay(startDate);
