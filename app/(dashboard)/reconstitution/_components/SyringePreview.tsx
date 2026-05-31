@@ -1,13 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import type { WarningType } from '@/lib/reconstitution/domain/WarningPolicy';
+import { getAudioPlayer } from '@/lib/reconstitution/domain/audioSynth';
 
 interface Props {
   units: number;
   warnings: WarningType[];
   syringeStandard?: 'U100' | 'U40';
   syringeSize?: '0.3' | '0.5' | '1.0';
+  onChangeUnits?: (units: number) => void;
 }
 
 function getMaxUnits(standard: 'U100' | 'U40', capacityMl: '0.3' | '0.5' | '1.0'): number {
@@ -65,9 +67,16 @@ export function SyringePreview({
   warnings,
   syringeStandard = 'U100',
   syringeSize = '1.0',
+  onChangeUnits,
 }: Props) {
   const MAX_UNITS = getMaxUnits(syringeStandard, syringeSize);
   const { major: MAJOR_TICKS, minor: MINOR_TICKS } = getTicks(MAX_UNITS);
+  
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragUnits, setDragUnits] = useState<number | null>(null);
+  const lastSoundTimeRef = useRef(0);
+  const lastTickRef = useRef<number | null>(null);
 
   // Determine color theme based on warnings
   const hasDestructive = warnings.includes('EXCEEDS_VIAL_CAPACITY') || units > MAX_UNITS;
@@ -89,14 +98,112 @@ export function SyringePreview({
   const BARREL_BOTTOM_Y = 210;
   const BARREL_HEIGHT = BARREL_BOTTOM_Y - BARREL_TOP_Y; // 180
 
-  const clampedUnits = Math.min(MAX_UNITS, Math.max(0, units));
-  const fluidHeight = (clampedUnits / MAX_UNITS) * BARREL_HEIGHT;
+  const displayUnits = isDragging && dragUnits !== null ? dragUnits : Math.min(MAX_UNITS, Math.max(0, units));
+  const fluidHeight = (displayUnits / MAX_UNITS) * BARREL_HEIGHT;
 
   // The plunger rod has a constant physical length and moves dynamically
   const PLUNGER_SHAFT_LENGTH = 180;
 
-  // Volume in mL
-  const volumeMl = (units / (syringeStandard === 'U100' ? 100 : 40)).toFixed(3);
+  // Volume in mL: Use unclamped units to show the actual required dose volume even if it exceeds syringe capacity
+  const volumeUnits = isDragging && dragUnits !== null ? dragUnits : Math.max(0, units);
+  const volumeMl = (volumeUnits / (syringeStandard === 'U100' ? 100 : 40)).toFixed(3);
+
+  const triggerTickSound = (newUnitsValue: number) => {
+    const isMuted =
+      typeof window !== 'undefined' &&
+      typeof window.localStorage !== 'undefined' &&
+      window.localStorage.getItem('peptides_sound_effects_enabled') === 'false';
+    if (!isMuted) {
+      const now = Date.now();
+      if (now - lastSoundTimeRef.current >= 50) {
+        const frequency = 400 + (newUnitsValue / MAX_UNITS) * 550;
+        getAudioPlayer().playTickClick(frequency);
+        lastSoundTimeRef.current = now;
+      }
+    }
+  };
+
+  // Drag interaction logic
+  const updateVolumeFromPointer = (e: React.PointerEvent) => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const relativeY = e.clientY - rect.top;
+    const viewBoxY = (relativeY / rect.height) * 410;
+    const percentage = (viewBoxY - BARREL_TOP_Y) / BARREL_HEIGHT;
+    const calculatedUnits = percentage * MAX_UNITS;
+    const clamped = Math.max(0, Math.min(MAX_UNITS, calculatedUnits));
+
+    setDragUnits(clamped);
+
+    const currentTick = Math.round(clamped * 2);
+    if (currentTick !== lastTickRef.current) {
+      triggerTickSound(clamped);
+      lastTickRef.current = currentTick;
+    }
+    onChangeUnits?.(clamped);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!onChangeUnits) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setIsDragging(true);
+    lastTickRef.current = Math.round(units * 2);
+    updateVolumeFromPointer(e);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    updateVolumeFromPointer(e);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    setIsDragging(false);
+    setDragUnits(null);
+    lastTickRef.current = null;
+  };
+
+  // Keyboard accessibility slider support
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!onChangeUnits) return;
+    let delta = 0;
+
+    switch (e.key) {
+      case 'ArrowUp':
+      case 'ArrowRight':
+        delta = 0.5;
+        break;
+      case 'ArrowDown':
+      case 'ArrowLeft':
+        delta = -0.5;
+        break;
+      case 'PageUp':
+        delta = 5.0;
+        break;
+      case 'PageDown':
+        delta = -5.0;
+        break;
+      case 'Home':
+        onChangeUnits(0);
+        triggerTickSound(0);
+        e.preventDefault();
+        return;
+      case 'End':
+        onChangeUnits(MAX_UNITS);
+        triggerTickSound(MAX_UNITS);
+        e.preventDefault();
+        return;
+      default:
+        return; // ignore other keys
+    }
+
+    e.preventDefault();
+    const updated = Math.max(0, Math.min(MAX_UNITS, units + delta));
+    triggerTickSound(updated);
+    onChangeUnits(updated);
+  };
 
   return (
     <div className="w-full flex flex-col items-center select-none group cursor-help transition-all duration-300">
@@ -104,7 +211,7 @@ export function SyringePreview({
         SYRINGE PREVIEW ({syringeStandard} &middot; {syringeSize} mL)
       </p>
       
-      {/* Badge pills (AC-6 / Aesthetic Upgrade) */}
+      {/* Badge pills */}
       <div className="flex gap-1.5 mb-2.5 items-center">
         <span className={`px-2 py-0.5 rounded-full text-xs font-bold font-mono border transition-all duration-300 group-hover:scale-105 shadow-sm ${
           hasDestructive
@@ -127,10 +234,16 @@ export function SyringePreview({
       )}
 
       <svg
+        ref={svgRef}
         viewBox="0 0 120 410"
-        className="w-full h-full max-h-[300px]"
+        className="w-full h-full max-h-[300px] outline-none touch-none"
         role="img"
         aria-label={`Visual syringe showing ${units.toFixed(1)} units filled.`}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        style={{ touchAction: 'none' }}
       >
         {/* Needle */}
         <line
@@ -149,11 +262,20 @@ export function SyringePreview({
           strokeWidth="1"
         />
 
-        {/* Plunger + Stopper Group (hardware-accelerated transition) */}
+        {/* Plunger + Stopper Group (hardware-accelerated transition unless dragging) */}
         <g
+          tabIndex={onChangeUnits ? 0 : undefined}
+          role={onChangeUnits ? 'slider' : undefined}
+          aria-valuenow={onChangeUnits ? parseFloat(units.toFixed(1)) : undefined}
+          aria-valuemin={onChangeUnits ? 0 : undefined}
+          aria-valuemax={onChangeUnits ? MAX_UNITS : undefined}
+          aria-label={onChangeUnits ? 'Syringe Plunger Level' : undefined}
+          onKeyDown={onChangeUnits ? handleKeyDown : undefined}
+          className="outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
           style={{
             transform: `translateY(${fluidHeight}px)`,
-            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: isDragging ? 'none' : 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+            cursor: onChangeUnits ? (isDragging ? 'grabbing' : 'grab') : 'default',
           }}
         >
           {/* Plunger Shaft (behind fluid fill but inside barrel) */}
@@ -201,10 +323,10 @@ export function SyringePreview({
             y={BARREL_TOP_Y}
             width="24"
             height={fluidHeight}
-            className={`${fluidColorClass} transition-all duration-300 group-hover:opacity-90`}
+            className={`${fluidColorClass} group-hover:opacity-90`}
             strokeWidth="0"
             style={{
-              transition: 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              transition: isDragging ? 'none' : 'height 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
           />
         )}

@@ -82,6 +82,17 @@ export async function findDoseLogByIdempotencyKey(
   return raw ? mapDoseLog(raw as RawDoseLog) : null;
 }
 
+export async function findDoseLogById(
+  client: PrismaClient_,
+  id: string,
+  userId: string
+): Promise<DoseLog | null> {
+  const raw = await client.doseLog.findFirst({
+    where: { id, userId },
+  });
+  return raw ? mapDoseLog(raw as RawDoseLog) : null;
+}
+
 export async function findDoseLogForDate(
   client: PrismaClient_,
   userId: string,

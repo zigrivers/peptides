@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
+import { toUTCDay } from '@/lib/shared/date';
 import Decimal from 'decimal.js';
 import { decrementVialInventory, incrementVialInventory } from '@/lib/reconstitution/application/InventoryService';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
@@ -8,6 +9,7 @@ import {
   createDoseLog,
   updateDoseLog,
   findDoseLogByIdempotencyKey,
+  findDoseLogById,
   findDoseLogForDate,
   countActiveVialsForCompound,
   validateVialOwnership,
@@ -24,9 +26,7 @@ function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: 
   return `${userId}:${protocolId}:${dateStr}`;
 }
 
-function toUTCDay(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
+
 
 function isFutureCalendarDay(scheduledDate: Date): boolean {
   const now = new Date();
@@ -79,7 +79,24 @@ export async function logDose(
   // Always derive idempotency key from the authoritative (subjectUserId, protocolId, scheduledDate) triple.
   // This ensures one dose log per day per protocol regardless of which device or sync path calls logDose.
   const idempotencyKey = buildIdempotencyKey(subjectUserId, input.protocolId, input.scheduledDate);
-  const existing = await findDoseLogByIdempotencyKey(tx, idempotencyKey, subjectUserId);
+  let existing: DoseLog | null = null;
+  if (input.id) {
+    existing = await findDoseLogById(tx, input.id, subjectUserId);
+    if (!existing) {
+      throw new Error('dose_log_not_found: The specified dose log does not exist or is unauthorized');
+    }
+  } else {
+    existing = await findDoseLogByIdempotencyKey(tx, idempotencyKey, subjectUserId);
+  }
+
+  if (existing && input.id) {
+    if (
+      existing.protocolId !== input.protocolId ||
+      toUTCDay(existing.scheduledDate).getTime() !== toUTCDay(input.scheduledDate).getTime()
+    ) {
+      throw new Error('dose_log_mismatch: The specified dose log does not match the protocol or date');
+    }
+  }
 
   // If there is an existing log (e.g. updating an entry), we bypass the schedule check.
   // Otherwise, we must validate that the date matches the protocol's schedule (unless it is an offline sync replay).
@@ -126,7 +143,7 @@ export async function logDose(
   }
 
   if (existing) {
-    // True idempotent: same status AND injection site unchanged → nothing to do.
+    // True idempotent: same status AND injection site AND note unchanged → nothing to do.
     const injectionSiteChanged =
       input.status === 'LOGGED' &&
       input.injectionSite !== undefined &&
@@ -136,10 +153,24 @@ export async function logDose(
     // Also update when a SKIPPED log somehow has a stale non-null site (defensive).
     const siteNeedsClearing = input.status === 'SKIPPED' && existing.injectionSite !== null;
 
-    if (existing.status === input.status && !injectionSiteChanged && !siteNeedsClearing) {
+    const noteChanged =
+      input.note !== undefined &&
+      (existing.note ?? '') !== (input.note ?? '');
+
+    const vialIdChanged =
+      input.vialId !== undefined &&
+      existing.vialId !== input.vialId;
+
+    if (
+      existing.status === input.status &&
+      !injectionSiteChanged &&
+      !siteNeedsClearing &&
+      !noteChanged &&
+      !vialIdChanged
+    ) {
       return { doseLog: existing, warnings };
     }
-    // Same-calendar-day edit: update status and/or injection site.
+    // Same-calendar-day edit: update status, injection site and/or notes.
     const updated = await runInTx<DoseLog>(tx, async (innerTx) => {
       const user = await innerTx.user.findUnique({
         where: { id: subjectUserId },
@@ -179,7 +210,7 @@ export async function logDose(
         status: input.status,
         // Explicitly null for SKIPPED; preserve or override for LOGGED.
         injectionSite: input.status === 'SKIPPED' ? null : (input.injectionSite ?? existing.injectionSite),
-        note: input.note ?? existing.note,
+        note: input.note !== undefined ? (input.note || null) : existing.note,
         vialId: input.status === 'SKIPPED' ? null : (input.vialId ?? existing.vialId),
         loggedByUserId: input.actorUserId,
         loggedAt: new Date(), // Update timestamp on actual logging action

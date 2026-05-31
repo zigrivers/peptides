@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { utcMidnightToday } from '@/lib/shared/date';
 import Decimal from 'decimal.js';
 import {
   pauseProtocolAction,
@@ -9,6 +10,9 @@ import {
   deactivateProtocolAction,
 } from '@/app/actions/tracker/protocol-lifecycle';
 import { convertDoseToMg } from '@/lib/reconstitution/application/InventoryService';
+import { Calendar, AlertTriangle, Snowflake } from 'lucide-react';
+import { getCapColor } from '@/lib/reconstitution/domain/syringe';
+import { isScheduledOn } from '@/lib/tracker/domain/ScheduleGenerator';
 
 interface Citation {
   id: string;
@@ -73,14 +77,19 @@ interface Vial {
   id: string;
   userId: string;
   compoundId: string;
-  totalMg: { toString(): string };
-  bacWaterMl: { toString(): string } | null;
-  remainingMg: { toString(): string };
+  totalMg: string;
+  bacWaterMl: string | null;
+  remainingMg: string;
   status: string;
 }
 
+interface SerializedProtocol extends Omit<Protocol, 'startDate' | 'endDate'> {
+  startDate: string | Date;
+  endDate: string | Date | null;
+}
+
 interface RegimenClientProps {
-  initialProtocols: Protocol[];
+  initialProtocols: SerializedProtocol[];
   vials: Vial[];
   users: User[];
   actorUserId: string;
@@ -96,20 +105,65 @@ function formatScheduleText(schedule: Schedule): string {
   return 'Custom schedule';
 }
 
-function calculateRunout(
+function calculateDailyEquivalentMg(
   protocol: Protocol,
+  referenceVial: Vial,
+  syringeStandard: string
+): Decimal {
+  if (protocol.status !== 'ACTIVE') return new Decimal(0);
+  
+  let doseMg: Decimal;
+  try {
+    doseMg = convertDoseToMg(
+      new Decimal(protocol.dose.amount),
+      protocol.dose.unit,
+      {
+        totalMg: new Decimal(referenceVial.totalMg),
+        bacWaterMl: referenceVial.bacWaterMl ? new Decimal(referenceVial.bacWaterMl) : null,
+      },
+      syringeStandard
+    );
+  } catch {
+    return new Decimal(0);
+  }
+
+  if (doseMg.lte(0)) return new Decimal(0);
+
+  if (protocol.schedule.frequency === 'Daily') {
+    return doseMg;
+  }
+  if (protocol.schedule.frequency === 'EOD') {
+    return doseMg.dividedBy(2);
+  }
+  if (protocol.schedule.frequency === 'CustomInterval') {
+    const interval = protocol.schedule.intervalDays || 1;
+    if (interval <= 0) return new Decimal(0);
+    return doseMg.dividedBy(interval);
+  }
+  if (protocol.schedule.frequency === 'SpecificDaysOfWeek') {
+    const days = protocol.schedule.daysOfWeek?.length || 0;
+    return doseMg.times(days).dividedBy(7);
+  }
+  return new Decimal(0);
+}
+
+function calculateCompoundRunout(
+  compoundId: string,
+  userId: string,
+  allProtocols: Protocol[],
   vials: Vial[],
   syringeStandard: string
 ): { display: string; status: 'ok' | 'warning' | 'empty'; daysLeft: number | null } {
+  // Filter active vials
   const compoundVials = vials.filter(
-    (v) => v.compoundId === protocol.compoundId && v.userId === protocol.userId
+    (v) => v.compoundId === compoundId && v.userId === userId && v.status === 'RECONSTITUTED'
   );
   if (compoundVials.length === 0) {
     return { display: 'No active vials (un-stocked)', status: 'empty', daysLeft: null };
   }
 
   const totalRemainingMg = compoundVials.reduce(
-    (acc, v) => acc.plus(new Decimal(v.remainingMg.toString())),
+    (acc, v) => acc.plus(new Decimal(v.remainingMg)),
     new Decimal(0)
   );
 
@@ -118,63 +172,115 @@ function calculateRunout(
   }
 
   const referenceVial = compoundVials[0];
-  let doseMg: Decimal;
-  try {
-    doseMg = convertDoseToMg(
-      new Decimal(protocol.dose.amount),
-      protocol.dose.unit,
-      {
-        totalMg: new Decimal(referenceVial.totalMg.toString()),
-        bacWaterMl: referenceVial.bacWaterMl ? new Decimal(referenceVial.bacWaterMl.toString()) : null,
-      },
-      syringeStandard
-    );
-  } catch {
-    return { display: 'Vial configuration incomplete', status: 'warning', daysLeft: null };
+
+  // Find all active protocols for this compound and user
+  const activeProtocols = allProtocols.filter(
+    (p) => p.compoundId === compoundId && p.userId === userId && p.status === 'ACTIVE'
+  );
+
+  if (activeProtocols.length === 0) {
+    return { display: 'No active protocols', status: 'ok', daysLeft: null };
   }
 
-  if (doseMg.lte(0)) {
-    return { display: 'Continuous (0 dose amount)', status: 'ok', daysLeft: 999 };
+  let totalDailyMg = new Decimal(0);
+  for (const p of activeProtocols) {
+    totalDailyMg = totalDailyMg.plus(calculateDailyEquivalentMg(p, referenceVial, syringeStandard));
   }
 
-  const dosesLeft = Math.floor(totalRemainingMg.dividedBy(doseMg).toNumber());
-  if (dosesLeft <= 0) {
-    return { display: 'Run out', status: 'empty', daysLeft: 0 };
+  // F-001: Guard clause to return null when totalDailyMg is zero to prevent NaN or division-by-zero errors.
+  if (totalDailyMg.lte(0)) {
+    return { display: 'Continuous (0 daily equivalent)', status: 'ok', daysLeft: null };
   }
 
-  const now = new Date();
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const today = utcMidnightToday();
+
+  // Copy the vials so we can mutate their remainingMg during the simulation
+  const simulatedVials = compoundVials.map((v) => ({
+    id: v.id,
+    remainingMg: new Decimal(v.remainingMg),
+    totalMg: new Decimal(v.totalMg),
+    bacWaterMl: v.bacWaterMl ? new Decimal(v.bacWaterMl) : null,
+  }));
+
+  // Iterative helper to deduct dose from simulated vials sequentially
+  const deductDose = (initialDoseAmount: Decimal, doseUnit: string): boolean => {
+    let remainingDoseAmount = initialDoseAmount;
+    for (const v of simulatedVials) {
+      if (v.remainingMg.lte(0)) continue;
+
+      let doseMg: Decimal;
+      try {
+        doseMg = convertDoseToMg(
+          remainingDoseAmount,
+          doseUnit,
+          {
+            totalMg: v.totalMg,
+            bacWaterMl: v.bacWaterMl,
+          },
+          syringeStandard
+        );
+      } catch {
+        doseMg = new Decimal(0);
+      }
+
+      if (doseMg.lte(0)) return true;
+
+      if (v.remainingMg.gte(doseMg)) {
+        v.remainingMg = v.remainingMg.minus(doseMg);
+        return true;
+      } else {
+        const fractionLeft = new Decimal(1).minus(v.remainingMg.div(doseMg));
+        v.remainingMg = new Decimal(0);
+        remainingDoseAmount = remainingDoseAmount.mul(fractionLeft);
+      }
+    }
+    return false;
+  };
 
   let daysLeft = 0;
-  if (protocol.schedule.frequency === 'Daily') {
-    daysLeft = dosesLeft;
-  } else if (protocol.schedule.frequency === 'EOD') {
-    daysLeft = dosesLeft * 2;
-  } else if (protocol.schedule.frequency === 'CustomInterval') {
-    daysLeft = dosesLeft * (protocol.schedule.intervalDays || 1);
-  } else if (protocol.schedule.frequency === 'SpecificDaysOfWeek') {
-    const daysOfWeek = protocol.schedule.daysOfWeek || [];
-    const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-    const targetDays = daysOfWeek.map((d: string) => dayMap[d]);
+  const maxDays = 365;
+  let ranOut = false;
 
-    if (targetDays.length === 0) {
-      daysLeft = dosesLeft;
-    } else {
-      const current = new Date(today);
-      let dosesRemaining = dosesLeft;
-      let iterations = 0;
-      while (dosesRemaining > 0 && iterations < 3650) {
-        if (targetDays.includes(current.getUTCDay())) {
-          dosesRemaining--;
-        }
-        if (dosesRemaining > 0) {
-          current.setUTCDate(current.getUTCDate() + 1);
-          iterations++;
+  while (daysLeft < maxDays) {
+    const checkDate = new Date(today);
+    checkDate.setUTCDate(today.getUTCDate() + daysLeft);
+
+    const dayDoses: { protocol: Protocol; amount: Decimal; unit: string }[] = [];
+    for (const p of activeProtocols) {
+      const protocolStartDate = new Date(p.startDate);
+      const protocolEndDate = p.endDate ? new Date(p.endDate) : null;
+
+      if (isScheduledOn(p.schedule as unknown as Parameters<typeof isScheduledOn>[0], protocolStartDate, protocolEndDate, checkDate)) {
+        dayDoses.push({
+          protocol: p,
+          amount: new Decimal(p.dose.amount),
+          unit: p.dose.unit,
+        });
+      }
+    }
+
+    if (dayDoses.length > 0) {
+      for (const d of dayDoses) {
+        const success = deductDose(d.amount, d.unit);
+        if (!success) {
+          ranOut = true;
+          break;
         }
       }
-      const diffTime = current.getTime() - today.getTime();
-      daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
     }
+
+    if (ranOut) {
+      break;
+    }
+    daysLeft++;
+  }
+
+  if (daysLeft === maxDays && !ranOut) {
+    return { display: 'Stable (365+ days)', status: 'ok', daysLeft: 365 };
+  }
+
+  if (daysLeft <= 0) {
+    return { display: 'Run out', status: 'empty', daysLeft: 0 };
   }
 
   const runoutDate = new Date(today);
@@ -194,10 +300,23 @@ function calculateRunout(
   };
 }
 
+
 export function RegimenClient({ initialProtocols, vials, users, actorUserId }: RegimenClientProps) {
+  const parsedProtocols = React.useMemo(() => {
+    return initialProtocols.map((p) => ({
+      ...p,
+      startDate: p.startDate instanceof Date ? p.startDate : new Date(p.startDate),
+      endDate: p.endDate ? (p.endDate instanceof Date ? p.endDate : new Date(p.endDate)) : null,
+    })) as Protocol[];
+  }, [initialProtocols]);
+
   const [selectedUserId, setSelectedUserId] = useState<string>(actorUserId);
   const [showDeactivated, setShowDeactivated] = useState<boolean>(false);
-  const [protocols, setProtocols] = useState<Protocol[]>(initialProtocols);
+  const [protocols, setProtocols] = useState<Protocol[]>(parsedProtocols);
+
+  useEffect(() => {
+    setProtocols(parsedProtocols);
+  }, [parsedProtocols]);
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -209,6 +328,31 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
     const matchesStatus = showDeactivated ? p.status === 'DEACTIVATED' : p.status !== 'DEACTIVATED';
     return matchesUser && matchesStatus;
   });
+
+  const refillProjections = useMemo(() => {
+    const activeProtos = filteredProtocols.filter(p => p.status === 'ACTIVE');
+    const activeCompoundIds = Array.from(new Set(activeProtos.map(p => p.compoundId)));
+    
+    return activeCompoundIds.map(compId => {
+      const firstProto = activeProtos.find(p => p.compoundId === compId)!;
+      const runout = calculateCompoundRunout(compId, selectedUserId, protocols, vials, syringeStandard);
+      const hasDryVials = vials.some(v => v.compoundId === compId && v.status === 'DRY' && v.userId === selectedUserId);
+      return { compound: firstProto.compound, runout, hasDryVials };
+    }).filter(item => item.runout.daysLeft !== null || item.runout.status === 'empty');
+  }, [filteredProtocols, selectedUserId, protocols, vials, syringeStandard]);
+
+  const runoutByProtocolId = useMemo(() => {
+    const map: Record<string, ReturnType<typeof calculateCompoundRunout>> = {};
+    const cache: Record<string, ReturnType<typeof calculateCompoundRunout>> = {};
+    protocols.forEach((p) => {
+      const cacheKey = `${p.compoundId}:${p.userId}`;
+      if (!cache[cacheKey]) {
+        cache[cacheKey] = calculateCompoundRunout(p.compoundId, p.userId, protocols, vials, syringeStandard);
+      }
+      map[p.id] = cache[cacheKey];
+    });
+    return map;
+  }, [protocols, vials, syringeStandard]);
 
   const handlePause = async (id: string) => {
     startTransition(async () => {
@@ -364,6 +508,97 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
         </div>
       </div>
 
+      {/* Refill Planner & Timeline Widget */}
+      {refillProjections.length > 0 && (
+        <div className="rounded-2xl border border-sky-100/25 bg-sky-500/[0.03] dark:bg-sky-950/10 p-5 backdrop-blur-md space-y-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-sky-400" />
+            <div>
+              <h2 className="text-sm font-bold text-foreground">Regimen Refill Planner</h2>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Visual timeline of when active vials will deplete based on current protocol frequency.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {refillProjections.map(({ compound, runout, hasDryVials }) => {
+              const days = runout.daysLeft ?? 0;
+              const percent = Math.min(100, (days / 30) * 100);
+              const isCriticallyLow = days < 7;
+              
+              let trackColor = 'bg-emerald-500';
+              let alertStyle = '';
+              if (days === 0) {
+                trackColor = 'bg-red-500';
+              } else if (isCriticallyLow) {
+                trackColor = 'bg-amber-500 animate-pulse';
+                alertStyle = 'border-amber-200 dark:border-amber-900/40 bg-amber-500/5';
+              }
+
+              return (
+                <div
+                  key={compound.id}
+                  className={`p-4 rounded-xl border border-border bg-white/5 dark:bg-black/15 flex flex-col justify-between space-y-3 ${alertStyle}`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-xs text-foreground truncate max-w-[150px]">
+                        {compound.name}
+                      </span>
+                      <span className={`text-[10px] font-bold ${days === 0 ? 'text-red-500' : isCriticallyLow ? 'text-amber-500' : 'text-emerald-500'}`}>
+                        {runout.daysLeft === null ? 'No Active Vial' : runout.daysLeft >= 730 ? '730+ days left' : days === 0 ? 'Depleted' : `${days} day${days > 1 ? 's' : ''} left`}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                      Runout: {runout.display.split(' (')[0]}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {/* Timeline bar */}
+                    <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${trackColor} transition-all duration-500`}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[8px] text-muted-foreground font-semibold uppercase tracking-wider">
+                      <span>Depleted</span>
+                      <span>30+ Days Stable</span>
+                    </div>
+                  </div>
+
+                  {isCriticallyLow && (
+                    <div className="pt-2 border-t border-dashed border-border flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-[9px] text-amber-600 dark:text-amber-400 font-medium">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        <span>Low Stock Alert</span>
+                      </div>
+                      {hasDryVials ? (
+                        selectedUserId === actorUserId ? (
+                          <Link
+                            href={`/reconstitution?reconstitute=${compound.id}`}
+                            className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold bg-sky-500 hover:bg-sky-600 text-white rounded transition-colors"
+                          >
+                            <Snowflake className="h-2.5 w-2.5" />
+                            Mix Reserve
+                          </Link>
+                        ) : (
+                          <span className="text-[8px] text-muted-foreground italic">Mix Reserve (self-only)</span>
+                        )
+                      ) : (
+                        <span className="text-[8px] text-muted-foreground italic">No dry vials in freezer</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Protocols Grid */}
       {filteredProtocols.length === 0 ? (
         <div className="text-center py-20 bg-white dark:bg-gray-950 border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
@@ -380,7 +615,7 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredProtocols.map((p) => {
-            const runout = calculateRunout(p, vials, syringeStandard);
+            const runout = runoutByProtocolId[p.id];
             const lowDoseParsed = p.compound.profile?.dosingLow ? (typeof p.compound.profile.dosingLow === 'string' ? JSON.parse(p.compound.profile.dosingLow) : p.compound.profile.dosingLow) : null;
             const typicalDoseParsed = p.compound.profile?.dosingTypical ? (typeof p.compound.profile.dosingTypical === 'string' ? JSON.parse(p.compound.profile.dosingTypical) : p.compound.profile.dosingTypical) : null;
             const highDoseParsed = p.compound.profile?.dosingHigh ? (typeof p.compound.profile.dosingHigh === 'string' ? JSON.parse(p.compound.profile.dosingHigh) : p.compound.profile.dosingHigh) : null;
@@ -392,9 +627,15 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
               highDoseParsed?.researchBenefits
             ].filter(Boolean);
 
+            const capColor = getCapColor(p.compound.slug, p.compound.id);
+
             return (
               <div
                 key={p.id}
+                style={{
+                  borderColor: p.status === 'ACTIVE' ? `${capColor}25` : undefined,
+                  boxShadow: p.status === 'ACTIVE' ? `0 4px 20px -6px ${capColor}15` : undefined,
+                }}
                 className={`relative flex flex-col justify-between overflow-hidden rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-md ${
                   p.status === 'PAUSED'
                     ? 'border-yellow-200 dark:border-yellow-900 bg-yellow-50/20 dark:bg-yellow-950/5'

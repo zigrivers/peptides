@@ -14,7 +14,7 @@ function CitationLink({ citation }: { citation: Citation }) {
     : null;
 
   return (
-    <li className="text-sm text-gray-600">
+    <li className="text-sm text-gray-600 dark:text-gray-300">
       {href ? (
         <a
           href={href}
@@ -27,8 +27,8 @@ function CitationLink({ citation }: { citation: Citation }) {
       ) : (
         citation.title
       )}
-      {citation.doi && <span className="ml-1 text-gray-400">DOI: {citation.doi}</span>}
-      {citation.pmid && <span className="ml-1 text-gray-400">PMID: {citation.pmid}</span>}
+      {citation.doi && <span className="ml-1 text-gray-400 dark:text-gray-500">DOI: {citation.doi}</span>}
+      {citation.pmid && <span className="ml-1 text-gray-400 dark:text-gray-500">PMID: {citation.pmid}</span>}
     </li>
   );
 }
@@ -36,8 +36,8 @@ function CitationLink({ citation }: { citation: Citation }) {
 function DoseRow({ label, amount, unit }: { label: string; amount: string; unit: string }) {
   return (
     <tr>
-      <td className="py-1 pr-4 text-sm text-gray-500">{label}</td>
-      <td className="py-1 text-sm font-medium text-gray-900">
+      <td className="py-1 pr-4 text-sm text-gray-500 dark:text-gray-400">{label}</td>
+      <td className="py-1 text-sm font-medium text-gray-900 dark:text-gray-100">
         <span className="font-mono">{amount}</span> {unit}
       </td>
     </tr>
@@ -67,16 +67,16 @@ export default async function CompoundProfilePage({
         </Link>
       </nav>
 
-      <h1 className="text-2xl font-semibold text-gray-900">
+      <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
         {isArchived ? `${compound.name} (archived)` : compound.name}
       </h1>
 
       {compound.iupacName && (
-        <p className="mt-1 text-xs text-gray-500 font-mono break-all">{compound.iupacName}</p>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 font-mono break-all">{compound.iupacName}</p>
       )}
 
       {compound.synonyms.length > 0 && (
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
           Also known as: {compound.synonyms.join(', ')}
         </p>
       )}
@@ -95,9 +95,9 @@ export default async function CompoundProfilePage({
       )}
 
       {!compound.profile && (
-        <div className="mt-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-          <p className="text-sm text-yellow-800 font-medium">Profile in progress</p>
-          <p className="mt-1 text-sm text-yellow-700">
+        <div className="mt-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-950/30 dark:bg-yellow-950/20">
+          <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">Profile in progress</p>
+          <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-400">
             Dosing and clinical information will be added soon.
           </p>
         </div>
@@ -105,23 +105,23 @@ export default async function CompoundProfilePage({
 
       {compound.mechanismOfAction && (
         <section className="mt-6">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
             Mechanism of Action
           </h2>
-          <p className="text-sm text-gray-600">{compound.mechanismOfAction}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300">{compound.mechanismOfAction}</p>
         </section>
       )}
 
       {compound.administrationRoutes.length > 0 && (
         <section className="mt-6">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
             Administration Routes
           </h2>
           <div className="flex flex-wrap gap-2">
             {compound.administrationRoutes.map((route) => (
               <span
                 key={route}
-                className="text-sm bg-gray-100 text-gray-700 rounded px-2 py-1"
+                className="text-sm bg-gray-100 text-gray-700 rounded px-2 py-1 dark:bg-zinc-800 dark:text-gray-300"
               >
                 {route}
               </span>
@@ -133,7 +133,7 @@ export default async function CompoundProfilePage({
       {compound.profile && (
         <>
           <section className="mt-6">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
               Dosing Reference
             </h2>
             <table>
@@ -159,25 +159,25 @@ export default async function CompoundProfilePage({
 
           {compound.profile.sideEffects && (
             <section className="mt-6">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
                 Side Effects
               </h2>
-              <p className="text-sm text-gray-600">{compound.profile.sideEffects}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{compound.profile.sideEffects}</p>
             </section>
           )}
 
           {compound.profile.stackingNotes && (
             <section className="mt-6">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
                 Stacking Notes
               </h2>
-              <p className="text-sm text-gray-600">{compound.profile.stackingNotes}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{compound.profile.stackingNotes}</p>
             </section>
           )}
 
           {compound.profile.citations.length > 0 && (
             <section className="mt-6">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
                 Citations
               </h2>
               <ul className="space-y-1">

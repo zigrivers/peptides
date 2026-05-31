@@ -13,7 +13,8 @@ const InjectionSiteSchema = z.object({
 });
 
 const InputSchema = z.object({
-  protocolId: z.string().min(1),
+  id: z.string().uuid().optional(),
+  protocolId: z.string().uuid(),
   amount: z.object({
     amount: z.string(),
     unit: z.enum(['mcg', 'mg', 'IU', 'mL']),
@@ -40,7 +41,7 @@ export async function logDoseAction(input: unknown): Promise<LogDoseActionResult
     return { ok: false, error: 'invalid_input', message: parsed.error.issues[0]?.message ?? 'Invalid input.' };
   }
 
-  const { protocolId, amount, status, injectionSite, note, vialId, scheduledDate: inputScheduledDate } = parsed.data;
+  const { id, protocolId, amount, status, injectionSite, note, vialId, scheduledDate: inputScheduledDate } = parsed.data;
   const actorUserId = session.user.id;
 
   let scheduledDate: Date;
@@ -56,6 +57,7 @@ export async function logDoseAction(input: unknown): Promise<LogDoseActionResult
 
   try {
     const result = await logDose({
+      id,
       actorUserId,
       protocolId,
       scheduledDate,

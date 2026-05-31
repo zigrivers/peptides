@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronLeft, ChevronRight, Check, Calendar, AlertCircle, Edit2, Info } from 'lucide-react';
 import type { Protocol, DoseLog, InjectionSite } from '@/lib/tracker/domain/types';
 import { getScheduledDatesInRange } from '@/lib/tracker/domain/ScheduleGenerator';
 import { SitePicker } from './SitePicker';
@@ -9,7 +10,10 @@ import type { SiteData } from './SitePicker';
 import { logDoseAction } from '@/app/actions/tracker/log-dose';
 import { rescheduleDoseAction } from '@/app/actions/tracker/reschedule-dose';
 import { batchLogDatesAction } from '@/app/actions/tracker/batch-log-dates';
-import { sitesEqual } from '@/lib/tracker/domain/SiteRotation';
+import { getCapColor } from '@/lib/reconstitution/domain/syringe';
+import { sitesEqual, getSitesForRoute } from '@/lib/tracker/domain/SiteRotation';
+import { calculateStreak, type StreakResult } from '@/lib/tracker/domain/streak';
+import { ConfettiCanvas } from '@/app/(dashboard)/dashboard/_components/ConfettiCanvas';
 
 type CalendarEvent = {
   id: string;
@@ -21,220 +25,92 @@ type CalendarEvent = {
   doseUnit: string;
   type: 'LOGGED' | 'SKIPPED' | 'SCHEDULED' | 'PENDING' | 'RESCHEDULED';
   loggedAt?: Date;
-  injectionSite?: string;
+  injectionSite?: InjectionSite;
   note?: string;
   isOffline?: boolean;
+  scheduledDateStr?: string;
+  administrationRoute?: string;
 };
 
+interface SerializedProtocol extends Omit<Protocol, 'startDate' | 'endDate'> {
+  startDate: string | Date;
+  endDate: string | Date | null;
+}
+
 interface Props {
-  protocols: Protocol[];
+  protocols: SerializedProtocol[];
   doseLogs: (Omit<DoseLog, 'loggedAt' | 'scheduledDate'> & { loggedAt: string; scheduledDate: string })[];
-  compounds: Record<string, { name: string; slug: string }>;
+  compounds: Record<string, { name: string; slug: string; profile?: unknown }>;
   siteSuggestions?: Record<string, SiteData>;
   initialDateISO: string;
+  loggedDates?: string[];
+}
+
+function getCompoundAbbreviation(name: string): string {
+  if (!name) return '';
+  const cleanName = name.trim();
+  const lower = cleanName.toLowerCase();
+  
+  if (lower.startsWith('bpc-157') || lower.startsWith('bpc157')) return 'BPC';
+  if (lower.startsWith('tb-500') || lower.startsWith('tb500')) return 'TB';
+  if (lower.startsWith('tirzepatide')) return 'TIRZ';
+  if (lower.startsWith('semaglutide')) return 'SEMA';
+  if (lower.startsWith('ipamorelin')) return 'IPA';
+  if (lower.startsWith('melanotan ii') || lower.startsWith('melanotan-ii') || lower.startsWith('melanotan 2') || lower.startsWith('melanotan2')) return 'MT2';
+  if (lower.startsWith('sermorelin')) return 'SERM';
+  if (lower.startsWith('cjc-1295') || lower.startsWith('cjc1295')) return 'CJC';
+  if (lower.startsWith('aod-9604') || lower.startsWith('aod9604')) return 'AOD';
+  if (lower.startsWith('epitalon')) return 'EPI';
+  if (lower.startsWith('tesamorelin')) return 'TESA';
+  if (lower.startsWith('mots-c') || lower.startsWith('motsc')) return 'MOTS';
+  if (lower.startsWith('pt-141') || lower.startsWith('pt141')) return 'PT';
+
+  if (cleanName.includes('-')) {
+    const firstPart = cleanName.split('-')[0].trim();
+    if (firstPart.length > 0) return firstPart.toUpperCase();
+  }
+
+  return cleanName.slice(0, 4).toUpperCase();
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function getCapColor(compoundSlug: string): string {
-  const knownColors: Record<string, string> = {
-    'tirzepatide': '--compound-tirzepatide',
-    'semaglutide': '--compound-semaglutide',
-    'bpc-157': '--compound-bpc157',
-  };
-  if (knownColors[compoundSlug]) return `hsl(var(${knownColors[compoundSlug]}))`;
-  return 'hsl(215 16% 47%)';
+function getSundayOfWeek(d: Date): Date {
+  const date = new Date(d);
+  const day = date.getUTCDay();
+  const diff = date.getUTCDate() - day;
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), diff));
 }
 
-function CalendarQuickLog({
-  protocolId,
-  amount,
-  scheduledDate,
-  siteData,
-  onSuccess,
-}: {
-  protocolId: string;
-  amount: { amount: string; unit: 'mcg' | 'mg' | 'IU' | 'mL' };
-  scheduledDate: string;
-  siteData?: SiteData;
-  onSuccess: (newLog?: unknown) => void;
-}) {
-  const [isPending, startTransition] = useTransition();
-  const [selectedSite, setSelectedSite] = useState<InjectionSite | null>(
-    siteData?.suggestion ?? null
-  );
-  const [note, setNote] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+const EMPTY_DATES: string[] = [];
 
-  const requiresSite = (siteData?.validSites.length ?? 0) > 0;
-  const siteRequired = requiresSite && selectedSite === null;
+export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, compounds, siteSuggestions = {}, initialDateISO, loggedDates = EMPTY_DATES }: Props) {
+  const protocols = React.useMemo(() => {
+    return serializedProtocols.map((p) => ({
+      ...p,
+      startDate: p.startDate instanceof Date ? p.startDate : new Date(p.startDate),
+      endDate: p.endDate ? (p.endDate instanceof Date ? p.endDate : new Date(p.endDate)) : null,
+    })) as Protocol[];
+  }, [serializedProtocols]);
 
-  function handleLog(status: 'LOGGED' | 'SKIPPED') {
-    setError(null);
-    if (status === 'LOGGED' && siteRequired) {
-      setError('Please select an injection site.');
-      return;
-    }
-
-    const isCurrentlyOffline = typeof window !== 'undefined' && !navigator.onLine;
-
-    const performOfflineEnqueue = async () => {
-      try {
-        const { OfflineQueue } = await import('@/lib/offline/application/OfflineQueue');
-        const q = new OfflineQueue();
-        const dateStr = scheduledDate.split('T')[0];
-        const res = await q.enqueue({
-          protocolId,
-          scheduledDate: dateStr,
-          deviceId: 'web-client',
-          amount,
-          status,
-          injectionSite: status === 'LOGGED' ? (selectedSite ?? undefined) : undefined,
-          note: note.trim() || undefined,
-        });
-        if (res.ok) {
-          window.dispatchEvent(new Event('offline-sync-queue-updated'));
-          onSuccess({
-            id: res.id,
-            protocolId,
-            status,
-            scheduledDate,
-            amount,
-            loggedAt: new Date().toISOString(),
-            isOffline: true,
-            note: note.trim() || null,
-          });
-        } else {
-          setError(res.error || 'Failed to queue dose offline.');
-        }
-      } catch (e) {
-        console.error('[offlineEnqueue] error:', e);
-        setError('Failed to queue dose offline.');
-      }
-    };
-
-    if (isCurrentlyOffline) {
-      performOfflineEnqueue();
-      return;
-    }
-
-    startTransition(async () => {
-      try {
-        const result = await logDoseAction({
-          protocolId,
-          amount,
-          status,
-          injectionSite: status === 'LOGGED' ? (selectedSite ?? undefined) : undefined,
-          note: note.trim() || undefined,
-          scheduledDate,
-        });
-        if (result.ok) {
-          router.refresh();
-          onSuccess();
-        } else {
-          setError(result.message);
-        }
-      } catch (err) {
-        console.error('[CalendarQuickLog] logDoseAction error:', err);
-        const isNetworkErr = err instanceof TypeError || (err instanceof Error && /fetch|network|timeout/i.test(err.message));
-        if (isNetworkErr) {
-          await performOfflineEnqueue();
-        } else {
-          setError('An unexpected error occurred.');
-        }
-      }
-    });
-  }
-
-  const lastUsedSite = siteData?.recentSites?.[0] ?? null;
-  const isConflict = selectedSite !== null && lastUsedSite !== null && sitesEqual(selectedSite, lastUsedSite);
-
-  return (
-    <div className="mt-3 pt-3 border-t border-border space-y-3">
-      {error && (
-        <p role="alert" className="text-xs text-destructive font-medium">{error}</p>
-      )}
-
-      {isConflict && (
-        <div role="alert" className="text-[10px] text-amber-800 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded p-2 flex items-start gap-1">
-          <span className="font-bold shrink-0">&#9888;</span>
-          <span>
-            <strong>Rotation Alert:</strong> Selected site matches last use. We recommend rotating to a rested site.
-          </span>
-        </div>
-      )}
-
-      {siteData && siteData.validSites.length > 0 && (
-        <div className="scale-95 origin-top-left py-1">
-          <SitePicker
-            siteData={siteData}
-            selectedSite={selectedSite}
-            onSelect={setSelectedSite}
-          />
-        </div>
-      )}
-
-      <div className="space-y-1">
-        <label htmlFor={`quick-log-note-${protocolId}`} className="text-[10px] font-medium text-muted-foreground">
-          Notes (optional)
-        </label>
-        <input
-          id={`quick-log-note-${protocolId}`}
-          type="text"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="e.g. slight fatigue, felt good"
-          className="w-full text-xs rounded border border-input bg-background px-2 py-1 text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none"
-          disabled={isPending}
-        />
-      </div>
-
-      <div className="flex items-center justify-between gap-2 pt-1">
-        <div className="flex gap-2">
-          <button
-            disabled={isPending || siteRequired}
-            onClick={() => handleLog('LOGGED')}
-            className="rounded bg-success text-success-foreground px-3 py-1.5 text-xs font-semibold hover:bg-success/90 disabled:opacity-60 transition-colors"
-          >
-            {isPending ? 'Logging...' : 'Log Dose'}
-          </button>
-          <button
-            disabled={isPending}
-            onClick={() => handleLog('SKIPPED')}
-            className="rounded border border-input bg-background text-foreground px-3 py-1.5 text-xs font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-60 transition-colors"
-          >
-            Skip
-          </button>
-        </div>
-
-        <a
-          href={`/tracker/protocols/${protocolId}`}
-          className="text-xs text-primary hover:underline font-medium"
-        >
-          View Protocol Details
-        </a>
-      </div>
-    </div>
-  );
-}
-
-export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestions = {}, initialDateISO }: Props) {
   const router = useRouter();
   const [localLogs, setLocalLogs] = useState(doseLogs);
-
-  useEffect(() => {
-    setLocalLogs(doseLogs);
-  }, [doseLogs]);
-
-  const [currentDate, setCurrentDate] = useState<Date>(() => {
-    const d = initialDateISO ? new Date(initialDateISO) : new Date();
-    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    return initialDateISO ? new Date(initialDateISO) : new Date();
   });
 
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
+    const d = initialDateISO ? new Date(initialDateISO) : new Date();
+    return getSundayOfWeek(d);
+  });
 
-  // Drag and drop rescheduling state
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [editNotes, setEditNotes] = useState<Record<string, string>>({});
+  const [editSite, setEditSite] = useState<Record<string, InjectionSite | null>>({});
+  const [isLogPending, startLogTransition] = useTransition();
+  const [logErrors, setLogErrors] = useState<Record<string, string>>({});
+
+  // Drag-and-drop rescheduling state
   const [isRescheduling, startRescheduling] = useTransition();
 
   // Bulk select logging state
@@ -244,25 +120,78 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
   const [bulkNote, setBulkNote] = useState('');
   const [isBulkActionPending, startBulkAction] = useTransition();
 
-  const handlePrevMonth = () => {
-    setCurrentDate((d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1)));
+  useEffect(() => {
+    setLocalLogs(doseLogs);
+  }, [doseLogs]);
+
+  const [streak, setStreak] = useState<StreakResult | null>(null);
+  const [triggerConfetti, setTriggerConfetti] = useState(false);
+
+  // Client-side timezone-resilient streak calculation
+  useEffect(() => {
+    const now = new Date();
+    const clientTodayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const calculated = calculateStreak(loggedDates, clientTodayUTC);
+    setStreak(calculated);
+  }, [loggedDates]);
+
+  // Completed-day celebration triggers
+  useEffect(() => {
+    const selectedDateStr = selectedDate.toISOString().split('T')[0];
+    const selectedEvents = eventsByDateString[selectedDateStr] || [];
+    if (selectedEvents.length === 0) return;
+
+    const loggedCount = selectedEvents.filter((e) => e.type === 'LOGGED' || e.type === 'SKIPPED').length;
+    const totalCount = selectedEvents.length;
+    const isCompleted = totalCount > 0 && loggedCount === totalCount;
+
+    if (isCompleted) {
+      const celebrateKey = `celebrated_tracker_${selectedDateStr}`;
+      const hasSessionStorage = typeof window !== 'undefined' && window.sessionStorage;
+      const lastCelebrated = hasSessionStorage ? sessionStorage.getItem(celebrateKey) : 'true';
+      if (!lastCelebrated && hasSessionStorage) {
+        setTriggerConfetti(true);
+        sessionStorage.setItem(celebrateKey, 'true');
+      }
+    }
+  }, [localLogs, selectedDate]);
+
+  const handlePrevWeek = () => {
+    setCurrentWeekStart((d) => {
+      const next = new Date(d);
+      next.setUTCDate(next.getUTCDate() - 7);
+      return next;
+    });
+    setSelectedDate((prev) => {
+      const next = new Date(prev);
+      next.setUTCDate(next.getUTCDate() - 7);
+      return next;
+    });
   };
 
-  const handleNextMonth = () => {
-    setCurrentDate((d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)));
+  const handleNextWeek = () => {
+    setCurrentWeekStart((d) => {
+      const next = new Date(d);
+      next.setUTCDate(next.getUTCDate() + 7);
+      return next;
+    });
+    setSelectedDate((prev) => {
+      const next = new Date(prev);
+      next.setUTCDate(next.getUTCDate() + 7);
+      return next;
+    });
   };
 
-  const year = currentDate.getUTCFullYear();
-  const month = currentDate.getUTCMonth();
+  const handleJumpToToday = () => {
+    const today = new Date();
+    const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+    setSelectedDate(todayUTC);
+    setCurrentWeekStart(getSundayOfWeek(todayUTC));
+  };
 
-  const firstDayOfMonth = new Date(Date.UTC(year, month, 1));
-  const startDayOfWeek = firstDayOfMonth.getUTCDay();
-
-  const calendarStart = new Date(firstDayOfMonth);
-  calendarStart.setUTCDate(calendarStart.getUTCDate() - startDayOfWeek);
-
-  const calendarEnd = new Date(calendarStart);
-  calendarEnd.setUTCDate(calendarEnd.getUTCDate() + 41);
+  const calendarStart = new Date(currentWeekStart);
+  const calendarEnd = new Date(currentWeekStart);
+  calendarEnd.setUTCDate(calendarEnd.getUTCDate() + 6);
 
   const eventsByDateString: Record<string, CalendarEvent[]> = {};
 
@@ -297,9 +226,11 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
       doseUnit: log.amount.unit,
       type: log.status as 'LOGGED' | 'SKIPPED' | 'PENDING' | 'RESCHEDULED',
       loggedAt: new Date(log.loggedAt),
-      injectionSite: log.injectionSite ? `${log.injectionSite.side} ${log.injectionSite.bodyPart}` : undefined,
+      injectionSite: log.injectionSite ? (log.injectionSite as InjectionSite) : undefined,
       note: log.note || undefined,
       isOffline: 'isOffline' in log ? (log as { isOffline?: boolean }).isOffline : undefined,
+      scheduledDateStr: dateStr,
+      administrationRoute: proto?.administrationRoute,
     });
   });
 
@@ -307,12 +238,13 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
   protocols.forEach((p) => {
     if (p.status !== 'ACTIVE') return;
 
-    const dates = getScheduledDatesInRange(p.schedule, p.startDate, p.endDate, calendarStart, calendarEnd);
+    const generationStart = selectedDate < calendarStart ? selectedDate : calendarStart;
+    const generationEnd = selectedDate > calendarEnd ? selectedDate : calendarEnd;
+    const dates = getScheduledDatesInRange(p.schedule, p.startDate, p.endDate, generationStart, generationEnd);
     
     dates.forEach((d) => {
       const dateStr = d.toISOString().split('T')[0];
       
-      // If there is already a log (logged, skipped, pending, or rescheduled) for this protocol on this day, skip adding the pending schedule event
       const alreadyLogged = eventsByDateString[dateStr]?.some(
         (e) => e.protocolId === p.id && (e.type === 'LOGGED' || e.type === 'SKIPPED' || e.type === 'PENDING' || e.type === 'RESCHEDULED')
       );
@@ -329,29 +261,29 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
         doseAmount: p.dose.amount,
         doseUnit: p.dose.unit,
         type: 'SCHEDULED',
+        scheduledDateStr: dateStr,
+        administrationRoute: p.administrationRoute,
       });
     });
   });
 
-  // Generate 42 grid cells
-  const cells: { date: Date; dateStr: string; isCurrentMonth: boolean; events: CalendarEvent[] }[] = [];
+  // Generate 7 weekly cells
+  const cells: { date: Date; dateStr: string; events: CalendarEvent[] }[] = [];
   const cursor = new Date(calendarStart);
 
-  for (let i = 0; i < 42; i++) {
+  for (let i = 0; i < 7; i++) {
     const dateStr = cursor.toISOString().split('T')[0];
     cells.push({
       date: new Date(cursor),
       dateStr,
-      isCurrentMonth: cursor.getUTCMonth() === month,
       events: eventsByDateString[dateStr] || [],
     });
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
   const todayStr = new Date().toISOString().split('T')[0];
-
-  const selectedDateStr = selectedDate ? selectedDate.toISOString().split('T')[0] : '';
-  const selectedEvents = selectedDate ? (eventsByDateString[selectedDateStr] || []) : [];
+  const selectedDateStr = selectedDate.toISOString().split('T')[0];
+  const selectedEvents = eventsByDateString[selectedDateStr] || [];
 
   // Drag and Drop Event Handlers
   const handleDragStart = (ev: React.DragEvent, event: CalendarEvent, dateStr: string) => {
@@ -389,7 +321,7 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
     }
   };
 
-  // Bulk Actions
+  // Bulk actions handling
   const handleCellClick = (date: Date, dateStr: string) => {
     if (isBulkMode) {
       setSelectedDates((prev) =>
@@ -422,29 +354,156 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
     });
   };
 
+  const handleInlineSave = (event: CalendarEvent, status: 'LOGGED' | 'SKIPPED') => {
+    setLogErrors((prev) => {
+      const copy = { ...prev };
+      delete copy[event.id];
+      return copy;
+    });
+    const routeSites = getSitesForRoute(event.administrationRoute ?? '');
+    const requiresSite = routeSites.length > 0;
+    
+    const eventSite = editSite[event.id] ?? event.injectionSite ?? null;
+    const eventNote = editNotes[event.id] ?? '';
+
+    const targetDateStr = event.scheduledDateStr || selectedDateStr;
+
+    if (status === 'LOGGED' && requiresSite && !eventSite) {
+      setLogErrors((prev) => ({ ...prev, [event.id]: 'Please select an injection site.' }));
+      return;
+    }
+
+    const performOfflineEnqueue = async () => {
+      try {
+        const { OfflineQueue } = await import('@/lib/offline/application/OfflineQueue');
+        const q = new OfflineQueue();
+        const res = await q.enqueue({
+          protocolId: event.protocolId,
+          scheduledDate: targetDateStr,
+          deviceId: 'web-client',
+          amount: { amount: event.doseAmount, unit: event.doseUnit as 'mcg' | 'mg' | 'IU' | 'mL' },
+          status,
+          injectionSite: status === 'LOGGED' ? (eventSite ?? undefined) : undefined,
+          note: eventNote.trim(),
+        });
+        if (res.ok) {
+          window.dispatchEvent(new Event('offline-sync-queue-updated'));
+          const newLog = {
+            id: res.id,
+            protocolId: event.protocolId,
+            status,
+            scheduledDate: new Date(targetDateStr + 'T00:00:00.000Z').toISOString(),
+            amount: { amount: event.doseAmount, unit: event.doseUnit as 'mcg' | 'mg' | 'IU' | 'mL' },
+            loggedAt: new Date().toISOString(),
+            isOffline: true,
+            note: eventNote.trim() || null,
+            injectionSite: status === 'LOGGED' ? eventSite : null,
+          };
+          setLocalLogs((prev) => [
+            ...prev.filter(l => !(l.protocolId === event.protocolId && l.scheduledDate.startsWith(targetDateStr))),
+            newLog as unknown as Props['doseLogs'][number]
+          ]);
+          setEditingEventId(null);
+          setEditNotes((prev) => {
+            const copy = { ...prev };
+            delete copy[event.id];
+            return copy;
+          });
+          setEditSite((prev) => {
+            const copy = { ...prev };
+            delete copy[event.id];
+            return copy;
+          });
+        } else {
+          setLogErrors((prev) => ({ ...prev, [event.id]: res.error || 'Failed to queue dose offline.' }));
+        }
+      } catch (e) {
+        console.error('[offlineEnqueue] error:', e);
+        setLogErrors((prev) => ({ ...prev, [event.id]: 'Failed to queue dose offline.' }));
+      }
+    };
+
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      performOfflineEnqueue();
+      return;
+    }
+
+    startLogTransition(async () => {
+      try {
+        const result = await logDoseAction({
+          id: event.type !== 'SCHEDULED' && !event.id.startsWith('scheduled-') ? event.id : undefined,
+          protocolId: event.protocolId,
+          amount: { amount: event.doseAmount, unit: event.doseUnit },
+          status,
+          injectionSite: status === 'LOGGED' ? (eventSite ?? undefined) : undefined,
+          note: eventNote.trim(),
+          scheduledDate: targetDateStr,
+        });
+        if (result.ok) {
+          setEditingEventId(null);
+          setEditNotes((prev) => {
+            const copy = { ...prev };
+            delete copy[event.id];
+            return copy;
+          });
+          setEditSite((prev) => {
+            const copy = { ...prev };
+            delete copy[event.id];
+            return copy;
+          });
+          router.refresh();
+        } else {
+          setLogErrors((prev) => ({ ...prev, [event.id]: result.message }));
+        }
+      } catch (err) {
+        console.error('[handleInlineSave] error:', err);
+        const isNetworkErr = err instanceof TypeError || (err instanceof Error && /fetch|network|timeout/i.test(err.message));
+        if (isNetworkErr) {
+          await performOfflineEnqueue();
+        } else {
+          setLogErrors((prev) => ({ ...prev, [event.id]: 'An unexpected error occurred.' }));
+        }
+      }
+    });
+  };
+
+  const headerMonthYear = currentWeekStart.toLocaleDateString(undefined, {
+    timeZone: 'UTC',
+    month: 'long',
+    year: 'numeric',
+  });
+
   return (
-    <div className="border border-border bg-card text-card-foreground rounded-xl p-5 shadow-sm space-y-6 relative">
+    <div className="bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-900 rounded-2xl p-5 shadow-sm space-y-6 relative">
       
+      {/* Confetti Celebration Overlay */}
+      {triggerConfetti && (
+        <ConfettiCanvas onComplete={() => setTriggerConfetti(false)} />
+      )}
+
       {/* Calendar Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-          <span>📅</span>
-          <span>
-            {currentDate.toLocaleDateString(undefined, {
-              timeZone: 'UTC',
-              month: 'long',
-              year: 'numeric',
-            })}
-          </span>
-        </h2>
-        <div className="flex items-center gap-3">
-          {/* Bulk Action Toggle Switch */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" />
+            <h2 className="text-sm font-bold text-gray-900 dark:text-gray-150">
+              {headerMonthYear}
+            </h2>
+          </div>
+          {streak && streak.currentStreak > 0 && (
+            <span className="flex items-center gap-1 text-[10px] md:text-xs font-bold text-amber-500 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/25 animate-pulse-slow">
+              🔥 {streak.currentStreak} Day Streak
+            </span>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-2">
           <button
             onClick={() => {
               setIsBulkMode(!isBulkMode);
               setSelectedDates([]);
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
               isBulkMode
                 ? 'bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-950/20 dark:border-indigo-900 dark:text-indigo-400'
                 : 'bg-background hover:bg-accent border-input text-foreground'
@@ -453,46 +512,48 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
             {isBulkMode ? 'Bulk Mode On' : 'Bulk Select'}
           </button>
 
+          <button
+            onClick={handleJumpToToday}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-input bg-background hover:bg-accent text-foreground transition-all"
+          >
+            Today
+          </button>
+
           <div className="flex items-center gap-1">
             <button
-              onClick={handlePrevMonth}
-              className="p-1.5 rounded-md border border-input hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground"
-              aria-label="Previous Month"
+              onClick={handlePrevWeek}
+              className="p-1.5 rounded-md border border-input hover:bg-accent text-muted-foreground transition-colors"
+              aria-label="Previous Week"
             >
-              ←
+              <ChevronLeft className="h-4 w-4" />
             </button>
             <button
-              onClick={handleNextMonth}
-              className="p-1.5 rounded-md border border-input hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground"
-              aria-label="Next Month"
+              onClick={handleNextWeek}
+              className="p-1.5 rounded-md border border-input hover:bg-accent text-muted-foreground transition-colors"
+              aria-label="Next Week"
             >
-              →
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Weekdays Grid */}
-      <div className="grid grid-cols-7 gap-px text-center text-xs font-bold text-muted-foreground border-b border-border pb-2">
-        {WEEKDAYS.map((d) => (
-          <div key={d}>{d}</div>
-        ))}
-      </div>
-
-      {/* Calendar cells */}
-      <div className={`grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden border border-border transition-opacity ${isRescheduling ? 'opacity-60' : ''}`}>
-        {cells.map(({ date, dateStr, isCurrentMonth, events }) => {
+      {/* Week Grid */}
+      <div className={`grid grid-cols-7 gap-2 transition-opacity duration-200 ${isRescheduling ? 'opacity-60' : ''}`}>
+        {cells.map(({ date, dateStr, events }) => {
           const isToday = dateStr === todayStr;
           const isSelected = isBulkMode ? selectedDates.includes(dateStr) : selectedDateStr === dateStr;
 
-          const loggedCount = events.filter((e) => e.type === 'LOGGED').length;
+          const loggedCount = events.filter((e) => e.type === 'LOGGED' || e.type === 'SKIPPED').length;
           const totalCount = events.length;
 
-          const ariaLabel = `${date.toLocaleDateString(undefined, {
-            timeZone: 'UTC',
-            month: 'long',
-            day: 'numeric',
-          })}: ${totalCount} event${totalCount !== 1 ? 's' : ''}`;
+          // Status Ring Calculations
+          const percent = totalCount > 0 ? (loggedCount / totalCount) * 100 : 0;
+          const isRestDay = totalCount === 0;
+          const isCompleted = totalCount > 0 && loggedCount === totalCount;
+          const isPartial = totalCount > 0 && loggedCount > 0 && loggedCount < totalCount;
+
+          const weekdayName = WEEKDAYS[date.getUTCDay()];
 
           return (
             <div
@@ -502,7 +563,7 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
               onDrop={(ev) => handleDrop(ev, dateStr)}
               tabIndex={0}
               role="button"
-              aria-label={ariaLabel}
+              aria-label={`${date.toLocaleDateString(undefined, { timeZone: 'UTC', month: 'long', day: 'numeric' })}: ${totalCount} scheduled`}
               aria-pressed={isSelected}
               onKeyDown={(e) => {
                 if (e.key === ' ' || e.key === 'Enter') {
@@ -510,228 +571,327 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
                   handleCellClick(date, dateStr);
                 }
               }}
-              className={`min-h-[68px] sm:min-h-[92px] p-1.5 flex flex-col justify-between transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary select-none cursor-pointer ${
-                isCurrentMonth
-                  ? 'bg-card text-foreground'
-                  : 'bg-muted/40 text-muted-foreground/60'
-              } ${isToday ? 'ring-2 ring-primary ring-inset' : ''} ${
-                isSelected 
-                  ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50/15 dark:bg-indigo-950/10' 
-                  : 'hover:bg-accent/50 dark:hover:bg-accent/20'
+              className={`p-2 rounded-xl flex flex-col items-center justify-start min-h-[160px] md:min-h-[220px] transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer select-none border ${
+                isSelected
+                  ? 'border-primary bg-primary/5 dark:bg-primary/10 shadow-sm'
+                  : 'border-gray-100 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900/50'
               }`}
             >
-              {/* Cell Day Indicator */}
-              <div className="flex justify-between items-center">
-                <span
-                  className={`text-xs font-bold ${
-                    isToday
-                      ? 'bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center'
-                      : ''
-                  }`}
-                >
+              <div className="text-center w-full">
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
+                  {weekdayName}
+                </p>
+                <p className={`text-xs font-bold mt-0.5 ${isToday ? 'text-primary' : 'text-gray-700 dark:text-gray-300'}`}>
                   {date.getUTCDate()}
-                </span>
-                {totalCount > 0 && (
-                  <span className="hidden sm:inline-flex text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">
-                    {loggedCount}/{totalCount} Logged
-                  </span>
+                </p>
+              </div>
+
+              {/* Graphical Circular Progress Indicator */}
+              <div className="relative h-5 w-5 mt-1 flex items-center justify-center">
+                {isRestDay ? (
+                  <span className="text-gray-300 dark:text-gray-800 text-[10px] font-bold">—</span>
+                ) : isCompleted ? (
+                  <div className="h-4.5 w-4.5 rounded-full bg-success flex items-center justify-center text-success-foreground shadow-sm">
+                    <Check className="h-2.5 w-2.5 stroke-[3px]" />
+                  </div>
+                ) : (
+                  <svg className="w-5 h-5 transform -rotate-90">
+                    <circle
+                      cx="10"
+                      cy="10"
+                      r="7.5"
+                      className="stroke-gray-100 dark:stroke-gray-900"
+                      strokeWidth="2"
+                      fill="transparent"
+                    />
+                    <circle
+                      cx="10"
+                      cy="10"
+                      r="7.5"
+                      className={`${isPartial ? 'stroke-amber-400' : 'stroke-blue-400'} transition-all duration-300`}
+                      strokeWidth="2"
+                      fill="transparent"
+                      strokeDasharray={2 * Math.PI * 7.5}
+                      strokeDashoffset={2 * Math.PI * 7.5 * (1 - percent / 100)}
+                    />
+                  </svg>
                 )}
               </div>
 
-              {/* Events display area */}
-              <div className="mt-1 flex-1 flex flex-col justify-end space-y-1">
-                {/* Desktop layout: color coded capsules */}
-                <div className="hidden sm:flex flex-col gap-1 w-full">
-                  {events.slice(0, 3).map((e) => {
-                    const color = getCapColor(e.compoundSlug);
-                    let borderClass = 'border-border text-muted-foreground bg-card';
-                    const bgStyle = { borderLeftColor: color, borderLeftWidth: '3px' };
+              {/* Compound Abbreviations badges */}
+              {events.length > 0 && (
+                <div className="w-full flex flex-wrap md:flex-col justify-center items-center gap-1 mt-2 overflow-hidden">
+                  {events.map((e) => {
+                    const abbrev = getCompoundAbbreviation(e.compoundName);
+                    const isEvLogged = e.type === 'LOGGED';
+                    const isEvSkipped = e.type === 'SKIPPED';
 
-                    if (e.type === 'LOGGED') {
-                      borderClass = 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/10 dark:text-green-400 dark:border-green-900/30';
-                    } else if (e.type === 'SKIPPED') {
-                      borderClass = 'bg-muted text-muted-foreground border-border';
-                    } else if (e.type === 'PENDING') {
-                      borderClass = 'bg-blue-50/50 text-blue-700 border-dashed border-blue-300 dark:bg-blue-950/10 dark:text-blue-400 dark:border-blue-900/30';
-                    } else if (e.type === 'RESCHEDULED') {
-                      borderClass = 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/10 dark:text-purple-400 dark:border-purple-900/30';
+                    let badgeClasses = '';
+                    if (isEvLogged) {
+                      badgeClasses = 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30';
+                    } else if (isEvSkipped) {
+                      badgeClasses = 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 line-through';
+                    } else {
+                      badgeClasses = 'bg-blue-50/50 dark:bg-blue-950/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/30';
                     }
 
                     return (
-                      <div
+                      <span
                         key={e.id}
-                        draggable={e.type === 'SCHEDULED' || e.type === 'PENDING'}
-                        onDragStart={(ev) => handleDragStart(ev, e, dateStr)}
-                        style={bgStyle}
-                        className={`text-[9px] rounded-md px-1 py-0.5 border leading-tight truncate font-semibold tracking-wide flex items-center justify-between cursor-grab active:cursor-grabbing ${borderClass}`}
+                        className={`text-[8px] md:text-[9px] font-bold px-1 py-0.5 rounded border leading-none select-none truncate w-[20px] md:w-full text-center transition-all ${badgeClasses}`}
+                        title={`${e.compoundName} (${e.doseAmount} ${e.doseUnit}) - ${e.type}`}
                       >
-                        <span className="truncate flex items-center gap-1">
-                          {e.compoundName}
-                          {e.isOffline && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" title="Pending Sync" />
-                          )}
+                        <span className="md:hidden block truncate max-w-full">
+                          {abbrev.slice(0, 2)}
                         </span>
-                        <span className="shrink-0 scale-90 opacity-90">{e.doseAmount} {e.doseUnit}</span>
-                      </div>
+                        <span className="hidden md:block truncate max-w-full">
+                          {abbrev}
+                        </span>
+                      </span>
                     );
                   })}
-                  {events.length > 3 && (
-                    <div className="text-[9px] text-muted-foreground font-semibold pl-1.5">
-                      +{events.length - 3} more
-                    </div>
-                  )}
                 </div>
-
-                {/* Mobile layout */}
-                <div className="sm:hidden flex justify-center items-center h-4 w-full">
-                  {totalCount === 1 ? (
-                    <span
-                      style={{ backgroundColor: getCapColor(events[0].compoundSlug) }}
-                      className="h-2 w-2 rounded-full ring-1 ring-black/10 dark:ring-white/10"
-                    />
-                  ) : totalCount > 1 ? (
-                    <span className="h-4 min-w-[16px] px-1 rounded-full bg-primary/10 dark:bg-primary/20 text-primary text-[9px] font-bold flex items-center justify-center">
-                      {totalCount}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* Date detail Modal Overlay */}
-      {selectedDate && !isBulkMode && (
-        <div
-          className="fixed inset-0 bg-black/60 dark:bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-[fadeIn_0.15s_ease-out]"
-          onClick={() => setSelectedDate(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="bg-card border border-border text-card-foreground rounded-xl max-w-md w-full p-6 shadow-2xl relative space-y-4 animate-[scaleUp_0.18s_ease-out]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex justify-between items-start pb-2 border-b border-border">
-              <div>
-                <h3 className="font-bold text-foreground text-lg">
-                  {selectedDate.toLocaleDateString(undefined, {
-                    timeZone: 'UTC',
-                    weekday: 'long',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5 uppercase tracking-wide">
-                  Schedule Overview
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedDate(null)}
-                className="text-muted-foreground hover:text-foreground text-sm font-bold p-1"
-                aria-label="Close dialog"
-              >
-                ✕
-              </button>
+      {/* Daily Action Panel for Selected Date */}
+      {!isBulkMode && (
+        <div className="pt-4 border-t border-gray-50 dark:border-gray-900 space-y-4 animate-[fadeIn_0.2s_ease-out]">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-xs text-gray-800 dark:text-gray-200 uppercase tracking-wider">
+              Doses for {selectedDate.toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}
+            </h3>
+            {selectedEvents.length > 0 && (
+              <span className="text-[10px] text-muted-foreground font-semibold">
+                {selectedEvents.filter(e => e.type === 'LOGGED' || e.type === 'SKIPPED').length} of {selectedEvents.length} Processed
+              </span>
+            )}
+          </div>
+
+          {selectedEvents.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-850 p-6 text-center text-sm text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center gap-1">
+              <Info className="h-4 w-4 text-gray-400 mb-1" />
+              <span>Rest Day — No doses scheduled for this date.</span>
             </div>
+          ) : (
+            <div className="space-y-3">
+              {selectedEvents.map((e) => {
+                const color = getCapColor(e.compoundSlug, e.compoundId);
+                const isLogged = e.type === 'LOGGED';
+                const isSkipped = e.type === 'SKIPPED';
+                const isProcessed = isLogged || isSkipped;
+                const isEditing = editingEventId === e.id;
+                const routeSites = getSitesForRoute(e.administrationRoute ?? '');
+                const siteData = siteSuggestions[e.protocolId] || (routeSites.length > 0 ? {
+                  suggestion: routeSites[0] || null,
+                  validSites: routeSites,
+                  siteMeta: routeSites.map(site => ({ site, lastUsed: null, daysSinceLastUse: null, isRested: true })),
+                  recentSites: []
+                } : null);
 
-            {/* Event Lists */}
-            {selectedEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">
-                No doses scheduled or logged for this date.
-              </p>
-            ) : (
-              <ul className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
-                {selectedEvents.map((e) => {
-                  const capColor = getCapColor(e.compoundSlug);
-                  
-                  return (
-                    <li
-                      key={e.id}
-                      className="border border-border rounded-lg p-3 bg-muted/30 flex gap-3 items-start"
-                    >
-                      <span
-                        style={{ backgroundColor: capColor }}
-                        className="h-3 w-3 rounded-full mt-1.5 shrink-0 shadow-sm"
-                      />
-                      
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-bold text-sm text-foreground">
-                            {e.compoundName}
-                          </h4>
-                          <div className="flex items-center gap-1.5">
-                            {e.isOffline && (
-                              <span className="text-[9px] bg-amber-100 text-amber-800 dark:bg-amber-950/20 dark:text-amber-400 px-1.5 py-0.5 rounded font-semibold">
-                                Pending Sync
-                              </span>
-                            )}
-                            <span
-                              className={`text-[9px] rounded px-1.5 py-0.5 border font-bold uppercase tracking-wider ${
-                                e.type === 'LOGGED'
-                                  ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/20 dark:text-green-400 dark:border-green-900/30'
-                                  : e.type === 'SKIPPED'
-                                  ? 'bg-muted text-muted-foreground border-border'
-                                  : e.type === 'PENDING'
-                                  ? 'bg-blue-50 text-blue-700 border-dashed border-blue-300 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30'
-                                  : e.type === 'RESCHEDULED'
-                                  ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/30'
-                                  : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-450 dark:border-blue-900/30'
-                              }`}
-                            >
-                              {e.type}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <p className="text-xs text-muted-foreground">
-                          Dose: <span className="font-mono font-semibold text-foreground">{e.doseAmount}</span> {e.doseUnit}
+                return (
+                  <div
+                    key={e.id}
+                    draggable={!isProcessed}
+                    onDragStart={(ev) => handleDragStart(ev, e, e.scheduledDateStr ?? selectedDateStr)}
+                    className="border border-gray-100 dark:border-gray-900 rounded-xl bg-card overflow-hidden flex flex-col transition-all shadow-sm"
+                    style={{ borderLeftColor: color, borderLeftWidth: '4px' }}
+                  >
+                    {/* Header Row */}
+                    <div className="p-4 flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">
+                          {e.compoundName}
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {e.doseAmount} {e.doseUnit} • {e.type === 'SKIPPED' ? 'Skipped' : (e.administrationRoute ? (e.administrationRoute.charAt(0).toUpperCase() + e.administrationRoute.slice(1).toLowerCase()) : 'Subcutaneous')}
                         </p>
+                      </div>
 
+                      <div className="flex items-center gap-2">
+                        {e.isOffline && (
+                          <span className="text-[9px] bg-amber-100 text-amber-800 dark:bg-amber-950/20 dark:text-amber-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider animate-pulse">
+                            Offline Sync
+                          </span>
+                        )}
+                        <span
+                          className={`text-[9px] rounded-md px-2 py-0.5 font-bold uppercase tracking-wider border ${
+                            isLogged
+                              ? 'bg-success/5 border-success/20 text-success'
+                              : isSkipped
+                              ? 'bg-gray-100 border-gray-200 text-gray-500 dark:bg-gray-900 dark:border-gray-800'
+                              : 'bg-blue-50 border-blue-200 text-blue-500 dark:bg-blue-950/10 dark:border-blue-900/30'
+                          }`}
+                        >
+                          {e.type}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Site Suggestion & Metadata */}
+                    {isProcessed && !isEditing && (
+                      <div className="px-4 pb-4 text-xs text-gray-500 space-y-1.5 border-t border-gray-50/50 dark:border-gray-900/30 pt-3">
                         {e.injectionSite && (
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Site: <span className="font-medium text-foreground">{e.injectionSite}</span>
+                          <p>
+                            <span className="font-semibold">Injection Site:</span> {e.injectionSite.side} {e.injectionSite.bodyPart}
                           </p>
                         )}
                         {e.note && (
-                          <p className="text-[10px] text-muted-foreground mt-1 italic">
+                          <p className="italic">
                             &ldquo;{e.note}&rdquo;
                           </p>
                         )}
-
-                        {/* Quick logging handles both regular scheduled and pending rescheduled doses */}
-                        {(e.type === 'SCHEDULED' || e.type === 'PENDING') && (
-                          <CalendarQuickLog
-                            protocolId={e.protocolId}
-                            amount={{ amount: e.doseAmount, unit: e.doseUnit as 'mcg' | 'mg' | 'IU' | 'mL' }}
-                            scheduledDate={selectedDate.toISOString().slice(0, 10)}
-                            siteData={siteSuggestions[e.protocolId]}
-                            onSuccess={(newLog) => {
-                              if (newLog) {
-                                setLocalLogs((prev) => [...prev, newLog as Props['doseLogs'][number]]);
+                        <div className="pt-2 flex justify-end">
+                          <button
+                            onClick={() => {
+                              setEditingEventId(e.id);
+                              setEditNotes((prev) => ({ ...prev, [e.id]: e.note || '' }));
+                              // Set injection site if available
+                              if (e.injectionSite) {
+                                setEditSite((prev) => ({
+                                  ...prev,
+                                  [e.id]: e.injectionSite as InjectionSite
+                                }));
                               }
-                              setSelectedDate(null);
                             }}
-                          />
-                        )}
+                            className="text-primary hover:underline text-xs flex items-center gap-1 font-semibold"
+                          >
+                            <Edit2 className="h-3 w-3" /> Edit Log
+                          </button>
+                        </div>
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+                    )}
 
-            <div className="pt-2">
-              <button
-                onClick={() => setSelectedDate(null)}
-                className="w-full bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-lg py-2 text-xs transition-colors"
-              >
-                Close
-              </button>
+                    {/* Inline Logging Form */}
+                    {(!isProcessed || isEditing) && (
+                      <div className="px-4 pb-4 pt-3 border-t border-gray-50 dark:border-gray-900 space-y-4 bg-gray-50/30 dark:bg-gray-950/20">
+                        {logErrors[e.id] && (
+                          <div className="text-xs text-destructive font-medium flex items-center gap-1" role="alert">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            <span>{logErrors[e.id]}</span>
+                          </div>
+                        )}
+
+                        {/* suggested site banner */}
+                        {siteData && siteData.suggestion && !(editSite[e.id] ?? null) && (
+                          <div className="text-[10px] text-indigo-700 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-950 rounded p-2 flex items-center justify-between">
+                            <span>
+                              💡 Suggested Site: <strong>{siteData.suggestion.side} {siteData.suggestion.bodyPart}</strong>
+                            </span>
+                            <button
+                              onClick={() => setEditSite((prev) => ({ ...prev, [e.id]: siteData.suggestion }))}
+                              className="text-[9px] font-bold text-primary hover:underline"
+                            >
+                              Use Site
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Interactive site picker */}
+                        {siteData && siteData.validSites.length > 0 && (
+                          <div className="scale-95 origin-top-left space-y-2">
+                            {/* Rotation Alert */}
+                            {(() => {
+                              const selectedSite = editSite[e.id] ?? null;
+                              const lastUsedSite = siteData?.recentSites?.[0] ?? null;
+                              const isConflict = selectedSite !== null && lastUsedSite !== null && sitesEqual(selectedSite, lastUsedSite);
+                              if (isConflict) {
+                                return (
+                                  <div role="alert" className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 flex items-start gap-1.5 animate-[fadeIn_0.2s_ease-out] mb-2 dark:bg-amber-950/20 dark:border-amber-900/50 dark:text-amber-400">
+                                    <span className="shrink-0 font-bold">&#9888;</span>
+                                    <span>
+                                      <strong>Rotation Alert:</strong> This site was used for your last dose. We highly recommend rotating to a rested site (marked in green/teal) to prevent scar tissue build-up.
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
+                            <SitePicker
+                              siteData={siteData}
+                              selectedSite={editSite[e.id] ?? null}
+                              onSelect={(site) => setEditSite((prev) => ({ ...prev, [e.id]: site }))}
+                            />
+                          </div>
+                        )}
+
+                        {/* note text input */}
+                        <div className="space-y-1">
+                          <label htmlFor={`notes-${e.id}`} className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                            Notes (optional)
+                          </label>
+                          <input
+                            id={`notes-${e.id}`}
+                            type="text"
+                            placeholder="e.g. slight fatigue, felt good"
+                            value={editNotes[e.id] ?? ''}
+                            onChange={(evt) => setEditNotes((prev) => ({ ...prev, [e.id]: evt.target.value }))}
+                            className="w-full text-xs rounded-lg border border-input bg-background px-3 py-2 text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none"
+                            disabled={isLogPending}
+                          />
+                        </div>
+
+                        {/* inline buttons */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingEventId(e.id);
+                                handleInlineSave(e, 'LOGGED');
+                              }}
+                              disabled={isLogPending}
+                              className="rounded-lg bg-success text-success-foreground px-3 py-1.5 text-xs font-semibold hover:bg-success/90 disabled:opacity-60 transition-colors"
+                            >
+                              {isLogPending ? 'Saving...' : 'Log Dose'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingEventId(e.id);
+                                handleInlineSave(e, 'SKIPPED');
+                              }}
+                              disabled={isLogPending}
+                              className="rounded-lg border border-input bg-background text-foreground px-3 py-1.5 text-xs font-semibold hover:bg-accent disabled:opacity-60 transition-colors"
+                            >
+                              Skip
+                            </button>
+                          </div>
+
+                          {isEditing && (
+                            <button
+                              onClick={() => {
+                                setEditingEventId(null);
+                                setEditNotes((prev) => {
+                                  const copy = { ...prev };
+                                  delete copy[e.id];
+                                  return copy;
+                                });
+                                setEditSite((prev) => {
+                                  const copy = { ...prev };
+                                  delete copy[e.id];
+                                  return copy;
+                                });
+                                setLogErrors((prev) => {
+                                  const copy = { ...prev };
+                                  delete copy[e.id];
+                                  return copy;
+                                });
+                              }}
+                              className="text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -740,7 +900,7 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-4 shadow-2xl z-40 flex flex-wrap items-center gap-4 animate-[fadeIn_0.2s_ease-out] w-[90%] max-w-xl">
           <div className="flex flex-col">
             <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Bulk Logging</span>
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-250">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
               {selectedDates.length} Date{selectedDates.length > 1 ? 's' : ''} Selected
             </span>
           </div>
@@ -748,7 +908,6 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
           <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
 
           <div className="flex-1 flex flex-wrap gap-3 items-center">
-            {/* Protocol Selector */}
             <select
               value={bulkProtocolId}
               onChange={(e) => setBulkProtocolId(e.target.value)}
@@ -762,7 +921,6 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
               ))}
             </select>
 
-            {/* Note Input */}
             <input
               type="text"
               placeholder="Notes (optional)"
@@ -776,14 +934,14 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
             <button
               onClick={() => handleBulkLog('LOGGED')}
               disabled={!bulkProtocolId || isBulkActionPending}
-              className="rounded-lg bg-success text-success-foreground px-3 py-1.5 text-xs font-semibold hover:bg-success/90 disabled:opacity-50 transition-all shadow btn-tactile"
+              className="rounded-lg bg-success text-success-foreground px-3 py-1.5 text-xs font-semibold hover:bg-success/90 disabled:opacity-50 transition-all shadow"
             >
               {isBulkActionPending ? 'Saving...' : 'Log'}
             </button>
             <button
               onClick={() => handleBulkLog('SKIPPED')}
               disabled={!bulkProtocolId || isBulkActionPending}
-              className="rounded-lg border border-input bg-background text-foreground px-3 py-1.5 text-xs font-semibold hover:bg-accent disabled:opacity-50 transition-all shadow btn-tactile"
+              className="rounded-lg border border-input bg-background text-foreground px-3 py-1.5 text-xs font-semibold hover:bg-accent disabled:opacity-50 transition-all shadow"
             >
               Skip
             </button>
@@ -802,5 +960,4 @@ export function TrackerCalendar({ protocols, doseLogs, compounds, siteSuggestion
     </div>
   );
 }
-
 export default TrackerCalendar;

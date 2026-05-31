@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef } from 'react';
 import { CATALOG_TAGS } from '@/lib/reference/domain/tags';
+import { ChevronDown } from 'lucide-react';
 
 const DEBOUNCE_MS = 350;
 
@@ -55,20 +56,23 @@ export function CatalogSearch() {
         placeholder="Search compounds…"
         defaultValue={searchParams.get('q') ?? ''}
         onChange={handleChange}
-        className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
         aria-label="Search compounds"
       />
-      <select
-        defaultValue={searchParams.get('tag') ?? ''}
-        onChange={handleTagChange}
-        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        aria-label="Filter by category"
-      >
-        <option value="">All categories</option>
-        {CATALOG_TAGS.map(({ value, label }) => (
-          <option key={value} value={value}>{label}</option>
-        ))}
-      </select>
+      <div className="relative min-w-[160px]">
+        <select
+          defaultValue={searchParams.get('tag') ?? ''}
+          onChange={handleTagChange}
+          className="w-full appearance-none rounded-md border border-input bg-background pl-3 pr-10 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          aria-label="Filter by category"
+        >
+          <option value="" className="bg-background text-foreground">All categories</option>
+          {CATALOG_TAGS.map(({ value, label }) => (
+            <option key={value} value={value} className="bg-background text-foreground">{label}</option>
+          ))}
+        </select>
+        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+      </div>
     </div>
   );
 }

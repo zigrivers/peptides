@@ -6,6 +6,13 @@ vi.mock('@/app/actions/reconstitution/reorder-vials', () => ({
   reorderVialsAction: vi.fn(),
 }));
 
+vi.mock('@/app/actions/reconstitution/inventory-actions', () => ({
+  deleteVialAction: vi.fn(),
+  addDryVialsAction: vi.fn(),
+  reconstituteDryVialAction: vi.fn(),
+  addReconstitutedVialAction: vi.fn(),
+}));
+
 import { VialInventory, type SerializedVial } from './VialInventory';
 
 describe('VialInventory Component UI/UX', () => {

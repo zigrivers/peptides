@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/shared/prisma';
+import { toUTCDay } from '@/lib/shared/date';
 import Decimal from 'decimal.js';
 import { decrementVialInventory } from '@/lib/reconstitution/application/InventoryService';
 import type {
@@ -23,9 +24,7 @@ import { isScheduledOn } from '../domain/ScheduleGenerator';
 import { Prisma } from '@prisma/client';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 
-function toUTCDay(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
+
 
 function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date): string {
   return `${userId}:${protocolId}:${scheduledDate.toISOString().slice(0, 10)}`;

@@ -22,6 +22,7 @@ async function main() {
         sideEffects: 'Generally well-tolerated. Mild injection-site redness reported. Safety Assessment: Highly safe profile with no toxicity observed in animal or human trials.',
         stackingNotes: 'Commonly stacked with TB-500 for enhanced musculoskeletal healing. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 28,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'BPC-157 and wound healing — rodent model',
@@ -51,6 +52,7 @@ async function main() {
         sideEffects: 'Occasional fatigue and mild nausea in higher doses. Safety Assessment: High safety profile. Occasional transient fatigue, headache, or mild lethargy reported in higher doses.',
         stackingNotes: 'Often combined with BPC-157; synergistic healing across tissue types. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 28,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Thymosin beta-4 accelerates wound healing',
@@ -75,6 +77,7 @@ async function main() {
         sideEffects: 'Nausea, vomiting, diarrhoea, constipation, injection-site reactions. Safety Assessment: Gastrointestinal side effects common. Dehydration risk. Must monitor for pancreatitis or gallbladder disease.',
         stackingNotes: 'Storage: Reconstituted solution is stable refrigerated for 56 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 56,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Semaglutide and cardiovascular outcomes in obesity (SELECT)',
@@ -99,6 +102,7 @@ async function main() {
         sideEffects: 'Similar to semaglutide; GI side effects common at initiation. Safety Assessment: Gastrointestinal distress is common during dose escalation. Risk of dehydration. Avoid in patients with a history of Medullary Thyroid Carcinoma (MTC).',
         stackingNotes: 'Storage: Reconstituted solution is stable refrigerated for 56 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 56,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Tirzepatide vs semaglutide for weight loss (SURMOUNT-5)',
@@ -123,6 +127,7 @@ async function main() {
         sideEffects: 'Skin flushing at injection site; generally well-tolerated topically. Safety Assessment: Well-tolerated. SubQ injections often cause a transient stinging sensation and localized redness. High doses may alter zinc-copper balance.',
         stackingNotes: 'Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 30,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'GHK-Cu and skin remodelling — review',
@@ -147,6 +152,7 @@ async function main() {
         sideEffects: 'Fluid retention, joint pain, injection-site reactions. Safety Assessment: Side effects include fluid retention, joint pain, muscle stiffness, and transient increases in blood glucose. Contraindicated in active cancer.',
         stackingNotes: 'Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 14,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Tesamorelin for visceral adiposity in HIV-infected adults',
@@ -171,6 +177,7 @@ async function main() {
         sideEffects: 'Generally well-tolerated; minimal adverse effects reported. Safety Assessment: Extremely high safety profile. No toxic, carcinogenic, or adverse effects reported.',
         stackingNotes: 'Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 28,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Epithalamin and telomere length in ageing — clinical trial',
@@ -195,6 +202,7 @@ async function main() {
         sideEffects: 'Limited human data; rodent studies show excellent tolerability. Transient fatigue/muscle soreness. Safety Assessment: Well-tolerated. Transient fatigue, muscle soreness, or mild headache can occur post-injection.',
         stackingNotes: 'Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 28,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'MOTS-c regulates insulin resistance and metabolic homeostasis',
@@ -219,6 +227,7 @@ async function main() {
         sideEffects: 'Extremely well-tolerated. Rare injection-site irritation or mild flushing. Safety Assessment: Highly safe, non-toxic, and non-melanogenic (does not trigger tanning). Rare localized injection-site itching.',
         stackingNotes: 'Often stacked with BPC-157 for gut/GI healing and mast cell activation syndrome (MCAS) management. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 28,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'KPV reduces intestinal inflammation in rodent models',
@@ -243,6 +252,7 @@ async function main() {
         sideEffects: 'Mild injection site reaction, occasional transient headache. Safety Assessment: High safety profile. No hematological abnormalities (no red blood cell elevation). Mild local irritation or headache can occur.',
         stackingNotes: 'Can be stacked with Epitalon or Thymosin Alpha-1 for overall nerve recovery and immune support. Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 14,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Cibinetide (ARA-290) in small fiber neuropathy associated with sarcoidosis',
@@ -267,6 +277,7 @@ async function main() {
         sideEffects: 'Gastrointestinal side effects (nausea, vomiting, diarrhoea, constipation). Risk of dehydration. Safety Assessment: High incidence of transient GI side effects. Adequate hydration is essential.',
         stackingNotes: 'Do not stack with other GLP-1 agonists. Maintain adequate hydration and caloric structure. Storage: Reconstituted solution is stable refrigerated for 56 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 56,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Cagrilintide plus semaglutide co-administration for weight management: a phase 2 trial',
@@ -291,6 +302,7 @@ async function main() {
         sideEffects: 'Transient mild-to-moderate gastrointestinal events, dose-dependent heart rate elevation. Safety Assessment: Dose-dependent GI distress. Monitor heart rate for mild, transient elevations during early weeks.',
         stackingNotes: 'Often monitored closely due to potent energy expenditure increase from glucagon receptor activity. Storage: Reconstituted solution is stable refrigerated for 56 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 56,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Triple–hormone-receptor agonist retatrutide for obesity — phase 2 trial',
@@ -315,6 +327,7 @@ async function main() {
         sideEffects: 'Extremely high safety profile. Localized transient erythema at injection site. Safety Assessment: High tolerability. Minimal adverse reactions; localized transient redness at the injection site is common.',
         stackingNotes: 'Pairs well with BPC-157 or LL-37 to bolster tissue regeneration and immune response synergy. Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 14,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Thymosin alpha-1: a review of its immunomodulatory properties and clinical use',
@@ -339,6 +352,7 @@ async function main() {
         sideEffects: 'Mild transient skin redness or dry patches at topical application site. Safety Assessment: Extremely safe. Topical application can cause mild redness or localized peeling. SubQ may cause transient stinging.',
         stackingNotes: 'Can be stacked topically with hyaluronic acid or subcutaneously with Epitalon for systematic longevity benefits. Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 1 year (dry blend).',
         reconstitutedShelfLifeDays: 30,
+        freezerShelfLifeMonths: 12,
         citations: [
           {
             title: 'Role of cosmetic peptides in skin health',
@@ -363,6 +377,7 @@ async function main() {
         sideEffects: 'Mild transient kidney stress markers, fatigue, light joint soreness. Safety Assessment: Experimental peptide. Requires monitoring of renal biomarkers (creatinine, BUN) as senescent cell clearance can transiently load kidneys.',
         stackingNotes: 'Can be paired with generic senolytics like Quercetin or Dasatinib to enhance clearance range. Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 14,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Targeted apoptosis of senescent cells restores tissue homeostasis',
@@ -387,6 +402,7 @@ async function main() {
         sideEffects: 'Morning grogginess, lethargy, transient dizziness. Safety Assessment: Safe. Main reported issue is morning grogginess or mild lethargy if injected too late in the evening.',
         stackingNotes: 'Stacks well with Epitalon for comprehensive sleep-wake cycle optimization. Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 14,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Delta sleep-inducing peptide (DSIP): an overview',
@@ -411,6 +427,7 @@ async function main() {
         sideEffects: 'Increased appetite, elevated prolactin and cortisol levels, injection-site numbness. Safety Assessment: Increases cortisol and prolactin. Causes appetite stimulation. Pituitary desensitization occurs if run without cycles (typically run 4-8 weeks on, 4 weeks off).',
         stackingNotes: 'Often cycled for 4-8 weeks to prevent pituitary desensitization. Pairs well with ModGRF (CJC-1295 without DAC). Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 28,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Hexarelin, a GH-releasing peptide, exhibits cardioprotective properties',
@@ -435,6 +452,7 @@ async function main() {
         sideEffects: 'Renal dysfunction (increased creatinine/BUN), dehydration, lethargy. Safety Assessment: High risk of nephrotoxicity (kidney stress). Must monitor serum creatinine, BUN, and glomerular filtration rate closely. Stacks must prioritize extreme hydration.',
         stackingNotes: 'Must be cycled with frequent laboratory renal monitoring. Stacks well with hydration protocols. Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 14,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'A peptidomimetic targeting white fat vasculature in obese monkeys',
@@ -459,6 +477,7 @@ async function main() {
         sideEffects: 'Erythrocytosis, hair loss, gynecomastia, suppression of endogenous testosterone. Safety Assessment: Shuts down endogenous testosterone (testicular atrophy; managed with HCG). Elevates hematocrit and blood viscosity. Risk of aromatization to estrogen.',
         stackingNotes: 'Often stacked with HCG to maintain testicular function during administration. Storage: Multidose vials formulated in carrier oils are stable at room temperature for 90 days once punctured. Do not freeze.',
         reconstitutedShelfLifeDays: 90,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Testosterone replacement therapy: a review of benefits and risks',
@@ -483,6 +502,7 @@ async function main() {
         sideEffects: 'Headache, dyspepsia, back pain, nasal congestion, flushing. Safety Assessment: Extremely safe. Side effects are typically mild. Absolutely contraindicated with organic nitrates due to risk of fatal hypotension.',
         stackingNotes: 'Do NOT combine with organic nitrates/nitric oxide donors due to risk of life-threatening hypotension. Storage: Stored as raw oral powder or liquid solution, stable at room temperature for 180 days (liquid) or 3 years (dry tablets).',
         reconstitutedShelfLifeDays: 180,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Vascular and systemic effects of daily tadalafil administration',
@@ -507,6 +527,7 @@ async function main() {
         sideEffects: 'Headache, dizziness, flushing, visual changes. Safety Assessment: Common effects are headache, flushing, nasal congestion, and visual changes. Contraindicated with nitroglycerin.',
         stackingNotes: 'Contraindicated with nitroglycerin and other nitrates due to profound hypotension risk. Storage: Stable at room temperature for 180 days (liquid) or 3 years (dry tablets).',
         reconstitutedShelfLifeDays: 180,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Efficacy and safety of vardenafil: a review',
@@ -531,6 +552,7 @@ async function main() {
         sideEffects: 'Excellent safety profile; localized redness at injection site. Safety Assessment: High safety profile with virtually no toxicities. Mild localized redness at the injection site.',
         stackingNotes: 'Often stacked side-by-side with Epitalon (run Epitalon in the morning, Thymalin at night) to mimic natural pineal-thymus axis renewal. Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 14,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Thymalin and Epithalamin clinical trials in gerontology',
@@ -555,6 +577,7 @@ async function main() {
         sideEffects: 'Hepatotoxicity (elevated liver enzymes), lipid strain (reduced HDL), endogenous suppression. Safety Assessment: 17-alpha-alkylated steroid; causes hepatotoxicity. Negatively affects lipid profiles (lowers HDL). Suppresses natural LH feedback loop.',
         stackingNotes: 'Require liver protection supplements (TUDCA/NAC) and standard post-cycle therapy. Storage: Stable at room temperature for up to 3 years.',
         reconstitutedShelfLifeDays: 365,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Turinabol misuse and pharmacological properties',
@@ -579,6 +602,7 @@ async function main() {
         sideEffects: 'Hepatotoxicity, significant estrogenic conversion (gyno, fluid retention), high blood pressure. Safety Assessment: High hepatotoxicity. Strongly aromatizing; can cause severe estrogenic side effects (gynecomastia, fluid retention, hypertension). Deeply suppressive.',
         stackingNotes: 'Aromatase inhibitor (AI) often required to manage estrogen conversion. Storage: Stable at room temperature for up to 3 years.',
         reconstitutedShelfLifeDays: 365,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Methandrostenolone: effects on muscle mass and performance',
@@ -603,6 +627,7 @@ async function main() {
         sideEffects: 'Temporary nasal irritation, mild fatigue. Safety Assessment: Highly safe. Non-sedating, non-addictive. Occasional mild nasal mucosa irritation.',
         stackingNotes: 'Often stacked with Semax to balance cognitive stimulation with anxiolytic relaxation. Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 30,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Anxiolytic properties of Selank in clinical trials',
@@ -627,6 +652,7 @@ async function main() {
         sideEffects: 'Estrogen elevation, gynecomastia, injection-site pain. Safety Assessment: Well tolerated. Can increase estrogen levels due to testicular aromatization (requires monitoring).',
         stackingNotes: 'Crucial adjunct when cycling testosterone to maintain natural LH signaling feedback loop. Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 30,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Co-administration of HCG with testosterone replacement therapy',
@@ -651,6 +677,7 @@ async function main() {
         sideEffects: 'Abdominal pain, local site reaction, ovarian hyperstimulation in female subjects. Safety Assessment: Well-tolerated. Risk of Ovarian Hyperstimulation Syndrome (OHSS) in females. In males, rare mild gynecomastia.',
         stackingNotes: 'Often combined with HCG for comprehensive LH + FSH fertility recovery protocols. Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 14,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'HMG and HCG combination therapy for male hypogonadotropic hypogonadism',
@@ -675,6 +702,7 @@ async function main() {
         sideEffects: 'Injection site pain, risk of localized inflammatory reactions. Safety Assessment: Can cause significant stinging or burning at the injection site. Local inflammatory skin reactions are common.',
         stackingNotes: 'Pairs well with BPC-157 to target localized tissue infection and speed recovery. Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 14,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'The role of LL-37 in wound healing and immune response',
@@ -699,6 +727,7 @@ async function main() {
         sideEffects: 'Excellent tolerability profile. Rare local nasal discomfort. Safety Assessment: Non-sedating anxiolytic. High safety. Nasal irritation is rare.',
         stackingNotes: 'Often stacked with BPC-157 for gut-brain axis normalization. Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 30,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Selank heptapeptide reduces anxiety: clinical and animal studies',
@@ -723,6 +752,7 @@ async function main() {
         sideEffects: 'Flushing, injection-site itching, transient dizziness. Safety Assessment: Facial flushing, injection-site itching, and temporary lightheadedness can occur immediately post-injection.',
         stackingNotes: 'Frequently stacked with Ipamorelin for synergistic pulsatile GH release. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 28,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Sermorelin (GRF 1-29) in aging: growth hormone secretagogue overview',
@@ -747,6 +777,7 @@ async function main() {
         sideEffects: 'None significant topically. Localized dryness if over-applied. Safety Assessment: Extremely safe. Topical use only; may cause mild dryness or redness if over-applied on sensitive skin.',
         stackingNotes: 'Often stacked with Copper Peptide (GHK-Cu) for comprehensive anti-aging skin protocols. Storage: Reconstituted solution is stable refrigerated for 60 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 60,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Anti-wrinkle efficacy of a novel octapeptide (Snap-8) in cosmetics',
@@ -771,6 +802,7 @@ async function main() {
         sideEffects: 'Carpal tunnel syndrome, water retention, joint pain, elevated fasting glucose. Safety Assessment: Fluid retention, joint pain, carpal tunnel symptoms, and elevated fasting glucose. Regular glucose screening is recommended.',
         stackingNotes: 'Monitor blood glucose levels regularly. Can be combined with thyroid hormones (T3) or low-dose insulin in professional settings. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 28,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Growth hormone replacement therapy in adults: consensus guidelines',
@@ -795,6 +827,7 @@ async function main() {
         sideEffects: 'Mild temporary hair loss (rare, linked to BDNF kinetics in predisposed subjects). Safety Assessment: Very safe. Non-stimulating, non-addictive. Rare reports of temporary mild hair loss.',
         stackingNotes: 'Often stacked with Selank to balance cognitive stimulation with anxiolytic relaxation. Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 30,
+        freezerShelfLifeMonths: 24,
         citations: [
           {
             title: 'Semax regulates BDNF and NGF expression in ischemic brain',
@@ -822,10 +855,15 @@ async function main() {
 
     if (profile) {
       const { citations, ...profileData } = profile;
+      const timeline = getBenefitTimelineForSeed(compound.name, compound.tags, compound.mechanismOfAction);
+      const dataWithTimeline = {
+        ...profileData,
+        benefitTimeline: timeline,
+      };
       const upsertedProfile = await prisma.compoundProfile.upsert({
         where: { compoundId: compound.id },
-        update: profileData,
-        create: { compoundId: compound.id, ...profileData },
+        update: dataWithTimeline,
+        create: { compoundId: compound.id, ...dataWithTimeline },
       });
 
       // Replace citations on each seed run to keep them in sync.
@@ -1024,3 +1062,115 @@ main()
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());
+
+function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | null) {
+  const normName = name.toLowerCase();
+
+  if (normName.includes('bpc-157') || normName.includes('bpc 157')) {
+    return [
+      { week: 1, benefits: ['Subtle GI barrier support and gut lining adaptation', 'Reduced localized muscle soreness after exercise'] },
+      { week: 2, benefits: ['Noticeable joint mobility improvements', 'Accelerated post-workout recovery'] },
+      { week: 4, benefits: ['Initiation of soft tissue, tendon, and ligament structural repair'] },
+    ];
+  }
+  if (normName.includes('tb-500') || normName.includes('tb 500') || normName.includes('thymosin beta')) {
+    return [
+      { week: 1, benefits: ['Reduction in systemic inflammation and muscle stiffness'] },
+      { week: 2, benefits: ['Drop in joint and movement discomfort', 'Improved flexibility'] },
+      { week: 4, benefits: ['Major structural healing of soft tissue strains'] },
+    ];
+  }
+  if (normName.includes('semaglutide')) {
+    return [
+      { week: 1, benefits: ['Initial reduction in food noise', 'Stable daily blood sugar levels'] },
+      { week: 2, benefits: ['Enhanced satiety after meals', 'Early metabolic rate adaptation'] },
+      { week: 4, benefits: ['Measurable weight adjustments', 'Reduced visceral fat storage signals'] },
+    ];
+  }
+  if (normName.includes('tirzepatide')) {
+    return [
+      { week: 1, benefits: ['Significant reduction in appetite and food noise', 'Highly stable glucose levels'] },
+      { week: 2, benefits: ['Consistent satiety and portion reduction', 'Enhanced glycemic control'] },
+      { week: 4, benefits: ['Accelerated weight loss', 'Optimized fat metabolism signals'] },
+    ];
+  }
+  if (normName.includes('ghk-cu') || normName.includes('copper peptide')) {
+    return [
+      { week: 1, benefits: ['Initial skin hydration and barrier function support'] },
+      { week: 2, benefits: ['Improved skin elasticity and tone', 'Reduced skin redness'] },
+      { week: 4, benefits: ['Dermal collagen promotion, advanced hair follicle support, and wrinkle reduction'] },
+    ];
+  }
+  if (normName.includes('tesamorelin')) {
+    return [
+      { week: 1, benefits: ['Increased growth hormone secretion signals', 'Improved sleep quality'] },
+      { week: 2, benefits: ['Enhanced nighttime recovery and morning energy'] },
+      { week: 4, benefits: ['Initiation of visceral adipose tissue reduction', 'Body composition improvements'] },
+    ];
+  }
+  if (normName.includes('sermorelin') || normName.includes('ipamorelin') || normName.includes('cjc')) {
+    return [
+      { week: 1, benefits: ['Improved deep sleep quality', 'More vivid dreams', 'Enhanced recovery'] },
+      { week: 2, benefits: ['Improved skin elasticity', 'Higher daytime vitality'] },
+      { week: 4, benefits: ['Lean body mass support', 'Visceral fat reduction signals'] },
+    ];
+  }
+  if (normName.includes('semax') || normName.includes('selank')) {
+    return [
+      { week: 1, benefits: ['Acute focus improvement', 'Anxiolytic effects (calmer mood)', 'Mental clarity'] },
+      { week: 2, benefits: ['Enhanced working memory', 'Improved resistance to stress'] },
+      { week: 4, benefits: ['Neuroprotective effects', 'Consistent cognitive stamina'] },
+    ];
+  }
+  if (normName.includes('epitalon') || normName.includes('thymalin') || normName.includes('epithalon')) {
+    return [
+      { week: 1, benefits: ['Circadian rhythm regulation', 'Improved sleep cycle onset'] },
+      { week: 2, benefits: ['Enhanced cellular immune response activity'] },
+      { week: 4, benefits: ['Systemic longevity support', 'Optimized endocrine function'] },
+    ];
+  }
+  if (normName.includes('dsip')) {
+    return [
+      { week: 1, benefits: ['Enhanced deep delta-wave sleep induction', 'Reduced sleep onset latency'] },
+      { week: 2, benefits: ['Morning alertness', 'Lower baseline cortisol and anxiety levels'] },
+      { week: 4, benefits: ['Optimized sleep architecture', 'Enhanced stress adaptation'] },
+    ];
+  }
+
+  // Tag-based fallbacks
+  if (tags.includes('healing') || tags.includes('recovery')) {
+    return [
+      { week: 1, benefits: ['Initial recovery adaptation, reduced localized acute swelling'] },
+      { week: 2, benefits: ['Improved muscle and joint tissue repair signals'] },
+      { week: 4, benefits: ['Enhanced cellular regeneration and structural reinforcement'] },
+    ];
+  }
+  if (tags.includes('weight-loss') || tags.includes('metabolic')) {
+    return [
+      { week: 1, benefits: ['Appetite reduction and glycemic adaptation'] },
+      { week: 2, benefits: ['Consistent satiety and metabolic rate adjustments'] },
+      { week: 4, benefits: ['Visceral fat storage signals decrease'] },
+    ];
+  }
+  if (tags.includes('longevity') || tags.includes('skin') || tags.includes('anti-aging')) {
+    return [
+      { week: 1, benefits: ['Restorative sleep cues, cellular vitality support'] },
+      { week: 2, benefits: ['Subtle skin elasticity and hydration improvements'] },
+      { week: 4, benefits: ['Systemic rejuvenation and longevity markers adaptation'] },
+    ];
+  }
+  if (tags.includes('cognitive') || tags.includes('brain')) {
+    return [
+      { week: 1, benefits: ['Mental clarity, acute focus enhancements'] },
+      { week: 2, benefits: ['Improved memory recall and stress resilience'] },
+      { week: 4, benefits: ['Consistent cognitive stamina and neuroprotection'] },
+    ];
+  }
+
+  // Generic fallback timeline
+  return [
+    { week: 1, benefits: ['Systemic adaptation and initiation phase'] },
+    { week: 2, benefits: ['Optimal saturation, improved daily energy'] },
+    { week: 4, benefits: ['Consistent therapeutic outcomes and stabilization'] },
+  ];
+}

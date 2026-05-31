@@ -27,6 +27,7 @@ export type Protocol = {
   startDate: Date;
   endDate: Date | null;
   notes: string | null;
+  observedBenefits?: unknown;
 };
 
 export type CreateProtocolInput = {
@@ -88,6 +89,7 @@ export type SafetyWarning = {
 };
 
 export type LogDoseInput = {
+  id?: string;
   actorUserId: string;
   protocolId: string;
   scheduledDate: Date;
@@ -143,6 +145,7 @@ export type BatchDueItem = {
   existingLog: DoseLog | null;
   availableVials: number;
   isAvailable: boolean; // false when no inventory prevents logging
+  safetyWarnings?: SafetyWarning[];
 };
 
 export type BatchLogInput = {

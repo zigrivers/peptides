@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import React from 'react';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { SyringePreview } from './SyringePreview';
 
 describe('SyringePreview', () => {
@@ -95,5 +95,37 @@ describe('SyringePreview', () => {
     render(<SyringePreview units={15} warnings={[]} syringeStandard="U40" syringeSize="0.3" />);
     // U40 + 0.3 mL has 12 U limit. 15 units exceeds this.
     expect(screen.getByText(/max 12 U capacity/)).toBeDefined();
+  });
+
+  it('triggers onChangeUnits with adjusted values on Arrow/Page key presses', () => {
+    const handleChange = vi.fn();
+    render(<SyringePreview units={10} warnings={[]} onChangeUnits={handleChange} />);
+
+    const slider = screen.getByRole('slider');
+    expect(slider).toBeDefined();
+
+    // Trigger ArrowUp
+    fireEvent.keyDown(slider, { key: 'ArrowUp' });
+    expect(handleChange).toHaveBeenCalledWith(10.5);
+
+    // Trigger ArrowDown
+    fireEvent.keyDown(slider, { key: 'ArrowDown' });
+    expect(handleChange).toHaveBeenCalledWith(9.5);
+
+    // Trigger PageUp
+    fireEvent.keyDown(slider, { key: 'PageUp' });
+    expect(handleChange).toHaveBeenCalledWith(15.0);
+
+    // Trigger PageDown
+    fireEvent.keyDown(slider, { key: 'PageDown' });
+    expect(handleChange).toHaveBeenCalledWith(5.0);
+
+    // Trigger Home
+    fireEvent.keyDown(slider, { key: 'Home' });
+    expect(handleChange).toHaveBeenCalledWith(0);
+
+    // Trigger End
+    fireEvent.keyDown(slider, { key: 'End' });
+    expect(handleChange).toHaveBeenCalledWith(100);
   });
 });

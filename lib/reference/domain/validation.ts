@@ -39,3 +39,26 @@ export function parseCompoundDosing(json: unknown): DoseAmount {
     recommendedFrequency: 'N/A',
   };
 }
+
+export const BenefitTimelineItemSchema = z.object({
+  week: z.number().int().nonnegative(),
+  benefits: z.array(z.string()),
+});
+
+export const BenefitTimelineSchema = z.array(BenefitTimelineItemSchema);
+
+export function parseBenefitTimeline(json: unknown): import('./types').BenefitTimelineItem[] | null {
+  if (!json) return null;
+  try {
+    if (typeof json === 'string') {
+      json = JSON.parse(json);
+    }
+    const result = BenefitTimelineSchema.safeParse(json);
+    if (result.success) {
+      return result.data;
+    }
+  } catch (err) {
+    console.error('Error parsing benefit timeline:', err);
+  }
+  return null;
+}

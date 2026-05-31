@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import type { SerializedVialData, VialBadge } from '@/lib/reconstitution/application/VialService';
 import { reorderVialsAction } from '@/app/actions/reconstitution/reorder-vials';
+import { deleteVialAction } from '@/app/actions/reconstitution/inventory-actions';
+import { Trash2, AlertCircle } from 'lucide-react';
+import { getCapColor } from '@/lib/reconstitution/domain/syringe';
 
 // Re-exported as SerializedVial for backward compatibility with existing imports.
 export type SerializedVial = SerializedVialData;
@@ -33,34 +36,25 @@ function formatDate(isoStr: string | null): string {
   });
 }
 
-function getCapColor(compoundSlug: string, compoundId: string): string {
-  const knownColors: Record<string, string> = {
-    'tirzepatide': '--compound-tirzepatide',
-    'semaglutide': '--compound-semaglutide',
-    'bpc-157': '--compound-bpc157',
-  };
-  if (knownColors[compoundSlug]) return `hsl(var(${knownColors[compoundSlug]}))`;
-  
-  // Deterministic fallback for custom compounds: salt the hash with compoundSlug to guarantee visual entropy
-  // Use nullish coalescing to ensure the salt is always a valid string and avoid nullish/unstable hashes (MMR F-002)
-  const salt = (compoundSlug ?? 'unknown') + (compoundId ?? 'default');
-  let hash = 0;
-  for (let i = 0; i < salt.length; i++) {
-    hash = salt.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash % 360);
-  
-  // Retrieve low/high lightness variables from CSS to guarantee cross-theme contrast visibility (MMR F-003)
-  const lightnessVar = (hue >= 45 && hue <= 165)
-    ? 'var(--vial-cap-lightness-low, 35%)'
-    : 'var(--vial-cap-lightness-high, 45%)';
-    
-  return `hsl(${hue} 50% ${lightnessVar})`;
-}
+
 
 export function VialInventory({ vials }: Props) {
   const [localVials, setLocalVials] = useState<SerializedVial[]>(vials);
+  const [deletingVialId, setDeletingVialId] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const confirmDelete = async (vialId: string) => {
+    setDeletingVialId(null);
+    setError(null);
+    startTransition(async () => {
+      const res = await deleteVialAction(vialId);
+      if (!res.ok) {
+        setError(res.message || 'Failed to delete vial.');
+      }
+    });
+  };
 
   useEffect(() => {
     setLocalVials(vials);
@@ -112,6 +106,18 @@ export function VialInventory({ vials }: Props) {
 
   return (
     <div className="space-y-8">
+      {error && (
+        <div role="alert" className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-center justify-between gap-2 animate-[fadeIn_0.2s_ease-out]">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => setError(null)} className="text-[10px] hover:underline font-bold text-destructive shrink-0">
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Cabinet shelf structure */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {localVials.map((vial, index) => {
@@ -189,16 +195,57 @@ export function VialInventory({ vials }: Props) {
                 draggedIndex === index ? 'opacity-40 scale-95 border-dashed border-primary/45' : ''
               }`}
             >
-              {/* Drag Handle Icon in top-right */}
-              <div className="absolute top-3 right-3 text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing" aria-hidden="true">
-                <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
-                  <circle cx="2" cy="3" r="1.5" />
-                  <circle cx="2" cy="9" r="1.5" />
-                  <circle cx="2" cy="15" r="1.5" />
-                  <circle cx="10" cy="3" r="1.5" />
-                  <circle cx="10" cy="9" r="1.5" />
-                  <circle cx="10" cy="15" r="1.5" />
-                </svg>
+              {/* Actions in top-right */}
+              <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {deletingVialId === vial.id ? (
+                  <div className="flex items-center gap-1 bg-background/90 dark:bg-slate-900/90 border border-border rounded-md px-1.5 py-0.5">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        confirmDelete(vial.id);
+                      }}
+                      className="text-[10px] font-bold text-destructive hover:bg-destructive/10 px-1 py-0.5 rounded transition-colors"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletingVialId(null);
+                      }}
+                      className="text-[10px] font-medium text-muted-foreground hover:bg-muted px-1 py-0.5 rounded transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletingVialId(vial.id);
+                      }}
+                      disabled={isPending}
+                      className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      title="Discard vial"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="text-slate-400 dark:text-slate-500 cursor-grab active:cursor-grabbing p-1" aria-hidden="true">
+                      <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
+                        <circle cx="2" cy="3" r="1.5" />
+                        <circle cx="2" cy="9" r="1.5" />
+                        <circle cx="2" cy="15" r="1.5" />
+                        <circle cx="10" cy="3" r="1.5" />
+                        <circle cx="10" cy="9" r="1.5" />
+                        <circle cx="10" cy="15" r="1.5" />
+                      </svg>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex items-start gap-4">

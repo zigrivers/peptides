@@ -1,11 +1,29 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import type { BatchDueItem, SafetyWarning } from '@/lib/tracker/domain/types';
+import type { Protocol, DoseLog, SafetyWarning } from '@/lib/tracker/domain/types';
 import { batchLogDosesAction } from '@/app/actions/tracker/batch-log-doses';
 
+interface SerializedProtocol extends Omit<Protocol, 'startDate' | 'endDate'> {
+  startDate: string;
+  endDate: string | null;
+}
+
+interface SerializedDoseLog extends Omit<DoseLog, 'loggedAt' | 'scheduledDate'> {
+  loggedAt: string;
+  scheduledDate: string;
+}
+
+interface SerializedBatchDueItem {
+  protocol: SerializedProtocol;
+  existingLog: SerializedDoseLog | null;
+  availableVials: number;
+  isAvailable: boolean;
+  safetyWarnings?: SafetyWarning[];
+}
+
 type Props = {
-  items: BatchDueItem[];
+  items: SerializedBatchDueItem[];
   compoundNames: Record<string, string>; // compoundId → name
 };
 

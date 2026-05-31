@@ -4,30 +4,48 @@ import { auth } from '@/lib/auth';
 import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
 import { getDueTodayForBatch } from '@/lib/tracker/application/BatchLogService';
 import { getCurrentWeekInfo } from '@/lib/tracker/application/CycleService';
-import { findCompoundsByIds, getCompoundsMinimal } from '@/lib/reference/infrastructure/CompoundRepo';
-import { getRecentDoseLogsForUser } from '@/lib/tracker/application/DoseLogService';
+import { findCompoundsByIds, listCompounds } from '@/lib/reference/infrastructure/CompoundRepo';
+import { getRecentDoseLogsForUser, getDoseLogsRange } from '@/lib/tracker/application/DoseLogService';
 import { BatchLogReview } from './_components/BatchLogReview';
 import { TrackerCalendar } from './_components/TrackerCalendar';
+import { BenefitsTimeline } from './_components/BenefitsTimeline';
 import { getSiteSuggestion } from '@/lib/tracker/application/SiteRotationService';
 import type { SiteSuggestion } from '@/lib/tracker/domain/SiteRotation';
+import type { CompoundProfile } from '@/lib/reference/domain/types';
 
 export default async function TrackerPage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
 
   const userId = session.user.id;
+  const now = new Date();
+  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-  const [protocols, dueToday, weekInfo, doseLogs, compoundsList] = await Promise.all([
+  const streakLimitDays = 365;
+  const streakSince = new Date();
+  streakSince.setUTCDate(streakSince.getUTCDate() - streakLimitDays);
+
+  const [protocols, dueToday, weekInfo, doseLogs, compoundsList, allDoseLogsForStreak] = await Promise.all([
     getProtocolsForUser(userId),
     getDueTodayForBatch(userId),
     getCurrentWeekInfo(userId),
     getRecentDoseLogsForUser(userId),
-    getCompoundsMinimal(),
+    listCompounds({ includeArchived: true }),
+    getDoseLogsRange(userId, streakSince),
   ]);
 
   const compoundsMap = Object.fromEntries(
-    compoundsList.map((c) => [c.id, { name: c.name, slug: c.slug }])
+    compoundsList.map((c) => [c.id, { name: c.name, slug: c.slug, profile: c.profile }])
   );
+
+  const serializedProtocols = protocols.map((p) => ({
+    ...p,
+    startDate: p.startDate.toISOString(),
+    endDate: p.endDate ? p.endDate.toISOString() : null,
+    observedBenefits: p.observedBenefits
+      ? JSON.parse(JSON.stringify(p.observedBenefits))
+      : null,
+  }));
 
   const serializedDoseLogs = doseLogs.map((log) => ({
     ...log,
@@ -61,94 +79,121 @@ export default async function TrackerPage() {
       })
   );
 
+  const serializedDueToday = dueToday.map((item) => ({
+    ...item,
+    protocol: {
+      ...item.protocol,
+      startDate: item.protocol.startDate.toISOString(),
+      endDate: item.protocol.endDate ? item.protocol.endDate.toISOString() : null,
+    },
+    existingLog: item.existingLog
+      ? {
+          ...item.existingLog,
+          loggedAt: item.existingLog.loggedAt.toISOString(),
+          scheduledDate: item.existingLog.scheduledDate.toISOString(),
+        }
+      : null,
+    safetyWarnings: item.safetyWarnings || [],
+  }));
+
+  // Prepare active protocols with compound profiles for the Expected Benefits Timeline
+  const serializedActiveProtocolsWithTimeline = serializedProtocols
+    .filter((p) => p.status === 'ACTIVE')
+    .map((p) => {
+      const comp = compoundsMap[p.compoundId];
+      return {
+        ...p,
+        compound: {
+          name: comp?.name ?? 'Unknown',
+          slug: comp?.slug ?? 'unknown',
+          profile: (comp?.profile as CompoundProfile | null) ?? null,
+        },
+      };
+    });
+
+  const loggedDates = allDoseLogsForStreak
+    .filter((log) => log.status === 'LOGGED')
+    .map((log) => log.scheduledDate.toISOString().split('T')[0]);
+
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 space-y-8 animate-page-enter">
-      {dueToday.length > 0 && (
-        <section>
-          <BatchLogReview items={dueToday} compoundNames={compoundNames} />
-        </section>
-      )}
+    <main className="max-w-6xl mx-auto px-4 py-8 space-y-6 animate-page-enter">
+      {/* Page Header */}
+      <header className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Daily Tracker</h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Log your daily protocol doses, rotation sites, and track adaptation timelines.
+          </p>
+        </div>
+      </header>
 
-      {weekInfo && (
-        <section>
-          <Link
-            href="/tracker/cycles"
-            className="flex items-center justify-between rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/20 px-4 py-3 hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors"
-          >
-            <div>
-              <p className="text-xs text-primary/70 font-medium uppercase tracking-wide">Active Cycle</p>
-              <p className="text-sm font-semibold text-primary mt-0.5">
-                {weekInfo.cycleName}
-                {' — '}
-                {weekInfo.totalWeeks
-                  ? `Week ${weekInfo.weekNumber} of ${weekInfo.totalWeeks}`
-                  : `Week ${weekInfo.weekNumber}`}
-              </p>
-            </div>
-            <span className="text-primary/60 text-sm">→</span>
-          </Link>
-        </section>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Calendar navigation and action panel */}
+        <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+          <section>
+            <TrackerCalendar
+              protocols={serializedProtocols}
+              doseLogs={serializedDoseLogs}
+              compounds={compoundsMap}
+              siteSuggestions={siteSuggestions}
+              initialDateISO={todayUTC.toISOString()}
+              loggedDates={loggedDates}
+            />
+          </section>
 
-      <section>
-        <Link
-          href="/tracker/outcomes"
-          className="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 hover:bg-emerald-100 transition-colors"
-        >
-          <div>
-            <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Outcomes</p>
-            <p className="text-sm font-semibold text-emerald-800 mt-0.5">
-              Log today&apos;s rating and see your dose-outcome correlation →
-            </p>
-          </div>
-        </Link>
-      </section>
-
-      <section>
-        <TrackerCalendar
-          protocols={protocols}
-          doseLogs={serializedDoseLogs}
-          compounds={compoundsMap}
-          siteSuggestions={siteSuggestions}
-          initialDateISO={new Date().toISOString()}
-        />
-      </section>
-
-      <section className="bg-white dark:bg-gray-950 rounded-xl border border-gray-100 dark:border-gray-900 p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Regimen Overview</h2>
-            <p className="text-xs text-gray-500 mt-0.5 animate-pulse-slow">
-              {protocols.filter((p) => p.status === 'ACTIVE').length} active protocols running
-            </p>
-          </div>
-          <Link
-            href="/regimen"
-            className="text-primary hover:text-primary/90 text-sm font-semibold flex items-center gap-1 transition-colors"
-          >
-            Manage Regimen →
-          </Link>
+          {/* Batch Log review for pending / skipped (if any) */}
+          {dueToday.length > 0 && (
+            <section>
+              <BatchLogReview items={serializedDueToday} compoundNames={compoundNames} />
+            </section>
+          )}
         </div>
 
-        {protocols.filter((p) => p.status === 'ACTIVE').length === 0 ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400 py-2">No active protocols. Click Manage Protocols to configure.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {protocols.filter((p) => p.status === 'ACTIVE').map((p) => {
-              const compName = compoundsMap[p.compoundId]?.name ?? 'Unknown Compound';
-              return (
-                <span
-                  key={p.id}
-                  className="inline-flex items-center rounded-md bg-gray-50 dark:bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-200/50 dark:border-gray-800"
-                >
-                  <span className="font-semibold mr-1">{compName}</span>
-                  <span className="text-gray-500">({p.dose.amount} {p.dose.unit})</span>
-                </span>
-              );
-            })}
+        {/* Right Column: Sidebar utilities and adaptaion timeline */}
+        <div className="lg:col-span-5 xl:col-span-4 space-y-6">
+          {/* Utilities: Active Cycle & Outcomes links */}
+          <div className="flex flex-col gap-4">
+            {weekInfo && (
+              <Link
+                href="/tracker/cycles"
+                className="flex items-center justify-between rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 px-4 py-3 hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors"
+              >
+                <div>
+                  <p className="text-xs text-primary/70 font-semibold uppercase tracking-wider">Active Cycle</p>
+                  <p className="text-sm font-bold text-primary mt-0.5">
+                    {weekInfo.cycleName}
+                    {' — '}
+                    {weekInfo.totalWeeks
+                      ? `Week ${weekInfo.weekNumber} of ${weekInfo.totalWeeks}`
+                      : `Week ${weekInfo.weekNumber}`}
+                  </p>
+                </div>
+                <span className="text-primary/60 text-sm">→</span>
+              </Link>
+            )}
+
+            <Link
+              href="/tracker/outcomes"
+              className="flex items-center justify-between rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 px-4 py-3 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+            >
+              <div>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">Outcomes</p>
+                <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mt-0.5">
+                  Log ratings & correlation →
+                </p>
+              </div>
+            </Link>
           </div>
-        )}
-      </section>
+
+          {/* Expected Benefits Timeline */}
+          <BenefitsTimeline
+            activeProtocols={serializedActiveProtocolsWithTimeline}
+            currentDateISO={todayUTC.toISOString()}
+          />
+        </div>
+      </div>
     </main>
   );
 }
+
+
