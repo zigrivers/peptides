@@ -40,6 +40,7 @@ function mapCompound(raw: PrismaCompoundResult): Compound {
           sideEffects: raw.profile.sideEffects,
           stackingNotes: raw.profile.stackingNotes,
           reconstitutedShelfLifeDays: raw.profile.reconstitutedShelfLifeDays,
+          fridgeShelfLifeMonths: raw.profile.fridgeShelfLifeMonths,
           freezerShelfLifeMonths: raw.profile.freezerShelfLifeMonths,
           citations: raw.profile.citations,
           benefitTimeline: parseBenefitTimeline(raw.profile.benefitTimeline),
@@ -119,6 +120,14 @@ export async function getFreezerShelfLifeMonths(compoundId: string): Promise<num
     select: { freezerShelfLifeMonths: true },
   });
   return profile?.freezerShelfLifeMonths ?? null;
+}
+
+export async function getFridgeShelfLifeMonths(compoundId: string): Promise<number | null> {
+  const profile = await prisma.compoundProfile.findFirst({
+    where: { compoundId },
+    select: { fridgeShelfLifeMonths: true },
+  });
+  return profile?.fridgeShelfLifeMonths ?? null;
 }
 
 export async function listCompounds(opts?: { includeArchived?: boolean }): Promise<Compound[]> {

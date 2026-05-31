@@ -16,9 +16,17 @@ interface Props {
   compoundId: string;
   compoundName: string;
   vials: SerializedVialData[];
+  fridgeShelfLifeMonths?: number;
+  freezerShelfLifeMonths?: number;
 }
 
-export function CompoundInventoryManager({ compoundId, compoundName, vials }: Props) {
+export function CompoundInventoryManager({
+  compoundId,
+  compoundName,
+  vials,
+  fridgeShelfLifeMonths = 12,
+  freezerShelfLifeMonths = 24,
+}: Props) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -40,6 +48,48 @@ export function CompoundInventoryManager({ compoundId, compoundName, vials }: Pr
   const [quantity, setQuantity] = useState('1');
   const [addBacWaterMl, setAddBacWaterMl] = useState('2.0');
   const [expiresAt, setExpiresAt] = useState('');
+
+  // Expiration calculation fields
+  const [receivedDate, setReceivedDate] = useState('');
+  const [storageMethod, setStorageMethod] = useState<'fridge' | 'freezer'>('freezer');
+
+  const getTodayLocalDateStr = () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const calculateExpirationDate = (receivedDateStr: string, shelfLifeMonths: number): string => {
+    if (!receivedDateStr) return '';
+    const date = new Date(receivedDateStr + 'T12:00:00');
+    if (isNaN(date.getTime())) return '';
+    date.setMonth(date.getMonth() + shelfLifeMonths);
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const handleReceivedDateChange = (val: string) => {
+    setReceivedDate(val);
+    const months = storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
+    setExpiresAt(calculateExpirationDate(val, months));
+  };
+
+  const handleStorageMethodChange = (val: 'fridge' | 'freezer') => {
+    setStorageMethod(val);
+    const months = val === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
+    setExpiresAt(calculateExpirationDate(receivedDate, months));
+  };
+
+  React.useEffect(() => {
+    const today = getTodayLocalDateStr();
+    setReceivedDate(today);
+    const months = storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
+    setExpiresAt(calculateExpirationDate(today, months));
+  }, [fridgeShelfLifeMonths, freezerShelfLifeMonths]);
 
   // Segregate dry and active vials
   const dryVials = vials.filter((v) => v.status === 'DRY');
@@ -65,7 +115,10 @@ export function CompoundInventoryManager({ compoundId, compoundName, vials }: Pr
         setSuccess(`Successfully added ${quantity} dry vial(s).`);
         setTotalMg('');
         setQuantity('1');
-        setExpiresAt('');
+        const today = getTodayLocalDateStr();
+        setReceivedDate(today);
+        const months = storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
+        setExpiresAt(calculateExpirationDate(today, months));
         setShowAddForm(false);
       } else {
         setError(res.message || 'Failed to add dry vials.');
@@ -88,7 +141,10 @@ export function CompoundInventoryManager({ compoundId, compoundName, vials }: Pr
         setSuccess('Successfully added reconstituted vial.');
         setTotalMg('');
         setAddBacWaterMl('2.0');
-        setExpiresAt('');
+        const today = getTodayLocalDateStr();
+        setReceivedDate(today);
+        const months = storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
+        setExpiresAt(calculateExpirationDate(today, months));
         setShowAddForm(false);
       } else {
         setError(res.message || 'Failed to add reconstituted vial.');
@@ -242,9 +298,45 @@ export function CompoundInventoryManager({ compoundId, compoundName, vials }: Pr
               )}
             </div>
 
+            {addFormType === 'dry' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                    Received Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={receivedDate}
+                    onChange={(e) => handleReceivedDateChange(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                    Storage Method
+                  </label>
+                  <select
+                    value={storageMethod}
+                    onChange={(e) => handleStorageMethodChange(e.target.value as 'fridge' | 'freezer')}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="freezer">Freezer (-20°C) — {freezerShelfLifeMonths}m</option>
+                    <option value="fridge">Fridge (2-8°C) — {fridgeShelfLifeMonths}m</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                Expiration Date <span className="text-muted-foreground font-normal">(optional)</span>
+                Expiration Date{' '}
+                {addFormType === 'dry' ? (
+                  <span className="text-primary font-normal">(auto-populated)</span>
+                ) : (
+                  <span className="text-muted-foreground font-normal">(optional)</span>
+                )}
               </label>
               <input
                 type="date"
@@ -252,6 +344,11 @@ export function CompoundInventoryManager({ compoundId, compoundName, vials }: Pr
                 onChange={(e) => setExpiresAt(e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
               />
+              {addFormType === 'dry' && receivedDate && (
+                <p className="mt-1 text-[11px] text-muted-foreground italic">
+                  * Calculated as {storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths} months from received date based on {storageMethod} storage.
+                </p>
+              )}
             </div>
 
             <button

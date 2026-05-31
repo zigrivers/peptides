@@ -211,6 +211,7 @@ model CompoundProfile {
   sideEffects                String?
   stackingNotes              String?
   reconstitutedShelfLifeDays Int?
+  fridgeShelfLifeMonths      Int?      @default(12)
   freezerShelfLifeMonths     Int?      @default(24)
   citations                  Citation[]
   benefitTimeline            Json?

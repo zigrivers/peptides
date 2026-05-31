@@ -6,6 +6,10 @@ import {
   getSerializedVialsForCompound,
   VIAL_STATUS,
 } from '@/lib/reconstitution/application/VialService';
+import {
+  getFridgeShelfLifeMonths,
+  getFreezerShelfLifeMonths,
+} from '@/lib/reference/infrastructure/CompoundRepo';
 
 vi.mock('@/lib/shared/prisma', () => {
   const mockFindFirst = vi.fn();
@@ -14,6 +18,7 @@ vi.mock('@/lib/shared/prisma', () => {
   const mockUserFindUnique = vi.fn();
   const mockProtocolFindMany = vi.fn();
   const mockAuditEventCreate = vi.fn();
+  const mockProfileFindFirst = vi.fn();
 
   return {
     prisma: {
@@ -21,6 +26,9 @@ vi.mock('@/lib/shared/prisma', () => {
         findFirst: mockFindFirst,
         findMany: mockFindMany,
         updateMany: mockUpdateMany,
+      },
+      compoundProfile: {
+        findFirst: mockProfileFindFirst,
       },
       user: {
         findUnique: mockUserFindUnique,
@@ -297,6 +305,36 @@ describe('Inventory Management from Catalog Detail Page', () => {
       expect(result[0].totalMg).toBe('10.000');
       expect(result[0].remainingMg).toBe('8.000');
       expect(result[0].bacWaterMl).toBe('2.000');
+    });
+  });
+
+  describe('Compound shelf life queries', () => {
+    it('getFridgeShelfLifeMonths returns the configured months from the database', async () => {
+      // @ts-ignore
+      prisma.compoundProfile.findFirst.mockResolvedValue({
+        fridgeShelfLifeMonths: 12,
+      });
+
+      const result = await getFridgeShelfLifeMonths('compound-1');
+      expect(result).toBe(12);
+      expect(prisma.compoundProfile.findFirst).toHaveBeenCalledWith({
+        where: { compoundId: 'compound-1' },
+        select: { fridgeShelfLifeMonths: true },
+      });
+    });
+
+    it('getFreezerShelfLifeMonths returns the configured months from the database', async () => {
+      // @ts-ignore
+      prisma.compoundProfile.findFirst.mockResolvedValue({
+        freezerShelfLifeMonths: 24,
+      });
+
+      const result = await getFreezerShelfLifeMonths('compound-1');
+      expect(result).toBe(24);
+      expect(prisma.compoundProfile.findFirst).toHaveBeenCalledWith({
+        where: { compoundId: 'compound-1' },
+        select: { freezerShelfLifeMonths: true },
+      });
     });
   });
 });

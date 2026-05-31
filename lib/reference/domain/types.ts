@@ -28,6 +28,7 @@ export type CompoundProfile = {
   sideEffects: string | null;
   stackingNotes: string | null;
   reconstitutedShelfLifeDays: number | null;
+  fridgeShelfLifeMonths: number | null;
   freezerShelfLifeMonths: number | null;
   citations: Citation[];
   benefitTimeline: BenefitTimelineItem[] | null;

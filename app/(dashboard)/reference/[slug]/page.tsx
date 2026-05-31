@@ -102,6 +102,8 @@ export default async function CompoundProfilePage({
         compoundId={compound.id}
         compoundName={compound.name}
         vials={serializedVials}
+        fridgeShelfLifeMonths={compound.profile?.fridgeShelfLifeMonths ?? 12}
+        freezerShelfLifeMonths={compound.profile?.freezerShelfLifeMonths ?? 24}
       />
 
       {!compound.profile && (

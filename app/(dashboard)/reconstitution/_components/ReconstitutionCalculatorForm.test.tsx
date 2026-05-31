@@ -31,6 +31,7 @@ describe('ReconstitutionCalculatorForm UI Warnings', () => {
         id: 'p-1',
         compoundId: 'c-1',
         reconstitutedShelfLifeDays: 14,
+        fridgeShelfLifeMonths: 12,
         freezerShelfLifeMonths: 24,
         dosingLow: { amount: '100', unit: 'mcg' },
         dosingTypical: { amount: '250', unit: 'mcg' },
