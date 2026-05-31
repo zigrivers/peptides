@@ -12,7 +12,7 @@ const EXPIRING_SOON_DAYS = 7;
 export const VIAL_STATUS = {
   DRY: 'DRY',
   RECONSTITUTED: 'RECONSTITUTED',
-  CONSUMED: 'CONSUMED',
+  DEPLETED: 'DEPLETED',
   EXPIRED: 'EXPIRED',
   DELETED: 'DELETED',
 } as const;
@@ -428,4 +428,115 @@ export async function deleteVial(userId: string, vialId: string): Promise<void> 
       },
     })
   );
+}
+
+export interface UpdateVialRemainingMgInput {
+  userId: string;
+  vialId: string;
+  remainingMg: Decimal;
+}
+
+export async function updateVialRemainingMg(input: UpdateVialRemainingMgInput): Promise<VialWithBadges> {
+  const existingVial = await prisma.vial.findFirst({
+    where: { id: input.vialId, userId: input.userId },
+  });
+  if (!existingVial) {
+    throw new Error('vial_not_found_or_not_owned');
+  }
+
+  if (existingVial.status === VIAL_STATUS.DRY) {
+    throw new Error('cannot_adjust_dry_vial_mg');
+  }
+
+  const totalMg = new Decimal(existingVial.totalMg.toString());
+  if (input.remainingMg.gt(totalMg)) {
+    throw new Error('remaining_mg_cannot_exceed_total_mg');
+  }
+  if (input.remainingMg.lt(0)) {
+    throw new Error('remaining_mg_cannot_be_negative');
+  }
+
+  const newStatus = input.remainingMg.lte(0) ? VIAL_STATUS.DEPLETED : VIAL_STATUS.RECONSTITUTED;
+
+  const updatedVial = await withAudit(
+    async (tx) => {
+      const vialToUpdate = await tx.vial.findFirst({
+        where: { id: input.vialId, userId: input.userId },
+      });
+      if (!vialToUpdate) {
+        throw new Error('vial_not_found_or_not_owned');
+      }
+
+      const updateResult = await tx.vial.updateMany({
+        where: { id: input.vialId, userId: input.userId },
+        data: {
+          remainingMg: input.remainingMg,
+          status: newStatus,
+        },
+      });
+
+      if (updateResult.count === 0) {
+        throw new Error('vial_not_found_or_not_owned');
+      }
+
+      const result = await tx.vial.findFirst({
+        where: { id: input.vialId, userId: input.userId },
+        include: { compound: { select: { name: true, slug: true } } },
+      });
+      if (!result) {
+        throw new Error('vial_not_found_or_not_owned');
+      }
+      return result;
+    },
+    (vialRow) => ({
+      actorUserId: input.userId,
+      category: 'Reconstitution' as const,
+      action: 'VIAL_QUANTITY_UPDATED' as const,
+      resourceId: vialRow.id,
+      resourceType: 'Vial',
+      oldValues: {
+        remainingMg: existingVial.remainingMg.toString(),
+        status: existingVial.status,
+      },
+      newValues: {
+        remainingMg: input.remainingMg.toFixed(3),
+        status: newStatus,
+      },
+    })
+  );
+
+  return toVialWithBadges(updatedVial);
+}
+
+export async function getSerializedVialsForCompound(
+  userId: string,
+  compoundId: string
+): Promise<SerializedVialData[]> {
+  const now = new Date();
+  const nowUtcMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+  const vials = await prisma.vial.findMany({
+    where: {
+      userId,
+      compoundId,
+      status: { in: [VIAL_STATUS.DRY, VIAL_STATUS.RECONSTITUTED] },
+    },
+    include: { compound: { select: { name: true, slug: true } } },
+    orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }],
+  });
+
+  const activeProtocols = (await prisma.protocol.findMany({
+    where: { userId, status: 'ACTIVE' },
+  })) as unknown as Protocol[];
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { syringeStandard: true },
+  });
+  const syringeStandard = user?.syringeStandard ?? 'U100';
+
+  return vials.map((v) => {
+    const vWithBadges = toVialWithBadges(v);
+    return serializeVial(vWithBadges, nowUtcMidnight, activeProtocols, syringeStandard);
+  });
 }

@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { getCompoundBySlug } from '@/lib/reference/application/CompoundService';
 import type { Citation } from '@/lib/reference/domain/types';
+import { getSerializedVialsForCompound } from '@/lib/reconstitution/application/VialService';
+import { CompoundInventoryManager } from '../_components/CompoundInventoryManager';
 
 function CitationLink({ citation }: { citation: Citation }) {
   const href = citation.url
@@ -59,6 +61,8 @@ export default async function CompoundProfilePage({
 
   const isArchived = compound.status === 'ARCHIVED';
 
+  const serializedVials = await getSerializedVialsForCompound(session.user.id, compound.id);
+
   return (
     <main className="max-w-2xl mx-auto px-4 py-8">
       <nav className="mb-4">
@@ -93,6 +97,12 @@ export default async function CompoundProfilePage({
           ))}
         </div>
       )}
+
+      <CompoundInventoryManager
+        compoundId={compound.id}
+        compoundName={compound.name}
+        vials={serializedVials}
+      />
 
       {!compound.profile && (
         <div className="mt-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-950/30 dark:bg-yellow-950/20">

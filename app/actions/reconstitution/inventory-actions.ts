@@ -9,6 +9,7 @@ import {
   reconstituteVial,
   deleteVial,
   saveVial,
+  updateVialRemainingMg,
 } from '@/lib/reconstitution/application/VialService';
 
 const AddDryVialsSchema = z.object({
@@ -178,6 +179,47 @@ export async function addReconstitutedVialAction(rawInput: unknown): Promise<Inv
     return { ok: true };
   } catch (err) {
     console.error('[addReconstitutedVialAction] error:', err);
+    return { ok: false, error: 'system_error' };
+  }
+}
+
+const UpdateVialRemainingMgSchema = z.object({
+  vialId: z.string().uuid(),
+  remainingMg: z.string().refine((val) => {
+    try {
+      const d = new Decimal(val);
+      return d.gte(0);
+    } catch {
+      return false;
+    }
+  }, 'Must be a non-negative decimal'),
+});
+
+export async function updateVialRemainingMgAction(rawInput: unknown): Promise<InventoryResult> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
+
+  const parsed = UpdateVialRemainingMgSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return { ok: false, error: 'validation_error', message: parsed.error.issues[0]?.message };
+  }
+
+  try {
+    await updateVialRemainingMg({
+      userId: session.user.id,
+      vialId: parsed.data.vialId,
+      remainingMg: new Decimal(parsed.data.remainingMg),
+    });
+
+    revalidatePath('/reconstitution');
+    revalidatePath('/dashboard');
+    revalidatePath('/tracker');
+    revalidatePath('/reference');
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (/not found/i.test(msg)) return { ok: false, error: 'not_found' };
+    console.error('[updateVialRemainingMgAction] error:', err);
     return { ok: false, error: 'system_error' };
   }
 }
