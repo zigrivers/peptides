@@ -58,6 +58,9 @@ jobs:
         run: pnpm build
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          # Auth.js v5 reads AUTH_SECRET; NEXTAUTH_SECRET kept for back-compat.
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          NEXTAUTH_SECRET: ${{ secrets.AUTH_SECRET }}
 
       - name: Apply migrations
         run: pnpm prisma:deploy
@@ -73,6 +76,11 @@ jobs:
         run: npx playwright install --with-deps && pnpm e2e
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          # Required so the Playwright web server can boot Auth.js (v5) without
+          # MissingSecret. AUTH_TRUST_HOST lets it trust the localhost origin.
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          NEXTAUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_TRUST_HOST: 'true'
 
       - name: Eval
         run: pnpm eval
