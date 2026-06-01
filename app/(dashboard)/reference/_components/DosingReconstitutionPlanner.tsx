@@ -167,31 +167,41 @@ export function DosingReconstitutionPlanner({
               
               {/* 1. Vial Size */}
               <div className="space-y-1.5 sm:col-span-4">
-                <label
-                  htmlFor={isCustomVial ? 'custom-vial-input' : 'vial-size-select'}
-                  className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block"
-                >
-                  Vial Size (mg)
-                </label>
                 {isCustomVial ? (
-                  <div className="flex gap-1">
-                    <input
-                      type="number"
-                      value={customVial}
-                      onChange={(e) => setCustomVial(e.target.value)}
-                      placeholder="e.g. 5"
-                      className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-mono"
-                      min="0.1"
-                      step="0.1"
-                      id="custom-vial-input"
-                    />
-                    <button
-                      onClick={() => setIsCustomVial(false)}
-                      className="text-xs px-2 py-1.5 border border-border rounded-lg hover:bg-muted text-gray-500"
+                  <div className="flex items-end justify-between min-h-[2rem]">
+                    <label
+                      htmlFor="custom-vial-input"
+                      className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                     >
-                      Presets
+                      Vial Size (mg)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomVial(false)}
+                      className="text-[10px] text-primary hover:underline font-semibold leading-none"
+                    >
+                      Use Presets
                     </button>
                   </div>
+                ) : (
+                  <label
+                    htmlFor="vial-size-select"
+                    className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-end min-h-[2rem]"
+                  >
+                    Vial Size (mg)
+                  </label>
+                )}
+                {isCustomVial ? (
+                  <input
+                    type="number"
+                    value={customVial}
+                    onChange={(e) => setCustomVial(e.target.value)}
+                    placeholder="e.g. 5"
+                    className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-mono text-gray-800 dark:text-gray-200"
+                    min="0.1"
+                    step="0.1"
+                    id="custom-vial-input"
+                  />
                 ) : (
                   <select
                     value={vialSizeMg}
@@ -216,31 +226,41 @@ export function DosingReconstitutionPlanner({
 
               {/* 2. Diluent Volume */}
               <div className="space-y-1.5 sm:col-span-4">
-                <label
-                  htmlFor={isCustomBac ? 'custom-bac-input' : 'bac-water-select'}
-                  className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block"
-                >
-                  BAC Water (mL)
-                </label>
                 {isCustomBac ? (
-                  <div className="flex gap-1">
-                    <input
-                      type="number"
-                      value={customBac}
-                      onChange={(e) => setCustomBac(e.target.value)}
-                      placeholder="e.g. 2.0"
-                      className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-mono"
-                      min="0.1"
-                      step="0.1"
-                      id="custom-bac-input"
-                    />
-                    <button
-                      onClick={() => setIsCustomBac(false)}
-                      className="text-xs px-2 py-1.5 border border-border rounded-lg hover:bg-muted text-gray-500"
+                  <div className="flex items-end justify-between min-h-[2rem]">
+                    <label
+                      htmlFor="custom-bac-input"
+                      className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                     >
-                      Presets
+                      BAC Water (mL)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomBac(false)}
+                      className="text-[10px] text-primary hover:underline font-semibold leading-none"
+                    >
+                      Use Presets
                     </button>
                   </div>
+                ) : (
+                  <label
+                    htmlFor="bac-water-select"
+                    className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-end min-h-[2rem]"
+                  >
+                    BAC Water (mL)
+                  </label>
+                )}
+                {isCustomBac ? (
+                  <input
+                    type="number"
+                    value={customBac}
+                    onChange={(e) => setCustomBac(e.target.value)}
+                    placeholder="e.g. 2.0"
+                    className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-mono text-gray-800 dark:text-gray-200"
+                    min="0.1"
+                    step="0.1"
+                    id="custom-bac-input"
+                  />
                 ) : (
                   <select
                     value={bacWaterMl}
@@ -267,7 +287,7 @@ export function DosingReconstitutionPlanner({
               <div className="space-y-1.5 sm:col-span-4">
                 <label
                   htmlFor="syringe-size-select"
-                  className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block"
+                  className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-end min-h-[2rem]"
                 >
                   Syringe Size
                 </label>
