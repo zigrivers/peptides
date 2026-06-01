@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useTransition } from 'react';
+import { Decimal } from 'decimal.js';
 import type { SerializedVialData } from '@/lib/reconstitution/application/VialService';
 import {
   addDryVialsAction,
@@ -18,6 +19,7 @@ interface Props {
   vials: SerializedVialData[];
   fridgeShelfLifeMonths?: number;
   freezerShelfLifeMonths?: number;
+  reconstitutedShelfLifeDays?: number;
 }
 
 export function CompoundInventoryManager({
@@ -26,6 +28,7 @@ export function CompoundInventoryManager({
   vials,
   fridgeShelfLifeMonths = 12,
   freezerShelfLifeMonths = 24,
+  reconstitutedShelfLifeDays = 14,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +41,7 @@ export function CompoundInventoryManager({
   // Inline action states
   const [mixingVialId, setMixingVialId] = useState<string | null>(null);
   const [bacWaterMl, setBacWaterMl] = useState('');
+  const [mixingReconstitutionDate, setMixingReconstitutionDate] = useState('');
   const [mixingExpiry, setMixingExpiry] = useState('');
 
   const [editingVialId, setEditingVialId] = useState<string | null>(null);
@@ -51,6 +55,7 @@ export function CompoundInventoryManager({
 
   // Expiration calculation fields
   const [receivedDate, setReceivedDate] = useState('');
+  const [reconstitutionDate, setReconstitutionDate] = useState('');
   const [storageMethod, setStorageMethod] = useState<'fridge' | 'freezer'>('freezer');
 
   const getTodayLocalDateStr = () => {
@@ -72,10 +77,46 @@ export function CompoundInventoryManager({
     return `${yyyy}-${mm}-${dd}`;
   };
 
+  const calculateExpiryDays = (startDateStr: string, days: number): string => {
+    if (!startDateStr) return '';
+    const date = new Date(startDateStr + 'T12:00:00');
+    if (isNaN(date.getTime())) return '';
+    date.setDate(date.getDate() + days);
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const getConcentrationDisplay = (mgStr: string, mlStr: string): string => {
+    try {
+      const mg = new Decimal(mgStr || '0');
+      const ml = new Decimal(mlStr || '0');
+      if (mg.lte(0) || ml.lte(0) || mg.isNaN() || ml.isNaN()) {
+        return '0.00 mg/mL (0.0 mcg/Unit)';
+      }
+      const mgPerMl = mg.div(ml);
+      const mcgPerUnit = mgPerMl.times(1000).div(100);
+      return `${mgPerMl.toFixed(2)} mg/mL (${mcgPerUnit.toFixed(1)} mcg/Unit)`;
+    } catch {
+      return '0.00 mg/mL (0.0 mcg/Unit)';
+    }
+  };
+
   const handleReceivedDateChange = (val: string) => {
     setReceivedDate(val);
     const months = storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
     setExpiresAt(calculateExpirationDate(val, months));
+  };
+
+  const handleReconstitutionDateChange = (val: string) => {
+    setReconstitutionDate(val);
+    setExpiresAt(calculateExpiryDays(val, reconstitutedShelfLifeDays));
+  };
+
+  const handleMixingReconstitutionDateChange = (val: string) => {
+    setMixingReconstitutionDate(val);
+    setMixingExpiry(calculateExpiryDays(val, reconstitutedShelfLifeDays));
   };
 
   const handleStorageMethodChange = (val: 'fridge' | 'freezer') => {
@@ -84,9 +125,21 @@ export function CompoundInventoryManager({
     setExpiresAt(calculateExpirationDate(receivedDate, months));
   };
 
+  const handleFormTypeChange = (type: 'dry' | 'reconstituted') => {
+    setAddFormType(type);
+    const today = getTodayLocalDateStr();
+    if (type === 'dry') {
+      const months = storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
+      setExpiresAt(calculateExpirationDate(receivedDate || today, months));
+    } else {
+      setExpiresAt(calculateExpiryDays(reconstitutionDate || today, reconstitutedShelfLifeDays));
+    }
+  };
+
   React.useEffect(() => {
     const today = getTodayLocalDateStr();
     setReceivedDate(today);
+    setReconstitutionDate(today);
     const months = storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
     setExpiresAt(calculateExpirationDate(today, months));
   }, [fridgeShelfLifeMonths, freezerShelfLifeMonths]);
@@ -142,9 +195,8 @@ export function CompoundInventoryManager({
         setTotalMg('');
         setAddBacWaterMl('2.0');
         const today = getTodayLocalDateStr();
-        setReceivedDate(today);
-        const months = storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
-        setExpiresAt(calculateExpirationDate(today, months));
+        setReconstitutionDate(today);
+        setExpiresAt(calculateExpiryDays(today, reconstitutedShelfLifeDays));
         setShowAddForm(false);
       } else {
         setError(res.message || 'Failed to add reconstituted vial.');
@@ -237,7 +289,7 @@ export function CompoundInventoryManager({
         <div className="mb-6 p-4 rounded-lg bg-secondary/50 border border-secondary shadow-inner animate-[slideDown_0.2s_ease-out] text-sm">
           <div className="flex gap-2 mb-4 border-b border-border pb-2">
             <button
-              onClick={() => setAddFormType('dry')}
+              onClick={() => handleFormTypeChange('dry')}
               className={`pb-2 px-1 text-xs font-bold border-b-2 transition-all ${
                 addFormType === 'dry' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
               }`}
@@ -245,7 +297,7 @@ export function CompoundInventoryManager({
               Dry Vials (Powder)
             </button>
             <button
-              onClick={() => setAddFormType('reconstituted')}
+              onClick={() => handleFormTypeChange('reconstituted')}
               className={`pb-2 px-1 text-xs font-bold border-b-2 transition-all ${
                 addFormType === 'reconstituted' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
               }`}
@@ -298,6 +350,15 @@ export function CompoundInventoryManager({
               )}
             </div>
 
+            {addFormType === 'reconstituted' && totalMg && addBacWaterMl && (
+              <div className="text-xs text-gray-500 dark:text-gray-400 font-medium bg-muted/30 p-2.5 rounded-lg border border-border/30 flex justify-between items-center" id="recon-concentration-display">
+                <span>Reconstitution Concentration:</span>
+                <span className="font-bold font-mono text-gray-700 dark:text-gray-300">
+                  {getConcentrationDisplay(totalMg, addBacWaterMl)}
+                </span>
+              </div>
+            )}
+
             {addFormType === 'dry' && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -329,14 +390,27 @@ export function CompoundInventoryManager({
               </div>
             )}
 
+            {addFormType === 'reconstituted' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                    Reconstitution Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={reconstitutionDate}
+                    onChange={(e) => handleReconstitutionDateChange(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+                <div />
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                Expiration Date{' '}
-                {addFormType === 'dry' ? (
-                  <span className="text-primary font-normal">(auto-populated)</span>
-                ) : (
-                  <span className="text-muted-foreground font-normal">(optional)</span>
-                )}
+                Expiration Date <span className="text-primary font-normal">(auto-populated)</span>
               </label>
               <input
                 type="date"
@@ -344,10 +418,18 @@ export function CompoundInventoryManager({
                 onChange={(e) => setExpiresAt(e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
               />
-              {addFormType === 'dry' && receivedDate && (
-                <p className="mt-1 text-[11px] text-muted-foreground italic">
-                  * Calculated as {storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths} months from received date based on {storageMethod} storage.
-                </p>
+              {addFormType === 'dry' ? (
+                receivedDate && (
+                  <p className="mt-1 text-[11px] text-muted-foreground italic">
+                    * Calculated as {storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths} months from received date based on {storageMethod} storage.
+                  </p>
+                )
+              ) : (
+                reconstitutionDate && (
+                  <p className="mt-1 text-[11px] text-muted-foreground italic">
+                    * Calculated as {reconstitutedShelfLifeDays} days stability from reconstitution date based on refrigerated storage.
+                  </p>
+                )
               )}
             </div>
 
@@ -426,20 +508,39 @@ export function CompoundInventoryManager({
                     <div className="pt-2">
                       {mixingVialId === vial.id ? (
                         <div className="space-y-2 mt-1 border-t border-border pt-2">
-                          <div>
-                            <label className="block text-[10px] font-bold text-muted-foreground mb-0.5">BAC Water (ml)</label>
-                            <input
-                              type="number"
-                              step="any"
-                              placeholder="e.g. 2.0"
-                              value={bacWaterMl}
-                              onChange={(e) => setBacWaterMl(e.target.value)}
-                              className="w-full rounded px-2 py-1 bg-background border border-input text-xs"
-                            />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold text-muted-foreground mb-0.5">BAC Water (ml)</label>
+                              <input
+                                type="number"
+                                step="any"
+                                placeholder="e.g. 2.0"
+                                value={bacWaterMl}
+                                onChange={(e) => setBacWaterMl(e.target.value)}
+                                className="w-full rounded px-2 py-1 bg-background border border-input text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-muted-foreground mb-0.5">Reconstituted On</label>
+                              <input
+                                type="date"
+                                value={mixingReconstitutionDate}
+                                onChange={(e) => handleMixingReconstitutionDateChange(e.target.value)}
+                                className="w-full rounded px-2 py-1 bg-background border border-input text-xs"
+                              />
+                            </div>
                           </div>
+                          {bacWaterMl && (
+                            <div className="text-[10px] text-gray-500 dark:text-gray-400 font-medium bg-muted/30 p-2 rounded-lg border border-border/30 flex justify-between items-center" id={`vial-concentration-display-${vial.id}`}>
+                              <span>Concentration:</span>
+                              <span className="font-bold font-mono text-gray-700 dark:text-gray-300">
+                                {getConcentrationDisplay(vial.totalMg, bacWaterMl)}
+                              </span>
+                            </div>
+                          )}
                           <div>
                             <label className="block text-[10px] font-bold text-muted-foreground mb-0.5">
-                              Exp Date <span className="font-normal text-muted-foreground">(optional)</span>
+                              Exp Date <span className="text-primary font-normal">(auto-populated)</span>
                             </label>
                             <input
                               type="date"
@@ -447,8 +548,11 @@ export function CompoundInventoryManager({
                               onChange={(e) => setMixingExpiry(e.target.value)}
                               className="w-full rounded px-2 py-1 bg-background border border-input text-xs"
                             />
+                            <p className="text-[9px] text-muted-foreground italic mt-0.5">
+                              * Calculated as {reconstitutedShelfLifeDays} days stability.
+                            </p>
                           </div>
-                          <div className="flex gap-1.5">
+                          <div className="flex gap-1.5 pt-1">
                             <button
                               type="button"
                               onClick={() => handleReconstitute(vial.id)}
@@ -471,6 +575,9 @@ export function CompoundInventoryManager({
                             clearMessages();
                             setMixingVialId(vial.id);
                             setBacWaterMl('2.0');
+                            const today = getTodayLocalDateStr();
+                            setMixingReconstitutionDate(today);
+                            setMixingExpiry(calculateExpiryDays(today, reconstitutedShelfLifeDays));
                           }}
                           className="w-full py-1 bg-secondary hover:bg-secondary-foreground/10 text-foreground border border-border rounded flex items-center justify-center gap-1 font-bold text-[10px]"
                         >

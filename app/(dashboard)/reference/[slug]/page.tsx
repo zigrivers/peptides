@@ -183,6 +183,7 @@ export default async function CompoundProfilePage({
         vials={serializedVials}
         fridgeShelfLifeMonths={compound.profile?.fridgeShelfLifeMonths ?? 12}
         freezerShelfLifeMonths={compound.profile?.freezerShelfLifeMonths ?? 24}
+        reconstitutedShelfLifeDays={compound.profile?.reconstitutedShelfLifeDays ?? 14}
       />
 
       {!compound.profile && (
