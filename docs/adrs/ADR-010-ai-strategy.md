@@ -3,6 +3,13 @@
 ## Status
 Accepted
 
+## Amendments
+- **2026-06-01:** Added **DeepSeek (`deepseek-chat`) as a tertiary provider** in the
+  fall-through chain (`Anthropic → Gemini → DeepSeek`). DeepSeek is the intended
+  **primary** provider for the monthly catalog-refresh job (cost/throughput on batch
+  research extraction); see `docs/catalog-platform-upgrade-plan.md` §5. Each provider key
+  is optional — a provider with no key is skipped, not an error.
+
 ## Context
 The PRD's Phase 3 features (`AI Telegram response parser`, `Automated PubMed watch`) and several supporting flows (compound profile drafting, citation extraction, peptide-profile generation for human review) require LLM calls. These are explicitly *bounded* AI uses per the vision's anti-vision rule: no personalized dose recommendations, no stack optimization, no safety clearance claims.
 
@@ -26,7 +33,7 @@ We will use **the Vercel AI SDK** as the AI client abstraction and **default to 
 
 ### Provider failure handling
 - All AI calls are wrapped with timeout (default 30s) + retry-once with backoff.
-- If both Claude and Gemini fail, the dependent feature degrades gracefully (e.g., PubMed digest skips that week; profile drafting falls back to manual entry).
+- Providers fall through in order `Anthropic → Gemini → DeepSeek`; a provider whose API key is unset is skipped. If Claude, Gemini, and DeepSeek all fail, the dependent feature degrades gracefully (e.g., PubMed digest skips that week; profile drafting falls back to manual entry).
 - AI failures never block user-facing dose logging, ordering, or reconstitution flows.
 
 ### Prompt caching
@@ -39,7 +46,7 @@ We will use **the Vercel AI SDK** as the AI client abstraction and **default to 
 
 ## Consequences
 - **Benefits**: Single SDK surface (Vercel AI SDK) lets us switch providers without rewriting call sites. Caching dramatically reduces cost. Allowed-uses list is explicit and reviewable so AI scope creep can be caught in PR review.
-- **Costs**: Two API keys (Anthropic primary, Google for Gemini fallback) to manage. Vercel AI SDK is fast-moving — minor breaking changes between versions are expected. Adds a non-deterministic system component to the architecture; any feature using it requires evaluation harness coverage (see ADR-008 + tests/evals).
+- **Costs**: Up to three optional API keys (Anthropic primary, Google for Gemini fallback, DeepSeek tertiary) to manage. Vercel AI SDK is fast-moving — minor breaking changes between versions are expected. Adds a non-deterministic system component to the architecture; any feature using it requires evaluation harness coverage (see ADR-008 + tests/evals).
 
 ## Traces
 - PRD §3.3 (Phase 3 features: AI Telegram parser, PubMed watch), §5.1 (AI-drafted profiles with human review), §12 Q10 (AI assistance scope — this ADR resolves it).

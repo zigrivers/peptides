@@ -1,4 +1,4 @@
-export type AIProvider = 'anthropic' | 'gemini';
+export type AIProvider = 'anthropic' | 'gemini' | 'deepseek';
 
 export const MODEL_IDS = {
   // ADR-010: drafting and "high-quality" workloads.
@@ -7,6 +7,9 @@ export const MODEL_IDS = {
   anthropicHaiku: 'claude-haiku-4-5-20251001',
   // ADR-010: secondary provider.
   geminiPro: 'gemini-2.5-pro',
+  // ADR-010: tertiary provider (cost-efficient; primary for the monthly
+  // catalog-refresh job — see catalog-platform-upgrade-plan.md §5).
+  deepseekChat: 'deepseek-chat',
 } as const;
 
 export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];

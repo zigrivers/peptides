@@ -274,7 +274,12 @@ events.
    (parallel to the existing free-text `draftCompoundProfile`) returns a typed
    `ProposedProfileDelta` — updated dosing tiers and/or citations as
    `Decimal`-serializable JSON — **not** free-text markdown, so the gate can compare
-   numerically.
+   numerically. **Provider:** this job leads with **DeepSeek** (`deepseek-chat`) for
+   cost/throughput on the monthly batch, falling through to Anthropic then Gemini via the
+   existing `lib/ai` orchestrator (ADR-010 amended 2026-06-01); requires `DEEPSEEK_API_KEY`.
+   The DeepSeek provider is already implemented and tested in `lib/ai`; Phase 4 only needs
+   to lead the refresh chain with it (vs. the default `Anthropic → Gemini → DeepSeek`
+   order used by other operations).
 2. **Snapshot.** Write the current item + profile + citations to `CatalogItemRevision`
    **only as part of a successful apply** (so a snapshot is never orphaned by a later
    apply failure).
@@ -460,7 +465,8 @@ Each phase is its own spec → plan → PR cycle.
 
 - Exact normalized tolerance thresholds per dosing tier (default proposed: >25% on any
   same-unit normalized tier holds; all unit changes and null transitions always hold).
-- PubMed query strategy, API-key provisioning, and fallback when a citation has no
+- PubMed query strategy, API-key provisioning (`DEEPSEEK_API_KEY` for the refresh
+  provider), and fallback when a citation has no
   PMID/DOI (the `pmid`/`doi` columns are both nullable).
 - Initial supported-supplement list and the authoritative source for each supplement's
   baseline properties.

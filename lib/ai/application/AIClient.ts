@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { getAnthropicModel } from '../infrastructure/anthropicClient';
 import { getGeminiModel } from '../infrastructure/geminiClient';
+import { getDeepSeekModel } from '../infrastructure/deepseekClient';
 import {
   AIInvalidResponseError,
   AIUnavailableError,
@@ -17,7 +18,7 @@ import { PrismaAuditRepo } from '@/lib/audit/infrastructure/PrismaAuditRepo';
  * Provider fail-over orchestrator (ADR-010). Implements:
  *  - timeout (default 30s)
  *  - retry-once with 1s backoff per provider
- *  - Anthropic → Gemini fall-through
+ *  - Anthropic → Gemini → DeepSeek fall-through
  *  - structured output via Zod when callers want it
  *  - audit emission for initiated + failed requests (no prompt content)
  *
@@ -45,7 +46,7 @@ export interface CallObjectOptions<T> extends CallOptions {
 }
 
 interface ProviderAttempt {
-  provider: 'anthropic' | 'gemini';
+  provider: 'anthropic' | 'gemini' | 'deepseek';
   modelId: string;
 }
 
@@ -56,6 +57,9 @@ function attemptsFor(operation: AIOperation): ProviderAttempt[] {
   return [
     { provider: 'anthropic', modelId: anthropicModel },
     { provider: 'gemini', modelId: MODEL_IDS.geminiPro },
+    // Tertiary fall-through; every operation can use DeepSeek when the
+    // leading providers are unavailable or failing (ADR-010).
+    { provider: 'deepseek', modelId: MODEL_IDS.deepseekChat },
   ];
 }
 
@@ -124,6 +128,7 @@ async function getModelFor(
   attempt: ProviderAttempt
 ): Promise<Awaited<ReturnType<typeof getAnthropicModel>> | null> {
   if (attempt.provider === 'anthropic') return getAnthropicModel(attempt.modelId as ModelId);
+  if (attempt.provider === 'deepseek') return getDeepSeekModel(attempt.modelId);
   return getGeminiModel(attempt.modelId);
 }
 
