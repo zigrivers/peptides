@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+#
+# Local CI gate. This project does NOT use GitHub Actions (see ADR-016 and
+# .claude/rules/no-github-actions.md). All quality gates run here, on push.
+#
+# Runs `pnpm check` = guard:no-actions + lint + typecheck + test + prisma:validate.
+# The integration tests need a local Postgres — start it with `make db-setup`
+# (or `pnpm db:setup`) before pushing.
+#
+# Emergency bypass (use sparingly, you own the consequences):
+#   git push --no-verify
+#
+set -e
+
+echo "▶ pre-push: running pnpm check (no-actions guard + lint + typecheck + test + prisma validate)…"
+pnpm check
+echo "✓ pre-push: pnpm check passed"

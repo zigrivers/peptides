@@ -39,19 +39,25 @@
 | Prisma Validate | `pnpm prisma:validate` |
 | DB Seed | `pnpm db:seed` |
 
-## Git & PR Workflow (9-step lifecycle + 4.5 PR review)
+## Git & PR Workflow (lifecycle + 4.5 PR review)
 1. **Commit**: `type(scope): desc`.
 2. **Review code (pre-push)**: `scaffold run review-code` (local MMR check).
 3. **Rebase**: `git fetch origin main && git rebase origin/main`.
-4. **Push**: `git push origin head`.
+4. **Push**: `git push origin head` — the `pre-push` hook runs `pnpm check` locally (this IS the CI gate; see below).
 4.5. **Review PR (post-push, pre-merge)**: `scaffold run review-pr` (full MMR on the PR diff).
 5. **Create**: `gh pr create --fill`.
-6. **Auto-Merge**: `gh pr merge --auto --squash --delete-branch`.
-7. **Watch**: `gh run watch` (Wait for CI success).
-8. **Confirm**: verify merge in `main`; close the task.
-9. **Log lessons**: if the PR surfaced a non-obvious learning, append a dated entry to `tasks/lessons.md`.
+6. **Merge**: `gh pr merge --squash --delete-branch` (no remote check to wait on).
+7. **Confirm**: verify merge in `main`; close the task.
+8. **Log lessons**: if the PR surfaced a non-obvious learning, append a dated entry to `tasks/lessons.md`.
 
 **Parallel sessions**: create worktree with `./scripts/setup-agent-worktree.sh <name>`.
+
+## CI: Local-First, No GitHub Actions (ADR-016)
+- This project **does not use GitHub Actions**. CI runs locally via the `.githooks/pre-push` hook, activated by the `prepare` script on `pnpm install` (`git config core.hooksPath .githooks`). After a fresh clone, run `pnpm install` once to activate it.
+- The gate is `pnpm check` = `guard:no-actions` + lint + typecheck + test + prisma validate. Integration tests need a local Postgres (`make db-setup`).
+- Slow gates (`pnpm e2e`, `pnpm eval`, `pnpm build`) are **manual** — run before merging when relevant; they are not in the pre-push hook.
+- **Never add files under `.github/workflows/`** — `pnpm guard:no-actions` fails the gate if any reappear. See `.claude/rules/no-github-actions.md`.
+- Deploys are Railway auto-deploy on push to `main`; there is no remote CI to watch (do not use `gh run watch`).
 
 ## Project Rules & Memory
 - **Rules**: Path-scoped conventions in `.claude/rules/`.

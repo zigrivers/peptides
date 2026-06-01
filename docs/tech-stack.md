@@ -570,23 +570,31 @@ Zod schema (shared) → React Hook Form (client) + Server Action (server)
 **Alternatives considered:**
 - Biome — all-in-one linter + formatter, extremely fast; newer and growing; less AI training data than ESLint; acceptable future upgrade path
 
-### 8.3 CI/CD: GitHub Actions
+### 8.3 CI/CD: Local-First (No GitHub Actions)
 
-**Decision:** GitHub Actions for CI pipeline; Railway auto-deploy on push to `main`.
+**Decision:** CI runs **locally** via a `pre-push` git hook; **no GitHub Actions**
+(superseded — see ADR-016, decided 2026-06-01, to stay within the account's Actions
+minute budget). Railway auto-deploys on push to `main`.
 
 **Pipeline:**
 ```
-Push to main branch
-  → GitHub Actions: type-check → lint → unit tests → E2E tests (Playwright)
-  → On pass: Railway auto-deploy (triggered by GitHub push webhook)
-  → Post-deploy: `prisma migrate deploy` runs as part of Railway start command
+git push (any branch)
+  → .githooks/pre-push runs `pnpm check`
+      = guard:no-actions → lint → typecheck → test → prisma validate
+  → push proceeds only if the gate passes
+Merge to main
+  → Railway auto-deploy (GitHub push webhook)
+  → Post-deploy: `prisma migrate deploy` runs as part of the Railway start command
 ```
+
+**Manual gates** (slow; run before merging when relevant): `pnpm build`, `pnpm e2e`
+(Playwright), `pnpm eval`.
 
 **Start command (Railway):** `npx prisma migrate deploy && node server.js`
 
-**Key workflows:**
-- `ci.yml`: runs on PR and push to main; type-check, lint, vitest, playwright
-- Caching: pnpm store cache, Next.js build cache
+**Hook setup:** activated by the `prepare` script on `pnpm install`
+(`git config core.hooksPath .githooks`). Reintroducing `.github/workflows/*` is blocked
+by `pnpm guard:no-actions`. See `.claude/rules/no-github-actions.md`.
 
 ### 8.4 Environment Management
 

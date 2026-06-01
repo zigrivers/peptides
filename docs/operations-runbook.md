@@ -11,17 +11,23 @@
 ## 1. Deployment Pipeline & Environment Strategy
 
 ### 1.1 Pipeline Stages
-| Stage | Action | Success Criteria |
-|-------|--------|------------------|
-| **Lint + Typecheck** | `pnpm lint && pnpm typecheck` | No errors |
-| **Build** | `pnpm build` | Next.js build + Prisma generate succeed |
-| **Schema validate** | `pnpm prisma validate` | Prisma schema parses |
-| **Test (unit + integration)** | `pnpm test` | 100% pass; coverage thresholds met (100% branch on safety-critical modules per ADR-008) |
-| **E2E** | `pnpm e2e` | All critical-path tests pass on chromium + webkit-iPhone viewport |
-| **Evals** | `pnpm eval` | Score ≥ defined threshold per eval; non-blocking on CI failure-to-run, blocking on threshold miss |
-| **Deploy** | `railway up` | Container successfully starts on Railway |
-| **Verify** | `pnpm playwright test tests/e2e/smoke.spec.ts --env=production` | Production health check + critical paths green in < 2s page load |
-| **Rollback** | `railway rollback` | Triggered automatically on Verify failure |
+
+CI is **local-first — no GitHub Actions** (ADR-016). The quality gate runs in the
+`.githooks/pre-push` hook; "Where" below shows what runs automatically pre-push vs.
+manually before merge. Deploy stages run on Railway.
+
+| Stage | Action | Where | Success Criteria |
+|-------|--------|-------|------------------|
+| **Guard (no Actions)** | `pnpm guard:no-actions` | pre-push hook | No `.github/workflows/*.yml` present |
+| **Lint + Typecheck** | `pnpm lint && pnpm typecheck` | pre-push hook | No errors |
+| **Test (unit + integration)** | `pnpm test` | pre-push hook | 100% pass; coverage thresholds met (100% branch on safety-critical modules per ADR-008) |
+| **Schema validate** | `pnpm prisma validate` | pre-push hook | Prisma schema parses |
+| **Build** | `pnpm build` | manual (pre-merge) | Next.js build + Prisma generate succeed |
+| **E2E** | `pnpm e2e` | manual (pre-merge) | All critical-path tests pass on chromium + webkit-iPhone viewport |
+| **Evals** | `pnpm eval` | manual (pre-merge) | Score ≥ defined threshold per eval; blocking on threshold miss |
+| **Deploy** | `railway up` (auto on push to `main`) | Railway | Container successfully starts on Railway |
+| **Verify** | `pnpm playwright test tests/e2e/smoke.spec.ts --env=production` | Railway/manual | Production health check + critical paths green in < 2s page load |
+| **Rollback** | `railway rollback` | Railway | Triggered on Verify failure |
 
 ### 1.2 Environment Strategy
 - **Preview**: Spin up ephemeral Railway environments for every PR. Used for automated E2E and visual review.
