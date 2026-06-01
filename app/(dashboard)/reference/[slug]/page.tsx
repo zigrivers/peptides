@@ -124,6 +124,48 @@ export default async function CompoundProfilePage({
         </section>
       )}
 
+      {compound.profile?.benefitTimeline && compound.profile.benefitTimeline.length > 0 && (
+        <section className="mt-8 border border-border bg-card text-card-foreground rounded-xl p-5 shadow-sm animate-[fadeIn_0.3s_ease-out]">
+          <h2 className="text-lg font-bold flex items-center gap-2 mb-6">
+            <span>⏱️</span> Clinical Progression Timeline
+          </h2>
+          <div className="relative pl-6 border-l-2 border-primary/20 space-y-6">
+            {compound.profile.benefitTimeline.map((item) => (
+              <div key={item.week} className="relative group">
+                {/* Pulsing Timeline Node Indicator */}
+                <div className="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-card border-2 border-primary group-hover:scale-125 transition-all duration-200 shadow-sm">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                    Week {item.week}
+                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-semibold tracking-wide">
+                      {item.week === 1
+                        ? 'Acute Onset'
+                        : item.week === 2
+                        ? 'Stabilization'
+                        : item.week === 4
+                        ? 'Therapeutic Phase'
+                        : item.week === 8
+                        ? 'Remodeling'
+                        : 'Peak Efficacy'}
+                    </span>
+                  </h3>
+                  <ul className="mt-2 space-y-1.5">
+                    {item.benefits.map((benefit, bIdx) => (
+                      <li key={bIdx} className="text-sm text-gray-600 dark:text-gray-300 flex items-start gap-2 leading-relaxed">
+                        <span className="text-primary mt-1.5 shrink-0 h-1.5 w-1.5 rounded-full bg-primary" />
+                        <span>{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {compound.administrationRoutes.length > 0 && (
         <section className="mt-6">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
