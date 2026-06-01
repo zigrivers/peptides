@@ -13,6 +13,7 @@ const mockGenerateObject = vi.fn();
 const mockGenerateText = vi.fn();
 const mockGetAnthropicModel = vi.fn();
 const mockGetGeminiModel = vi.fn();
+const mockGetDeepSeekModel = vi.fn();
 const mockAuditCreate = vi.fn();
 
 vi.mock('ai', () => ({
@@ -24,6 +25,9 @@ vi.mock('@/lib/ai/infrastructure/anthropicClient', () => ({
 }));
 vi.mock('@/lib/ai/infrastructure/geminiClient', () => ({
   getGeminiModel: mockGetGeminiModel,
+}));
+vi.mock('@/lib/ai/infrastructure/deepseekClient', () => ({
+  getDeepSeekModel: mockGetDeepSeekModel,
 }));
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
@@ -40,6 +44,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   mockGetAnthropicModel.mockResolvedValue(stubModel);
   mockGetGeminiModel.mockResolvedValue(stubModel);
+  mockGetDeepSeekModel.mockResolvedValue(stubModel);
   mockGenerateObject.mockResolvedValue({ object: { ok: true } });
   mockGenerateText.mockResolvedValue({ text: 'hello world' });
 });
@@ -103,6 +108,45 @@ describe('AIClient.callObject — provider fail-over', () => {
     expect(mockGetGeminiModel).toHaveBeenCalled();
   });
 
+  it('AC-4b: falls over to DeepSeek when Anthropic and Gemini are unavailable', async () => {
+    // Both leading providers have no API key → return null. DeepSeek (the
+    // appended tertiary provider) must be reached and produce the result.
+    mockGetAnthropicModel.mockResolvedValue(null);
+    mockGetGeminiModel.mockResolvedValue(null);
+    const result = await callObject({
+      operation: 'extract_citation',
+      system: 's',
+      prompt: 'p',
+      schema,
+    });
+    expect(result).toEqual({ ok: true });
+    expect(mockGetDeepSeekModel).toHaveBeenCalled();
+    // Only DeepSeek did real generation work (the first two were unavailable).
+    expect(mockGenerateObject).toHaveBeenCalledTimes(1);
+  });
+
+  it('AC-4c: DeepSeek is a last resort — not reached when Gemini succeeds', async () => {
+    mockGetAnthropicModel.mockResolvedValue(null);
+    const result = await callObject({
+      operation: 'extract_citation',
+      system: 's',
+      prompt: 'p',
+      schema,
+    });
+    expect(result).toEqual({ ok: true });
+    expect(mockGetDeepSeekModel).not.toHaveBeenCalled();
+  });
+
+  it('AC-4d: throws AIUnavailableError only after all three providers fail', async () => {
+    mockGetAnthropicModel.mockResolvedValue(null);
+    mockGetGeminiModel.mockResolvedValue(null);
+    mockGetDeepSeekModel.mockResolvedValue(null);
+    await expect(
+      callObject({ operation: 'extract_citation', system: 's', prompt: 'p', schema })
+    ).rejects.toThrow('ai_unavailable');
+    expect(mockGetDeepSeekModel).toHaveBeenCalled();
+  });
+
   it('AC-5: throws AIUnavailableError when both providers fail and audits failure', async () => {
     mockGenerateObject.mockRejectedValue(new Error('boom'));
     await expect(
@@ -142,9 +186,10 @@ describe('AIClient.callObject — provider fail-over', () => {
     }
   });
 
-  it('AC-1c: no API keys → both getModel functions return null → throws AIUnavailableError', async () => {
+  it('AC-1c: no API keys → all getModel functions return null → throws AIUnavailableError', async () => {
     mockGetAnthropicModel.mockResolvedValue(null);
     mockGetGeminiModel.mockResolvedValue(null);
+    mockGetDeepSeekModel.mockResolvedValue(null);
     await expect(
       callObject({ operation: 'extract_citation', system: 's', prompt: 'p', schema })
     ).rejects.toThrow('ai_unavailable');
@@ -220,18 +265,18 @@ describe('AIClient.callText', () => {
     expect(result).toBe('hello world');
   });
 
-  it('treats empty text as invalid_schema → no retry on same provider, falls through to Gemini', async () => {
-    // Two empty responses (Anthropic then Gemini), each treated as
-    // deterministic-failure → no retry. Then a successful third call
-    // proves both providers were tried in order and the call ultimately
-    // throws — proving no infinite or extra retries.
+  it('treats empty text as invalid_schema → no retry on same provider, falls through Gemini then DeepSeek', async () => {
+    // Three empty responses (Anthropic → Gemini → DeepSeek), each treated as
+    // deterministic-failure → no retry. A fourth call would prove an extra
+    // retry; the call must throw after exactly one attempt per provider.
     mockGenerateText
       .mockResolvedValueOnce({ text: '' }) // Anthropic
       .mockResolvedValueOnce({ text: '' }) // Gemini
+      .mockResolvedValueOnce({ text: '' }) // DeepSeek
       .mockResolvedValueOnce({ text: 'unreachable' });
     await expect(
       callText({ operation: 'draft_compound_profile', system: 's', prompt: 'p' })
     ).rejects.toThrow('ai_unavailable');
-    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(mockGenerateText).toHaveBeenCalledTimes(3);
   });
 });
