@@ -1,6 +1,9 @@
 # OS
 .DS_Store
 
+# Editor
+.obsidian/
+
 # Node / Next.js
 node_modules/
 .next/
