@@ -273,8 +273,14 @@ Copy and paste the prompt below to trigger the research and migration execution:
 Please implement the structured dosing reference and scheduling system for all compounds.
 
 ### Step 0: Verify Environment & CI Setup
-1. Confirm that local and CI environments are configured for PostgreSQL (as specified in `.env.example` and `docker-compose.yml`).
-2. Update `.github/workflows/ci.yml` to define a PostgreSQL service container under the `quality` job, add a step to run Prisma migrations, and pass `DATABASE_URL` to all DB-dependent steps. Use the following YAML snippet:
+
+> **Superseded (2026-06-01, ADR-016):** This project no longer uses GitHub Actions.
+> The `.github/workflows/ci.yml` step below is historical — do **not** recreate it.
+> CI now runs locally via the `.githooks/pre-push` hook (`pnpm check`). Ensure a local
+> PostgreSQL is running (`make db-setup`) so the pre-push integration tests pass.
+
+1. Confirm that local environments are configured for PostgreSQL (as specified in `.env.example` and `docker-compose.yml`).
+2. ~~Update `.github/workflows/ci.yml` to define a PostgreSQL service container under the `quality` job~~ — *no longer applicable (no GitHub Actions). Historical snippet retained below for reference only:*
 
 ```yaml
 # Add services container under quality job:

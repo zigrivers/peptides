@@ -40,13 +40,12 @@ All agents must follow this sequence for every task:
 1. **Commit**: `git commit -m "feat(module): description"`
 2. **AI review (pre-push)**: `scaffold run review-code` (local MMR check on the working tree before push)
 3. **Rebase**: `git fetch origin main && git rebase origin/main`
-4. **Push**: `git push origin head`
+4. **Push**: `git push origin head` — the `pre-push` hook runs `pnpm check` locally (the CI gate; see §5)
 4.5. **AI review (post-push, pre-merge)**: `scaffold run review-pr` (full MMR on the PR diff against `main`)
 5. **Create**: `gh pr create --fill`
-6. **Auto-merge**: `gh pr merge --auto --squash --delete-branch`
-7. **Watch**: `gh run watch` (wait for CI success)
-8. **Confirm**: verify merge in `main` and close the task
-9. **Log lessons**: if the PR surfaced a non-obvious learning, append a dated entry to `tasks/lessons.md`
+6. **Merge**: `gh pr merge --squash --delete-branch` (no remote check to wait on)
+7. **Confirm**: verify merge in `main` and close the task
+8. **Log lessons**: if the PR surfaced a non-obvious learning, append a dated entry to `tasks/lessons.md`
 
 ---
 
@@ -66,18 +65,26 @@ For running multiple agents simultaneously, use **Git Worktrees**.
 
 ---
 
-## 5. CI Pipeline
+## 5. CI: Local-First (No GitHub Actions)
 
-The CI pipeline runs on every push and PR. Source of truth: `.github/workflows/ci.yml`. Authoritative stage list also documented in `docs/operations-runbook.md` §1.1.
+This project **does not use GitHub Actions** (ADR-016). CI runs **locally** via the
+`.githooks/pre-push` hook, activated by the `prepare` script on `pnpm install`
+(`git config core.hooksPath .githooks`). After a fresh clone, run `pnpm install` once.
 
-**Jobs** (in order):
-1. **Lint**: `pnpm lint` (ESLint + Prettier).
-2. **Typecheck**: `pnpm typecheck` (`tsc --noEmit`).
-3. **Schema validate**: `pnpm prisma:validate`.
-4. **Build**: `pnpm build` (validates Next.js build + `prisma generate`).
-5. **Unit/Integration**: `pnpm test` (with coverage gates per ADR-008).
-6. **E2E**: `pnpm e2e` (Playwright against the production build on both `chromium` and `webkit` viewports).
-7. **Eval**: `pnpm eval` (LLM-bearing prompts evaluated against gold-standard fixtures; threshold-blocking on miss).
+**Pre-push gate** — `pnpm check` (blocks the push on failure):
+1. **Guard**: `pnpm guard:no-actions` — fails if any `.github/workflows/*.yml` exists.
+2. **Lint**: `pnpm lint` (ESLint + Prettier).
+3. **Typecheck**: `pnpm typecheck` (`tsc --noEmit`).
+4. **Unit/Integration**: `pnpm test` (coverage gates per ADR-008; needs a local Postgres — `make db-setup`).
+5. **Schema validate**: `pnpm prisma:validate`.
+
+**Manual gates** (run before merging when relevant; deliberately not in the hook because
+they are slow / were the Actions minute hogs):
+- **Build**: `pnpm build`.
+- **E2E**: `pnpm e2e` (Playwright).
+- **Eval**: `pnpm eval` (LLM-bearing prompts vs. gold-standard fixtures).
+
+Emergency bypass of the hook (you own the consequences): `git push --no-verify`.
 
 ---
 
@@ -91,9 +98,13 @@ If a Claude Code session crashes or hangs:
 
 ---
 
-## 7. Branch Protection
+## 7. Merge Discipline
 
-- **Required**: Status checks (CI) must pass.
-- **Required**: Squash merge only.
-- **Required**: Conversation resolution before merge.
-- **Prohibited**: Direct push to `main`.
+There is **no GitHub Actions status check** to gate merges (ADR-016); the quality gate
+is the local `pre-push` hook (§5). Discipline is therefore convention, not enforcement:
+
+- **Run the gate before pushing** — `pnpm check` runs automatically via the pre-push
+  hook; do not routinely `--no-verify`.
+- **Squash merge only**: `gh pr merge --squash --delete-branch`.
+- **Resolve review conversations before merge.**
+- **Avoid direct pushes to `main`**; branch and PR even for small changes.
