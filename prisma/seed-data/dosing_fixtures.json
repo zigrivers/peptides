@@ -1,0 +1,904 @@
+[
+  {
+    "name": "BPC-157",
+    "profile": {
+      "cycleLengthWeeks": 8,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 2,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING_AND_NIGHT",
+      "timingNotes": "Take on an empty stomach. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Stable Gastric Pentadecapeptide BPC 157 and Wound Healing",
+        "doi": "10.3389/fphar.2021.627533",
+        "pmid": "34267654"
+      }
+    ]
+  },
+  {
+    "name": "TB-500",
+    "profile": {
+      "cycleLengthWeeks": 6,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "TWICE_WEEKLY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Subcutaneous injection, can be taken anytime. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Thymosin beta-4: a multi-functional regenerative peptide. Basic properties and clinical applications",
+        "doi": "10.1517/14712598.2012.634793",
+        "pmid": "22074294"
+      }
+    ]
+  },
+  {
+    "name": "Semaglutide",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "WEEKLY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Inject once weekly on the same day each week, with or without food.",
+      "isFdaApproved": true
+    },
+    "citations": [
+      {
+        "title": "Once-Weekly Semaglutide in Adults with Overweight or Obesity",
+        "doi": "10.1056/NEJMoa2032183",
+        "pmid": "33567185"
+      }
+    ]
+  },
+  {
+    "name": "Tirzepatide",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "WEEKLY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Inject once weekly on the same day each week, with or without food.",
+      "isFdaApproved": true
+    },
+    "citations": [
+      {
+        "title": "Tirzepatide Once Weekly for the Treatment of Obesity",
+        "doi": "10.1056/NEJMoa2206038",
+        "pmid": "35658024"
+      }
+    ]
+  },
+  {
+    "name": "GHK-Cu",
+    "profile": {
+      "cycleLengthWeeks": 6,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "NIGHT",
+      "timingNotes": "Subcutaneous injection, can cause local injection site pain. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Regenerative and Protective Actions of the GHK-Cu Peptide in the Light of the New Gene Data",
+        "doi": "10.3390/ijms19071987",
+        "pmid": "29986520"
+      }
+    ]
+  },
+  {
+    "name": "Tesamorelin",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Inject subcutaneously once daily into the abdomen; rotate injection sites.",
+      "isFdaApproved": true
+    },
+    "citations": [
+      {
+        "title": "Long-term safety and effects of tesamorelin, a growth hormone-releasing factor analogue, in HIV patients with abdominal fat accumulation",
+        "doi": "10.1097/QAD.0b013e32830a5058",
+        "pmid": "18690162"
+      }
+    ]
+  },
+  {
+    "name": "Epitalon",
+    "profile": {
+      "cycleLengthWeeks": 2,
+      "restPeriodWeeks": 24,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Inject in the morning to align with pineal rhythms. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Epithalon peptide induces telomerase activity and telomere elongation in human somatic cells",
+        "doi": "10.1023/A:1025493705728",
+        "pmid": "12937682"
+      }
+    ]
+  },
+  {
+    "name": "MOTS-c",
+    "profile": {
+      "cycleLengthWeeks": 4,
+      "restPeriodWeeks": 8,
+      "dosingFrequency": "TWICE_WEEKLY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Inject in the morning, prior to physical activity. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "The Mitochondrial-Derived Peptide MOTS-c Promotes Metabolic Homeostasis and Reduces Obesity and Insulin Resistance",
+        "doi": "10.1016/j.cmet.2015.02.009",
+        "pmid": "25738459"
+      }
+    ]
+  },
+  {
+    "name": "KPV",
+    "profile": {
+      "cycleLengthWeeks": 4,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Subcutaneous or oral administration for anti-inflammatory action. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "PepT1-mediated tripeptide KPV uptake reduces intestinal inflammation",
+        "doi": "10.1053/j.gastro.2007.10.026",
+        "pmid": "18061177"
+      }
+    ]
+  },
+  {
+    "name": "ARA-290",
+    "profile": {
+      "cycleLengthWeeks": 4,
+      "restPeriodWeeks": 8,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "For neuropathy pain reduction and tissue repair. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "ARA 290 for treatment of small fiber neuropathy in sarcoidosis",
+        "doi": "10.1517/13543784.2014.892072",
+        "pmid": "24555851"
+      }
+    ]
+  },
+  {
+    "name": "Cagrilintide/Semaglutide",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "WEEKLY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Once weekly injection. Based on phase 2 trial data. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Efficacy and safety of co-administered once-weekly cagrilintide 2·4 mg with once-weekly semaglutide 2·4 mg in type 2 diabetes: a multicentre, randomised, double-blind, active-controlled, phase 2 trial",
+        "doi": "10.1016/S0140-6736(23)01163-7",
+        "pmid": "37364590"
+      }
+    ]
+  },
+  {
+    "name": "Retatrutide",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "WEEKLY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Once weekly injection; triple agonist (GLP-1/GIP/glucagon). Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Triple-hormone-receptor agonist retatrutide for obesity",
+        "doi": "10.1056/NEJMoa2301972",
+        "pmid": "37366315"
+      }
+    ]
+  },
+  {
+    "name": "Thymosin Alpha-1",
+    "profile": {
+      "cycleLengthWeeks": 4,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Subcutaneous injection for immune system modulation. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Thymosin alpha 1: A comprehensive review of the literature",
+        "doi": "10.5501/wjv.v9.i5.67",
+        "pmid": "33362999"
+      }
+    ]
+  },
+  {
+    "name": "GLOW50",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "CUSTOM",
+      "dosesPerDay": 2,
+      "customFrequencyDescription": "Apply topically once or twice daily.",
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING_AND_NIGHT",
+      "timingNotes": "Apply to target areas on clean and dry skin. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Role of topical peptides in preventing or treating aged skin",
+        "doi": "10.1111/j.1468-2494.2009.00490.x",
+        "pmid": "19570099"
+      }
+    ]
+  },
+  {
+    "name": "FOXO4-DRI",
+    "profile": {
+      "cycleLengthWeeks": 2,
+      "restPeriodWeeks": 24,
+      "dosingFrequency": "CUSTOM",
+      "dosesPerDay": null,
+      "customFrequencyDescription": "Three doses administered over 6 days.",
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Inject every other day for 3 doses. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Targeted Apoptosis of Senescent Cells Restores Tissue Homeostasis in Response to Chemotoxicity and Aging",
+        "doi": "10.1016/j.cell.2017.02.031",
+        "pmid": "28340339"
+      }
+    ]
+  },
+  {
+    "name": "DSIP",
+    "profile": {
+      "cycleLengthWeeks": 2,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "NIGHT",
+      "timingNotes": "Inject 30-60 minutes before bedtime. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "A clinical trial with DSIP",
+        "doi": "10.1159/000115717",
+        "pmid": "6391926"
+      }
+    ]
+  },
+  {
+    "name": "Hexarelin",
+    "profile": {
+      "cycleLengthWeeks": 4,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "PRE_WORKOUT",
+      "timingNotes": "Inject on an empty stomach before workouts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "The growth hormone-releasing activity of hexarelin, a new synthetic hexapeptide, in short normal and obese children and in hypopituitary subjects",
+        "doi": "10.1210/jcem.80.2.7852535",
+        "pmid": "7852535"
+      }
+    ]
+  },
+  {
+    "name": "Adipotide",
+    "profile": {
+      "cycleLengthWeeks": 4,
+      "restPeriodWeeks": 8,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Inject in the morning; monitor kidney health indicators. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "A peptidomimetic targeting white fat causes weight loss and improved insulin resistance in obese monkeys",
+        "doi": "10.1126/scitranslmed.3002621",
+        "pmid": "22072637"
+      }
+    ]
+  },
+  {
+    "name": "Testosterone",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "TWICE_WEEKLY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Intramuscular or subcutaneous injection for TRT.",
+      "isFdaApproved": true
+    },
+    "citations": [
+      {
+        "title": "Fundamental Concepts Regarding Testosterone Deficiency and Treatment: International Expert Consensus Resolutions",
+        "doi": "10.1016/j.mayocp.2016.04.007",
+        "pmid": "27313122"
+      }
+    ]
+  },
+  {
+    "name": "Tadalafil",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Take daily at approximately the same time.",
+      "isFdaApproved": true
+    },
+    "citations": [
+      {
+        "title": "Efficacy and safety of tadalafil once daily: considerations for the practical application of a daily dosing option",
+        "doi": "10.1185/03007990802498440",
+        "pmid": "19032120"
+      }
+    ]
+  },
+  {
+    "name": "Vardenafil",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "AS_NEEDED",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "AS_NEEDED",
+      "timingNotes": "Take 60 minutes before activity.",
+      "isFdaApproved": true
+    },
+    "citations": [
+      {
+        "title": "Safety and efficacy of vardenafil",
+        "doi": "10.1111/j.1464-410X.2004.04743.x",
+        "pmid": "15049980"
+      }
+    ]
+  },
+  {
+    "name": "Thymalin",
+    "profile": {
+      "cycleLengthWeeks": 2,
+      "restPeriodWeeks": 24,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Inject in the morning; standard peptide bioregulator. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Thymalin: Activation of Differentiation of Human Hematopoietic Stem Cells",
+        "doi": "10.1007/s10517-020-05016-z",
+        "pmid": "33237528"
+      }
+    ]
+  },
+  {
+    "name": "Turinabol",
+    "profile": {
+      "cycleLengthWeeks": 8,
+      "restPeriodWeeks": 8,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Oral administration; take with water. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Controlled administration of dehydrochloromethyltestosterone in humans: Urinary excretion and long-term detection of metabolites for anti-doping purpose",
+        "doi": "10.1016/j.jsbmb.2021.105978",
+        "pmid": "34418529"
+      }
+    ]
+  },
+  {
+    "name": "Dianabol",
+    "profile": {
+      "cycleLengthWeeks": 6,
+      "restPeriodWeeks": 6,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Oral administration; liver support recommended. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "A double-blind crossover trial of methandienone (Dianabol, CIBA) in moderate dosage on highly trained experienced athletes",
+        "doi": "10.1136/bjsm.9.2.78",
+        "pmid": "1102048"
+      }
+    ]
+  },
+  {
+    "name": "NA-Selank-Amidate",
+    "profile": {
+      "cycleLengthWeeks": 4,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Nasal spray administration. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Selank anxiolytic activity in clinical trials",
+        "doi": "10.1007/s11055-009-9122-2",
+        "pmid": "19410352"
+      }
+    ]
+  },
+  {
+    "name": "HCG",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "TWICE_WEEKLY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Inject in the morning. FDA-approved for hypogonadotropic hypogonadism and cryptorchidism; use as a TRT-adjunct to maintain testicular function is off-label. This specific off-label regimen is not FDA-approved.",
+      "isFdaApproved": true
+    },
+    "citations": [
+      {
+        "title": "Low-dose human chorionic gonadotropin maintains intratesticular testosterone in normal men with testosterone-induced gonadotropin suppression",
+        "doi": "10.1210/jc.2004-0802",
+        "pmid": "15713727"
+      }
+    ]
+  },
+  {
+    "name": "HMG",
+    "profile": {
+      "cycleLengthWeeks": 12,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "THRICE_WEEKLY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Inject in the morning. FDA-approved menotropins are labeled for female ovulation induction and assisted reproductive technology (ART); use for male spermatogenesis induction is off-label. This specific off-label regimen is not FDA-approved.",
+      "isFdaApproved": true
+    },
+    "citations": [
+      {
+        "title": "Efficacy and Outcome Predictors of Gonadotropin Treatment for Male Congenital Hypogonadotropic Hypogonadism: A Retrospective Study of 223 Patients",
+        "doi": "10.1097/MD.0000000000002867",
+        "pmid": "26945370"
+      }
+    ]
+  },
+  {
+    "name": "LL-37",
+    "profile": {
+      "cycleLengthWeeks": 3,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Anti-microbial and wound healing peptide; monitor for irritation. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "The role of the multifunctional peptide LL-37 in host defense",
+        "doi": "10.2741/2964",
+        "pmid": "18508470"
+      }
+    ]
+  },
+  {
+    "name": "Selank",
+    "profile": {
+      "cycleLengthWeeks": 4,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Inject or administer nasally in the morning. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Selank anxiolytic activity in clinical trials",
+        "doi": "10.1007/s11055-009-9122-2",
+        "pmid": "19410352"
+      }
+    ]
+  },
+  {
+    "name": "Sermorelin",
+    "profile": {
+      "cycleLengthWeeks": 12,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": 5,
+      "daysOff": 2,
+      "preferredTime": "NIGHT",
+      "timingNotes": "Inject at night on an empty stomach to mimic nocturnal GH pulse. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Sermorelin: A better approach to management of adult-onset growth hormone insufficiency?",
+        "doi": "10.2147/ciia.2006.1.4.307",
+        "pmid": "18046908"
+      }
+    ]
+  },
+  {
+    "name": "Snap-8",
+    "profile": {
+      "cycleLengthWeeks": 8,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Cosmetic SNARE complex inhibitor peptide. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Role of topical peptides in preventing or treating aged skin",
+        "doi": "10.1111/j.1468-2494.2009.00490.x",
+        "pmid": "19570099"
+      }
+    ]
+  },
+  {
+    "name": "HGH",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "NIGHT",
+      "timingNotes": "Inject at night on an empty stomach to match physiological secretion.",
+      "isFdaApproved": true
+    },
+    "citations": [
+      {
+        "title": "Growth hormone replacement in adults",
+        "doi": "10.1210/er.2006-0010",
+        "pmid": "17051871"
+      }
+    ]
+  },
+  {
+    "name": "Semax",
+    "profile": {
+      "cycleLengthWeeks": 4,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Cognitive enhancer nasal spray. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Neuropeptide Semax in experimental models of brain function",
+        "doi": null,
+        "pmid": "9404683"
+      }
+    ]
+  },
+  {
+    "name": "NA-Semax-Amidate",
+    "profile": {
+      "cycleLengthWeeks": 4,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Potent Semax variant, nasal administration. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Neuropeptide Semax in experimental models of brain function",
+        "doi": null,
+        "pmid": "9404683"
+      }
+    ]
+  },
+  {
+    "name": "NAD+",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "TWICE_WEEKLY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Inject in the morning; can cause transient chest pressure/nausea. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "NAD+ metabolism and its roles in cellular processes during ageing",
+        "doi": "10.1038/s41580-020-00313-x",
+        "pmid": "33353981"
+      }
+    ]
+  },
+  {
+    "name": "Oxytocin",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "AS_NEEDED",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "AS_NEEDED",
+      "timingNotes": "Nasal spray administration. FDA-approved oxytocin is limited to obstetric injectable indications; intranasal use for social bonding is experimental/off-label. This specific intranasal regimen is not FDA-approved.",
+      "isFdaApproved": true
+    },
+    "citations": [
+      {
+        "title": "Oxytocin increases trust in humans",
+        "doi": "10.1038/nature03701",
+        "pmid": "16034414"
+      }
+    ]
+  },
+  {
+    "name": "GHRP-2",
+    "profile": {
+      "cycleLengthWeeks": 12,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 3,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING_AFTERNOON_NIGHT",
+      "timingNotes": "Inject on an empty stomach (at least 2 hours post-meal) thrice daily. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Effects of GHRP-2 and hexarelin, two synthetic GH-releasing peptides, on GH, prolactin, ACTH and cortisol levels in man. Comparison with the effects of GHRH, TRH and hCRH",
+        "doi": "10.1016/s0196-9781(97)00016-8",
+        "pmid": "9285939"
+      }
+    ]
+  },
+  {
+    "name": "GHRP-6",
+    "profile": {
+      "cycleLengthWeeks": 12,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 3,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING_AFTERNOON_NIGHT",
+      "timingNotes": "Inject on an empty stomach thrice daily. Stimulates intense hunger. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Pharmacokinetics of GHRP-6 in healthy male volunteers",
+        "doi": "10.1016/j.ejps.2012.10.006",
+        "pmid": "23099431"
+      }
+    ]
+  },
+  {
+    "name": "Ipamorelin",
+    "profile": {
+      "cycleLengthWeeks": 12,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 2,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING_AND_NIGHT",
+      "timingNotes": "Inject on an empty stomach twice daily. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Ipamorelin, the first selective growth hormone secretagogue",
+        "doi": "10.1530/eje.0.1390552",
+        "pmid": "9849822"
+      }
+    ]
+  },
+  {
+    "name": "Cagrilintide",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "WEEKLY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Once weekly injection, long-acting amylin receptor agonist. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Once-weekly cagrilintide for weight management in people with overweight and obesity: a multicentre, randomised, double-blind, placebo-controlled and active-controlled, dose-finding phase 2 trial",
+        "doi": "10.1016/S0140-6736(21)01751-2",
+        "pmid": "34798060"
+      }
+    ]
+  },
+  {
+    "name": "GLOW70",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "CUSTOM",
+      "dosesPerDay": null,
+      "customFrequencyDescription": "Apply topically once daily.",
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "NIGHT",
+      "timingNotes": "Apply to face at night before sleep. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false
+    },
+    "citations": [
+      {
+        "title": "Role of topical peptides in preventing or treating aged skin",
+        "doi": "10.1111/j.1468-2494.2009.00490.x",
+        "pmid": "19570099"
+      }
+    ]
+  }
+]

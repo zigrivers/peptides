@@ -202,19 +202,29 @@ model Compound {
 }
 
 model CompoundProfile {
-  id              String    @id @default(uuid())
-  compoundId      String    @unique
-  compound        Compound  @relation(fields: [compoundId], references: [id], onDelete: Cascade)
-  dosingLow       Json      // DoseAmount object
-  dosingTypical   Json      // DoseAmount object
-  dosingHigh      Json      // DoseAmount object
+  id                         String           @id @default(uuid())
+  compoundId                 String           @unique
+  compound                   Compound         @relation(fields: [compoundId], references: [id], onDelete: Cascade)
+  dosingLow                  Json             // DoseAmount object
+  dosingTypical              Json             // DoseAmount object
+  dosingHigh                 Json             // DoseAmount object
   sideEffects                String?
   stackingNotes              String?
   reconstitutedShelfLifeDays Int?
-  fridgeShelfLifeMonths      Int?      @default(12)
-  freezerShelfLifeMonths     Int?      @default(24)
+  fridgeShelfLifeMonths      Int?             @default(12)
+  freezerShelfLifeMonths     Int?             @default(24)
   citations                  Citation[]
   benefitTimeline            Json?
+  cycleLengthWeeks           Int?
+  restPeriodWeeks            Int?
+  dosingFrequency            DosingFrequency?
+  dosesPerDay                Int?
+  customFrequencyDescription String?
+  daysOn                     Int?
+  daysOff                    Int?
+  preferredTime              PreferredTime?
+  timingNotes                String?
+  isFdaApproved              Boolean          @default(false)
 }
 
 model Citation {
@@ -482,4 +492,36 @@ model AuditEvent {
   @@index([actorUserId])
   @@index([subjectUserId])
   @@index([category, timestamp])
+}
+
+enum DosingFrequency {
+  DAILY
+  EOD
+  // Thrice Weekly (e.g., TB-500)
+  THRICE_WEEKLY
+  WEEKLY
+  TWICE_WEEKLY
+  // Replaces ambiguous 'BIWEEKLY'
+  EVERY_TWO_WEEKS
+  // Replaces 'Monthly'
+  EVERY_FOUR_WEEKS
+  AS_NEEDED
+  CUSTOM
+}
+
+enum PreferredTime {
+  MORNING
+  // Standalone afternoon option
+  AFTERNOON
+  NIGHT
+  PRE_WORKOUT
+  POST_WORKOUT
+  // Composite for twice-daily administration
+  MORNING_AND_NIGHT
+  // Composite for thrice-daily administration (e.g. GHRP-2)
+  MORNING_AFTERNOON_NIGHT
+  // Composite for pre/post workout secretagogues
+  PRE_AND_POST_WORKOUT
+  ANYTIME
+  AS_NEEDED
 }

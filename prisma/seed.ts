@@ -1,10 +1,24 @@
 import { PrismaClient } from '@prisma/client';
 import { nameToSlug } from '../lib/reference/domain/slug';
 import bcrypt from 'bcryptjs';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  // Rename old space-separated name to hyphenated name to avoid unique slug conflicts
+  const oldSemax = await prisma.compound.findFirst({
+    where: { name: 'NA Semax Amidate' },
+  });
+  if (oldSemax) {
+    await prisma.compound.update({
+      where: { id: oldSemax.id },
+      data: { name: 'NA-Semax-Amidate' },
+    });
+    console.log('Successfully renamed "NA Semax Amidate" to "NA-Semax-Amidate".');
+  }
+
   const compounds = [
     {
       name: 'BPC-157',
@@ -12,7 +26,18 @@ async function main() {
         'L-Valyl-L-prolyl-L-prolyl-L-alanyl-glycyl-L-glutaminyl-L-arginyl-L-leucyl-L-phenylalanyl-L-alpha-glutamyl-L-leucyl-L-leucyl-L-tyrosyl-L-leucyl-L-valyl-L-leucyl-L-seryl-L-glutamine',
       synonyms: ['Pentadecapeptide BPC-157'],
       mechanismOfAction:
-        'Activates growth hormone receptor signalling, promotes angiogenesis via VEGF upregulation, and modulates nitric oxide synthesis. Accelerates tendon-to-bone healing via FAK-paxillin pathway. Expected Timeline: GI barrier improvements in 3-7 days; soft tissue, tendon, and ligament repair signals in 14-21 days.',
+        `### The Technical Mechanism (The Science)
+Activates the FAK-paxillin pathway to accelerate tendon-to-bone healing and cell migration. It upregulates Vascular Endothelial Growth Factor receptor 2 (VEGFR2) expression to promote angiogenesis and endothelial cell proliferation. It also modulates nitric oxide (NO) synthesis (balancing endothelial eNOS and inducible iNOS) to regulate local tissue perfusion and protect gastric mucosal integrity via early growth response 1 (egr-1) and growth hormone receptor signaling.
+
+### The Analogy (The Layman Explanation)
+BPC-157 acts like a biological foreman on a construction site. When a tissue (like a tendon, muscle, or gut wall) is injured, the foreman rushes in, turns on the emergency floodlights (VEGF) to build new supply roads (blood vessels), recruits specialized repair workers (fibroblasts), and smooths over communication (nitric oxide) to ensure rebuilding happens quickly and in the right structural order.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate reduction in systemic and localized gastrointestinal inflammation; acceleration of gastric mucosal repair begins (visible in improved digestion).
+* **Week 2 (Days 8–14)**: Upregulation of collagen deposition and fibroblast migration; early tendon-to-bone junction stabilization begins.
+* **Week 4 (Days 15–28)**: Formation of organized granulation tissue and new microvascular networks; noticeable functional recovery in joints, tendons, or muscles.
+* **Week 8 (Days 29–56)**: Enhanced mechanical load-bearing capacity of repaired ligaments; tendon tensile strength increases significantly.
+* **Week 12 (Days 57–84)**: Remodeling of scar tissue back to mature, organized fibers; restoration of baseline biomechanical function.`,
       administrationRoutes: ['SubQ', 'IM', 'Oral'],
       tags: ['healing', 'recovery'],
       profile: {
@@ -46,7 +71,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Thymosin Beta-4', 'Tβ4'],
       mechanismOfAction:
-        'Promotes actin polymerisation and cell migration; upregulates anti-inflammatory cytokines. Enhances angiogenesis and tissue repair. Expected Timeline: Reduced acute joint/muscle discomfort in 5-10 days; major soft tissue structural healing in 4-6 weeks.',
+        `### The Technical Mechanism (The Science)
+Binds to G-actin to prevent actin polymerization into F-actin, thereby maintaining a pool of monomeric actin. This action drives cellular motility, allowing keratinocytes, fibroblasts, and endothelial cells to migrate rapidly to damaged tissue sites. It also upregulates matrix metalloproteinases (MMPs) to clear tissue paths, promotes angiogenesis, and downregulates pro-inflammatory cytokines (like TNF-alpha and IL-1beta).
+
+### The Analogy (The Layman Explanation)
+Imagine a cellular assembly line where structural components (actin) are usually locked together in static blocks. TB-500 acts like a logistics coordinator that keeps these blocks fluid and mobile, enabling repair cells to quickly crawl through the tissue debris to the site of an injury. It's like paving a smooth highway for repair cells to travel on, while simultaneously turning down the alarm systems (cytokines) that cause painful inflammation.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Rapid suppression of localized swelling and inflammatory signaling; reduction in acute joint and muscle stiffness.
+* **Week 2 (Days 8–14)**: Accelerated cell migration to injury sites; early stages of muscle fiber repair and microvascular sprouts formation.
+* **Week 4 (Days 15–28)**: Substantial deposition of new connective tissue; major improvement in flexibility and reduction in exercise-induced injury discomfort.
+* **Week 8 (Days 29–56)**: Structural strengthening of repaired muscle fibers and tendons; near-complete resolution of chronic soft tissue damage.
+* **Week 12 (Days 57–84)**: Complete tissue remodeling with mature, aligned collagen and muscle fibers; restoration of full range of motion.`,
       administrationRoutes: ['SubQ', 'IM'],
       tags: ['healing', 'recovery'],
       profile: {
@@ -75,7 +111,19 @@ async function main() {
       iupacName: null,
       synonyms: ['Ozempic', 'Wegovy', 'GLP-1 agonist'],
       mechanismOfAction:
-        'GLP-1 receptor agonist; increases insulin secretion, suppresses glucagon, slows gastric emptying, and reduces appetite via hypothalamic signalling. Expected Timeline: Satiety and appetite reduction in 24-48 hours; significant weight loss visible in 4-8 weeks, peaking around 40-60 weeks.',
+        `### The Technical Mechanism (The Science)
+A long-acting glucagon-like peptide-1 (GLP-1) receptor agonist that acts with 94% sequence homology to human GLP-1, modified with a C18 diacid spacer to resist DPP-4 degradation. It binds to pancreatic beta-cells to stimulate glucose-dependent insulin secretion, suppresses glucagon release from alpha-cells, slows gastric emptying via vagal pathways, and acts directly on the arcuate nucleus in the hypothalamus to downregulate hunger signals and enhance satiety.
+
+### The Analogy (The Layman Explanation)
+Semaglutide functions like a smart thermostat for the body's energy intake. It tells the stomach to slow down its food processing (a slow conveyor belt), ensuring you feel full for much longer. Simultaneously, it sends a constant signal to the brain's appetite control center that the energy tank is full, turning off the intrusive "food noise" that drives cravings and overeating.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate reduction in "food noise" (cravings) and early enhancement of meal-induced satiety; slow gastric emptying begins.
+* **Week 2 (Days 8–14)**: Glycemic stabilization with reduced fasting and postprandial glucose levels; early weight loss (primarily water retention and initial fat).
+* **Week 4 (Days 15–28)**: Steady state plasma concentrations achieved; weight reduction of 1-3% body weight; sustained satiety.
+* **Week 8 (Days 29–56)**: Significant shift in metabolic parameters; average body weight reduction reaches 4-6%; visible improvements in body composition.
+* **Week 12 (Days 57–84)**: Up to 8-10% average reduction in body weight; significant reductions in HbA1c levels for glycemic control; metabolic adaptation stabilizes.`,
+
       administrationRoutes: ['SubQ'],
       tags: ['weight-loss', 'metabolic'],
       profile: {
@@ -104,7 +152,19 @@ async function main() {
       iupacName: null,
       synonyms: ['Mounjaro', 'GIP/GLP-1 dual agonist'],
       mechanismOfAction:
-        'Dual GIP and GLP-1 receptor agonist; superior weight reduction vs. GLP-1 monotherapy via additive insulin-sensitising and appetite-suppressing pathways. Expected Timeline: Satiety and blood glucose improvements in 24 hours; significant body weight reduction in 4-8 weeks, peaking up to 72 weeks.',
+        `### The Technical Mechanism (The Science)
+A dual glucose-dependent insulinotropic polypeptide (GIP) and GLP-1 receptor agonist. It is a lipidated 39-amino-acid peptide based on the native GIP sequence. Tirzepatide activates both receptor pathways, leading to synergistic enhancements in insulin secretion, glucagon suppression, and insulin sensitivity (via GIP action on adipose tissue receptors). It decreases food intake and slows gastric transit more effectively than GLP-1 mono-agonists by recruiting dual signaling pathways in the central nervous system.
+
+### The Analogy (The Layman Explanation)
+If Semaglutide is a single volume control knob for appetite, Tirzepatide is a dual-channel stereo control. It uses two separate signals: one channel slows digestion and tells the brain you are full, while the second channel acts directly on fat cells to make them more receptive to insulin and ready to burn energy. By tuning both channels at once, it achieves a deeper reset of the body's metabolic setpoint.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Pronounced and immediate reduction in hunger, cravings, and food noise; immediate stabilization of blood sugar levels.
+* **Week 2 (Days 8–14)**: Rapid metabolic adjustments; initial weight loss of 1.5-3% of baseline weight; improved energy stability throughout the day.
+* **Week 4 (Days 15–28)**: Establishment of a strong caloric deficit; average body weight reduction of 3-5%; significant enhancement in peripheral insulin sensitivity.
+* **Week 8 (Days 29–56)**: 6-8% mean body weight reduction; lipid profiles begin to optimize; metabolic inflammation biomarkers (such as hs-CRP) decrease.
+* **Week 12 (Days 57–84)**: Average body weight reduction of 10-12%; major improvements in visceral fat distribution; HbA1c reductions of up to 1.8-2.2%.`,
+
       administrationRoutes: ['SubQ'],
       tags: ['weight-loss', 'metabolic'],
       profile: {
@@ -133,7 +193,19 @@ async function main() {
       iupacName: null,
       synonyms: ['Copper Peptide', 'GHK-Copper'],
       mechanismOfAction:
-        'Tripeptide-copper complex; stimulates collagen and elastin synthesis, promotes wound healing, and exhibits anti-inflammatory and anti-oxidant activity. Expected Timeline: Skin texture and elasticity changes in 2-4 weeks; tissue/hair restoration in 6-8 weeks.',
+        `### The Technical Mechanism (The Science)
+A naturally occurring tripeptide (glycyl-L-histidyl-L-lysine) complexed with divalent copper (Cu2+). It serves as a signaling vector that facilitates copper uptake into fibroblasts, triggering the gene expression of procollagen, elastin, proteoglycans, and glycosaminoglycans. It modulates tissue remodeling by activating metalloproteinases (MMPs) and their inhibitors (TIMPs), promotes wound healing by attracting macrophages and mast cells, and upregulates superoxide dismutase (SOD1) to act as a powerful antioxidant.
+
+### The Analogy (The Layman Explanation)
+GHK-Cu is like an armored delivery truck carrying vital building supplies (copper) directly to the skin's biological construction workers (fibroblasts). Dermal cells need copper to manufacture structural beams (collagen and elastin), but they struggle to import it on their own. GHK-Cu grabs the copper, safely escorts it inside, and tells the cell's machinery to begin building fresh, elastic tissue, while cleaning up age-related rust (free radicals) along the way.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Initial increase in skin hydration and reduction in fine line depth; enhanced microcirculation to local tissues.
+* **Week 2 (Days 8–14)**: Upregulation of dermal fibroblasts and collagen type I/III gene expression; early improvements in skin elasticity and barrier function.
+* **Week 4 (Days 15–28)**: Visibly improved skin texture, firmness, and tone; 70% of subjects exhibiting increased collagen density; noticeable reduction in fine expression lines.
+* **Week 8 (Days 29–56)**: Acceleration of tissue remodeling; reduction in hyperpigmentation and improvement in scar appearance; enhanced hair follicle anchorage (if applied to scalp).
+* **Week 12 (Days 57–84)**: Up to 28% subdermal density improvement; structural restructuring of thin, aged skin; long-term dermal collagen density maximized.`,
+
       administrationRoutes: ['SubQ', 'Topical'],
       tags: ['skin', 'healing', 'longevity'],
       profile: {
@@ -162,7 +234,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Egrifta', 'GHRH analogue'],
       mechanismOfAction:
-        'Synthetic GHRH analogue; stimulates pituitary GH release, reducing visceral adipose tissue and improving body composition. Expected Timeline: Visceral fat reduction visible within 8-12 weeks; improved sleep and recovery in 4 weeks.',
+        `### The Technical Mechanism (The Science)
+A synthetic 44-amino-acid analogue of growth hormone-releasing hormone (GHRH). It binds selectively to GHRH receptors on pituitary somatotropes, triggering the cAMP-dependent pathway to stimulate synthesis and pulsatile release of endogenous growth hormone (GH), which subsequently increases circulating IGF-1. It reduces visceral adipose tissue (VAT) by promoting lipolysis via GH-induced lipase activation.
+
+### The Analogy (The Layman Explanation)
+Tesamorelin acts like a biological cheerleader for the pituitary gland. Instead of introducing foreign growth hormone, it encourages the body's natural hormone factories to release a clean wave of growth hormone. It's like sending a specific key that unlocks a vault, releasing growth factors that melt away stubborn deep belly fat (visceral fat) while helping muscles recover.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Improved sleep quality and depth; early reduction in muscle recovery time.
+* **Week 2 (Days 8–14)**: Subtle increase in water retention and joint lubrication; cellular metabolism shifts begin.
+* **Week 4 (Days 15–28)**: Gradual energy improvement; initial decreases in deep visceral fat stores.
+* **Week 8 (Days 29–56)**: Visible changes in body composition with reduced waist circumference; lean tissue conservation.
+* **Week 12 (Days 57–84)**: Up to 15% reduction in visceral adipose tissue; peak metabolic improvements and body shape changes.`,
       administrationRoutes: ['SubQ'],
       tags: ['longevity', 'metabolic', 'cognitive'],
       profile: {
@@ -191,7 +274,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Epithalamin', 'Epithalone'],
       mechanismOfAction:
-        'Tetrapeptide derived from the pineal gland; stimulates telomerase activity, elongates telomeres, and modulates melatonin production. Expected Timeline: Sleep quality and deep sleep phases improve in 3-7 days; cellular aging improvements are sub-clinical over 6-12 months.',
+        `### The Technical Mechanism (The Science)
+A synthetic tetrapeptide (Ala-Glu-Asp-Gly) based on the pineal gland hormone epithalamin. It stimulates telomerase activity in human somatic cells, facilitating the elongation of telomeres. It regulates pineal gland hormone synthesis (upregulating melatonin production) and normalizes pituitary gonadotropic hormones, restoring circadian rhythmicity and reducing age-related immunosenescence.
+
+### The Analogy (The Layman Explanation)
+Epitalon acts like a genetic clock restorer. In every cell, our chromosomes have protective caps (telomeres) that get shorter as we age, eventually causing the cell to stop working. Epitalon switches on the cell's maintenance system (telomerase) to rebuild these caps, while resetting the body's internal clock (melatonin) so you sleep deeply and regenerate like a younger person.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Circadian rhythm normalization; deeper sleep cycle; reduction in night-time awakenings.
+* **Week 2 (Days 8–14)**: Elevated morning alertness and energy; improved skin cell recovery.
+* **Week 4 (Days 15–28)**: Systemic vitality boost; enhanced stress-resilience and immune responses.
+* **Week 8 (Days 29–56)**: Improved tissue elasticity and cellular repair; long-term longevity biomarkers optimize.
+* **Week 12 (Days 57–84)**: Peak cellular rejuvenation; persistent energy baseline; maximized telomere length protection.`,
       administrationRoutes: ['SubQ', 'IM', 'Intranasal'],
       tags: ['longevity'],
       profile: {
@@ -220,7 +314,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Mitochondrial ORF of the 12S rRNA type-c'],
       mechanismOfAction:
-        'Mitochondria-derived peptide; activates AMPK, improves insulin sensitivity, and upregulates folate-methionine cycle for metabolic homeostasis. Expected Timeline: Increased energy, stamina, and workout recovery in 7-14 days; metabolic/lipid profile shifts in 4 weeks.',
+        `### The Technical Mechanism (The Science)
+A 16-amino-acid peptide encoded by the mitochondrial 12S rRNA gene. It targets skeletal muscle to promote glucose uptake by activating the AMP-activated protein kinase (AMPK) pathway. It upregulates the expression of glucose transporters (GLUT4) and modulates the folate-methionine cycle, reducing metabolic stress and preventing high-fat diet-induced insulin resistance.
+
+### The Analogy (The Layman Explanation)
+MOTS-c acts like a cellular personal trainer. It tells your muscle cells to wake up and start burning glucose and fat, activating the cell's energy sensor (AMPK). It's like upgrading the fuel injection system in your car, making sure the engine runs clean, uses fuel efficiently, and doesn't store excess energy as fat.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate boost in physical stamina and aerobic exercise capacity; reduced lactic acid accumulation.
+* **Week 2 (Days 8–14)**: Enhanced glucose utilization; metabolic rate shifts; improved insulin sensitivity during meals.
+* **Week 4 (Days 15–28)**: Substantial fat burning and reduction of systemic metabolic inflammation; improved lipid profiles.
+* **Week 8 (Days 29–56)**: Enhanced muscle mass retention; optimized metabolic health indicators; decreased visceral fat.
+* **Week 12 (Days 57–84)**: Peak cellular energy flexibility; complete reset of metabolic homeostasis; long-term insulin sensitivity restored.`,
       administrationRoutes: ['SubQ', 'IV'],
       tags: ['longevity', 'metabolic', 'cognitive'],
       profile: {
@@ -249,7 +354,18 @@ async function main() {
       iupacName: 'L-Lysyl-L-prolyl-L-valine',
       synonyms: ['Lys-Pro-Val'],
       mechanismOfAction:
-        'C-terminal tripeptide of alpha-melanocyte-stimulating hormone (alpha-MSH); binds to melanocortin receptors (MC1R, MC3R) to inhibit NF-kB activation, reducing inflammatory cytokine transcription. Expected Timeline: Gut bloating or skin redness reductions in 3-7 days; systemic inflammation relief in 2 weeks.',
+        `### The Technical Mechanism (The Science)
+A C-terminal tripeptide fragment of alpha-melanocyte-stimulating hormone (alpha-MSH). It binds to melanocortin receptors (mainly MC1R and MC3R) to block NF-kB translocation to the nucleus, thereby shutting down the transcription of pro-inflammatory cytokines such as TNF-alpha, IL-1beta, and IL-6. It also modulates cell adhesion molecules and exhibits antimicrobial effects.
+
+### The Analogy (The Layman Explanation)
+KPV is like an anti-inflammatory fire extinguisher. When the immune system overreacts, it starts printing inflammatory messages (cytokines). KPV blocks the printing press (NF-kB), putting out the fire in tissues like the gut lining or the skin. It helps the body heal without the redness, swelling, or digestive bloating associated with inflammation.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Reduction in acute gut bloating, digestive cramps, or skin redness; stabilization of mast cells.
+* **Week 2 (Days 8–14)**: Healing of the intestinal lining or epidermal barrier; reduction in localized inflammatory swelling.
+* **Week 4 (Days 15–28)**: Steady clearance of systemic inflammation; improved tolerance to foods or environmental triggers.
+* **Week 8 (Days 29–56)**: Deep remodeling of mucosal and dermal tissues; baseline immune responses stabilize.
+* **Week 12 (Days 57–84)**: Complete resolution of chronic inflammatory flare-ups; restoration of healthy gut barrier function.`,
       administrationRoutes: ['SubQ', 'Oral', 'Topical'],
       tags: ['healing', 'recovery', 'inflammation'],
       profile: {
@@ -278,7 +394,19 @@ async function main() {
       iupacName: 'L-Glutaminyl-L-glutaminyl-L-alpha-glutamyl-L-alanyl-L-valyl-L-alpha-glutamyl-L-alanyl-L-lysyl-L-alpha-glutamyl-L-valyl-L-phenylalanyl-L-serine',
       synonyms: ['Cibinetide', 'ARA290', 'Erythropoietin-derived peptide'],
       mechanismOfAction:
-        'Selective agonist of the innate repair receptor (IRR), a heterodimer of erythropoietin receptor and CD131. Activates anti-inflammatory and tissue protective pathways without stimulating erythropoiesis. Expected Timeline: Neuropathic pain relief and sleep comfort in 7-14 days; epidermal nerve fiber growth starts in 4-8 weeks.',
+        `### The Technical Mechanism (The Science)
+A synthetic 11-amino-acid peptide derived from the structure of erythropoietin (EPO). It binds selectively to the Innate Repair Receptor (IRR) (a heterodimer of the EPO receptor and CD131) but does not bind to the homodimeric EPO receptor. It triggers cytoprotective, anti-inflammatory, and anti-apoptotic pathways, promoting small nerve fiber regeneration without elevating red blood cell count.
+
+### The Analogy (The Layman Explanation)
+ARA-290 is like a specialized emergency response unit for damaged nerves. Regular EPO stimulates blood production, which can make the blood too thick. ARA-290 bypasses blood production entirely, binding only to the repair receptors on damaged nerves. It silences pain signals and guides small nerve fibers to regrow, like repair crews patching up frayed electrical wiring.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Initial decrease in neuropathic burning or tingling; improved sleep comfort due to reduced nerve pain.
+* **Week 2 (Days 8–14)**: Noticeable decrease in chronic pain intensity; reduced local inflammation in nervous tissues.
+* **Week 4 (Days 15–28)**: Small fiber nerve regeneration begins; gradual restoration of sensory feedback.
+* **Week 8 (Days 29–56)**: Significant functional improvement in peripheral nerves; average pain scores drop by up to 50%.
+* **Week 12 (Days 57–84)**: Near-complete restoration of small fiber nerve density; long-term relief from neuropathic symptoms.`,
+
       administrationRoutes: ['SubQ', 'IV'],
       tags: ['healing', 'recovery', 'neuropathy'],
       profile: {
@@ -307,7 +435,18 @@ async function main() {
       iupacName: null,
       synonyms: ['CagriSema', 'Amylin/GLP-1 receptor co-agonist'],
       mechanismOfAction:
-        'Dual amylin analog (cagrilintide) and GLP-1 receptor agonist (semaglutide). Cagrilintide delays gastric emptying and promotes satiety via central amylin receptors, synergistically complementing GLP-1 hypothalamic satiety pathways. Expected Timeline: Satiety within 24 hours; noticeable weight loss in 4 weeks, with enhanced outcomes compared to semaglutide monotherapy.',
+        `### The Technical Mechanism (The Science)
+Co-administration of a lipidated dual amylin receptor agonist (cagrilintide) and a GLP-1 receptor agonist (semaglutide). Amylin agonism slows gastric emptying and increases hindbrain-mediated satiety, while GLP-1 agonism stimulates insulin secretion and suppresses glucagon in the pancreas, working together on separate brain areas to maximize weight loss and metabolic control.
+
+### The Analogy (The Layman Explanation)
+CagriSema is like a two-pronged team managing a kitchen. One chef (Semaglutide) controls the hunger thermostat and keeps insulin running smoothly. The second chef (Cagrilintide) acts as a physical barrier, slowing down how fast the plate empties and telling your brain you are stuffed. Working together, they cut cravings from two different angles.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate, profound hunger reduction and satiety; food noise completely silenced.
+* **Week 2 (Days 8–14)**: Significant reduction in meal sizes; blood glucose fluctuations flatten.
+* **Week 4 (Days 15–28)**: Weight loss of 3-5% of baseline; metabolic rate shifts towards fat oxidation.
+* **Week 8 (Days 29–56)**: 7-9% weight reduction; visceral fat stores shrink; energy levels remain stable.
+* **Week 12 (Days 57–84)**: Up to 12-15% weight loss; major improvements in visceral fat distribution; insulin sensitivity optimized.`,
       administrationRoutes: ['SubQ'],
       tags: ['weight-loss', 'metabolic'],
       profile: {
@@ -336,7 +475,18 @@ async function main() {
       iupacName: null,
       synonyms: ['LY3437943', 'GIP/GLP-1/glucagon receptor triple agonist'],
       mechanismOfAction:
-        'Triple agonist targeting glucose-dependent insulinotropic polypeptide (GIP), glucagon-like peptide-1 (GLP-1), and glucagon receptors. Synergizes lipolysis and energy expenditure with appetite control. Expected Timeline: Appetite suppression in 24 hours; fat mobilization and weight loss visible within 3-4 weeks, peaking at 48 weeks.',
+        `### The Technical Mechanism (The Science)
+A single peptide triple agonist targeting GIP, GLP-1, and glucagon (GCGR) receptors. GIP and GLP-1 promote insulin secretion, delay gastric emptying, and suppress appetite. Glucagon receptor activation directly stimulates energy expenditure, lipolysis, and lipid clearance in the liver, counteracting the metabolic slowdown typically associated with caloric restriction.
+
+### The Analogy (The Layman Explanation)
+Retatrutide is a triple-action fat burner. While other weight loss medications act as brakes on digestion and appetite, Retatrutide adds an accelerator on your cell's furnaces. It keeps you full, controls blood sugar, and simultaneously tells your body to burn stored fat directly for heat and energy, like running a clean metabolic reset.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Complete elimination of food cravings; mild elevation in resting metabolic rate.
+* **Week 2 (Days 8–14)**: Rapid onset of fat loss; blood sugar levels stabilize at optimal levels.
+* **Week 4 (Days 15–28)**: 4-6% baseline weight loss; significant reduction in body fat percentages.
+* **Week 8 (Days 29–56)**: 10-12% weight reduction; fatty liver biomarkers drop significantly.
+* **Week 12 (Days 57–84)**: Average weight loss of 15% or more; profound visceral fat reduction; metabolic profile normalized.`,
       administrationRoutes: ['SubQ'],
       tags: ['weight-loss', 'metabolic'],
       profile: {
@@ -365,7 +515,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Tα1', 'Zadaxin', 'Thymalfasin'],
       mechanismOfAction:
-        'Immunomodulatory peptide derived from prothymosin alpha. Stimulates T-cell maturation, NK cell activity, and upregulates MHC Class I expression to modulate the adaptive immune response. Expected Timeline: Cellular immune responsiveness increases in 7-10 days; systemic immune resilience increases within 2-4 weeks.',
+        `### The Technical Mechanism (The Science)
+An immunomodulatory peptide consisting of 28 amino acids. It stimulates stem cell differentiation into T-helper and cytotoxic T-cells, enhances NK cell activity, and upregulates major histocompatibility complex (MHC) Class I expression. It balances Th1/Th2 cytokine pathways, promoting a healthy immune response without over-activating inflammation.
+
+### The Analogy (The Layman Explanation)
+Thymosin Alpha-1 is like an elite training camp for your immune system. It doesn't blindly boost immune activity (which could cause autoimmune flare-ups); instead, it trains white blood cells to detect and destroy virus-infected or abnormal cells, ensuring your defense system is precise, alert, and balanced.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Activation of dormant T-cells; improvement in baseline cellular immune markers.
+* **Week 2 (Days 8–14)**: NK cell cytotoxic activity peaks; increased resistance to viral pathogens.
+* **Week 4 (Days 15–28)**: Regulation of inflammatory cytokine balance; reduction in chronic fatigue symptoms.
+* **Week 8 (Days 29–56)**: Restructured immune defenses; reduced occurrence of opportunistic infections.
+* **Week 12 (Days 57–84)**: Optimization of immune baseline; long-term resilience against chronic viral or fungal stress.`,
       administrationRoutes: ['SubQ'],
       tags: ['immunity', 'healing'],
       profile: {
@@ -394,7 +555,18 @@ async function main() {
       iupacName: null,
       synonyms: ['GHK-Cu/Argireline/Leuphasyl', 'Cosmetic Tri-Peptide Blend'],
       mechanismOfAction:
-        'Synergistic combination of GHK-Cu, Argireline (acetyl hexapeptide-8), and Leuphasyl (pentapeptide-18). Targets collagen synthesis via GHK-Cu while relaxing facial micro-muscles via SNARE complex disruption. Expected Timeline: Fine expression line relaxation in 10-14 days; dermal thickness and tone improvement in 4-6 weeks.',
+        `### The Technical Mechanism (The Science)
+A cosmetic blend combining GHK-Cu (collagen stimulus), Argireline (destabilization of the SNARE complex to relax micro-muscles), and Leuphasyl (modulator of calcium channels to reduce neurotransmitter release in facial muscles).
+
+### The Analogy (The Layman Explanation)
+GLOW50 acts like a non-toxic topical shield. GHK-Cu repairs and thickens the skin, while Argireline and Leuphasyl act as gentle dampeners on facial muscle contractions. It's like smoothing out a crumpled sheet while reinforcing the fibers of the fabric from underneath.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate skin hydration and glow; slight relaxation of forehead tension.
+* **Week 2 (Days 8–14)**: Smoothing of fine expression lines around the eyes; skin barrier repair begins.
+* **Week 4 (Days 15–28)**: Clear reduction in depth of dynamic wrinkles; increased dermal elasticity.
+* **Week 8 (Days 29–56)**: Dermal thickness improves; reduction in hyperpigmentation and age spots.
+* **Week 12 (Days 57–84)**: Peak skin firmness and structural strength; long-term anti-wrinkle maintenance achieved.`,
       administrationRoutes: ['Topical', 'SubQ'],
       tags: ['skin', 'longevity'],
       profile: {
@@ -423,7 +595,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Senolytic Peptide', 'FOXO4 D-Retro-Inverso'],
       mechanismOfAction:
-        'Interferes with the binding of FOXO4 to p53, releasing p53 to localize in the nucleus and trigger apoptosis specifically in senescent cells (senolysis). Expected Timeline: Systemic vitality, joint mobility, and inflammatory cytokine reductions observed 2-4 weeks post-cycle.',
+        `### The Technical Mechanism (The Science)
+A retro-inverso D-amino acid peptide that acts as a competitive antagonist of the FOXO4-p53 interaction. By disrupting this binding, it allows p53 to translocate to the cell nucleus and activate the mitochondrial apoptotic pathway specifically in senescent (non-dividing "zombie") cells, leaving healthy cells unharmed.
+
+### The Analogy (The Layman Explanation)
+FOXO4-DRI is a target seeker for "zombie cells." As we age, some damaged cells refuse to die, lingering in tissues and releasing inflammatory chemicals that age neighboring cells. FOXO4-DRI sneaks in, cuts the protective shield these zombie cells use, and forces them to commit cell suicide, clearing the way for healthy tissue.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Cellular debris clearing; transient systemic fatigue as the body processes senolytic debris.
+* **Week 2 (Days 8–14)**: Systemic inflammation drop; improvement in joint mobility and physical flexibility.
+* **Week 4 (Days 15–28)**: Vitality boost; skin structure and tissue recovery indicators improve.
+* **Week 8 (Days 29–56)**: Enhanced physical stamina and muscle regeneration; reduction in bio-age markers.
+* **Week 12 (Days 57–84)**: Peak senolytic rejuvenation; long-term resolution of chronic cellular aging patterns.`,
       administrationRoutes: ['SubQ', 'IV'],
       tags: ['longevity', 'senolytic'],
       profile: {
@@ -452,7 +635,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Delta Sleep-Inducing Peptide'],
       mechanismOfAction:
-        'Neuromodulatory peptide; crosses the blood-brain barrier to interact with NMDA and AMPA receptors, promoting delta-rhythm sleep, easing chronic pain, and reducing stress. Expected Timeline: Induces sleepiness and improves sleep depth on the first night of administration.',
+        `### The Technical Mechanism (The Science)
+A naturally occurring neuromodulatory nonapeptide. It crosses the blood-brain barrier and binds to NMDA and AMPA receptors, normalizing sleep architecture by stimulating slow-wave delta sleep. It modulates cortisol release, decreases oxidative stress, and regulates body temperature and blood pressure.
+
+### The Analogy (The Layman Explanation)
+DSIP acts like a lullaby conductor for your brainwaves. Instead of knocking you out like a sedative, it helps your brain enter deep delta sleep—the stage where the body repairs its organs, muscles, and brain networks. It's like turning down the noise and static in a radio station so you can sleep peacefully.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate improvement in sleep latency and deep sleep duration; reduced night-time waking.
+* **Week 2 (Days 8–14)**: Decreased morning brain fog; improved waking energy levels; lower stress response.
+* **Week 4 (Days 15–28)**: Sleep-wake cycle normalized; baseline cortisol spikes decrease.
+* **Week 8 (Days 29–56)**: Better stress coping mechanisms; long-term cardiovascular parameters (e.g. resting HR) improve.
+* **Week 12 (Days 57–84)**: Restored sleep architecture baseline; sustained cognitive recovery and sleep quality.`,
       administrationRoutes: ['SubQ', 'IV'],
       tags: ['sleep', 'cognitive', 'recovery'],
       profile: {
@@ -481,7 +675,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Examorelin', 'GHRP-6 derivative'],
       mechanismOfAction:
-        'Potent synthetic growth hormone secretagogue (GHS) that acts as a ghrelin receptor agonist. Promotes growth hormone secretion and exhibits cardioprotective effects via CD36 binding. Expected Timeline: Acute growth hormone pulse within 30 minutes; improvements in recovery, fat loss, and muscle tone in 3-5 weeks.',
+        `### The Technical Mechanism (The Science)
+A synthetic hexapeptide growth hormone secretagogue (GHS). It binds selectively to the GHS-R1a receptor in the brain, driving high-amplitude pulses of GH. In addition, it binds to the CD36 receptor on cardiac cells, promoting myocardial survival, protecting blood vessels, and improving heart muscle contraction.
+
+### The Analogy (The Layman Explanation)
+Hexarelin is like a turbocharger for growth hormone and heart protection. It gives a powerful push to the pituitary gland for an immediate release of growth factors, while simultaneously wrapping a protective shield around your cardiovascular system to keep blood vessels flexible and strong.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Major recovery boost; improved deep sleep phases; immediate joint lubrication.
+* **Week 2 (Days 8–14)**: Fast repair of minor muscle pulls; increased workout stamina.
+* **Week 4 (Days 15–28)**: Cellular fat breakdown increases; skeletal muscles look fuller and harder.
+* **Week 8 (Days 29–56)**: Cardioprotective benefits peak; near-complete recovery of lingering tendon injuries.
+* **Week 12 (Days 57–84)**: Peak body composition remodeling; sustained recovery benefits; cycle ends to prevent desensitization.`,
       administrationRoutes: ['SubQ'],
       tags: ['longevity', 'recovery'],
       profile: {
@@ -510,7 +715,18 @@ async function main() {
       iupacName: null,
       synonyms: ['FTPP', 'Proapoptotic peptide'],
       mechanismOfAction:
-        'Targeted peptidomimetic that binds to prohibitin in white fat vasculature, inducing selective apoptosis of adipose blood vessels and subsequent rapid weight loss. Expected Timeline: Appetite suppression within 48 hours; rapid reduction of visceral fat mass visible in 14-21 days.',
+        `### The Technical Mechanism (The Science)
+A homing peptide linked to a pro-apoptotic sequence. It targets prohibitin, a membrane protein upregulated on the blood vessels feeding white adipose tissue. Upon binding, it causes cell death of the fat blood vessels, cutting off the blood supply to fat cells and forcing them to shrink and undergo apoptosis.
+
+### The Analogy (The Layman Explanation)
+Adipotide is like a targeted supply blockade for fat cells. Fat deposits require constant blood lines to survive. Adipotide identifies these specific fat-feeding pipelines, shuts them down, and starves the fat cells of nutrients, forcing the body to rapidly consume fat stores for survival.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Early reduction in water weight and decrease in fatty tissues around the abdomen.
+* **Week 2 (Days 8–14)**: Visible shrinking of waistline; rapid reduction in subcutaneous and visceral fat.
+* **Week 4 (Days 15–28)**: Up to 15-20% reduction in body fat mass; lipolysis peaks; cycle ends to protect kidney function.
+* **Week 8 (Days 29–56)**: Gradual stabilization of new body weight; metabolic parameters stabilize.
+* **Week 12 (Days 57–84)**: Maintenance phase; long-term consolidation of body composition changes.`,
       administrationRoutes: ['SubQ'],
       tags: ['weight-loss', 'metabolic'],
       profile: {
@@ -539,7 +755,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Test', 'Enanthate', 'Cypionate', 'TRT'],
       mechanismOfAction:
-        'Endogenous androgen receptor agonist. Promotes protein synthesis, nitrogen retention, erythropoiesis, and osteoblast activity, enhancing secondary sexual characteristics. Expected Timeline: Libido and mental clarity in 2-3 weeks; strength increases, fat loss, and muscle mass accretion in 6-12 weeks.',
+        `### The Technical Mechanism (The Science)
+An endogenous androgen receptor agonist. It enters cells, binds to androgen receptors, and translocates to the nucleus to modify gene transcription, upregulating protein synthesis and nitrogen retention. It also stimulates erythropoietin in the kidneys to increase red blood cell production and promotes bone density.
+
+### The Analogy (The Layman Explanation)
+Testosterone is the primary blueprint for male cellular development. It acts like a builder's manual, telling muscles to absorb protein and build strength, telling bones to harden, and telling the brain to maintain drive and focus. It ensures the body's repair systems are running at maximum capacity.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Increase in daily focus, drive, and morning energy levels; improved mood.
+* **Week 2 (Days 8–14)**: Enhanced workout recovery; initial water retention inside muscles (glycogen synthesis).
+* **Week 4 (Days 15–28)**: Significant increase in strength and physical stamina; libido improves noticeably.
+* **Week 8 (Days 29–56)**: Visually leaner body composition; muscle density increases; red blood cell volume rises.
+* **Week 12 (Days 57–84)**: Peak muscle mass gains and fat loss; stabilized physical baseline; long-term TRT parameters established.`,
       administrationRoutes: ['IM', 'SubQ', 'Topical'],
       tags: ['androgen', 'recovery', 'metabolic'],
       profile: {
@@ -568,7 +795,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Cialis'],
       mechanismOfAction:
-        'Selective, reversible inhibitor of phosphodiesterase type 5 (PDE5). Prevents cGMP degradation, relaxing smooth muscle and enhancing blood flow. Expected Timeline: Vasodilation active within 1-2 hours. Cumulative endothelial improvements reach steady state in 5 days of daily dosing.',
+        `### The Technical Mechanism (The Science)
+A highly selective inhibitor of phosphodiesterase type 5 (PDE5). PDE5 degrades cyclic guanosine monophosphate (cGMP) in smooth muscle cells. By blocking PDE5, Tadalafil maintains high levels of cGMP, leading to continuous nitric oxide-mediated smooth muscle relaxation, vasodilation, and increased tissue blood flow.
+
+### The Analogy (The Layman Explanation)
+Tadalafil acts like an automatic valve opener for your blood vessels. When muscles are tense, blood vessels narrow. Tadalafil blocks the chemical (PDE5) that closes the valves, keeping the channels wide open. This ensures a constant, smooth delivery of oxygen and nutrients to tissues, helping muscles pump and recover.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate vascular vasodilation within 1-2 hours of dosing; enhanced muscle pump during workouts.
+* **Week 2 (Days 8–14)**: Baseline systemic blood pressure decreases; improved endothelial cell function.
+* **Week 4 (Days 15–28)**: Sustained vascular health improvement; improved recovery from high-intensity training.
+* **Week 8 (Days 29–56)**: Enhanced prostate and urinary tract health; persistent vessel elasticity.
+* **Week 12 (Days 57–84)**: Peak vascular and endothelial recovery; long-term circulatory health stabilized.`,
       administrationRoutes: ['Oral'],
       tags: ['recovery', 'vascular'],
       profile: {
@@ -597,7 +835,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Levitra'],
       mechanismOfAction:
-        'Selective phosphodiesterase type 5 (PDE5) inhibitor. Potentiates nitric oxide pathway to promote smooth muscle relaxation and local vascular expansion. Expected Timeline: Onset within 30-60 minutes; active duration is 4-5 hours.',
+        `### The Technical Mechanism (The Science)
+A selective phosphodiesterase type 5 (PDE5) inhibitor. It blocks PDE5 degradation of cGMP, promoting nitric oxide accumulation in vascular smooth muscle. It has a rapid absorption profile, leading to rapid local vasodilation and arterial expansion.
+
+### The Analogy (The Layman Explanation)
+Vardenafil is like a rapid-response valve opener for the vascular system. While other PDE5 inhibitors work slowly and persist for days, Vardenafil acts like an immediate, intense surge of blood flow, relaxing vascular walls quickly to supply high pressure and oxygen where it is needed.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Quick onset of vasodilation (30-60 minutes); active for 4-5 hours per dose.
+* **Week 2 (Days 8–14)**: Reduced arterial resistance during high-stress cardiovascular efforts.
+* **Week 4 (Days 15–28)**: Improved target tissue blood flow; vascular response profiles remain consistent.
+* **Week 8 (Days 29–56)**: Enhanced endothelial recovery; local vascular tone optimization.
+* **Week 12 (Days 57–84)**: Maintenance of peak acute vascular dilatation capability.`,
       administrationRoutes: ['Oral'],
       tags: ['vascular'],
       profile: {
@@ -626,7 +875,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Thymus Extract Peptide'],
       mechanismOfAction:
-        'Synthetic thymus peptide dipeptide (Glu-Trp). Upregulates expression of differentiation markers on T-lymphocytes, balancing Th1/Th2 cytokine ratios. Expected Timeline: T-cell profile normalization within the 10-day cycle; systemic immunity enhancements last 3-6 months.',
+        `### The Technical Mechanism (The Science)
+A synthetic thymic peptide dipeptide (L-Glu-L-Trp). It induces the expression of differentiation antigens on T-lymphocytes, promotes cytokine release (IL-2, IFN-gamma), and restores the helper/suppressor T-cell ratio. It also normalizes neuroendocrine-immune interactions.
+
+### The Analogy (The Layman Explanation)
+Thymalin is like a reset switch for an aging immune system. It goes to the factory where white blood cells are made and corrects their programming, making sure they don't overreact (causing allergies/inflammation) or underreact (causing infection), keeping your immunity running at peak efficiency.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Elevation of circulating active T-helper lymphocytes; initial regulation of inflammatory cytokine counts.
+* **Week 2 (Days 8–14)**: Balanced lymphocyte activity; improved cellular immunity during active infection research.
+* **Week 4 (Days 15–28)**: Deep lymphatic tissue recovery; enhanced antibody response.
+* **Week 8 (Days 29–56)**: Systemic immune resilience peaks; reduced susceptibility to common viral infections.
+* **Week 12 (Days 57–84)**: Restored immunoneuroendocrine baseline; immune rejuvenation benefits persist for up to 6 months.`,
       administrationRoutes: ['SubQ', 'IM'],
       tags: ['immunity', 'longevity'],
       profile: {
@@ -655,7 +915,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Tbol', 'Oral Turinabol'],
       mechanismOfAction:
-        'Chlorinated derivative of methyltestosterone. Binds to androgen receptors to promote nitrogen retention and muscle mass without converting to estrogen. Expected Timeline: Recovery and endurance gains in 7-10 days; measurable strength and lean dry gains in 3-4 weeks.',
+        `### The Technical Mechanism (The Science)
+4-chlorodehydromethyltestosterone, an oral anabolic-androgenic steroid. It binds to the androgen receptor, prompting protein synthesis and nitrogen retention. The chlorine substitution prevents aromatization into estrogen and reduces affinity for sex hormone-binding globulin (SHBG), maximizing free active hormones.
+
+### The Analogy (The Layman Explanation)
+Turinabol is like a pure structural builder. Unlike other steroids that cause immediate bloating and water retention, Turinabol works silently to build dry, dense muscle fibers. It keeps your hormone carriers (SHBG) busy so your body can use more of its active tissue-repairing compounds.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Rapid reduction in muscle soreness; increased recovery speed and endurance during training.
+* **Week 2 (Days 8–14)**: Baseline strength levels rise; muscles look fuller without excess water retention.
+* **Week 4 (Days 15–28)**: Noticeable lean dry tissue gains; vascularity increases during exercise.
+* **Week 8 (Days 29–56)**: Peak athletic performance and recovery; cycle ends to protect liver health.
+* **Week 12 (Days 57–84)**: Maintenance phase; post-cycle recovery to restore natural hormonal baselines.`,
       administrationRoutes: ['Oral'],
       tags: ['androgen', 'recovery'],
       profile: {
@@ -684,7 +955,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Dbol', 'Methandrostenolone', 'Methandienone'],
       mechanismOfAction:
-        'Potent synthetic oral androgen receptor agonist. Upregulates protein synthesis and glycogenolysis, leading to rapid lean mass and strength increases. Expected Timeline: Water weight and strength gains in 3-5 days; massive cellular size increases in 2-3 weeks.',
+        `### The Technical Mechanism (The Science)
+Methandrostenolone, an oral androgen receptor agonist. It dramatically increases nitrogen retention, protein synthesis, and glycogenolysis. It has a high rate of conversion to methylestradiol via aromatase, leading to rapid intracellular fluid accumulation and massive strength jumps.
+
+### The Analogy (The Layman Explanation)
+Dianabol is like an emergency flood of muscle-building fuel. It forces cells to retain nitrogen (the essential building block of muscle) and absorb water, inflating muscle cells like balloons. This creates a highly anabolic environment that yields massive strength gains in record time.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Massive weight gain (mostly intracellular water); strength increases significantly; recovery is near-instant.
+* **Week 2 (Days 8–14)**: Muscles look much larger and fuller; high joint lubrication and reduction in joint pain.
+* **Week 4 (Days 15–28)**: Peak muscle hypertrophy and strength gains; elevated blood pressure due to fluid retention.
+* **Week 8 (Days 29–56)**: Cycle concludes to protect liver; transition to post-cycle therapy.
+* **Week 12 (Days 57–84)**: Recovery phase; normalization of endogenous hormones and fluid levels.`,
       administrationRoutes: ['Oral'],
       tags: ['androgen', 'recovery'],
       profile: {
@@ -713,7 +995,18 @@ async function main() {
       iupacName: null,
       synonyms: ['N-Acetyl Selank Amidate'],
       mechanismOfAction:
-        'Synthetic heptapeptide analog of tuftsin modified with N-acetyl and C-terminal amidate groups for enhanced stability. Modulates serotonin, dopamine, and GABA neurotransmission. Expected Timeline: Anxiolytic and focus improvements active within 15-30 minutes of nasal spray.',
+        `### The Technical Mechanism (The Science)
+An acetylated and amidated version of the heptapeptide Selank (Thr-Lys-Pro-Arg-Pro-Gly-Pro). It modulates the activity of GABAergic systems by binding to GABA receptors, upregulates BDNF expression in the hippocampus, and inhibits the degradation of enkephalins, reducing stress and anxiety.
+
+### The Analogy (The Layman Explanation)
+NA-Selank-Amidate is like a mental noise-cancelling headset. It increases the brain's calming signals (GABA) while protecting the body's natural pain-relieving chemicals (enkephalins). It doesn't make you sleepy like a sedative; it simply quietens the background static of anxiety so you can focus.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate reduction in acute anxiety and stress within 15-30 minutes of dosing; improved mental focus.
+* **Week 2 (Days 8–14)**: Elevated BDNF levels; improved verbal memory, learning rates, and sensory processing.
+* **Week 4 (Days 15–28)**: Complete emotional stability; reduced reactivity to stress triggers; improved sleep quality.
+* **Week 8 (Days 29–56)**: Improved long-term cognitive retention; stabilized dopamine and serotonin pathways.
+* **Week 12 (Days 57–84)**: Peak neuroprotective adaptation; permanent improvements in stress-coping mechanisms.`,
       administrationRoutes: ['Intranasal', 'SubQ'],
       tags: ['cognitive', 'anxiolytic'],
       profile: {
@@ -742,7 +1035,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Pregnyl', 'Novarel', 'Human Chorionic Gonadotropin'],
       mechanismOfAction:
-        'Luteinising hormone (LH) analog; stimulates Leydig cells in testicles to synthesize endogenous testosterone, preserving fertility and preventing testicular atrophy. Expected Timeline: Testicular sensation and intratesticular pressure changes in 7 days; volume restoration in 2-3 weeks.',
+        `### The Technical Mechanism (The Science)
+Human Chorionic Gonadotropin, a glycoprotein hormone that acts as a luteinizing hormone (LH) receptor agonist. It binds to LH receptors on testicular Leydig cells, mimicking endogenous LH to stimulate the production of intratesticular testosterone and sustain spermatogenesis.
+
+### The Analogy (The Layman Explanation)
+HCG is like a backup generator for your hormone factories. When you run external hormones, your brain shuts off the signal to make testosterone, causing your factories to shrink and go dormant. HCG mimics that signal, keeping the generator running so your factories stay active, full, and fertile.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Prevention of testicular shrinkage; stabilization of testicular pressure.
+* **Week 2 (Days 8–14)**: Restoration of natural testicular volume; improved baseline energy.
+* **Week 4 (Days 15–28)**: Normalization of spermatogenesis; prevention of endocrine crash when transitioning.
+* **Week 8 (Days 29–56)**: Continuous hormone pathway protection; optimization of fertility parameters.
+* **Week 12 (Days 57–84)**: Peak fertility and testicular restoration; baseline hormone pathways preserved.`,
       administrationRoutes: ['SubQ', 'IM'],
       tags: ['androgen', 'fertility'],
       profile: {
@@ -771,7 +1075,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Menopur', 'Repronex', 'Human Menopausal Gonadotropin'],
       mechanismOfAction:
-        'Contains active follicle-stimulating hormone (FSH) and luteinising hormone (LH). Directly stimulates follicle development in ovaries and spermatogenesis in testes. Expected Timeline: Seminal parameter changes and spermatogenesis recovery visible in 12-24 weeks.',
+        `### The Technical Mechanism (The Science)
+Human Menopausal Gonadotropin, consisting of active follicle-stimulating hormone (FSH) and luteinizing hormone (LH) in equal parts. It binds directly to both LH and FSH receptors in the gonads, stimulating ovarian follicle development in females and Sertoli/Leydig cell activity in males.
+
+### The Analogy (The Layman Explanation)
+HMG is like a full-spectrum fertilization command. While HCG only mimics the LH signal (testosterone production), HMG supplies both LH and FSH. FSH is the specific instruction manual for sperm and egg production. By supplying both, HMG acts as the ultimate tool for restoring fertility.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Activation of sperm production pathways; early follicle maturation signaling.
+* **Week 4 (Days 15–28)**: Early improvements in seminal quality and motility; ovarian development markers rise.
+* **Week 8 (Days 29–56)**: Notable recovery in sperm count; restoration of fertility profiles.
+* **Week 12 (Days 57–84)**: Significant recovery of spermatogenesis; normal ovulation cycles established in female subjects.
+* **Week 24 (Weeks 12–24)**: Peak fertility restoration; complete normalization of seminal parameters.`,
       administrationRoutes: ['SubQ', 'IM'],
       tags: ['fertility'],
       profile: {
@@ -800,7 +1115,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Cathelicidin antimicrobial peptide'],
       mechanismOfAction:
-        'Endogenous antimicrobial peptide; disrupts microbial membranes, neutralizes lipopolysaccharides (LPS), and modulates immune cell chemotaxis for wound healing. Expected Timeline: Local wound healing acceleration in 5-10 days; immune response markers within 2 weeks.',
+        `### The Technical Mechanism (The Science)
+A 37-amino-acid cathelicidin-derived antimicrobial peptide. It binds to bacterial membranes, forming pores that cause cell lysis. It neutralizes bacterial endotoxins (LPS) and acts as a chemoattractant for immune cells, promoting angiogenesis and re-epithelialization during wound healing.
+
+### The Analogy (The Layman Explanation)
+LL-37 is like a targeted search-and-destroy team. When pathogens invade, LL-37 punches holes in their outer walls to neutralize them. At the same time, it acts as a beacon, calling in immune cells to clear up the debris and laying down new cells to seal and heal the wound.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Rapid clearing of localized pathogens; suppression of bacterial colonization in open wounds.
+* **Week 2 (Days 8–14)**: Accelerated tissue closure; local inflammation subsides; new skin layers form.
+* **Week 4 (Days 15–28)**: Complete tissue healing with minimal scarring; local immune defense systems optimize.
+* **Week 8 (Days 29–56)**: Systemic immune regulation; eradication of stubborn bio-film forming pathogens.
+* **Week 12 (Days 57–84)**: Complete restoration of skin or mucosal defense barriers; long-term tissue resilience.`,
       administrationRoutes: ['SubQ', 'Topical'],
       tags: ['healing', 'immunity'],
       profile: {
@@ -829,7 +1155,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Tuftsin analog'],
       mechanismOfAction:
-        'Synthetic peptide analog of tuftsin; modulates the expression of monoamines, increases BDNF expression, and exhibits regulatory anxiolytic effects without sedation. Expected Timeline: Relieves acute anxiety within 30 minutes intranasally. Long-term cognitive stabilization in 2-4 weeks.',
+        `### The Technical Mechanism (The Science)
+A synthetic heptapeptide (Thr-Lys-Pro-Arg-Pro-Gly-Pro) derived from the immunomodulatory peptide tuftsin. It modulates GABAergic neurotransmission, upregulates hippocampal BDNF, and stabilizes monoamine neurotransmitters (serotonin and dopamine) without causing sedative or addictive side effects.
+
+### The Analogy (The Layman Explanation)
+Selank is like a biological buffer against stress. It doesn't sedate you like a tranquilizer; it simply amplifies your brain's natural calming signals (GABA) and protects neurotransmitters, helping you stay cool, collected, and sharp under high-pressure scenarios.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate reduction in acute anxiety and stress within 15-30 minutes; improved sleep onset.
+* **Week 2 (Days 8–14)**: Enhanced focus, processing speed, and mental stamina; reduced emotional fatigue.
+* **Week 4 (Days 15–28)**: Stabilized emotional response baseline; chronic anxiety symptoms drop significantly.
+* **Week 8 (Days 29–56)**: Restored neurotransmitter balances; enhanced memory storage and retrieval.
+* **Week 12 (Days 57–84)**: Peak neuroprotective adaptation; permanent improvements in stress-coping mechanisms.`,
       administrationRoutes: ['Intranasal', 'SubQ'],
       tags: ['cognitive', 'anxiolytic'],
       profile: {
@@ -858,7 +1195,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Geref', 'GRF 1-29'],
       mechanismOfAction:
-        'GHRH fragment (1-29) secretagogue. Binds to GHRH receptors in the pituitary to stimulate pulsatile release of endogenous growth hormone. Expected Timeline: Improved sleep depth and REM latency in 7-14 days; fat loss and skin elasticity improvements in 8-12 weeks.',
+        `### The Technical Mechanism (The Science)
+A synthetic 29-amino-acid peptide corresponding to the amino-terminal segment of GHRH. It binds selectively to GHRH receptors on pituitary somatotropes, triggering the cAMP pathway to stimulate release of growth hormone in a natural pulsatile manner, preserving pituitary safety feedback loops.
+
+### The Analogy (The Layman Explanation)
+Sermorelin is like a gentle alarm clock for your body's growth hormone factory. Instead of flooding your system with artificial growth hormone (which makes the factory go to sleep), Sermorelin knocks on the door and asks the pituitary to make its own natural waves of youth and recovery.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Enhanced REM sleep and sleep depth; increased dreaming; faster recovery from training.
+* **Week 2 (Days 8–14)**: Improved skin hydration; reduction in morning joint stiffness.
+* **Week 4 (Days 15–28)**: Subcutaneous fat burning begins; improved muscle tone and daily energy.
+* **Week 8 (Days 29–56)**: Visible improvements in body composition; hair and nail growth rates increase.
+* **Week 12 (Days 57–84)**: Peak metabolic optimization; structural joint recovery; vitality baseline maximized.`,
       administrationRoutes: ['SubQ'],
       tags: ['longevity', 'recovery'],
       profile: {
@@ -887,7 +1235,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Octapeptide-3', 'Anti-wrinkle octapeptide'],
       mechanismOfAction:
-        'Elongation of Argireline (acetyl hexapeptide-3). Competes for a position in the SNARE complex, destabilizing muscle contraction to reduce deep expression wrinkles. Expected Timeline: Facial micro-muscle relaxation and fine line smoothing in 14-28 days.',
+        `### The Technical Mechanism (The Science)
+An octapeptide anti-wrinkle agent (acetyl glutamyl-glutamyl-methionyl-glutaminyl-arginyl-arginyl-alanyl-alaninamide). It binds to the SNAP-25 protein, disrupting the assembly of the SNARE complex. This prevents vesicle fusion and inhibits acetylcholine release at the neuromuscular junction, relaxing facial muscles.
+
+### The Analogy (The Layman Explanation)
+Snap-8 is like a temporary signal block on a telephone line. When you squint or frown, your brain sends a message telling facial muscles to contract. Snap-8 blocks that message at the muscle entrance, allowing the skin above to relax and smooth out, preventing deep expression lines from forming.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Subtle softening of facial tension; skin feels more relaxed.
+* **Week 2 (Days 8–14)**: Fine expression lines around eyes and forehead begin to smooth out.
+* **Week 4 (Days 15–28)**: Depth of dynamic wrinkles decreases by up to 35%; skin looks noticeably smoother.
+* **Week 8 (Days 29–56)**: Prevention of new wrinkle formation; skin looks refreshed and youthful.
+* **Week 12 (Days 57–84)**: Peak anti-wrinkle results; long-term dermal smoothing maintenance.`,
       administrationRoutes: ['Topical'],
       tags: ['skin'],
       profile: {
@@ -916,7 +1275,18 @@ async function main() {
       iupacName: null,
       synonyms: ['Humatrope', 'Genotropin', 'Human Growth Hormone', 'Somatropin'],
       mechanismOfAction:
-        'Binds to growth hormone receptors (GHR), stimulating JAK2/STAT5 pathway. Increases hepatic IGF-1 synthesis, promoting cellular mitosis and lipolysis. Expected Timeline: Improved sleep, recovery, and joint lubrication in 2-4 weeks; fat redistribution and lean tissue changes in 3 months.',
+        `### The Technical Mechanism (The Science)
+A 191-amino-acid single-chain polypeptide hormone. It binds to the growth hormone receptor (GHR), activating the JAK2/STAT5 pathway. This stimulates the transcription of IGF-1 in liver and peripheral tissues, promoting cellular mitosis, protein synthesis, and lipid oxidation.
+
+### The Analogy (The Layman Explanation)
+HGH is the master hormone for growth, repair, and cell renewal. It acts like a general contractor that speeds up all repair work in the body. It tells cells to build protein, tells fat cells to release energy, and tells tissues to regenerate, keeping the body in a state of constant repair and recovery.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Rapid improvement in sleep quality; enhanced cellular hydration and joint comfort.
+* **Week 2 (Days 8–14)**: Faster recovery from intense exercise; minor injuries heal quickly.
+* **Week 4 (Days 15–28)**: Fat loss begins, especially around the abdomen; skin looks thicker and smoother.
+* **Week 8 (Days 29–56)**: Improved lean muscle tone; joint pain resolves; athletic endurance increases.
+* **Week 12 (Days 57–84)**: Profound changes in body composition; structural renewal of bones and connective tissues.`,
       administrationRoutes: ['SubQ', 'IM'],
       tags: ['longevity', 'recovery', 'metabolic'],
       profile: {
@@ -945,7 +1315,18 @@ async function main() {
       iupacName: null,
       synonyms: ['ACTH 4-10 analog'],
       mechanismOfAction:
-        'Synthetic heptapeptide ACTH(4-7) analog. Upregulates BDNF and NGF expression in the hippocampus, acts as a melanocortin receptor neuromodulator. Expected Timeline: Nootropic focus and alertness within 15-30 minutes intranasally; long-term cognitive improvement in 2-4 weeks.',
+        `### The Technical Mechanism (The Science)
+A synthetic heptapeptide (Met-Glu-His-Phe-Pro-Gly-Pro) modeled on ACTH(4-10). It crosses the blood-brain barrier to upregulate mRNA levels of Brain-Derived Neurotrophic Factor (BDNF) and Nerve Growth Factor (NGF) in the hippocampus, modulating melanocortin systems to protect neurons.
+
+### The Analogy (The Layman Explanation)
+Semax is like a neural shield and battery booster. It prompts the brain to release growth factors (BDNF) that feed and repair brain cells. It protects neurons from oxygen deprivation and stress, helping you maintain clear, focused thinking and sharp recall even during intense workloads.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate improvements in focus, verbal recall, and mental stamina; reduced brain fog.
+* **Week 2 (Days 8–14)**: Enhanced hippocampal learning capacity; faster information processing.
+* **Week 4 (Days 15–28)**: Long-term memory consolidation; improved neural resilience under high stress.
+* **Week 8 (Days 29–56)**: Persistent cognitive endurance; protection against neurological fatigue.
+* **Week 12 (Days 57–84)**: Optimized neural connectivity; long-term cognitive baseline maximized.`,
       administrationRoutes: ['Intranasal', 'SubQ'],
       tags: ['cognitive', 'longevity'],
       profile: {
@@ -970,11 +1351,22 @@ async function main() {
       },
     },
     {
-      name: 'NA Semax Amidate',
+      name: 'NA-Semax-Amidate',
       iupacName: 'N-Acetyl-L-methionyl-L-glutamyl-L-histidyl-L-phenylalanyl-L-prolyglycyl-L-prolinamide',
       synonyms: ['N-Acetyl Semax Amidate', 'NASA'],
       mechanismOfAction:
-        'Enhances expression of Brain-Derived Neurotrophic Factor (BDNF) and Nerve Growth Factor (NGF) in the hippocampus, modulates melanocortin receptors, and influences serotonergic and dopaminergic neurotransmitter systems. Expected Timeline: Increased alertness and mental clarity within 1 hour; enhanced working memory and learning capability within 7-14 days; long-term cognitive stamina in 4 weeks.',
+        `### The Technical Mechanism (The Science)
+A heptapeptide analog of ACTH(4-10) modified with N-acetyl and C-terminal amide groups for increased blood-brain barrier permeability and enzymatic stability. It rapidly upregulates the mRNA expression of Brain-Derived Neurotrophic Factor (BDNF) and Nerve Growth Factor (NGF) in the hippocampus. It modulates melanocortin receptors (MC3 and MC4) to regulate neuroinflammation and protects dopamine and serotonin transporter systems under ischemic or toxic stress.
+
+### The Analogy (The Layman Explanation)
+NA Semax Amidate acts like a high-octane fertilizer for brain cells. When brain cells are tired, stressed, or trying to learn, they need neurotrophic factors (like BDNF) to sprout new branches and make strong connections. Semax triggers a rapid burst of this fertilizer, helping your neural network build new pathways (learning and memory) quickly, while keeping dopamine and serotonin levels stable to prevent brain fog and stress.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Sharp increase in daily mental clarity, focus, and working memory within 30–60 minutes of dosing; reduction in afternoon brain fog.
+* **Week 2 (Days 8–14)**: Upregulation of hippocampal BDNF/NGF levels; enhanced rate of learning, verbal recall, and information processing.
+* **Week 4 (Days 15–28)**: Stabilization of synaptic plasticity and neural network connectivity; sustained cognitive endurance during intense mental tasks.
+* **Week 8 (Days 29–56)**: Significant improvement in long-term memory retrieval; neuroprotective adaptation against stress and toxic brain fatigue.
+* **Week 12 (Days 57–84)**: Permanent neural pathway optimization; peak cognitive stamina; restoration of compromised dopamine/serotonin baselines.`,
       administrationRoutes: ['Intranasal', 'SubQ'],
       tags: ['nootropics', 'cognitive'],
       profile: {
@@ -1000,7 +1392,18 @@ async function main() {
       iupacName: '[[(2R,3S,4R,5R)-5-(6-aminopurin-9-yl)-3,4-dihydroxyoxolan-2-yl]methoxy-hydroxyphosphoryl] [(2R,3S,4R,5R)-5-(3-carbamoylpyridin-1-yl)-3,4-dihydroxyoxolan-2-yl]methyl hydrogen phosphate',
       synonyms: ['Coenzyme I', 'Nicotinamide Adenine Dinucleotide oxidized form'],
       mechanismOfAction:
-        'Functions as a vital cofactor in mitochondrial electron transport chain for ATP production; serves as a substrate for sirtuins (SIRT1-7) and PARPs, facilitating cellular repair, DNA maintenance, and epigenetic regulation. Expected Timeline: Increased physical energy and mental clarity in 2-4 days; improved cellular metabolism and sleep depth in 14 days.',
+        `### The Technical Mechanism (The Science)
+Nicotinamide Adenine Dinucleotide (oxidized) is a fundamental coenzyme found in all living cells. It acts as a primary electron carrier in glycolysis, the Krebs cycle, and the mitochondrial electron transport chain, facilitating ATP synthesis. Additionally, it serves as an obligatory substrate for sirtuins (SIRT1-7) which regulate gene expression and mitochondrial biogenesis, and for PARP enzymes which coordinate DNA damage repair.
+
+### The Analogy (The Layman Explanation)
+Think of NAD+ as the essential battery fluid inside every single cell. As we age, this battery fluid dries up, causing our cellular engines (mitochondria) to misfire, lose energy, and let damage build up. Restoring NAD+ is like refilling the battery fluid, allowing the cellular power plants to generate clean energy (ATP) again, while turning on the cell's built-in maintenance crew (sirtuins) to repair damaged DNA.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Rapid elevation of cellular NAD+ pools; improvement in daily mental focus, physical energy levels, and afternoon cognitive fatigue.
+* **Week 2 (Days 8–14)**: Upregulation of mitochondrial efficiency; improved sleep depth and morning alertness; faster systemic recovery after physical stress.
+* **Week 4 (Days 15–28)**: Cellular repair enzymes (PARP) and sirtuins (SIRT1/3) operate at optimal levels; metabolic flexibility improves; baseline systemic inflammation markers decline.
+* **Week 8 (Days 29–56)**: Mitochondrial copy numbers increase (biogenesis); notable improvement in insulin sensitivity and lipid metabolism; enhanced overall stamina.
+* **Week 12 (Days 57–84)**: Systemic cellular rejuvenation; persistent cognitive clarity; overall reduction in biological age biomarkers; optimized energy homeostasis.`,
       administrationRoutes: ['SubQ', 'IM', 'IV'],
       tags: ['longevity', 'energy', 'cellular-repair'],
       profile: {
@@ -1026,7 +1429,18 @@ async function main() {
       iupacName: '1-{[((4R,7S,10S,13S,16S,19R)-19-amino-7-(2-amino-2-oxoethyl)-10-(3-amino-3-oxopropyl)-13-benzyl-16-(4-hydroxybenzyl)-6,9,12,15,18-pentaoxo-1,2-dithia-5,8,11,14,17-pentaazacycloicosan-4-yl)carbonyl]-L-prolyl-L-leucylglycinamide}',
       synonyms: ['Love Hormone', 'Pitocin'],
       mechanismOfAction:
-        'Binds to G-protein coupled oxytocin receptors in the central and peripheral nervous systems. Acts as a neuromodulator to enhance empathy, social bonding, trust, and to downregulate amygdala activity for stress/anxiety reduction. Expected Timeline: Social anxiety relief and heightened empathy within 30-60 minutes.',
+        `### The Technical Mechanism (The Science)
+A 9-amino-acid peptide hormone and neuropeptide. It binds to G-protein coupled oxytocin receptors in the amygdala, ventral striatum, and prefrontal cortex. It downregulates amygdala activity to suppress fear and anxiety, increases release of dopamine and serotonin, and modulates social communication.
+
+### The Analogy (The Layman Explanation)
+Oxytocin is the brain's social smoothing agent. It acts like a high-end volume dial that turns down stress and threat detection in the brain's alarm system (the amygdala). By making the brain feel safe, it increases feelings of trust, warmth, and connection with others.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate reduction in social anxiety and feelings of isolation within 30-60 minutes of dosing.
+* **Week 2 (Days 8–14)**: Improved social communication and empathy; reduced daily stress responses.
+* **Week 4 (Days 15–28)**: Enhanced emotional bonding and relationship quality; lower daily cortisol levels.
+* **Week 8 (Days 29–56)**: Lower baseline blood pressure; sustained emotional resilience.
+* **Week 12 (Days 57–84)**: Complete stabilization of mood and stress-response pathways.`,
       administrationRoutes: ['Intranasal', 'SubQ'],
       tags: ['mood', 'social-bonding'],
       profile: {
@@ -1052,7 +1466,18 @@ async function main() {
       iupacName: 'D-alanyl-3-(naphthalen-2-yl)-D-alanyl-L-alanyl-L-tryptophyl-D-phenylalanyl-L-lysinamide',
       synonyms: ['Pralmorelin', 'Growth Hormone Releasing Peptide 2'],
       mechanismOfAction:
-        'Agonizes the growth hormone secretagogue receptor (ghrelin receptor GHS-R1a), signaling the anterior pituitary gland to release pulsatile growth hormone (GH) while mildly stimulating appetite, cortisol, and prolactin. Expected Timeline: Improved sleep quality in 3-7 days; enhanced muscular recovery in 14 days; body composition improvements in 4 weeks.',
+        `### The Technical Mechanism (The Science)
+A synthetic growth hormone secretagogue receptor (GHS-R1a) agonist. It activates the phospholipase C (PLC) pathway in somatotropes, triggering intracellular calcium release and high-amplitude growth hormone pulses. It also acts centrally to stimulate mild appetite and cortisol release.
+
+### The Analogy (The Layman Explanation)
+GHRP-2 is a high-amplitude alarm clock for growth hormone. It binds to the same receptors that ghrelin (the hunger hormone) uses, triggering a strong, clean release of growth hormone. It also gives a mild boost to appetite, making it excellent for athletes who need to eat and recover.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Improved sleep depth; mild appetite increase; immediate reduction in muscle soreness.
+* **Week 2 (Days 8–14)**: Accelerated recovery from workouts; improved joint lubrication.
+* **Week 4 (Days 15–28)**: Muscle fullness increases; initial fat loss visible; improved skin elasticity.
+* **Week 8 (Days 29–56)**: Enhanced recovery from chronic injuries; noticeable changes in lean body mass.
+* **Week 12 (Days 57–84)**: Peak body composition remodeling; cycle concludes to prevent pituitary desensitization.`,
       administrationRoutes: ['SubQ'],
       tags: ['growth-hormone', 'recovery', 'muscle'],
       profile: {
@@ -1078,7 +1503,18 @@ async function main() {
       iupacName: 'L-histidyl-D-tryptophyl-L-alanyl-L-tryptophyl-D-phenylalanyl-L-lysinamide',
       synonyms: ['Growth Hormone Releasing Peptide 6'],
       mechanismOfAction:
-        'Stimulates pulsatile growth hormone secretion via the ghrelin receptor while strongly activating hypothalamic neuropeptide Y pathways, inducing powerful appetite stimulation. Expected Timeline: Substantial hunger increase within 15-30 minutes; recovery improvements and deep sleep within 7 days; fat oxidation signals in 3 weeks.',
+        `### The Technical Mechanism (The Science)
+A synthetic growth hormone-releasing hexapeptide GHS-R1a agonist. It stimulates GH secretion via pituitary and hypothalamic pathways, and strongly activates Neuropeptide Y (NPY) neurons in the arcuate nucleus, inducing powerful appetite stimulation and fat-free mass deposition.
+
+### The Analogy (The Layman Explanation)
+GHRP-6 is like a master switch for hunger and growth. While other growth hormone secretagogues promote healing with mild hunger, GHRP-6 triggers an intense urge to eat within minutes. This makes it a perfect tool for individuals needing to gain mass, recover from wasting, or stimulate rapid healing.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate, powerful appetite stimulation within 20 minutes; improved sleep quality.
+* **Week 2 (Days 8–14)**: Increased muscle volume; faster recovery from exhausting physical workloads.
+* **Week 4 (Days 15–28)**: Substantial weight gain (in combination with caloric surplus); joint pain relief.
+* **Week 8 (Days 29–56)**: Enhanced muscle recovery and bone density; accelerated injury repair.
+* **Week 12 (Days 57–84)**: Peak anabolic mass and strength gains; cycle ends to allow receptor reset.`,
       administrationRoutes: ['SubQ'],
       tags: ['growth-hormone', 'appetite', 'recovery'],
       profile: {
@@ -1104,7 +1540,18 @@ async function main() {
       iupacName: '2-methylalanyl-L-histidyl-3-(naphthalen-2-yl)-D-alanyl-D-phenylalanyl-L-lysinamide',
       synonyms: ['NNC 26-0161'],
       mechanismOfAction:
-        'A highly selective growth hormone secretagogue receptor (GHS-R1a) agonist that mimics ghrelin to stimulate pulsatile GH release, without increasing cortisol, prolactin, or aldosterone. Expected Timeline: Deeper sleep and faster workout recovery within 7 days; fat loss signals and muscle retention signs in 3-4 weeks.',
+        `### The Technical Mechanism (The Science)
+A highly selective growth hormone secretagogue receptor (GHS-R1a) agonist. It mimics native ghrelin by binding to the GHS-R1a receptor on the pituitary and hypothalamus, triggering a pulsatile release of Growth Hormone (GH) via a calcium-dependent pathway. Unlike other GHRPs, it is extremely selective, showing no affinity for the receptors that stimulate cortisol, prolactin, ACTH, or aldosterone secretion, preserving natural pituitary function and pulsatility.
+
+### The Analogy (The Layman Explanation)
+Ipamorelin is like a highly targeted, silent bell ringer for the pituitary gland. It knocks on the door of the hormone production room and asks for a clean burst of growth hormone, but does not ring any other alarms. Other similar agents might accidentally pull the emergency levers for stress hormones (cortisol) or hunger hormones, but Ipamorelin rings only the growth and recovery bell, keeping the body's natural chemistry perfectly calm.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Deepening of slow-wave (REM) sleep; increased morning wakefulness; faster recovery from physical exertion.
+* **Week 2 (Days 8–14)**: Noticeable improvements in skin elasticity; initial cellular hydration changes; reduction in mild joint soreness.
+* **Week 4 (Days 15–28)**: Upregulation of IGF-1 expression in liver tissue; accelerated muscle recovery; fat burning signals begin to optimize.
+* **Week 8 (Days 29–56)**: Visually leaner body composition; gradual reduction in visceral fat; improvements in clean muscle retention and recovery times.
+* **Week 12 (Days 57–84)**: Optimization of body composition (significant fat reduction and muscle maintenance); systemic anti-aging and vitality markers peak.`,
       administrationRoutes: ['SubQ'],
       tags: ['growth-hormone', 'recovery', 'fat-loss'],
       profile: {
@@ -1130,7 +1577,18 @@ async function main() {
       iupacName: 'AM833',
       synonyms: ['Lipidated amylin analog', 'Amylin agonist'],
       mechanismOfAction:
-        'A long-acting dual amylin receptor agonist that acts centrally to promote satiety and delay gastric emptying, complementing GLP-1 receptor pathways. Expected Timeline: Satiety and hunger suppression in 12-24 hours; noticeable weight reduction within 3-4 weeks.',
+        `### The Technical Mechanism (The Science)
+A long-acting, lipidated, non-selective amylin receptor agonist (GPCR complex of calcitonin receptor CTR with receptor activity-modifying proteins RAMP1-3). It mimics native amylin, a peptide co-secreted with insulin by pancreatic beta-cells. It binds to amylin receptors in the area postrema of the hindbrain, acting synergistically with GLP-1 agonists to slow gastric emptying, suppress glucagon secretion, and induce persistent satiety via pathways distinct from GLP-1.
+
+### The Analogy (The Layman Explanation)
+If GLP-1 (like Semaglutide) acts as the volume control knob for hunger, Cagrilintide is a second, independent control knob. Amylin is the hormone the body releases naturally when food lands in the stomach to say "stop eating." By mimicking amylin, Cagrilintide works directly on the brain's sensory centers to make you feel satisfied after just a few bites, while preventing the stomach from emptying too quickly, working hand-in-hand with GLP-1 for maximum metabolic control.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Rapid, powerful onset of satiety; near-total reduction of meal capacity and hunger cues; initial digestion delay begins.
+* **Week 2 (Days 8–14)**: Early weight loss of 2-3% of baseline; stabilization of insulin demand and postprandial glucose swings.
+* **Week 4 (Days 15–28)**: Synergistic fat oxidation when combined with a GLP-1 agonist; sustained weight reduction averaging 4-6%; strong compliance with calorie deficit.
+* **Week 8 (Days 29–56)**: Weight reduction of 8-10% in combination therapies; visible decrease in subcutaneous and visceral fat depots.
+* **Week 12 (Days 57–84)**: Average weight loss exceeding 12-14%; stabilization of metabolic rate; body composition adjustments reach therapeutic maintenance levels.`,
       administrationRoutes: ['SubQ'],
       tags: ['weight-loss', 'metabolic'],
       profile: {
@@ -1156,7 +1614,18 @@ async function main() {
       iupacName: 'Blend of GHK-Cu, Argireline, and SNAP-8',
       synonyms: ['GLOW-70 Cosmetic Blend'],
       mechanismOfAction:
-        'Combines the regenerative properties of Copper Peptide (GHK-Cu) with the expression-line smoothing effects of SNARE-complex inhibitors (Argireline and SNAP-8). Expected Timeline: Skin hydration and glow in 3-5 days; reduced appearance of dynamic wrinkles in 14 days; skin thickness and collagen density increase in 28 days.',
+        `### The Technical Mechanism (The Science)
+A cosmetic blend combining GHK-Cu, Argireline, and SNAP-8. Argireline and SNAP-8 act synergistically to disrupt the SNARE complex at the neuromuscular junction, relaxing expression muscles, while GHK-Cu delivers essential copper to fibroblasts to synthesize new collagen.
+
+### The Analogy (The Layman Explanation)
+GLOW70 is the ultimate skin restoration formula. It uses a double-dampening approach (Argireline and SNAP-8) to relax the dynamic muscles that cause forehead and eye wrinkles. Simultaneously, it sends in copper peptide (GHK-Cu) to rebuild the skin's foundation, creating a smooth, youthful canvas.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Softening of facial micro-tensions; skin looks highly hydrated and radiant.
+* **Week 2 (Days 8–14)**: Dynamic expression lines around eyes and brow smooth out significantly.
+* **Week 4 (Days 15–28)**: Visibly reduced wrinkle depth; improved skin thickness and elasticity.
+* **Week 8 (Days 29–56)**: Structural skin density increases; improvement in tone, color, and pigmentation.
+* **Week 12 (Days 57–84)**: Peak anti-aging results; skin barrier is structurally rejuvenated and smooth.`,
       administrationRoutes: ['Topical', 'SubQ'],
       tags: ['cosmetic', 'skin'],
       profile: {
@@ -1179,6 +1648,15 @@ async function main() {
     },
   ];
 
+  const fixturesPath = path.join(__dirname, 'seed-data/dosing_fixtures.json');
+  let fixtures: any[] = [];
+  try {
+    const raw = fs.readFileSync(fixturesPath, 'utf-8');
+    fixtures = JSON.parse(raw);
+  } catch (err) {
+    console.error('Failed to load dosing fixtures:', err);
+  }
+
   for (const { profile, ...compoundData } of compounds) {
     const dataWithSlug = {
       ...compoundData,
@@ -1194,10 +1672,25 @@ async function main() {
     });
 
     if (profile) {
-      const { citations, ...profileData } = profile;
+      const fixture = fixtures.find((f: any) => f.name === compound.name || f.name.toLowerCase() === compound.name.toLowerCase());
+      const { citations: seedCitations, ...profileData } = profile;
+
+      let mergedProfile = { ...profileData };
+      let citationsToUse = seedCitations;
+
+      if (fixture && fixture.profile) {
+        mergedProfile = {
+          ...mergedProfile,
+          ...fixture.profile,
+        };
+        if (fixture.citations && fixture.citations.length > 0) {
+          citationsToUse = fixture.citations;
+        }
+      }
+
       const timeline = getBenefitTimelineForSeed(compound.name, compound.tags, compound.mechanismOfAction);
       const dataWithTimeline = {
-        ...profileData,
+        ...mergedProfile,
         benefitTimeline: timeline,
       };
       const upsertedProfile = await prisma.compoundProfile.upsert({
@@ -1206,9 +1699,38 @@ async function main() {
         create: { compoundId: compound.id, ...dataWithTimeline },
       });
 
-      // Replace citations on each seed run to keep them in sync.
-      await prisma.citation.deleteMany({ where: { profileId: upsertedProfile.id } });
-      for (const citation of citations) {
+      // Perform differential sync for citations to preserve unchanged entries and avoid blanket deletes.
+      const existingCitations = await prisma.citation.findMany({
+        where: { profileId: upsertedProfile.id },
+      });
+
+      const citationsToDelete = existingCitations.filter((existing) => {
+        return !citationsToUse.some(
+          (incoming) =>
+            incoming.title === existing.title &&
+            (incoming.doi ?? null) === existing.doi &&
+            (incoming.pmid ?? null) === existing.pmid
+        );
+      });
+
+      if (citationsToDelete.length > 0) {
+        await prisma.citation.deleteMany({
+          where: {
+            id: { in: citationsToDelete.map((c) => c.id) },
+          },
+        });
+      }
+
+      const citationsToCreate = citationsToUse.filter((incoming) => {
+        return !existingCitations.some(
+          (existing) =>
+            incoming.title === existing.title &&
+            (incoming.doi ?? null) === existing.doi &&
+            (incoming.pmid ?? null) === existing.pmid
+        );
+      });
+
+      for (const citation of citationsToCreate) {
         await prisma.citation.create({
           data: {
             profileId: upsertedProfile.id,

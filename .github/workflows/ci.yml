@@ -9,6 +9,20 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       
@@ -45,12 +59,23 @@ jobs:
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
+      - name: Apply migrations
+        run: pnpm prisma:deploy
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
       - name: Test (Unit & Integration)
         run: pnpm test
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
       - name: E2E (Playwright)
         run: npx playwright install --with-deps && pnpm e2e
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
       - name: Eval
         run: pnpm eval
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
         continue-on-error: true  # non-blocking on failure-to-run; threshold-blocking enforced inside the eval suite

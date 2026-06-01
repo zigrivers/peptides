@@ -44,6 +44,16 @@ function mapCompound(raw: PrismaCompoundResult): Compound {
           freezerShelfLifeMonths: raw.profile.freezerShelfLifeMonths,
           citations: raw.profile.citations,
           benefitTimeline: parseBenefitTimeline(raw.profile.benefitTimeline),
+          cycleLengthWeeks: raw.profile.cycleLengthWeeks,
+          restPeriodWeeks: raw.profile.restPeriodWeeks,
+          dosingFrequency: raw.profile.dosingFrequency,
+          dosesPerDay: raw.profile.dosesPerDay,
+          customFrequencyDescription: raw.profile.customFrequencyDescription,
+          daysOn: raw.profile.daysOn,
+          daysOff: raw.profile.daysOff,
+          preferredTime: raw.profile.preferredTime,
+          timingNotes: raw.profile.timingNotes,
+          isFdaApproved: raw.profile.isFdaApproved,
         }
       : null,
   };

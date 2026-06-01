@@ -1,10 +1,13 @@
+import React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
+import { Info } from 'lucide-react';
 import { auth } from '@/lib/auth';
 import { getCompoundBySlug } from '@/lib/reference/application/CompoundService';
 import type { Citation } from '@/lib/reference/domain/types';
 import { getSerializedVialsForCompound } from '@/lib/reconstitution/application/VialService';
 import { CompoundInventoryManager } from '../_components/CompoundInventoryManager';
+import { DosingReconstitutionPlanner } from '../_components/DosingReconstitutionPlanner';
 
 function CitationLink({ citation }: { citation: Citation }) {
   const href = citation.url
@@ -35,15 +38,91 @@ function CitationLink({ citation }: { citation: Citation }) {
   );
 }
 
-function DoseRow({ label, amount, unit }: { label: string; amount: string; unit: string }) {
+function InfoTooltip({ content }: { content: string }) {
   return (
-    <tr>
-      <td className="py-1 pr-4 text-sm text-gray-500 dark:text-gray-400">{label}</td>
-      <td className="py-1 text-sm font-medium text-gray-900 dark:text-gray-100">
-        <span className="font-mono">{amount}</span> {unit}
-      </td>
-    </tr>
+    <div className="relative group inline-block ml-1">
+      <span
+        className="inline-flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary transition-colors cursor-help p-0.5"
+        aria-label="More information"
+      >
+        <Info className="h-3.5 w-3.5" />
+      </span>
+      
+      {/* Tooltip Card */}
+      <div className="absolute bottom-full right-[-8px] z-50 mb-2 w-64 scale-95 opacity-0 pointer-events-none group-hover:scale-100 group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 ease-out origin-bottom-right">
+        <div className="bg-gray-900/95 dark:bg-gray-800/95 text-white text-[11px] leading-relaxed p-2.5 rounded-lg shadow-xl border border-gray-700/50 dark:border-gray-600/50 backdrop-blur-sm normal-case font-normal text-left tracking-normal">
+          {content}
+          {/* Arrow */}
+          <div className="absolute top-full right-[15px] h-1.5 w-1.5 -translate-y-0.5 rotate-45 bg-gray-900/95 dark:bg-gray-800/95 border-r border-b border-gray-700/50 dark:border-gray-600/50" />
+        </div>
+      </div>
+    </div>
   );
+}
+
+function FormattedMechanismOfAction({ text }: { text: string }) {
+  if (!text) return null;
+  if (!text.includes('###')) {
+    return <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{text}</p>;
+  }
+
+  const sections = text.split(/(?=^###\s)/m);
+  return (
+    <div className="space-y-4 text-sm text-gray-600 dark:text-gray-300">
+      {sections.map((section, idx) => {
+        const trimmed = section.trim();
+        if (!trimmed) return null;
+        const lines = trimmed.split(/\r?\n/);
+        const headingLine = lines[0];
+        const bodyLines = lines.slice(1).join('\n');
+
+        if (/^###(?!#)/.test(headingLine)) {
+          const heading = headingLine.replace(/^###\s*/, '');
+          return (
+            <div key={idx} className="space-y-1.5">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mt-2">{heading}</h3>
+              {bodyLines.trim() && (
+                <p className="whitespace-pre-wrap leading-relaxed">{bodyLines}</p>
+              )}
+            </div>
+          );
+        }
+        return <p key={idx} className="whitespace-pre-wrap leading-relaxed">{trimmed}</p>;
+      })}
+    </div>
+  );
+}
+function formatFrequency(freq: string | null): string {
+  if (!freq) return 'Not Specified';
+  switch (freq) {
+    case 'DAILY': return 'Daily';
+    case 'EOD': return 'Every Other Day';
+    case 'THRICE_WEEKLY': return 'Thrice Weekly';
+    case 'WEEKLY': return 'Once Weekly';
+    case 'TWICE_WEEKLY': return 'Twice Weekly';
+    case 'EVERY_TWO_WEEKS': return 'Every Two Weeks';
+    case 'EVERY_FOUR_WEEKS': return 'Every Four Weeks';
+    case 'AS_NEEDED': return 'As Needed';
+    case 'CUSTOM': return 'Custom Protocol';
+    default: return freq;
+  }
+}
+
+function formatPreferredTime(time: string | null): string {
+  if (!time) return 'N/A';
+  switch (time) {
+    case 'MORNING': return 'Morning';
+    case 'AFTERNOON': return 'Afternoon';
+    case 'NIGHT': return 'Nighttime';
+    case 'PRE_WORKOUT': return 'Pre-Workout';
+    case 'POST_WORKOUT': return 'Post-Workout';
+    case 'MORNING_AND_NIGHT': return 'Morning and Night';
+    case 'MORNING_AFTERNOON_NIGHT': return 'Morning, Afternoon, and Night';
+    case 'PRE_AND_POST_WORKOUT': return 'Pre and Post-Workout';
+    case 'ANYTIME': return 'Anytime';
+    case 'AS_NEEDED': return 'As Needed';
+    default: return time;
+  }
 }
 
 export default async function CompoundProfilePage({
@@ -120,7 +199,7 @@ export default async function CompoundProfilePage({
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
             Mechanism of Action
           </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-300">{compound.mechanismOfAction}</p>
+          <FormattedMechanismOfAction text={compound.mechanismOfAction} />
         </section>
       )}
 
@@ -166,6 +245,98 @@ export default async function CompoundProfilePage({
         </section>
       )}
 
+      {compound.profile && (
+        <section className="mt-8 border border-border bg-card text-card-foreground rounded-xl p-5 shadow-sm animate-[fadeIn_0.3s_ease-out]">
+          <h2 className="text-lg font-bold flex items-center gap-2 mb-4" id="dosing-protocol-header">
+            <span>⏱️</span> {"Protocol & Scheduling"}
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Cycle Duration */}
+            <div className="border border-border/50 bg-background/50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">🗓️ Cycle Duration</span>
+                <InfoTooltip content="The active duration of continuous administration. Restricting use to a defined cycle length prevents receptor downregulation and lets your body recover." />
+              </div>
+              <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
+                {compound.profile.cycleLengthWeeks ? `${compound.profile.cycleLengthWeeks} Weeks` : 'Continuous'}
+              </div>
+            </div>
+
+            {/* Weekly Schedule */}
+            <div className="border border-border/50 bg-background/50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">🔄 Weekly Schedule</span>
+                <InfoTooltip content="The weekly timing cadence. Some protocols include planned 'days off' per week to preserve receptor sensitivity and prevent habituation." />
+              </div>
+              <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
+                {compound.profile.dosingFrequency === 'CUSTOM' ? (
+                  compound.profile.customFrequencyDescription || 'Custom Protocol'
+                ) : compound.profile.dosingFrequency === 'DAILY' ? (
+                  compound.profile.daysOn && compound.profile.daysOff ? (
+                    `${compound.profile.dosesPerDay && compound.profile.dosesPerDay > 1 ? `${compound.profile.dosesPerDay}x Daily: ` : ''}${compound.profile.daysOn} Days On / ${compound.profile.daysOff} Off`
+                  ) : (
+                    `${compound.profile.dosesPerDay && compound.profile.dosesPerDay > 1 ? `${compound.profile.dosesPerDay}x ` : ''}Daily`
+                  )
+                ) : (
+                  `${formatFrequency(compound.profile.dosingFrequency)}${
+                    compound.profile.dosesPerDay && compound.profile.dosesPerDay > 1 
+                      ? ` (${compound.profile.dosesPerDay}x per admin day)` 
+                      : ''
+                  }`
+                )}
+              </div>
+            </div>
+
+            {/* Rest Period */}
+            <div className="border border-border/50 bg-background/50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">🛑 Rest Period</span>
+                <InfoTooltip content="The recommended off-cycle washout period. Essential to clear active substances, restore baseline hormone production, and maintain long-term efficacy." />
+              </div>
+              <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
+                {compound.profile.restPeriodWeeks ? `${compound.profile.restPeriodWeeks} Weeks Washout` : 'N/A'}
+              </div>
+            </div>
+
+            {/* Administration Time */}
+            <div className="border border-border/50 bg-background/50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">⏰ Administration</span>
+                <InfoTooltip content="The optimal time of day to administer the dose. Timing is aligned with natural circadian rhythms, sleep cycles, or fasted states for maximum uptake." />
+              </div>
+              <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
+                {formatPreferredTime(compound.profile.preferredTime)}
+              </div>
+            </div>
+          </div>
+
+          {/* Timing Protocol */}
+          {compound.profile.timingNotes && compound.profile.timingNotes.trim().length > 0 && (
+            <div className="mt-4 border-t border-border pt-4">
+              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                <span>💡</span> Timing Protocol
+              </h3>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300 italic">
+                &quot;{compound.profile.timingNotes}&quot;
+              </p>
+            </div>
+          )}
+
+          {/* Safety Disclaimer */}
+          {!compound.profile.isFdaApproved && (
+            <div className="mt-4 border border-red-200 bg-red-50/50 p-4 rounded-lg dark:border-red-950/30 dark:bg-red-950/10">
+              <div className="flex gap-2 text-red-800 dark:text-red-300">
+                <span className="text-base shrink-0">⚠️</span>
+                <div className="text-sm leading-relaxed" id="fda-disclaimer">
+                  <strong className="font-semibold">DISCLAIMER:</strong> This compound is not FDA-approved for therapeutic human use. Protocols are for research-use only based on scientific literature, including preclinical studies and early clinical research.
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       {compound.administrationRoutes.length > 0 && (
         <section className="mt-6">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
@@ -187,28 +358,15 @@ export default async function CompoundProfilePage({
       {compound.profile && (
         <>
           <section className="mt-6">
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">
               Dosing Reference
             </h2>
-            <table>
-              <tbody>
-                <DoseRow
-                  label="Low"
-                  amount={compound.profile.dosingLow.amount}
-                  unit={compound.profile.dosingLow.unit}
-                />
-                <DoseRow
-                  label="Typical"
-                  amount={compound.profile.dosingTypical.amount}
-                  unit={compound.profile.dosingTypical.unit}
-                />
-                <DoseRow
-                  label="High"
-                  amount={compound.profile.dosingHigh.amount}
-                  unit={compound.profile.dosingHigh.unit}
-                />
-              </tbody>
-            </table>
+            <DosingReconstitutionPlanner
+              dosingLow={compound.profile.dosingLow}
+              dosingTypical={compound.profile.dosingTypical}
+              dosingHigh={compound.profile.dosingHigh}
+              isFdaApproved={compound.profile.isFdaApproved}
+            />
           </section>
 
           {compound.profile.sideEffects && (
