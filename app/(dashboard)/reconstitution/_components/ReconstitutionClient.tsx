@@ -1,36 +1,50 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import type { SerializedVialData } from '@/lib/reconstitution/application/VialService';
+import type {
+  SerializedVialData,
+  CompoundInventorySummary,
+} from '@/lib/reconstitution/application/VialService';
 import type { Compound } from '@/lib/reference/domain/types';
 import { InventoryDashboard } from './InventoryDashboard';
 import { DryInventoryList } from './DryInventoryList';
 import { VialInventory } from './VialInventory';
+import { CompoundInventoryView } from './CompoundInventoryView';
 import { AddDryVialsModal } from './AddDryVialsModal';
 import { AddActiveVialModal } from './AddActiveVialModal';
 import { ReconstituteModal } from './ReconstituteModal';
-import { Snowflake, Thermometer, Calculator } from 'lucide-react';
+import { Snowflake, Thermometer, Calculator, Boxes, LayoutGrid } from 'lucide-react';
 import { getAudioPlayer } from '@/lib/reconstitution/domain/audioSynth';
 import { ReconstitutionCalculatorForm } from './ReconstitutionCalculatorForm';
 
 interface Props {
+  userId: string;
   compounds: Pick<Compound, 'id' | 'name' | 'profile' | 'slug'>[];
+  compoundsMinimal: Pick<Compound, 'id' | 'name' | 'slug'>[];
   dryVials: SerializedVialData[];
   activeVials: SerializedVialData[];
+  inventorySummary: CompoundInventorySummary[];
+  reconstitutedVialsByCompound: Record<string, SerializedVialData[]>;
   syringeStandard: 'U100' | 'U40';
   syringeSize: '0.3' | '0.5' | '1.0';
   autoReconstituteCompoundId?: string;
 }
 
 export function ReconstitutionClient({
+  userId,
   compounds,
+  compoundsMinimal,
   dryVials,
   activeVials,
+  inventorySummary,
+  reconstitutedVialsByCompound,
   syringeStandard,
   syringeSize,
   autoReconstituteCompoundId,
 }: Props) {
+  const [viewMode, setViewMode] = useState<'storage' | 'compound'>('storage');
   const [showAddDryModal, setShowAddDryModal] = useState(false);
+  const [addDryCompoundId, setAddDryCompoundId] = useState<string | undefined>(undefined);
   const [showAddActiveModal, setShowAddActiveModal] = useState(false);
   const [reconstitutingVial, setReconstitutingVial] = useState<SerializedVialData | null>(null);
   
@@ -89,12 +103,52 @@ export function ReconstitutionClient({
       <InventoryDashboard
         dryVials={dryVials}
         activeVials={activeVials}
-        onAddDry={() => setShowAddDryModal(true)}
+        onAddDry={() => {
+          setAddDryCompoundId(undefined);
+          setShowAddDryModal(true);
+        }}
         onAddActive={() => setShowAddActiveModal(true)}
         soundEnabled={isMounted ? soundEnabled : true}
         onToggleSound={toggleSound}
       />
 
+      {/* View toggle: By storage ↔ By compound */}
+      <div className="flex items-center justify-center">
+        <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5 text-sm font-semibold">
+          <button
+            type="button"
+            onClick={() => setViewMode('storage')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors ${viewMode === 'storage' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+          >
+            <LayoutGrid className="h-4 w-4" /> By storage
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('compound')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors ${viewMode === 'compound' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+          >
+            <Boxes className="h-4 w-4" /> By compound
+          </button>
+        </div>
+      </div>
+
+      {viewMode === 'compound' && (
+        <CompoundInventoryView
+          userId={userId}
+          summaries={inventorySummary}
+          compounds={compoundsMinimal}
+          dryVials={dryVials}
+          reconstitutedVialsByCompound={reconstitutedVialsByCompound}
+          onReconstitute={setReconstitutingVial}
+          onAddVials={(compoundId) => {
+            setAddDryCompoundId(compoundId);
+            setShowAddDryModal(true);
+          }}
+        />
+      )}
+
+      {viewMode === 'storage' && (
+        <>
       {/* Refrigerator Section */}
       <section className="space-y-4">
         <div className="flex items-center gap-2 border-b border-border pb-2">
@@ -124,6 +178,8 @@ export function ReconstitutionClient({
           onReconstitute={setReconstitutingVial}
         />
       </section>
+        </>
+      )}
 
       {/* Standalone Calculator Section */}
       <section className="space-y-4 rounded-xl border border-border bg-card text-card-foreground px-6 py-6 shadow-sm">
@@ -142,6 +198,7 @@ export function ReconstitutionClient({
       {showAddDryModal && (
         <AddDryVialsModal
           compounds={compounds}
+          initialCompoundId={addDryCompoundId}
           onSuccess={() => playSoundEffect('swoosh')}
           onClose={() => setShowAddDryModal(false)}
         />

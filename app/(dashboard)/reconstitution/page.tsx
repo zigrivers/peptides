@@ -6,6 +6,7 @@ import {
   getVialsForUser,
   getDryVialsForUser,
   serializeVial,
+  getInventorySummaryByCompound,
 } from '@/lib/reconstitution/application/VialService';
 import { listProtocolsForUser } from '@/lib/tracker/infrastructure/ProtocolRepo';
 import { utcMidnightToday } from '@/lib/shared/date';
@@ -53,12 +54,28 @@ export default async function ReconstitutionPage({ searchParams }: PageProps) {
     serializeVial(v, utcMidnightToday(), protocols, syringeStandard)
   );
 
+  const inventorySummary = await getInventorySummaryByCompound(userId, protocols, syringeStandard);
+
+  // Reconstituted vials grouped by compound — drives the per-compound "drawing from" selector.
+  const reconstitutedVialsByCompound = serializedActiveVials.reduce<
+    Record<string, typeof serializedActiveVials>
+  >((acc, v) => {
+    (acc[v.compoundId] ??= []).push(v);
+    return acc;
+  }, {});
+
+  const compoundsMinimal = compounds.map((c) => ({ id: c.id, name: c.name, slug: c.slug }));
+
   return (
     <main className="max-w-4xl mx-auto px-4 py-8 space-y-10 animate-page-enter">
       <ReconstitutionClient
+        userId={userId}
         compounds={compoundsForPicker}
+        compoundsMinimal={compoundsMinimal}
         dryVials={serializedDryVials}
         activeVials={serializedActiveVials}
+        inventorySummary={inventorySummary}
+        reconstitutedVialsByCompound={reconstitutedVialsByCompound}
         syringeStandard={syringeStandard}
         syringeSize={syringeSize}
         autoReconstituteCompoundId={autoReconstituteCompoundId}
