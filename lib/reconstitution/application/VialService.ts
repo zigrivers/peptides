@@ -4,6 +4,8 @@ import type { Prisma, Vial } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import { getReconstitutedShelfLifeDays, getFreezerShelfLifeMonths } from '@/lib/reference/infrastructure/CompoundRepo';
+import { convertDoseToMg } from './InventoryService';
+import { doseToSyringeUnits } from '../domain/doseUnits';
 import type { Protocol } from '@/lib/tracker/domain/types';
 
 const DEFAULT_SHELF_LIFE_DAYS = 14;
@@ -587,8 +589,6 @@ export async function getInventorySummaryByCompound(
   protocols: Protocol[],
   syringeStandard: string
 ): Promise<CompoundInventorySummary[]> {
-  const { convertDoseToMg } = await import('./InventoryService');
-  const { doseToSyringeUnits } = await import('../domain/doseUnits');
 
   const now = new Date();
   const nowUtcMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
