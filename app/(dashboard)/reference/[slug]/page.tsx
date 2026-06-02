@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Info } from 'lucide-react';
 import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/shared/prisma';
 import { getCompoundBySlug } from '@/lib/reference/application/CompoundService';
 import type { Citation } from '@/lib/reference/domain/types';
 import { getSerializedVialsForCompound } from '@/lib/reconstitution/application/VialService';
@@ -141,6 +142,15 @@ export default async function CompoundProfilePage({
   const isArchived = compound.status === 'ARCHIVED';
 
   const serializedVials = await getSerializedVialsForCompound(session.user.id, compound.id);
+
+  // The catalog planner defaults to the user's saved syringe standard (U-100 by
+  // default) so its unit math matches the standalone calculator and the rest of
+  // the app. Users can still flip U-100/U-40 within the planner.
+  const userSettings = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { syringeStandard: true },
+  });
+  const syringeStandard = (userSettings?.syringeStandard as 'U100' | 'U40') ?? 'U100';
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8">
@@ -367,6 +377,7 @@ export default async function CompoundProfilePage({
               dosingTypical={compound.profile.dosingTypical}
               dosingHigh={compound.profile.dosingHigh}
               isFdaApproved={compound.profile.isFdaApproved}
+              initialSyringeStandard={syringeStandard}
             />
           </section>
 

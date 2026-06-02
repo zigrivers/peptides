@@ -139,6 +139,45 @@ describe('DosingReconstitutionPlanner Client Component', () => {
     expect(unitsText?.textContent?.trim()).toBe('15.0 Units');
   });
 
+  it('uses U-40 conversion when initialSyringeStandard is "U40" (default 5mg/2mL/500mcg => 8.0 Units)', () => {
+    const { container } = render(
+      <DosingReconstitutionPlanner {...defaultProps} initialSyringeStandard="U40" />
+    );
+    // 5mg / 2.0mL = 2500 mcg/mL; 500mcg => 0.2 mL; U-40 (0.025 mL/unit): 0.2 / 0.025 = 8.0 Units
+    const unitsText = container.querySelector('#draw-units-text');
+    expect(unitsText?.textContent?.trim()).toBe('8.0 Units');
+  });
+
+  it('matches the standalone calculator for 20mg/2mL/500mcg on a U-40 syringe (2.0 Units)', () => {
+    const { container } = render(
+      <DosingReconstitutionPlanner {...defaultProps} initialSyringeStandard="U40" />
+    );
+    fireEvent.change(container.querySelector('#vial-size-select')!, { target: { value: 'custom' } });
+    fireEvent.change(container.querySelector('#custom-vial-input')!, { target: { value: '20' } });
+    // 20mg / 2.0mL = 10000 mcg/mL; 500mcg => 0.05 mL; U-40: 0.05 / 0.025 = 2.0 Units
+    const unitsText = container.querySelector('#draw-units-text');
+    expect(unitsText?.textContent?.trim()).toBe('2.0 Units');
+  });
+
+  it('shows 5.0 Units for 20mg/2mL/500mcg on a U-100 syringe (default standard)', () => {
+    const { container } = render(<DosingReconstitutionPlanner {...defaultProps} />);
+    fireEvent.change(container.querySelector('#vial-size-select')!, { target: { value: 'custom' } });
+    fireEvent.change(container.querySelector('#custom-vial-input')!, { target: { value: '20' } });
+    // U-100 (0.01 mL/unit): 0.05 / 0.01 = 5.0 Units
+    const unitsText = container.querySelector('#draw-units-text');
+    expect(unitsText?.textContent?.trim()).toBe('5.0 Units');
+  });
+
+  it('toggling the syringe standard selector to U-40 re-computes units', () => {
+    const { container } = render(<DosingReconstitutionPlanner {...defaultProps} />);
+    // default U-100: 0.2 mL => 20.0 Units
+    expect(container.querySelector('#draw-units-text')?.textContent?.trim()).toBe('20.0 Units');
+
+    fireEvent.change(container.querySelector('#syringe-standard-select')!, { target: { value: 'U40' } });
+    // U-40: 0.2 mL => 8.0 Units
+    expect(container.querySelector('#draw-units-text')?.textContent?.trim()).toBe('8.0 Units');
+  });
+
   it('renders the FDA Approved badge if isFdaApproved is true', () => {
     const { container } = render(<DosingReconstitutionPlanner {...defaultProps} isFdaApproved={true} />);
     const badge = container.querySelector('#fda-badge');
