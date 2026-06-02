@@ -342,7 +342,8 @@ model Vial {
   reconstitutedAt       DateTime?
   expiresAt             DateTime?
   shelfOrder            Int       @default(0)
-  
+  isActiveForCompound   Boolean   @default(false)
+
   doseLogs              DoseLog[]
 
   @@index([userId, compoundId, status])
