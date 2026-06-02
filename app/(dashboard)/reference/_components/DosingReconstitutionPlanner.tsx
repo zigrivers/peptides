@@ -3,12 +3,15 @@
 import React, { useState, useMemo } from 'react';
 import { Decimal } from 'decimal.js';
 import type { DoseAmount } from '../../../../lib/reference/domain/types';
+import { getVolumePerUnit } from '@/lib/reconstitution/domain/syringe';
 
 interface DosingReconstitutionPlannerProps {
   dosingLow: DoseAmount;
   dosingTypical: DoseAmount;
   dosingHigh: DoseAmount;
   isFdaApproved: boolean;
+  /** U-100 (default) or U-40 insulin-syringe standard; drives unit conversion. */
+  initialSyringeStandard?: 'U100' | 'U40';
 }
 
 export function DosingReconstitutionPlanner({
@@ -16,6 +19,7 @@ export function DosingReconstitutionPlanner({
   dosingTypical,
   dosingHigh,
   isFdaApproved,
+  initialSyringeStandard = 'U100',
 }: DosingReconstitutionPlannerProps) {
   // Helper to parse dose to mcg in Decimal
   const getAmountInMcg = (amountStr: string, unitStr: string): Decimal => {
@@ -48,7 +52,13 @@ export function DosingReconstitutionPlanner({
   const [vialSizeMg, setVialSizeMg] = useState<number>(defaultVialMg);
   const [bacWaterMl, setBacWaterMl] = useState<number>(2.0);
   const [syringeUnits, setSyringeUnits] = useState<number>(50); // 30, 50, or 100
+  const [syringeStandard, setSyringeStandard] = useState<'U100' | 'U40'>(initialSyringeStandard);
   const [selectedTier, setSelectedTier] = useState<'low' | 'typical' | 'high'>('typical');
+
+  // mL per syringe unit for the selected standard (U-100 = 0.01, U-40 = 0.025).
+  // Shared with the rest of the app via the reconstitution domain so the catalog
+  // planner and the standalone calculator can never diverge on unit conversion.
+  const volPerUnitDec = useMemo(() => getVolumePerUnit(syringeStandard), [syringeStandard]);
 
   // Custom values support
   const [customVial, setCustomVial] = useState<string>('');
@@ -114,8 +124,8 @@ export function DosingReconstitutionPlanner({
   }, [isInvalidInput, activeDoseMcgDec, concentrationMcgPerMlDec]);
 
   const drawUnitsDec = useMemo(() => {
-    return drawMlDec.times(100);
-  }, [drawMlDec]);
+    return drawMlDec.div(volPerUnitDec);
+  }, [drawMlDec, volPerUnitDec]);
 
   // Check syringe overflow
   const isOverflow = useMemo(() => {
@@ -297,12 +307,34 @@ export function DosingReconstitutionPlanner({
                   className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
                   id="syringe-size-select"
                 >
-                  <option value="30">30 Units (0.3 mL)</option>
-                  <option value="50">50 Units (0.5 mL)</option>
-                  <option value="100">100 Units (1.0 mL)</option>
+                  {[30, 50, 100].map((u) => (
+                    <option key={u} value={u}>
+                      {u} Units ({volPerUnitDec.times(u).toFixed(2)} mL)
+                    </option>
+                  ))}
                 </select>
               </div>
 
+            </div>
+
+            {/* Syringe Standard (U-100 vs U-40) — defaults to the user's saved
+                preference and drives all unit conversion below. */}
+            <div className="flex items-center justify-between gap-2">
+              <label
+                htmlFor="syringe-standard-select"
+                className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              >
+                Syringe Type
+              </label>
+              <select
+                value={syringeStandard}
+                onChange={(e) => setSyringeStandard(e.target.value as 'U100' | 'U40')}
+                className="text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
+                id="syringe-standard-select"
+              >
+                <option value="U100">U-100 Insulin Syringe</option>
+                <option value="U40">U-40 Insulin Syringe</option>
+              </select>
             </div>
 
             {/* Dose Level Selector (Tabs) */}
@@ -319,7 +351,7 @@ export function DosingReconstitutionPlanner({
                   const isActive = selectedTier === tier.key;
                   const calculatedUnits = (isInvalidInput || concentrationMcgPerMlDec.isZero())
                     ? new Decimal(0)
-                    : tier.mcg.div(concentrationMcgPerMlDec).times(100);
+                    : tier.mcg.div(concentrationMcgPerMlDec).div(volPerUnitDec);
                   
                   return (
                     <button
@@ -355,7 +387,7 @@ export function DosingReconstitutionPlanner({
               <span className="font-bold font-mono text-gray-700 dark:text-gray-300">
                 {isInvalidInput
                   ? '0.00 mg/mL (0.0 mcg/Unit)'
-                  : `${concentrationMcgPerMlDec.div(1000).toFixed(2)} mg/mL (${concentrationMcgPerMlDec.div(100).toFixed(1)} mcg/Unit)`}
+                  : `${concentrationMcgPerMlDec.div(1000).toFixed(2)} mg/mL (${concentrationMcgPerMlDec.times(volPerUnitDec).toFixed(1)} mcg/Unit)`}
               </span>
             </div>
 
