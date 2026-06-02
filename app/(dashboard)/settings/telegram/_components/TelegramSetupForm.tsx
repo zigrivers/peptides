@@ -95,35 +95,35 @@ export function TelegramSetupForm({ linked }: Props) {
 
   if (isLinked) {
     return (
-      <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+      <div className="rounded-lg border border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/30 p-4">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm font-medium text-green-800">Telegram linked</p>
-            <p className="text-xs text-green-600 mt-0.5">Orders can be sent automatically via your account.</p>
+            <p className="text-sm font-medium text-green-800 dark:text-green-300">Telegram linked</p>
+            <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">Orders can be sent automatically via your account.</p>
           </div>
           <button
             onClick={handleUnlink}
             disabled={pending}
-            className="text-xs text-red-600 hover:text-red-800 disabled:opacity-50"
+            className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
           >
             {pending ? 'Disconnecting…' : 'Disconnect'}
           </button>
         </div>
-        {error && <p role="alert" className="mt-2 text-xs text-red-600">{error}</p>}
+        {error && <p role="alert" className="mt-2 text-xs text-destructive">{error}</p>}
       </div>
     );
   }
 
   if (step === 'idle') {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <p className="text-sm text-gray-600 mb-3">
+      <div className="rounded-lg border border-border bg-card p-4">
+        <p className="text-sm text-muted-foreground mb-3">
           Link your Telegram account to send orders automatically. You can always compose and copy
           messages manually — the fallback is always available.
         </p>
         <button
           onClick={() => setStep('phone')}
-          className="rounded bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700"
+          className="rounded bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:outline-none"
         >
           Link Telegram Account
         </button>
@@ -133,29 +133,29 @@ export function TelegramSetupForm({ linked }: Props) {
 
   if (step === 'phone') {
     return (
-      <form onSubmit={handlePhoneSubmit} className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-        <p className="text-sm font-medium text-gray-900">Enter your phone number</p>
+      <form onSubmit={handlePhoneSubmit} className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <p className="text-sm font-medium text-foreground">Enter your phone number</p>
         <input
           type="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder="+15551234567"
           required
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+          className="w-full rounded border border-input bg-background text-foreground px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
         />
-        {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+        {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
         <div className="flex gap-2">
           <button
             type="submit"
             disabled={pending}
-            className="rounded bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 focus:ring-2 focus:ring-primary focus:outline-none"
           >
             {pending ? 'Sending code…' : 'Send Code'}
           </button>
           <button
             type="button"
             onClick={() => { setStep('idle'); setError(null); }}
-            className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            className="rounded border border-input bg-background px-4 py-2 text-sm text-foreground hover:bg-muted"
           >
             Cancel
           </button>
@@ -166,8 +166,8 @@ export function TelegramSetupForm({ linked }: Props) {
 
   if (step === 'code') {
     return (
-      <form onSubmit={handleCodeSubmit} className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-        <p className="text-sm font-medium text-gray-900">Enter the code sent to {phone}</p>
+      <form onSubmit={handleCodeSubmit} className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <p className="text-sm font-medium text-foreground">Enter the code sent to {phone}</p>
         <input
           type="text"
           value={code}
@@ -175,21 +175,21 @@ export function TelegramSetupForm({ linked }: Props) {
           placeholder="12345"
           inputMode="numeric"
           required
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+          className="w-full rounded border border-input bg-background text-foreground px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
         />
-        {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+        {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
         <div className="flex gap-2">
           <button
             type="submit"
             disabled={pending}
-            className="rounded bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 focus:ring-2 focus:ring-primary focus:outline-none"
           >
             {pending ? 'Verifying…' : 'Verify Code'}
           </button>
           <button
             type="button"
             onClick={() => { setStep('phone'); setCode(''); setError(null); }}
-            className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            className="rounded border border-input bg-background px-4 py-2 text-sm text-foreground hover:bg-muted"
           >
             Back
           </button>
@@ -199,30 +199,30 @@ export function TelegramSetupForm({ linked }: Props) {
   }
 
   return (
-    <form onSubmit={handlePasswordSubmit} className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-      <p className="text-sm font-medium text-gray-900">Two-step verification required</p>
-      <p className="text-xs text-gray-500">Enter your Telegram 2FA password.</p>
+    <form onSubmit={handlePasswordSubmit} className="rounded-lg border border-border bg-card p-4 space-y-3">
+      <p className="text-sm font-medium text-foreground">Two-step verification required</p>
+      <p className="text-xs text-muted-foreground">Enter your Telegram 2FA password.</p>
       <input
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="2FA password"
         required
-        className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+        className="w-full rounded border border-input bg-background text-foreground px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
       />
-      {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
       <div className="flex gap-2">
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+          className="rounded bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 focus:ring-2 focus:ring-primary focus:outline-none"
         >
           {pending ? 'Verifying…' : 'Confirm Password'}
         </button>
         <button
           type="button"
           onClick={() => { setStep('code'); setPassword(''); setError(null); }}
-          className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+          className="rounded border border-input bg-background px-4 py-2 text-sm text-foreground hover:bg-muted"
         >
           Back
         </button>

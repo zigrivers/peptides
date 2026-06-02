@@ -43,7 +43,7 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
   return (
     <form action={formAction} className="space-y-4">
       <div>
-        <label htmlFor="reminderTime" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="reminderTime" className="block text-sm font-medium text-foreground mb-1">
           Daily reminder time
         </label>
         <input
@@ -52,12 +52,12 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
           type="time"
           defaultValue={initial?.reminderTime ?? DEFAULT_REMINDER_TIME}
           required
-          className="rounded border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+          className="rounded border border-input bg-background text-foreground [color-scheme:light_dark] px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
         />
       </div>
 
       <div>
-        <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="timezone" className="block text-sm font-medium text-foreground mb-1">
           Time zone
         </label>
         <div className="flex gap-2">
@@ -71,12 +71,12 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
             required
             placeholder="e.g. America/Denver"
             autoComplete="off"
-            className="flex-1 rounded border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+            className="flex-1 rounded border border-input bg-background text-foreground px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
           />
           <button
             type="button"
             onClick={handleDetectTimezone}
-            className="rounded border border-gray-300 px-3.5 py-2.5 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors"
+            className="rounded border border-input px-3.5 py-2.5 text-sm font-medium text-foreground bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors"
           >
             Detect
           </button>
@@ -86,13 +86,13 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
             <option key={tz} value={tz} />
           ))}
         </datalist>
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           IANA timezone identifier. The reminder fires at this local time every day.
         </p>
       </div>
 
       <fieldset>
-        <legend className="block text-sm font-medium text-gray-700 mb-2">Delivery channel</legend>
+        <legend className="block text-sm font-medium text-foreground mb-2">Delivery channel</legend>
         <div className="space-y-2">
           {CHANNEL_OPTIONS.map((opt) => (
             <label key={opt.value} className="flex items-start gap-2 cursor-pointer">
@@ -101,11 +101,11 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
                 name="channel"
                 value={opt.value}
                 defaultChecked={(initial?.channel ?? DEFAULT_FORM_CHANNEL) === opt.value}
-                className="mt-1 text-primary focus:ring-primary h-4 w-4 border-gray-300"
+                className="mt-1 text-primary focus:ring-primary h-4 w-4 border-input"
               />
               <span>
-                <span className="block text-sm text-gray-900">{opt.label}</span>
-                <span className="block text-xs text-gray-500">{opt.description}</span>
+                <span className="block text-sm text-foreground">{opt.label}</span>
+                <span className="block text-xs text-muted-foreground">{opt.description}</span>
               </span>
             </label>
           ))}
@@ -117,9 +117,9 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
           type="checkbox"
           name="enabled"
           defaultChecked={initial?.enabled ?? true}
-          className="text-primary focus:ring-primary h-4 w-4 border-gray-300 rounded"
+          className="text-primary focus:ring-primary h-4 w-4 border-input rounded"
         />
-        <span className="text-sm text-gray-700">Send daily reminders</span>
+        <span className="text-sm text-foreground">Send daily reminders</span>
       </label>
 
       <label className="flex items-center gap-2 cursor-pointer">
@@ -127,20 +127,20 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
           type="checkbox"
           name="emailFallbackEnabled"
           defaultChecked={initial?.emailFallbackEnabled ?? true}
-          className="text-primary focus:ring-primary h-4 w-4 border-gray-300 rounded"
+          className="text-primary focus:ring-primary h-4 w-4 border-input rounded"
         />
-        <span className="text-sm text-gray-700">
+        <span className="text-sm text-foreground">
           Fall back to email if push fails (recommended)
         </span>
       </label>
 
       {state?.error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+        <p className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded px-3 py-2">
           {state.error}
         </p>
       )}
       {state?.success && (
-        <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+        <p className="text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/40 rounded px-3 py-2">
           {state.success}
         </p>
       )}

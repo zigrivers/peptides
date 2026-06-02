@@ -215,25 +215,25 @@ export function PushSubscriptionPanel() {
   }, [refresh]);
 
   if (state.kind === 'loading') {
-    return <p className="text-sm text-gray-500">Checking push notification support…</p>;
+    return <p className="text-sm text-muted-foreground">Checking push notification support…</p>;
   }
   if (state.kind === 'unsupported') {
     return (
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-muted-foreground">
         Your browser doesn&apos;t support web push. Email reminders will be used.
       </p>
     );
   }
   if (state.kind === 'ios-install-required') {
     return (
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-muted-foreground">
         Web push on iOS requires installing the app to your home screen first. Open the share menu in Safari and tap &quot;Add to Home Screen&quot;.
       </p>
     );
   }
   if (state.kind === 'vapid-missing') {
     return (
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-muted-foreground">
         Web push is not configured on this server. Reminders will be delivered by email.
       </p>
     );
@@ -241,8 +241,8 @@ export function PushSubscriptionPanel() {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-700">
-        Push permission: <strong className="text-gray-900">{state.permission}</strong>
+      <p className="text-sm text-foreground">
+        Push permission: <strong className="text-foreground">{state.permission}</strong>
       </p>
       {state.subscribed ? (
         <div className="flex gap-2 flex-wrap">
@@ -250,7 +250,7 @@ export function PushSubscriptionPanel() {
             type="button"
             onClick={disablePush}
             disabled={working || testPushing}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
           >
             {working ? 'Disabling…' : 'Disable push on this device'}
           </button>
@@ -268,21 +268,21 @@ export function PushSubscriptionPanel() {
           type="button"
           onClick={enablePush}
           disabled={working || state.permission === 'DENIED'}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-primary focus:outline-none"
         >
           {working ? 'Enabling…' : 'Enable push on this device'}
         </button>
       )}
       {state.permission === 'DENIED' && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           Notifications were blocked in your browser settings. Re-enable them there to use push.
         </p>
       )}
       {testSuccess && (
-        <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">{testSuccess}</p>
+        <p className="text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/40 rounded px-3 py-2">{testSuccess}</p>
       )}
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>
+        <p className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded px-3 py-2">{error}</p>
       )}
     </div>
   );

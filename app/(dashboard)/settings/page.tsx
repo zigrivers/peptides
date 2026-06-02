@@ -8,6 +8,7 @@ import { getReminderPreference } from '@/lib/notifications/application/ReminderS
 import { updateReminderPreferencesAction } from '@/app/actions/notifications/update-reminder-preferences';
 import { RemindersForm } from './_components/RemindersForm';
 import { PushSubscriptionPanel } from './_components/PushSubscriptionPanel';
+import { SyringePreferencesForm } from './_components/SyringePreferencesForm';
 import { buildTimezoneSuggestions } from '@/lib/notifications/domain/timezones';
 import { prisma } from '@/lib/shared/prisma';
 import {
@@ -27,6 +28,12 @@ export default async function SettingsPage() {
   if (!session?.user?.id) redirect('/login');
 
   const reminderPreference = await getReminderPreference(session.user.id);
+  const syringePrefs = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { syringeStandard: true, syringeSize: true },
+  });
+  const syringeStandard = (syringePrefs?.syringeStandard ?? 'U100') as 'U100' | 'U40';
+  const syringeSize = (syringePrefs?.syringeSize ?? '1.0') as '0.3' | '0.5' | '1.0';
   // Server-side default timezone falls back to the deployment's TZ env (or 'UTC'
   // when unset) so first-time users get a sensible non-empty value to edit.
   const defaultTimezone = process.env.TZ || 'UTC';
@@ -74,10 +81,21 @@ export default async function SettingsPage() {
           defaultTimezone={defaultTimezone}
           timezoneSuggestions={timezoneSuggestions}
         />
-        <div className="mt-6 border-t border-gray-100 pt-4">
+        <div className="mt-6 border-t border-border pt-4">
           <h3 className="text-sm font-semibold text-foreground/90 mb-2">Web push on this device</h3>
           <PushSubscriptionPanel />
         </div>
+      </section>
+
+      <section aria-labelledby="syringe-prefs-heading" className="rounded-xl border border-border bg-card text-card-foreground p-6 shadow-sm">
+        <h2 id="syringe-prefs-heading" className="text-base font-semibold text-foreground mb-1">Syringe preferences</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Set the default syringe used to calculate dose units across the app.
+        </p>
+        <SyringePreferencesForm
+          initialSyringeStandard={syringeStandard}
+          initialSyringeSize={syringeSize}
+        />
       </section>
 
       <section aria-labelledby="data-export-heading" className="rounded-xl border border-border bg-card text-card-foreground p-6 shadow-sm">
@@ -102,9 +120,9 @@ export default async function SettingsPage() {
 
       <section
         aria-labelledby="delete-account-heading"
-        className="rounded-lg border border-red-200 bg-red-50/30 p-5"
+        className="rounded-lg border border-destructive/30 bg-destructive/10 p-5"
       >
-        <h2 id="delete-account-heading" className="text-sm font-semibold text-red-900 mb-1">
+        <h2 id="delete-account-heading" className="text-sm font-semibold text-destructive mb-1">
           Danger zone
         </h2>
         <DeleteAccountSection

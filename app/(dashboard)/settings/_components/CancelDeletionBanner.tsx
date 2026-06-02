@@ -48,7 +48,7 @@ export function CancelDeletionBanner({ action, scheduledForISO }: Props) {
         <strong suppressHydrationWarning>{formatted}</strong>. You can cancel any time before then.
       </p>
       {state?.error && (
-        <p className="mt-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+        <p className="mt-2 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded px-3 py-2">
           {state.error}
         </p>
       )}
