@@ -3,6 +3,7 @@ import { prisma } from '@/lib/shared/prisma';
 import { toUTCDay } from '@/lib/shared/date';
 import Decimal from 'decimal.js';
 import { decrementVialInventory, incrementVialInventory } from '@/lib/reconstitution/application/InventoryService';
+import { resolveActiveVial } from '@/lib/reconstitution/application/VialService';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 import type { LogDoseInput, LogDoseResult, SafetyWarning, DoseLog, InjectionSite } from '../domain/types';
 import {
@@ -243,11 +244,21 @@ export async function logDose(
       });
       const syringeStandard = user?.syringeStandard ?? 'U100';
 
-      if (input.status === 'LOGGED' && input.vialId) {
+      // Resolve the effective vial server-side when the caller did not supply one and this is a
+      // LOGGED dose: use the same active/FIFO vial the display surfaces show (resolveActiveVial)
+      // so the deducted vial always matches the units shown. When the caller DID supply a vialId,
+      // behavior is unchanged. No active vial → preserve current behavior (store null, no decrement).
+      let effectiveVialId = input.vialId;
+      if (input.status === 'LOGGED' && !effectiveVialId) {
+        const activeVial = await resolveActiveVial(subjectUserId, protocol.compoundId, innerTx);
+        if (activeVial) effectiveVialId = activeVial.id;
+      }
+
+      if (input.status === 'LOGGED' && effectiveVialId) {
         await decrementVialInventory(
           innerTx,
           subjectUserId,
-          input.vialId,
+          effectiveVialId,
           new Decimal(amount.amount),
           amount.unit,
           syringeStandard
@@ -263,7 +274,7 @@ export async function logDose(
         status: input.status,
         injectionSite: input.status === 'LOGGED' ? input.injectionSite : undefined,
         note: input.note,
-        vialId: input.vialId,
+        vialId: effectiveVialId,
         loggedByUserId: input.actorUserId,
       });
 

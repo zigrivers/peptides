@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { Protocol, DoseLog, SafetyWarning } from '@/lib/tracker/domain/types';
+import type { DoseUnitsDisplay } from '@/lib/reconstitution/domain/doseUnits';
 import { batchLogDosesAction } from '@/app/actions/tracker/batch-log-doses';
 
 interface SerializedProtocol extends Omit<Protocol, 'startDate' | 'endDate'> {
@@ -20,6 +21,7 @@ interface SerializedBatchDueItem {
   availableVials: number;
   isAvailable: boolean;
   safetyWarnings?: SafetyWarning[];
+  doseUnits: DoseUnitsDisplay | null;
 }
 
 type Props = {
@@ -157,6 +159,9 @@ export function BatchLogReview({ items, compoundNames }: Props) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-gray-900">
                     {compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId} — <span className="font-mono">{item.protocol.dose.amount}</span> {item.protocol.dose.unit}
+                    {item.doseUnits?.unitsText && (
+                      <span className="text-gray-400"> {item.doseUnits.unitsText}</span>
+                    )}
                   </p>
                   {state === 'skipped' && item.isAvailable && (
                     <p className="text-xs text-yellow-700 mt-0.5">Previously skipped — log now?</p>

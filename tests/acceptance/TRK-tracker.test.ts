@@ -1161,6 +1161,123 @@ describe('US-TRK-03: Individual Dose Logging', () => {
 });
 
 /**
+ * Dose-units Phase 1: logDose resolves the active/FIFO vial server-side when the caller
+ * omits a vialId on a LOGGED dose, so the deducted vial matches the displayed units
+ * (tracker-dose-units-design.md §16). Behavior is unchanged when a vialId is supplied.
+ */
+describe('logDose — server-side active-vial resolution (units Phase 1)', () => {
+  const FROZEN_NOW = new Date(Date.UTC(2026, 4, 21)); // 2026-05-21 (Thursday)
+  beforeEach(() => { vi.setSystemTime(FROZEN_NOW); });
+  afterAll(() => { vi.useRealTimers(); });
+
+  const uid = 'user-1';
+  const pid = 'proto-1';
+  const cid = 'compound-bpc157';
+  const scheduledDate = new Date(Date.UTC(2026, 4, 21));
+  const amount = { amount: '1', unit: 'mg' as const };
+
+  const protocolRow = {
+    id: pid,
+    userId: uid,
+    compoundId: cid,
+    cycleId: null,
+    dose: amount,
+    schedule: { frequency: 'Daily' },
+    administrationRoute: 'SubQ',
+    status: 'ACTIVE',
+    startDate: new Date(Date.UTC(2026, 4, 1)),
+    endDate: null,
+    notes: null,
+  };
+
+  const createdLogRow = {
+    id: 'log-units-1',
+    protocolId: pid,
+    userId: uid,
+    vialId: null,
+    idempotencyKey: `${uid}:${pid}:2026-05-21`,
+    loggedAt: new Date(),
+    scheduledDate,
+    amount,
+    status: 'LOGGED',
+    injectionSite: { bodyPart: 'thigh', side: 'left' },
+    isBatchLog: false,
+    note: null,
+    loggedByUserId: uid,
+  };
+
+  beforeEach(() => {
+    mockDoseLogFindFirst.mockResolvedValue(null); // no existing log
+    mockProtocolFindFirst.mockResolvedValue(protocolRow);
+    mockVialCount.mockResolvedValue(1);
+    mockDoseLogCreate.mockResolvedValue(createdLogRow);
+    mockAuditCreate.mockResolvedValue({});
+  });
+
+  it('absent vialId + LOGGED → resolves the FIFO active vial, decrements it, and stores its id', async () => {
+    // resolveActiveVial + decrementVialInventory both read tx.vial.findFirst → the FIFO vial.
+    mockVialFindFirst.mockResolvedValue({
+      id: 'fifo-vial', userId: uid, compoundId: cid, totalMg: 20, bacWaterMl: 2, remainingMg: 20, status: 'RECONSTITUTED',
+    });
+    mockVialUpdateMany.mockResolvedValue({ count: 1 });
+    mockVialFindUnique.mockResolvedValue({ remainingMg: 19, status: 'RECONSTITUTED' });
+
+    const result = await logDose({
+      actorUserId: uid, protocolId: pid, scheduledDate, amount, status: 'LOGGED',
+      injectionSite: { bodyPart: 'thigh', side: 'left' },
+    });
+
+    expect(result.doseLog).toBeDefined();
+    // Inventory was decremented for the resolved FIFO vial.
+    expect(mockVialUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: 'fifo-vial' }) })
+    );
+    // The resolved vial id is persisted on the dose log.
+    expect(mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ vialId: 'fifo-vial' }) })
+    );
+  });
+
+  it('provided vialId → unchanged: deducts and stores the supplied vial (no FIFO override)', async () => {
+    mockVialFindFirst.mockResolvedValue({
+      id: 'explicit-vial', userId: uid, compoundId: cid, totalMg: 20, bacWaterMl: 2, remainingMg: 20, status: 'RECONSTITUTED',
+    });
+    mockVialUpdateMany.mockResolvedValue({ count: 1 });
+    mockVialFindUnique.mockResolvedValue({ remainingMg: 19, status: 'RECONSTITUTED' });
+
+    const result = await logDose({
+      actorUserId: uid, protocolId: pid, scheduledDate, amount, status: 'LOGGED',
+      injectionSite: { bodyPart: 'thigh', side: 'left' },
+      vialId: 'explicit-vial',
+    });
+
+    expect(result.doseLog).toBeDefined();
+    expect(mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ vialId: 'explicit-vial' }) })
+    );
+    expect(mockVialUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: 'explicit-vial' }) })
+    );
+  });
+
+  it('absent vialId + no active vial → no crash, stores null, no decrement (preserves prior behavior)', async () => {
+    mockVialCount.mockResolvedValue(0); // surfaces the insufficient-inventory warning
+    mockVialFindFirst.mockResolvedValue(null); // resolveActiveVial finds no RECONSTITUTED vial
+
+    const result = await logDose({
+      actorUserId: uid, protocolId: pid, scheduledDate, amount, status: 'LOGGED',
+      injectionSite: { bodyPart: 'thigh', side: 'left' },
+    });
+
+    expect(result.doseLog).toBeDefined();
+    expect(mockVialUpdateMany).not.toHaveBeenCalled(); // nothing decremented
+    expect(mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ vialId: null }) })
+    );
+  });
+});
+
+/**
  * Story: US-TRK-05 — Batch Log
  */
 describe('US-TRK-05: Batch Log', () => {
