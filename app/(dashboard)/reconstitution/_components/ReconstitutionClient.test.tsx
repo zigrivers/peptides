@@ -58,10 +58,18 @@ const summary: CompoundInventorySummary = {
   unitsEach: null,
 };
 
-function renderClient() {
+function renderClient(
+  overrides: Partial<{
+    userId: string;
+    actorUserId: string;
+    managedUsers: { id: string; name: string | null }[];
+  }> = {}
+) {
   return render(
     <ReconstitutionClient
-      userId="user-1"
+      userId={overrides.userId ?? 'user-1'}
+      actorUserId={overrides.actorUserId ?? 'user-1'}
+      managedUsers={overrides.managedUsers ?? []}
       compounds={[{ id: 'c1', name: 'BPC-157', slug: 'bpc-157', profile: null }]}
       compoundsMinimal={[{ id: 'c1', name: 'BPC-157', slug: 'bpc-157' }]}
       dryVials={[]}
@@ -116,5 +124,36 @@ describe('ReconstitutionClient view toggle', () => {
     // dashboard add buttons remain available across the toggle
     expect(dashboardBefore).toBeTruthy();
     expect(container.textContent).toContain('By storage');
+  });
+});
+
+describe('ReconstitutionClient caregiver subject selector', () => {
+  afterEach(() => cleanup());
+
+  it('does NOT render the subject selector when there are no managed users', () => {
+    const { queryByLabelText } = renderClient({ managedUsers: [] });
+    expect(queryByLabelText(/select whose inventory to view/i)).toBeNull();
+  });
+
+  it('renders the subject selector (self + managed users) when managed users exist', () => {
+    const { getByLabelText, getByRole } = renderClient({
+      actorUserId: 'user-1',
+      userId: 'user-1',
+      managedUsers: [{ id: 'managed-2', name: 'Alice' }],
+    });
+    const select = getByLabelText(/select whose inventory to view/i) as HTMLSelectElement;
+    expect(select).toBeTruthy();
+    expect(getByRole('option', { name: /me \(self\)/i })).toBeTruthy();
+    expect(getByRole('option', { name: 'Alice' })).toBeTruthy();
+  });
+
+  it('reflects the resolved subject (managed user) as the selected value', () => {
+    const { getByLabelText } = renderClient({
+      actorUserId: 'user-1',
+      userId: 'managed-2',
+      managedUsers: [{ id: 'managed-2', name: 'Alice' }],
+    });
+    const select = getByLabelText(/select whose inventory to view/i) as HTMLSelectElement;
+    expect(select.value).toBe('managed-2');
   });
 });

@@ -16,9 +16,12 @@ import { ReconstituteModal } from './ReconstituteModal';
 import { Snowflake, Thermometer, Calculator, Boxes, LayoutGrid } from 'lucide-react';
 import { getAudioPlayer } from '@/lib/reconstitution/domain/audioSynth';
 import { ReconstitutionCalculatorForm } from './ReconstitutionCalculatorForm';
+import { SubjectSelector, type SubjectOption } from './SubjectSelector';
 
 interface Props {
   userId: string;
+  actorUserId: string;
+  managedUsers: SubjectOption[];
   compounds: Pick<Compound, 'id' | 'name' | 'profile' | 'slug'>[];
   compoundsMinimal: Pick<Compound, 'id' | 'name' | 'slug'>[];
   dryVials: SerializedVialData[];
@@ -32,6 +35,8 @@ interface Props {
 
 export function ReconstitutionClient({
   userId,
+  actorUserId,
+  managedUsers,
   compounds,
   compoundsMinimal,
   dryVials,
@@ -99,6 +104,14 @@ export function ReconstitutionClient({
 
   return (
     <div className="space-y-10">
+      {/* Caregiver subject switcher — only rendered when the actor manages someone.
+          `userId` here is the resolved subjectUserId. */}
+      <SubjectSelector
+        actorUserId={actorUserId}
+        subjectUserId={userId}
+        managedUsers={managedUsers}
+      />
+
       {/* Summary dashboard at the top */}
       <InventoryDashboard
         dryVials={dryVials}
