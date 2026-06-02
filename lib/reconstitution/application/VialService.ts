@@ -539,6 +539,213 @@ export async function updateVialRemainingMg(input: UpdateVialRemainingMgInput): 
   return toVialWithBadges(updatedVial);
 }
 
+/**
+ * Per-compound inventory summary for the "By compound" view (tracker-dose-units-design.md §10).
+ * All Decimals serialized to strings — the client never receives a `Decimal`.
+ */
+export interface CompoundInventorySummary {
+  compoundId: string;
+  compoundName: string;
+  compoundSlug: string;
+  reconstitutedCount: number;
+  dryCount: number;
+  expiredCount: number;
+  /** Sum of remainingMg across non-EXPIRED RECONSTITUTED vials (string). */
+  totalReconstitutedRemainingMg: string;
+  /** Sum of totalMg across non-EXPIRED DRY vials (string). */
+  totalDryMg: string;
+  /** EXPIRED > EXPIRING_SOON > LOW_INVENTORY, else null. */
+  worstBadge: VialBadge | null;
+  /** The active/FIFO reconstituted vial, serialized; null when none. */
+  activeVial: SerializedVialData | null;
+  dryVialRefs: Pick<SerializedVialData, 'id' | 'totalMg' | 'remainingMg' | 'expiresAt'>[];
+  /** True when >1 RECONSTITUTED vial and their totalMg/bacWaterMl concentrations differ. */
+  hasMixedConcentration: boolean;
+  /** floor(reconstituted pool / representative doseMg); null when omitted (§10.4). */
+  dosesLeft: number | null;
+  /** Units to draw per dose as a string, or 'varies' (mixed concentration), or null. */
+  unitsEach: string | 'varies' | null;
+}
+
+const INVENTORY_VIAL_CAP = 500;
+
+const WORST_BADGE_ORDER: VialBadge[] = ['EXPIRED', 'EXPIRING_SOON', 'LOW_INVENTORY'];
+
+/**
+ * Aggregate the user's vials grouped by compound for the "By compound" inventory view.
+ *
+ * ONE `userId`-scoped query over DRY/RECONSTITUTED/EXPIRED vials, reduced in memory. EXPIRED
+ * vials are INCLUDED for display (so a row doesn't vanish when the expiry cron flips status) but
+ * EXCLUDED from doses-left + total math. DEPLETED/DELETED are excluded entirely.
+ *
+ * Needs `protocols` and `syringeStandard` because it calls `serializeVial` and computes the
+ * doses-left line via the active protocol's representative dose (mirrors
+ * `getSerializedVialsForCompound`). Both are passed in (no redundant query).
+ */
+export async function getInventorySummaryByCompound(
+  userId: string,
+  protocols: Protocol[],
+  syringeStandard: string
+): Promise<CompoundInventorySummary[]> {
+  const { convertDoseToMg } = await import('./InventoryService');
+  const { doseToSyringeUnits } = await import('../domain/doseUnits');
+
+  const now = new Date();
+  const nowUtcMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+  const vials = await prisma.vial.findMany({
+    where: {
+      userId,
+      status: { in: [VIAL_STATUS.DRY, VIAL_STATUS.RECONSTITUTED, VIAL_STATUS.EXPIRED] },
+    },
+    include: { compound: { select: { name: true, slug: true } } },
+    orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }],
+    take: INVENTORY_VIAL_CAP,
+  });
+
+  if (vials.length >= INVENTORY_VIAL_CAP) {
+    // Read-path safety cap: silently truncates (not the hard reject reorderVialsAction uses).
+    console.warn(
+      `getInventorySummaryByCompound: vial cap ${INVENTORY_VIAL_CAP} hit for user ${userId}; results truncated`
+    );
+  }
+
+  // Group the raw rows by compound.
+  const groups = new Map<string, typeof vials>();
+  for (const v of vials) {
+    const list = groups.get(v.compoundId);
+    if (list) {
+      list.push(v);
+    } else {
+      groups.set(v.compoundId, [v]);
+    }
+  }
+
+  const activeProtocols = protocols.filter((p) => p.status === 'ACTIVE');
+
+  const summaries: CompoundInventorySummary[] = [];
+
+  for (const [compoundId, compoundVials] of groups) {
+    const first = compoundVials[0];
+
+    const reconVials = compoundVials.filter(
+      (v) => v.status === VIAL_STATUS.RECONSTITUTED
+    );
+    const dryVials = compoundVials.filter((v) => v.status === VIAL_STATUS.DRY);
+    const expiredVials = compoundVials.filter((v) => v.status === VIAL_STATUS.EXPIRED);
+
+    const totalReconstitutedRemainingMg = reconVials.reduce(
+      (acc, v) => acc.plus(new Decimal(v.remainingMg)),
+      new Decimal(0)
+    );
+    const totalDryMg = dryVials.reduce(
+      (acc, v) => acc.plus(new Decimal(v.totalMg)),
+      new Decimal(0)
+    );
+
+    // worstBadge: status === EXPIRED is EXPIRED-level directly (badge alone is insufficient).
+    const badgeSet = new Set<VialBadge>();
+    for (const v of compoundVials) {
+      if (v.status === VIAL_STATUS.EXPIRED) {
+        badgeSet.add('EXPIRED');
+      }
+      for (const b of toVialWithBadges(v).badges) {
+        badgeSet.add(b);
+      }
+    }
+    const worstBadge = WORST_BADGE_ORDER.find((b) => badgeSet.has(b)) ?? null;
+
+    // hasMixedConcentration: >1 recon vial with differing totalMg/bacWaterMl ratio.
+    let hasMixedConcentration = false;
+    if (reconVials.length > 1) {
+      const concentrations = reconVials.map((v) => {
+        const bac = v.bacWaterMl ? new Decimal(v.bacWaterMl) : null;
+        if (!bac || bac.lte(0)) return null;
+        return new Decimal(v.totalMg).dividedBy(bac).toString();
+      });
+      hasMixedConcentration = concentrations.some((c) => c !== concentrations[0]);
+    }
+
+    // Resolve the active vial (pointer-aware) and serialize it.
+    const activeVialRaw = reconVials.length > 0 ? await resolveActiveVial(userId, compoundId) : null;
+    const activeVial = activeVialRaw
+      ? serializeVial(
+          toVialWithBadges({ ...activeVialRaw, compound: { name: first.compound.name, slug: first.compound.slug } }),
+          nowUtcMidnight,
+          activeProtocols,
+          syringeStandard
+        )
+      : null;
+
+    // Doses-left + unitsEach (Phase 3b).
+    let dosesLeft: number | null = null;
+    let unitsEach: string | 'varies' | null = null;
+
+    const compoundActiveProtocols = activeProtocols.filter((p) => p.compoundId === compoundId);
+    const representative = compoundActiveProtocols.length === 1 ? compoundActiveProtocols[0] : null;
+    const isMassUnit = representative
+      ? representative.dose.unit === 'mcg' || representative.dose.unit === 'mg'
+      : false;
+
+    if (representative && activeVial) {
+      const dose = representative.dose;
+      const bacWaterMl = activeVial.bacWaterMl ? new Decimal(activeVial.bacWaterMl) : null;
+      const canConvert = isMassUnit || (bacWaterMl !== null && bacWaterMl.gt(0));
+
+      if (canConvert) {
+        const doseMg = convertDoseToMg(
+          new Decimal(dose.amount),
+          dose.unit,
+          { totalMg: new Decimal(activeVial.totalMg), bacWaterMl },
+          syringeStandard
+        );
+
+        // Mixed concentration: suppress unitsEach; omit dosesLeft for mL/IU (pool ÷ active doseMg wrong).
+        if (hasMixedConcentration) {
+          unitsEach = 'varies';
+          if (isMassUnit && doseMg.gt(0)) {
+            dosesLeft = totalReconstitutedRemainingMg.dividedBy(doseMg).floor().toNumber();
+          }
+        } else {
+          if (doseMg.gt(0)) {
+            dosesLeft = totalReconstitutedRemainingMg.dividedBy(doseMg).floor().toNumber();
+          }
+          const unitsResult = doseToSyringeUnits(
+            dose,
+            { totalMg: activeVial.totalMg, bacWaterMl: activeVial.bacWaterMl },
+            syringeStandard === 'U40' ? 'U40' : 'U100'
+          );
+          unitsEach = unitsResult.computable ? unitsResult.units.toString() : null;
+        }
+      }
+    }
+
+    summaries.push({
+      compoundId,
+      compoundName: first.compound.name,
+      compoundSlug: first.compound.slug,
+      reconstitutedCount: reconVials.length,
+      dryCount: dryVials.length,
+      expiredCount: expiredVials.length,
+      totalReconstitutedRemainingMg: totalReconstitutedRemainingMg.toFixed(3),
+      totalDryMg: totalDryMg.toFixed(3),
+      worstBadge,
+      activeVial,
+      dryVialRefs: dryVials.map((v) => ({
+        id: v.id,
+        totalMg: new Decimal(v.totalMg).toFixed(3),
+        remainingMg: new Decimal(v.remainingMg).toFixed(3),
+        expiresAt: v.expiresAt ? v.expiresAt.toISOString() : null,
+      })),
+      hasMixedConcentration,
+      dosesLeft,
+      unitsEach,
+    });
+  }
+
+  return summaries;
+}
+
 export async function getSerializedVialsForCompound(
   userId: string,
   compoundId: string

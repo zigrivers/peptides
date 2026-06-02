@@ -7,12 +7,14 @@ import { X, AlertTriangle, Snowflake, Plus } from 'lucide-react';
 
 interface Props {
   compounds: Pick<Compound, 'id' | 'name' | 'profile' | 'slug'>[];
+  /** Pre-select a compound (e.g. when opened from the by-compound inventory row). */
+  initialCompoundId?: string;
   onSuccess?: () => void;
   onClose: () => void;
 }
 
-export function AddDryVialsModal({ compounds, onSuccess, onClose }: Props) {
-  const [compoundId, setCompoundId] = useState('');
+export function AddDryVialsModal({ compounds, initialCompoundId, onSuccess, onClose }: Props) {
+  const [compoundId, setCompoundId] = useState(initialCompoundId ?? '');
   const [totalMg, setTotalMg] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [expiresAt, setExpiresAt] = useState('');
