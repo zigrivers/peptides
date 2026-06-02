@@ -12,6 +12,19 @@ export function getVolumePerUnit(syringeStandard?: string): Decimal {
   return SYRINGE_CONVERSION_FACTORS.U100;
 }
 
+/**
+ * Maximum drawable units for a given syringe standard + physical capacity (mL).
+ * U-100: 0.3 mL = 30 U, 0.5 mL = 50 U, 1.0 mL = 100 U.
+ * U-40:  0.3 mL = 12 U, 0.5 mL = 20 U, 1.0 mL = 40 U.
+ * Decimal-based so e.g. 0.3 / 0.025 = 12 exactly (no float drift).
+ */
+export function syringeMaxUnits(
+  standard: 'U100' | 'U40',
+  size: '0.3' | '0.5' | '1.0'
+): number {
+  return new Decimal(size).dividedBy(getVolumePerUnit(standard)).toNumber();
+}
+
 export function getCapColor(compoundSlug: string, compoundId?: string): string {
   const knownColors: Record<string, string> = {
     'tirzepatide': '--compound-tirzepatide',
