@@ -86,4 +86,11 @@ describe('purgeOldAuditEvents', () => {
     await expect(purgeOldAuditEvents(new Date(), NaN)).rejects.toThrow('invalid_retention_days');
     expect(mockDeleteMany).not.toHaveBeenCalled();
   });
+
+  it('rejects invalid batchSize (zero, negative, NaN)', async () => {
+    await expect(purgeOldAuditEvents(new Date(), 90, 0)).rejects.toThrow('invalid_batch_size');
+    await expect(purgeOldAuditEvents(new Date(), 90, -5)).rejects.toThrow('invalid_batch_size');
+    await expect(purgeOldAuditEvents(new Date(), 90, NaN)).rejects.toThrow('invalid_batch_size');
+    expect(mockDeleteMany).not.toHaveBeenCalled();
+  });
 });

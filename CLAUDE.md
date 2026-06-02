@@ -29,6 +29,7 @@
 | Unit Tests | `pnpm test` |
 | Tests (watch) | `pnpm test:watch` |
 | Test Coverage | `pnpm test:coverage` |
+| Coverage Gate (safety dirs) | `pnpm check:coverage` (100% on lib/reconstitution domain + lib/audit) |
 | Run Evals | `pnpm eval` |
 | Run E2E | `pnpm e2e` |
 | DB Setup | `make db-setup` or `pnpm db:setup` |
