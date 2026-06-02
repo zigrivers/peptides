@@ -1,158 +1,218 @@
 # Tracker "Units to Draw" — Design Spec
 
-**Status:** Approved design (pre-implementation)
+**Status:** Approved design, hardened after a multi-model review (architecture, risk/safety, completeness lenses).
 **Date:** 2026-06-02
-**Related:** `lib/reconstitution/domain/ReconstitutionCalculator.ts`, `lib/reconstitution/domain/syringe.ts`, `docs/adrs/ADR-008-testing-strategy.md`, `.claude/rules/safety-math.md`
+**Related:** `lib/reconstitution/domain/ReconstitutionCalculator.ts`, `lib/reconstitution/domain/syringe.ts`, `lib/tracker/application/{BatchLogService,DoseLogService}.ts`, `app/actions/reconstitution/reorder-vials.ts`, `docs/adrs/ADR-008-testing-strategy.md`, `.claude/rules/safety-math.md`
+
+> **Review note:** the first draft proposed "selecting a vial = move it to the front of the shelf (`shelfOrder`)". The review proved that unsound — `shelfOrder` is a **global, per-user, densely-renumbered** index owned by an existing drag-to-reorder feature (`reorderVialsAction`), not a per-compound FIFO tiebreak. This spec instead uses an **explicit active-vial pointer** plus a shared `resolveActiveVial` resolver used by every consumer.
 
 ## 1. Problem & Goal
 
-The Tracker shows a scheduled dose as a mass (e.g. `1 mg`), but the user has to draw
-that dose on an insulin syringe and has no idea how many **units** to pull. We will
-show, alongside each scheduled dose, the number of syringe units to draw — derived
-from the user's syringe standard (default **U-100**) and the **reconstituted vial they
-are actually drawing from**.
+The Tracker shows a scheduled dose as a mass (e.g. `1 mg`), but the user must draw that
+dose on an insulin syringe and has no idea how many **units** to pull. We will show, next
+to each **scheduled** dose, the units to draw — derived from the subject's syringe standard
+(default **U-100**) and the **reconstituted vial they are actually drawing from**.
 
-Worked example (the reported case): a `1 mg` dose drawn from a 20 mg vial reconstituted
-with 2 mL BAC water = 10 mg/mL → 0.1 mL → **10 units (U-100)** (or 4 units on U-40).
+Worked example (the reported case): `1 mg` from a 20 mg vial + 2 mL BAC water = 10 mg/mL →
+0.1 mL → **10 units (U-100)** (4 units on U-40).
 
 ## 2. Decisions (resolved during brainstorming)
 
 | Question | Decision |
 |----------|----------|
-| Where to show units | **All dose surfaces:** calendar day-panel/tooltip, protocol detail page, batch-log review, dashboard "due today". |
-| Display format | **Inline with standard:** `1 mg  ≈ 10 units (U-100)`. |
-| Multiple reconstituted vials | **User selects the vial they're drawing from** (per-compound), default = today's FIFO pick. Selector shown only when ≥2 reconstituted vials exist for the compound. |
-| Selection ↔ logging | The selected vial **drives both the displayed units and the vial deducted on log** (no display/log mismatch possible). |
-| No active reconstituted vial (mcg/mg dose) | **Accurate-only:** show units only when a real vial concentration exists; otherwise show `1 mg · reconstitute to see units`. Never estimate a concentration. |
+| Where to show units | Calendar day-panel/tooltip, protocol detail page, batch-log review. **(Dashboard "due today" is NOT a surface — see §3.3.)** |
+| Display format | Inline with standard: `1 mg  ≈ 10 units (U-100)`. |
+| Multiple reconstituted vials | User selects the "drawing from" vial per compound; default = `resolveActiveVial` (§3.2). Selector shown only when ≥2 reconstituted vials exist. |
+| Selection ↔ logging | The selected vial drives both the displayed units and the vial deducted on log, via the shared `resolveActiveVial` used by display **and both** log paths (§3.2). |
+| No active reconstituted vial (mcg/mg dose) | Accurate-only: show `1 mg · reconstitute to see units`. Never estimate a concentration. |
 | Syringe standard | The **subject's** `User.syringeStandard` (default `U100`); managed users use their own. |
 
 ## 3. Architecture
 
-### 3.1 Domain: a single source of truth for the math
+### 3.1 Domain: the dose→units helper
 
-Add a pure function (Decimal-only) in `lib/reconstitution/domain` — e.g.
-`doseToSyringeUnits`:
+A pure, **total** function (never throws) in `lib/reconstitution/domain` — `doseToSyringeUnits`:
 
 ```
 doseToSyringeUnits(
-  dose: DoseAmount,                       // { amount, unit: 'mcg'|'mg'|'IU'|'mL' }
-  vialConcentration: { totalMg, bacWaterMl } | null,
+  dose: DoseAmount,                                  // { amount: string, unit }
+  vialConcentration: { totalMg: string; bacWaterMl: string | null } | null,
   syringeStandard: 'U100' | 'U40'
-): { computable: true; units: Decimal; injectionVolMl: Decimal }
- | { computable: false; reason: 'needs_vial' }
+): { computable: true;  units: Decimal; injectionVolMl: Decimal }
+ | { computable: false; reason: 'needs_vial' | 'invalid_input' }
 ```
 
-Rules:
-- **mcg / mg** → requires `vialConcentration`. Delegates to `ReconstitutionCalculator`
-  (`mg → mcg ×1000`; `units = injectionVolMl / volPerUnit`). If concentration is null →
-  `{ computable: false, reason: 'needs_vial' }`.
+- Accepts the vial's `totalMg`/`bacWaterMl` as **strings** and parses internally (matching
+  `serializeVial`), so callers can pass `SerializedVialData` without re-parsing Decimals in
+  client code.
+- **Input guards (required — `ReconstitutionCalculator.calculate` THROWS on non-positive
+  inputs):** if `amount ≤ 0`, or a needed concentration input (`totalMg`/`bacWaterMl`) is
+  null/≤0, return `{ computable: false, reason: 'invalid_input' }` (or `needs_vial` when the
+  concentration is simply absent). The helper must wrap/guard before delegating.
+- **mcg / mg** → needs concentration. `mg→mcg ×1000`; delegates to `ReconstitutionCalculator`
+  (`units = injectionVolMl / volPerUnit`). No concentration → `{ computable: false,
+  reason: 'needs_vial' }`.
 - **mL** → `units = mL / getVolumePerUnit(standard)`. No vial needed.
-- **IU** → `units = amount` (IU is already syringe units in this app — see
-  `InventoryService.convertDoseToMg`'s IU branch, which treats 1 IU = `volPerUnit` mL).
-  No vial needed.
+- **IU** → `units = amount`. No vial needed. **Convention:** this app defines 1 IU = 1
+  syringe unit (`convertDoseToMg` uses the same `volPerUnit` factor for IU as
+  `getVolumePerUnit`, so `units = (IU × f)/f = IU` for both standards). This is the app's
+  internal convention and is **not** a pharmacological IU.
 
-This is the **only** place dose→units is computed, so the Tracker, the catalog
-planner, and the standalone calculator cannot diverge. 100% branch coverage required
-(`.claude/rules/safety-math.md`).
+**Rounding / precision (safety):** the helper returns an **exact** `Decimal`. Display rounds
+to **one decimal place** (`toFixed(1)`) to match the existing `SyringePreview` /
+`ReconstitutionCalculatorForm` convention — do not introduce a second precision. **Inventory
+deduction continues to use the exact `injectionVolMl`/mg (unchanged); never deduct a rounded
+unit count.** A dose that lands between markings (e.g. 7.3 units) is shown as `≈ 7.3 units` —
+the `≈` already signals approximation.
 
-### 3.2 "Drawing-from" vial = the FIFO-active vial
+**Existing duplicate math (must be acknowledged, not ignored):** dose→volume/mg conversion is
+already implemented in `serializeVial` (`VialService.ts`) and `InventoryService.convertDoseToMg`,
+and the catalog planner (`DosingReconstitutionPlanner.tsx`) computes units inline. `doseToSyringeUnits`
+is the **canonical path for new code**; migrating those three onto it is a **follow-up refactor**
+(out of scope here). To prevent drift in the meantime, add a **parity test** asserting
+`doseToSyringeUnits` agrees with `convertDoseToMg`/`ReconstitutionCalculator` on shared cases.
 
-Logging already deducts from the **FIFO-active vial** for `(userId, compoundId)`:
+Also add `syringeMaxUnits(standard: 'U100'|'U40', size: '0.3'|'0.5'|'1.0'): number` to
+`syringe.ts` (the capacity logic is currently duplicated inline in `ReconstitutionCalculatorForm`
+and `SyringePreview`). The Tracker capacity check (§3.5) uses it; the two existing callsites
+migrate to it as part of the follow-up. 100% branch coverage (`safety-math.md`).
 
+### 3.2 "Drawing-from" vial: explicit pointer + shared resolver
+
+**Schema:** add `Vial.isActiveForCompound Boolean @default(false)` (additive migration; no
+backfill — `false` everywhere means "use FIFO").
+
+**Resolver (single source of truth for "which vial"):**
 ```
-vial.findFirst({ where: { userId, compoundId, status: 'RECONSTITUTED' },
-                 orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }] })
+resolveActiveVial(userId, compoundId, tx?): Vial | null
+  // the RECONSTITUTED vial with isActiveForCompound = true for (userId, compoundId);
+  // else FIFO fallback: orderBy [shelfOrder asc, expiresAt asc]; else null.
 ```
-(`lib/tracker/application/BatchLogService.ts`).
+`resolveActiveVial` is used by **(a)** the display surfaces, **(b)** `BatchLogService` (replacing
+its inline FIFO `findFirst`), and **(c)** the individual-log path: its callers pass
+`resolveActiveVial(...).id` as `logDose`'s `vialId`. This closes the review gap that
+`logDose` deducts a **caller-supplied** `vialId` and never ran FIFO — now display and **both**
+log paths resolve the same vial, so the displayed units always match what is deducted.
 
-Therefore **selecting the drawing-from vial = moving it to the front of the shelf**:
-set the chosen vial's `shelfOrder` to `min(siblingShelfOrders) - 1` (single-row update),
-within a transaction with an `AuditEvent` (safety-math rule). A new server action —
-e.g. `setActiveVialAction(compoundId, vialId)` — performs this, validates the vial is a
-`RECONSTITUTED` vial owned by the subject (identity-scoped: `where: { id, userId }`),
-emits a new audit action (e.g. `VIAL_SET_ACTIVE`), and revalidates the affected views.
+**Selection action** — `setActiveVialAction(subjectUserId, compoundId, vialId)`:
+- **Managed-user scoping (do NOT copy `reorderVialsAction`, which is actor-only):** resolve
+  `subjectUserId` from the UI context and verify `actorUserId === subjectUserId` **or** the
+  actor manages the subject (same `getManagedUserIds` check `logDose` uses).
+- Validates the target with `updateMany({ where: { id: vialId, userId: subjectUserId,
+  compoundId, status: 'RECONSTITUTED' }, ... })` (count-guarded, defence-in-depth — matches
+  `reorderVialsAction`'s proven pattern).
+- In **one transaction**: set the chosen vial `isActiveForCompound = true` and unset all other
+  RECONSTITUTED siblings for `(subjectUserId, compoundId)` to `false`; write an `AuditEvent`
+  (`actorUserId`, `subjectUserId`). This avoids the unbounded-drift / tie / race problems the
+  `shelfOrder` approach had (no numeric index to drift; exactly one flag per compound).
+- **New audit action:** add `'VIAL_SET_ACTIVE'` to the `AuditAction` closed union in
+  `lib/audit/domain/AuditEvent.ts` (Reconstitution section). Use `withAudit` for compile-time
+  enforcement. (`lib/reconstitution` and `lib/audit` both require 100% branch coverage.)
+- **Reactivity:** the selector calls the action with `useTransition`; on success
+  `router.refresh()` re-renders the server tree. Optimistic pre-refresh display is out of scope.
 
-**Why this is the right minimal design:** display and the existing log both read the
-same FIFO-active vial, so the "selection drives display AND log" requirement is
-satisfied **with no change to the log action**, and the displayed units can never
-disagree with the vial that is actually deducted. Trade-off: `shelfOrder` now also
-encodes "currently drawing from" (front of shelf). Considered and rejected: an explicit
-`Vial.activeForCompound` pointer — clearer semantically but adds a column, a migration,
-and a change to every active-vial query, for no behavioral gain.
-
-When the front-of-shelf vial depletes (`status → DEPLETED`), the next vial by
-`shelfOrder`/`expiresAt` becomes active automatically — correct, no special handling.
+When the active vial depletes (`status → DEPLETED`), its flag no longer matches the
+RECONSTITUTED filter, so `resolveActiveVial` falls back to FIFO automatically.
 
 ### 3.3 Data flow & display surfaces
 
-Each surface that renders a scheduled dose computes units via §3.1 using the §3.2
-active vial and the subject's `syringeStandard`:
+Units are computed **server-side** (call `doseToSyringeUnits` with `resolveActiveVial` + the
+subject's standard) and passed to client components as **display strings + a `computable`
+flag** — client components never receive `Decimal`s.
 
-- **`TrackerCalendar`** (day-panel + tooltip): the dose string gains `≈ N units (U-100)`
-  or the `· reconstitute to see units` prompt.
-- **Protocol detail page** (`protocols/[id]`): same, next to the dose.
-- **`BatchLogReview`**: per-dose units shown before confirming a batch log.
-- **Dashboard "due today"**: same (already consumes `serializeVial`).
+Per-surface changes (all currently lack the needed data — enumerated so the plan is concrete):
 
-The **Tracker page must start fetching `syringeStandard`** (it doesn't today) — mirror
-the dashboard/reconstitution pages (`prisma.user.findUnique({ select: { syringeStandard } })`,
-default `'U100'`). The data the surfaces need per due-dose: `{ doseUnitsText | needsVial,
-syringeStandard, activeVial, reconstitutedVialsForCompound[] }`. The reconstituted-vial
-list (for the selector) is only required where the selector renders.
+- **`TrackerCalendar`** (`tracker/page.tsx` → component): page must fetch `syringeStandard`
+  **and `syringeSize`** (it fetches neither today) and the active vial per compound; add props
+  (e.g. `syringeStandard`, `activeVialByCompoundId`, and the per-compound reconstituted-vial
+  list where the selector renders). Day-panel + tooltip render `≈ N units (U-100)` or the
+  `· reconstitute to see units` affordance. **Scope:** units render for **scheduled
+  (not-yet-logged)** doses. For already-**logged** doses, units (if shown) use the stored
+  `DoseLog.vialId` (historical accuracy), not the current active vial; logged-dose units are
+  out of P1 scope.
+- **Protocol detail page** (`protocols/[id]/page.tsx`): fetches no vials/standard today — add
+  the `syringeStandard`/`syringeSize` + active-vial queries; render units next to the dose.
+- **`BatchLogReview`**: `SerializedBatchDueItem` carries `availableVials: number` (a count) —
+  extend it (or `getDueTodayForBatch`) to carry the active vial / precomputed `doseUnitsText`
+  so each row shows units before confirming.
+- **Dashboard "due today" — REMOVED from scope:** `StackOverview` renders only a boolean
+  "dose today" + a link to the tracker; there are no per-dose rows to annotate. Adding them is
+  net-new UI, explicitly out of scope.
 
-The per-compound **"drawing from [Vial ▾]" selector** renders only when ≥2
-`RECONSTITUTED` vials exist for the compound; changing it calls
-`setActiveVialAction` and the units re-render. Single-vial users never see it.
+The per-compound **"drawing from [Vial ▾]" selector** renders only when ≥2 RECONSTITUTED vials
+exist for the compound. **Option label format:** `"{totalMg} mg · recon {reconDate} ·
+{remainingMg} mg left (exp {expDate})"` (the Vial model has no user label; build from
+`SerializedVialData`). Changing it calls `setActiveVialAction`; units re-render.
 
 ### 3.4 Format & copy
 
-- Has active vial / computable: **`1 mg  ≈ 10 units (U-100)`** (units in muted/secondary
-  weight; the `(U-100)` reflects the subject's standard).
-- mcg/mg dose, no active vial: **`1 mg  · reconstitute to see units`**.
-- mL / IU dose: always computable (no vial needed).
+- Computable: `1 mg  ≈ 10 units (U-100)` (units muted/secondary; `(U-100)` = subject's standard).
+- mcg/mg dose, no active vial: `1 mg  · reconstitute to see units`.
+- mL/IU dose: units always computable for display. **But logging an mL/IU dose still needs a
+  reconstituted vial** (`convertDoseToMg` requires concentration to deduct mg), and you always
+  draw from a vial regardless — so with no active vial, show the units **and** the
+  `· reconstitute to log` affordance, to avoid a "looks ready, log fails" split-brain.
 
 ### 3.5 Safety guardrails
 
-- Reuse the vial's existing `insufficientMedication` (remaining < dose) and
-  `potentialDrawWaste` flags from `serializeVial`.
-- Add a **capacity check**: if the dose needs more units than the subject's selected
-  syringe size holds, surface a warning (consistent with the catalog planner's overflow
-  alert and `WarningPolicy`).
+- **Insufficient inventory:** when the active vial's `remainingMg < dose`
+  (`serializeVial.insufficientMedication`), still show the full-dose units **plus** a warning of
+  how much is actually drawable (e.g. `⚠ only ~5 units left in this vial`) — never silently show
+  a full dose the vial can't provide.
+- **Capacity overflow:** if the dose needs more units than `syringeMaxUnits(standard, size)`,
+  warn (consistent with the catalog planner's overflow alert + `WarningPolicy`). Requires the
+  page to fetch `syringeSize` (§3.3).
+- **Expiry bypass (waste):** if `setActiveVialAction` promotes a vial that is **not** the
+  soonest-expiring RECONSTITUTED vial for the compound, surface a confirmation that the
+  sooner-expiring vial may expire unused (reuses the `EXPIRING_SOON` 7-day threshold).
 
 ## 4. Testing
 
-- **Domain** (`doseToSyringeUnits`): 100% branch coverage — each unit (`mcg`, `mg`,
-  `mL`, `IU`), U-100 and U-40, the no-vial `needs_vial` path, and the reported
-  `1 mg / 20 mg / 2 mL → 10 units` case.
-- **`setActiveVialAction`**: moves the chosen vial to shelf-front; rejects vials not
-  owned by the subject or not `RECONSTITUTED`; writes the audit event; is idempotent.
-- **Components**: units render on each surface; the no-vial prompt renders for mcg/mg
-  without inventory; the "drawing from" selector appears only with ≥2 vials and updates
-  units on change.
+- **`doseToSyringeUnits`** (100% branch): each unit (`mcg`, `mg`, `mL`, `IU`) × U-100/U-40;
+  `needs_vial` (null concentration, mcg/mg); `invalid_input` (amount ≤ 0; `bacWaterMl` ≤ 0/null
+  when needed); the reported `1 mg / 20 mg / 2 mL → 10 units (U-100), 4 units (U-40)` case; a
+  vial passed for mL/IU is **ignored**. Plus the **parity test** vs.
+  `convertDoseToMg`/`ReconstitutionCalculator`.
+- **`syringeMaxUnits`** (100% branch): all `(standard, size)` pairs incl. U-40 0.3 mL = 12.
+- **`resolveActiveVial`**: pointer hit; FIFO fallback when no flag; null when no RECONSTITUTED
+  vial; ignores DEPLETED/EXPIRED.
+- **`setActiveVialAction`**: sets one flag + unsets siblings in a transaction; rejects vials not
+  owned by the subject / not RECONSTITUTED / wrong compound; manager-of-subject allowed,
+  unrelated actor rejected; writes `VIAL_SET_ACTIVE` audit; idempotent.
+- **Components**: units render on each surface; no-vial affordance for mcg/mg without inventory;
+  mL/IU show units + `reconstitute to log` when no vial; selector appears only with ≥2 vials and
+  re-renders units on change; insufficient/capacity/expiry warnings render.
 
 ## 5. Phased implementation
 
-- **Phase 1:** `doseToSyringeUnits` domain helper (+ tests) and units display on all
-  four surfaces using the FIFO-active vial (no selector yet) + the no-vial prompt + the
-  Tracker page `syringeStandard` fetch.
-- **Phase 2:** the per-compound "drawing from" selector — `setActiveVialAction`
-  (shelf-front + audit), the selector UI (≥2 vials), and the capacity-overflow warning.
+- **Phase 1 (display, FIFO):** `doseToSyringeUnits` + `syringeMaxUnits` (domain + tests);
+  `resolveActiveVial` (FIFO-only, no pointer yet) wired into **display, `BatchLogService`, and
+  the individual-log callers** so display == log from day one; units + no-vial affordance on the
+  three surfaces; Tracker/protocol pages fetch `syringeStandard` + `syringeSize`.
+- **Phase 2 (selection + warnings):** `Vial.isActiveForCompound` migration; `resolveActiveVial`
+  honors the pointer; `setActiveVialAction` (+ `VIAL_SET_ACTIVE` audit, subject scoping); the
+  per-compound selector (≥2 vials, option labels, reactivity); insufficient / capacity / expiry
+  warnings.
 
 ## 6. Risks & mitigations
 
 | Risk | Mitigation |
 |------|------------|
-| Displayed units differ from what's deducted on log | Eliminated by design: both read the same FIFO-active vial (§3.2). |
-| `shelfOrder` overloaded (shelf position vs. active) | Accepted, documented; "front of shelf = drawing from" is a coherent mental model. Explicit pointer rejected as higher-cost (§3.2). |
-| Wrong concentration if user has stale/expired vials | Active-vial query filters `status: 'RECONSTITUTED'`; expired/depleted excluded; no-vial → prompt, never an estimate. |
-| Unit math drift across the app | Single domain helper (§3.1) is the only dose→units path. |
-| Mutation without audit (safety-math rule) | `setActiveVialAction` wraps the `shelfOrder` update + `AuditEvent` in one transaction. |
+| Displayed units differ from the deducted vial | `resolveActiveVial` is the single "which vial" source for display **and both** log paths (§3.2). |
+| `shelfOrder` overload (original design) | Abandoned; replaced by an explicit `isActiveForCompound` flag — no global index, no drift/ties/renumber collisions. |
+| Helper throws on zero/invalid inputs | Helper is total: guards amount/concentration > 0, maps to `invalid_input`/`needs_vial` (§3.1). |
+| No rounding rule → unreadable units | Exact Decimal internally; display `toFixed(1)` (app convention); deduction uses exact volume (§3.1). |
+| Capacity logic duplicated/untested | New `syringeMaxUnits` domain fn, 100% covered; callsites migrate (§3.1). |
+| IU/mL "looks loggable" with no vial | Show units + `reconstitute to log`; logging requires a vial (§3.4). |
+| Managed-user: wrong user's vial changed | `setActiveVialAction` resolves subject + manager check; query scoped to subject (§3.2). |
+| Audit/typecheck on new action | `VIAL_SET_ACTIVE` added to the closed `AuditAction` union; `withAudit` enforces (§3.2). |
+| Insufficient inventory shows full dose silently | Show full-dose units + drawable-amount warning (§3.5). |
+| Promoting a fresh vial wastes an expiring one | Expiry-bypass confirmation (§3.5). |
+| Unit math drift (3 existing impls) | `doseToSyringeUnits` canonical for new code; parity test; existing paths migrated in follow-up (§3.1). |
 
-## 7. Open questions (resolve in the implementation plan)
+## 7. Open questions (for the implementation plan)
 
-- Exact new audit action name(s) for the active-vial change (e.g. `VIAL_SET_ACTIVE`).
-- Whether `serializeVial` should be extended to carry `unitsPerDose`, or whether the
-  surfaces call `doseToSyringeUnits` directly with the active vial (leaning: surfaces
-  call the helper; keep `serializeVial` focused on vial state/flags).
-- Exact placement/styling of the per-compound selector within the calendar day-panel
-  vs. the protocol detail page.
+- Whether to also show units on already-**logged** dose rows (using `DoseLog.vialId`); currently
+  scoped out of P1.
+- Exact selector option-label wording and truncation on narrow viewports.
+- Whether the expiry-bypass confirmation (§3.5) is a blocking modal or an inline note.
