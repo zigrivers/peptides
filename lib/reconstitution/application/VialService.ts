@@ -115,8 +115,10 @@ export async function getVialsForUser(userId: string): Promise<VialWithBadges[]>
  * dose-units display surfaces AND the log paths so the displayed units always match the
  * vial that is actually deducted (tracker-dose-units-design.md §3.2).
  *
- * Phase 1: FIFO only — lowest `shelfOrder`, then soonest `expiresAt`. (Phase 2 will prefer an
- * explicit `isActiveForCompound` pointer, falling back to this FIFO order.)
+ * Phase 2: prefers the explicit `isActiveForCompound` pointer — returns the RECONSTITUTED vial
+ * flagged active for (userId, compoundId) if one exists; otherwise falls back to FIFO — lowest
+ * `shelfOrder`, then soonest `expiresAt`. When the active vial depletes its status leaves
+ * RECONSTITUTED and the pointer no longer matches, so resolution falls back to FIFO automatically.
  *
  * Accepts an optional transaction client so callers inside `$transaction` resolve against the
  * same tx (no TOCTOU window); defaults to the base client for read-only display use.
@@ -126,6 +128,12 @@ export async function resolveActiveVial(
   compoundId: string,
   client: Prisma.TransactionClient = prisma
 ): Promise<Vial | null> {
+  const pointer = await client.vial.findFirst({
+    where: { userId, compoundId, status: VIAL_STATUS.RECONSTITUTED, isActiveForCompound: true },
+  });
+  if (pointer) {
+    return pointer;
+  }
   return client.vial.findFirst({
     where: { userId, compoundId, status: VIAL_STATUS.RECONSTITUTED },
     orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }],

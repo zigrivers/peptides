@@ -14,17 +14,38 @@ beforeEach(() => {
   mockFindFirst.mockReset();
 });
 
-describe('resolveActiveVial (Phase 1 — FIFO)', () => {
-  it('selects RECONSTITUTED vials for (userId, compoundId) ordered FIFO: shelfOrder then expiresAt', async () => {
-    const vial = { id: 'v1' };
-    mockFindFirst.mockResolvedValue(vial);
+describe('resolveActiveVial (Phase 2 — pointer + FIFO fallback)', () => {
+  it('prefers the isActiveForCompound=true pointer vial over the FIFO order', async () => {
+    const pointerVial = { id: 'v-active', isActiveForCompound: true };
+    // First findFirst (pointer lookup) returns the flagged vial; FIFO lookup must NOT run.
+    mockFindFirst.mockResolvedValueOnce(pointerVial);
 
     const result = await resolveActiveVial('user-1', 'compound-1');
 
-    expect(result).toBe(vial);
+    expect(result).toBe(pointerVial);
+    expect(mockFindFirst).toHaveBeenCalledTimes(1);
+    expect(mockFindFirst).toHaveBeenNthCalledWith(1, {
+      where: {
+        userId: 'user-1',
+        compoundId: 'compound-1',
+        status: 'RECONSTITUTED',
+        isActiveForCompound: true,
+      },
+    });
+  });
+
+  it('falls back to FIFO (shelfOrder then expiresAt) when no pointer flag is set', async () => {
+    const fifoVial = { id: 'v-fifo' };
+    // First call (pointer) returns null -> fall back to FIFO order.
+    mockFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(fifoVial);
+
+    const result = await resolveActiveVial('user-1', 'compound-1');
+
+    expect(result).toBe(fifoVial);
+    expect(mockFindFirst).toHaveBeenCalledTimes(2);
     // The FIFO tiebreak (lowest shelfOrder; equal shelfOrder -> earliest expiresAt) is
     // enforced by this exact orderBy; asserting it pins the contract.
-    expect(mockFindFirst).toHaveBeenCalledWith({
+    expect(mockFindFirst).toHaveBeenNthCalledWith(2, {
       where: { userId: 'user-1', compoundId: 'compound-1', status: 'RECONSTITUTED' },
       orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }],
     });
@@ -36,12 +57,12 @@ describe('resolveActiveVial (Phase 1 — FIFO)', () => {
   });
 
   it('queries through the provided transaction client (no TOCTOU window)', async () => {
-    const txFindFirst = vi.fn().mockResolvedValue({ id: 'v-tx' });
+    const txFindFirst = vi.fn().mockResolvedValue({ id: 'v-tx', isActiveForCompound: true });
     const tx = { vial: { findFirst: txFindFirst } } as never;
 
     const result = await resolveActiveVial('user-1', 'compound-1', tx);
 
-    expect(result).toEqual({ id: 'v-tx' });
+    expect(result).toEqual({ id: 'v-tx', isActiveForCompound: true });
     expect(txFindFirst).toHaveBeenCalledOnce();
     expect(mockFindFirst).not.toHaveBeenCalled();
   });
