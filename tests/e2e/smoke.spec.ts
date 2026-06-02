@@ -8,8 +8,9 @@ test.describe('Smoke Test', () => {
     // Check for the brand name or a common element
     // await expect(page).toHaveTitle(/Peptides/);
     
-    // Take a baseline screenshot for visual regression
-    await page.screenshot({ path: 'tests/screenshots/home-baseline.png' });
+    // Capture a debug screenshot to the gitignored test-results/ dir so running
+    // the smoke test never dirties the working tree (this image is not compared).
+    await page.screenshot({ path: 'test-results/home-smoke.png' });
   });
 
   test('should have a working PWA manifest', async ({ page }) => {
