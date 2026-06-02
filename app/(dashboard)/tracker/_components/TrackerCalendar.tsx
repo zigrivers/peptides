@@ -12,6 +12,7 @@ import { rescheduleDoseAction } from '@/app/actions/tracker/reschedule-dose';
 import { batchLogDatesAction } from '@/app/actions/tracker/batch-log-dates';
 import { getCapColor } from '@/lib/reconstitution/domain/syringe';
 import { sitesEqual, getSitesForRoute } from '@/lib/tracker/domain/SiteRotation';
+import type { DoseUnitsDisplay } from '@/lib/reconstitution/domain/doseUnits';
 import { calculateStreak, type StreakResult } from '@/lib/tracker/domain/streak';
 import { ConfettiCanvas } from '@/app/(dashboard)/dashboard/_components/ConfettiCanvas';
 
@@ -44,6 +45,9 @@ interface Props {
   siteSuggestions?: Record<string, SiteData>;
   initialDateISO: string;
   loggedDates?: string[];
+  /** Server-computed "units to draw" per compound for SCHEDULED doses (no Decimals client-side). */
+  doseUnitsByCompoundId?: Record<string, DoseUnitsDisplay>;
+  syringeStandard?: 'U100' | 'U40';
 }
 
 function getCompoundAbbreviation(name: string): string {
@@ -83,8 +87,9 @@ function getSundayOfWeek(d: Date): Date {
 }
 
 const EMPTY_DATES: string[] = [];
+const EMPTY_DOSE_UNITS: Record<string, DoseUnitsDisplay> = {};
 
-export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, compounds, siteSuggestions = {}, initialDateISO, loggedDates = EMPTY_DATES }: Props) {
+export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, compounds, siteSuggestions = {}, initialDateISO, loggedDates = EMPTY_DATES, doseUnitsByCompoundId = EMPTY_DOSE_UNITS }: Props) {
   const protocols = React.useMemo(() => {
     return serializedProtocols.map((p) => ({
       ...p,
@@ -635,11 +640,16 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                       badgeClasses = 'bg-blue-50/50 dark:bg-blue-950/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/30';
                     }
 
+                    const scheduledUnits =
+                      !isEvLogged && !isEvSkipped
+                        ? doseUnitsByCompoundId[e.compoundId]?.unitsText
+                        : null;
+
                     return (
                       <span
                         key={e.id}
                         className={`text-[8px] md:text-[9px] font-bold px-1 py-0.5 rounded border leading-none select-none truncate w-[20px] md:w-full text-center transition-all ${badgeClasses}`}
-                        title={`${e.compoundName} (${e.doseAmount} ${e.doseUnit}) - ${e.type}`}
+                        title={`${e.compoundName} (${e.doseAmount} ${e.doseUnit}${scheduledUnits ? ` ${scheduledUnits}` : ''}) - ${e.type}`}
                       >
                         <span className="md:hidden block truncate max-w-full">
                           {abbrev.slice(0, 2)}
@@ -707,7 +717,11 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                           {e.compoundName}
                         </h4>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {e.doseAmount} {e.doseUnit} • {e.type === 'SKIPPED' ? 'Skipped' : (e.administrationRoute ? (e.administrationRoute.charAt(0).toUpperCase() + e.administrationRoute.slice(1).toLowerCase()) : 'Subcutaneous')}
+                          {e.doseAmount} {e.doseUnit}
+                          {!isProcessed && doseUnitsByCompoundId[e.compoundId]?.unitsText && (
+                            <span className="text-gray-400"> {doseUnitsByCompoundId[e.compoundId].unitsText}</span>
+                          )}
+                          {' • '}{e.type === 'SKIPPED' ? 'Skipped' : (e.administrationRoute ? (e.administrationRoute.charAt(0).toUpperCase() + e.administrationRoute.slice(1).toLowerCase()) : 'Subcutaneous')}
                         </p>
                       </div>
 

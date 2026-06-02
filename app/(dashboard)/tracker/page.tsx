@@ -1,11 +1,19 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/shared/prisma';
 import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
 import { getDueTodayForBatch } from '@/lib/tracker/application/BatchLogService';
 import { getCurrentWeekInfo } from '@/lib/tracker/application/CycleService';
 import { findCompoundsByIds, listCompounds } from '@/lib/reference/infrastructure/CompoundRepo';
 import { getRecentDoseLogsForUser, getDoseLogsRange } from '@/lib/tracker/application/DoseLogService';
+import { resolveActiveVial } from '@/lib/reconstitution/application/VialService';
+import {
+  buildDoseUnitsDisplay,
+  type DoseUnitsDisplay,
+  type SyringeStandard,
+  type SyringeSize,
+} from '@/lib/reconstitution/domain/doseUnits';
 import { BatchLogReview } from './_components/BatchLogReview';
 import { TrackerCalendar } from './_components/TrackerCalendar';
 import { BenefitsTimeline } from './_components/BenefitsTimeline';
@@ -111,6 +119,42 @@ export default async function TrackerPage() {
       };
     });
 
+  // Build the "units to draw" display per compound for SCHEDULED doses, computed server-side
+  // (client never receives Decimals). Uses resolveActiveVial — the same vial the log path
+  // deducts — so the displayed units match what is actually drawn/deducted.
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { syringeStandard: true, syringeSize: true },
+  });
+  const syringeStandard = (user?.syringeStandard ?? 'U100') as SyringeStandard;
+  const syringeSize = (user?.syringeSize ?? '1.0') as SyringeSize;
+
+  // One representative dose per compound (active protocols + due-today). Keyed by compoundId
+  // to match how the calendar renders units next to a SCHEDULED event.
+  const doseByCompound = new Map<string, { amount: string; unit: 'mcg' | 'mg' | 'IU' | 'mL' }>();
+  for (const p of protocols) {
+    if (p.status === 'ACTIVE') doseByCompound.set(p.compoundId, p.dose);
+  }
+  for (const item of dueToday) {
+    doseByCompound.set(item.protocol.compoundId, item.protocol.dose);
+  }
+
+  const doseUnitsByCompoundId: Record<string, DoseUnitsDisplay> = {};
+  await Promise.all(
+    [...doseByCompound.entries()].map(async ([compoundId, dose]) => {
+      const vial = await resolveActiveVial(userId, compoundId);
+      const vialConcentration = vial
+        ? { totalMg: vial.totalMg.toString(), bacWaterMl: vial.bacWaterMl?.toString() ?? null }
+        : null;
+      doseUnitsByCompoundId[compoundId] = buildDoseUnitsDisplay(
+        dose,
+        vialConcentration,
+        syringeStandard,
+        syringeSize
+      );
+    })
+  );
+
   const loggedDates = allDoseLogsForStreak
     .filter((log) => log.status === 'LOGGED')
     .map((log) => log.scheduledDate.toISOString().split('T')[0]);
@@ -138,6 +182,8 @@ export default async function TrackerPage() {
               siteSuggestions={siteSuggestions}
               initialDateISO={todayUTC.toISOString()}
               loggedDates={loggedDates}
+              doseUnitsByCompoundId={doseUnitsByCompoundId}
+              syringeStandard={syringeStandard}
             />
           </section>
 

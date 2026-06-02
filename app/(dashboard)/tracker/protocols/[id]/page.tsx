@@ -1,11 +1,18 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/shared/prisma';
 import { getProtocolById } from '@/lib/tracker/application/ProtocolService';
 import { getTodaysDoseLog } from '@/lib/tracker/application/DoseLogService';
 import { getSiteSuggestion } from '@/lib/tracker/application/SiteRotationService';
 import { getSitesForRoute } from '@/lib/tracker/domain/SiteRotation';
 import { findCompoundById } from '@/lib/reference/infrastructure/CompoundRepo';
+import { resolveActiveVial } from '@/lib/reconstitution/application/VialService';
+import {
+  buildDoseUnitsDisplay,
+  type SyringeStandard,
+  type SyringeSize,
+} from '@/lib/reconstitution/domain/doseUnits';
 import { formatSchedule } from '@/lib/tracker/domain/formatters';
 import { ProtocolActions } from './_components/ProtocolActions';
 import { DoseLogActions } from './_components/DoseLogActions';
@@ -22,7 +29,7 @@ export default async function ProtocolDetailPage({
   const protocol = await getProtocolById(id, session.user.id);
   if (!protocol) notFound();
 
-  const [compound, todaysDoseLog, siteData] = await Promise.all([
+  const [compound, todaysDoseLog, siteData, activeVial, user] = await Promise.all([
     findCompoundById(protocol.compoundId),
     protocol.status === 'ACTIVE' ? getTodaysDoseLog(session.user.id, id) : Promise.resolve(null),
     protocol.status === 'ACTIVE'
@@ -34,7 +41,20 @@ export default async function ProtocolDetailPage({
           return { suggestion: null, validSites, siteMeta: [], recentSites: [] };
         })
       : Promise.resolve(null),
+    resolveActiveVial(session.user.id, protocol.compoundId),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { syringeStandard: true, syringeSize: true },
+    }),
   ]);
+
+  // Compute the "units to draw" display server-side — client never receives Decimals.
+  const syringeStandard = (user?.syringeStandard ?? 'U100') as SyringeStandard;
+  const syringeSize = (user?.syringeSize ?? '1.0') as SyringeSize;
+  const vialConcentration = activeVial
+    ? { totalMg: activeVial.totalMg.toString(), bacWaterMl: activeVial.bacWaterMl?.toString() ?? null }
+    : null;
+  const doseUnits = buildDoseUnitsDisplay(protocol.dose, vialConcentration, syringeStandard, syringeSize);
 
   const statusColors: Record<string, string> = {
     ACTIVE: 'text-green-700 bg-green-50',
@@ -57,8 +77,15 @@ export default async function ProtocolDetailPage({
             {compound?.name ?? protocol.compoundId}
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            <span className="font-mono">{protocol.dose.amount}</span> {protocol.dose.unit} — {formatSchedule(protocol.schedule)}
+            <span className="font-mono">{protocol.dose.amount}</span> {protocol.dose.unit}
+            {doseUnits.unitsText && (
+              <span className="text-gray-400"> {doseUnits.unitsText}</span>
+            )}
+            {' '}— {formatSchedule(protocol.schedule)}
           </p>
+          {doseUnits.warning && (
+            <p className="text-xs text-amber-600 mt-0.5">⚠ {doseUnits.warning}</p>
+          )}
         </div>
         <span className={`text-xs rounded-full px-2 py-1 font-medium ${statusColors[protocol.status] ?? 'text-gray-600 bg-gray-100'}`}>
           {protocol.status.charAt(0) + protocol.status.slice(1).toLowerCase()}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import Decimal from 'decimal.js';
-import { doseToSyringeUnits } from './doseUnits';
+import { doseToSyringeUnits, buildDoseUnitsDisplay } from './doseUnits';
 import { ReconstitutionCalculator } from './ReconstitutionCalculator';
 import type { DoseAmount, DoseUnit } from '@/lib/tracker/domain/types';
 
@@ -77,5 +77,57 @@ describe('doseToSyringeUnits — invalid input (total function, never throws)', 
   it('unknown unit → invalid_input (defensive default branch)', () => {
     const r = doseToSyringeUnits({ amount: '1', unit: 'bogus' as DoseUnit }, vial20mg2ml, 'U100');
     expect(r).toEqual({ computable: false, reason: 'invalid_input' });
+  });
+});
+
+describe('buildDoseUnitsDisplay — formatting', () => {
+  it('computable mcg/mg → ≈ {1 decimal} units (U-100)', () => {
+    const d = buildDoseUnitsDisplay({ amount: '1', unit: 'mg' }, vial20mg2ml, 'U100');
+    expect(d).toEqual({ computable: true, unitsText: '≈ 10.0 units (U-100)' });
+  });
+
+  it('maps U40 standard to (U-40) label', () => {
+    const d = buildDoseUnitsDisplay({ amount: '1', unit: 'mg' }, vial20mg2ml, 'U40');
+    expect(d).toEqual({ computable: true, unitsText: '≈ 4.0 units (U-40)' });
+  });
+
+  it('rounds to one decimal place (toFixed(1))', () => {
+    // 730 mcg from 20mg/2mL on U-100 = 0.073 mL / 0.01 = 7.3 units
+    const d = buildDoseUnitsDisplay({ amount: '730', unit: 'mcg' }, vial20mg2ml, 'U100');
+    expect(d.unitsText).toBe('≈ 7.3 units (U-100)');
+  });
+
+  it('mL dose is computable without a vial', () => {
+    const d = buildDoseUnitsDisplay({ amount: '0.05', unit: 'mL' }, null, 'U100');
+    expect(d).toEqual({ computable: true, unitsText: '≈ 5.0 units (U-100)' });
+  });
+
+  it('IU dose is computable without a vial', () => {
+    const d = buildDoseUnitsDisplay({ amount: '5', unit: 'IU' }, null, 'U40');
+    expect(d).toEqual({ computable: true, unitsText: '≈ 5.0 units (U-40)' });
+  });
+
+  it('needs_vial (mcg/mg, no concentration) → reconstitute affordance', () => {
+    const d = buildDoseUnitsDisplay({ amount: '500', unit: 'mcg' }, null, 'U100');
+    expect(d).toEqual({ computable: false, unitsText: '· reconstitute to see units' });
+  });
+
+  it('invalid_input → unitsText null', () => {
+    const d = buildDoseUnitsDisplay({ amount: '0', unit: 'mg' }, vial20mg2ml, 'U100');
+    expect(d).toEqual({ computable: false, unitsText: null });
+  });
+
+  it('attaches capacity warning when units exceed the syringe size', () => {
+    // 5 mg from 20mg/2mL on U-100 = 0.5 mL / 0.01 = 50 units > 30-unit (0.3 mL) syringe.
+    const d = buildDoseUnitsDisplay({ amount: '5', unit: 'mg' }, vial20mg2ml, 'U100', '0.3');
+    expect(d.computable).toBe(true);
+    expect(d.unitsText).toBe('≈ 50.0 units (U-100)');
+    expect(d.warning).toBe('exceeds your 30-unit syringe');
+  });
+
+  it('no warning when units fit within the syringe size', () => {
+    const d = buildDoseUnitsDisplay({ amount: '1', unit: 'mg' }, vial20mg2ml, 'U100', '1.0');
+    expect(d.warning).toBeUndefined();
+    expect(d.unitsText).toBe('≈ 10.0 units (U-100)');
   });
 });

@@ -1,3 +1,5 @@
+import type { DoseUnitsDisplay } from '@/lib/reconstitution/domain/doseUnits';
+
 export type DoseUnit = 'mcg' | 'mg' | 'IU' | 'mL';
 
 export type DoseAmount = {
@@ -146,6 +148,7 @@ export type BatchDueItem = {
   availableVials: number;
   isAvailable: boolean; // false when no inventory prevents logging
   safetyWarnings?: SafetyWarning[];
+  doseUnits: DoseUnitsDisplay | null;
 };
 
 export type BatchLogInput = {

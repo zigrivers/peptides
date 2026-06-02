@@ -3,6 +3,11 @@ import { toUTCDay } from '@/lib/shared/date';
 import Decimal from 'decimal.js';
 import { decrementVialInventory } from '@/lib/reconstitution/application/InventoryService';
 import { resolveActiveVial } from '@/lib/reconstitution/application/VialService';
+import {
+  buildDoseUnitsDisplay,
+  type SyringeStandard,
+  type SyringeSize,
+} from '@/lib/reconstitution/domain/doseUnits';
 import type {
   BatchDueItem,
   BatchLogInput,
@@ -53,16 +58,36 @@ export async function getDueTodayForBatch(actorUserId: string): Promise<BatchDue
   // Vial counts — 1 query per unique compound instead of 1 per protocol
   const uniqueCompoundIds = [...new Set(dueProtocols.map((p) => p.compoundId))];
   const vialCountByCompound: Record<string, number> = {};
+  // Active vial per compound — drives the "units to draw" display (resolveActiveVial = the same
+  // vial the batch log path deducts, so display matches deduction).
+  const activeVialByCompound: Record<string, { totalMg: string; bacWaterMl: string | null } | null> = {};
   await Promise.all(
     uniqueCompoundIds.map(async (compoundId) => {
       vialCountByCompound[compoundId] = await countActiveVialsForCompound(prisma, actorUserId, compoundId);
+      const vial = await resolveActiveVial(actorUserId, compoundId);
+      activeVialByCompound[compoundId] = vial
+        ? { totalMg: vial.totalMg.toString(), bacWaterMl: vial.bacWaterMl?.toString() ?? null }
+        : null;
     })
   );
+
+  const user = await prisma.user.findUnique({
+    where: { id: actorUserId },
+    select: { syringeStandard: true, syringeSize: true },
+  });
+  const syringeStandard = (user?.syringeStandard ?? 'U100') as SyringeStandard;
+  const syringeSize = (user?.syringeSize ?? '1.0') as SyringeSize;
 
   return dueProtocols.map((protocol) => {
     const existingLog = logsByProtocol[protocol.id] ?? null;
     const availableVials = vialCountByCompound[protocol.compoundId] ?? 0;
-    return { protocol, existingLog, availableVials, isAvailable: availableVials > 0 };
+    const doseUnits = buildDoseUnitsDisplay(
+      protocol.dose,
+      activeVialByCompound[protocol.compoundId] ?? null,
+      syringeStandard,
+      syringeSize
+    );
+    return { protocol, existingLog, availableVials, isAvailable: availableVials > 0, doseUnits };
   });
 }
 
