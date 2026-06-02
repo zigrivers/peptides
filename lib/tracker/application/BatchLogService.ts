@@ -2,6 +2,7 @@ import { prisma } from '@/lib/shared/prisma';
 import { toUTCDay } from '@/lib/shared/date';
 import Decimal from 'decimal.js';
 import { decrementVialInventory } from '@/lib/reconstitution/application/InventoryService';
+import { resolveActiveVial } from '@/lib/reconstitution/application/VialService';
 import type {
   BatchDueItem,
   BatchLogInput,
@@ -108,10 +109,7 @@ async function logOneInBatch(
   // SKIPPED → LOGGED same-day edit via updateDoseLog
   if (existing?.status === 'SKIPPED') {
     const updated = await prisma.$transaction(async (tx) => {
-      const activeVial = await tx.vial.findFirst({
-        where: { userId: subjectUserId, compoundId: protocol.compoundId, status: 'RECONSTITUTED' },
-        orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }],
-      });
+      const activeVial = await resolveActiveVial(subjectUserId, protocol.compoundId, tx);
       if (!activeVial) {
         throw new Error('insufficient_inventory: No reconstituted vials available for this compound');
       }
@@ -158,10 +156,7 @@ async function logOneInBatch(
 
   try {
     const doseLog = await prisma.$transaction(async (tx) => {
-      const activeVial = await tx.vial.findFirst({
-        where: { userId: subjectUserId, compoundId: protocol.compoundId, status: 'RECONSTITUTED' },
-        orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }],
-      });
+      const activeVial = await resolveActiveVial(subjectUserId, protocol.compoundId, tx);
       if (!activeVial) {
         throw new Error('insufficient_inventory: No reconstituted vials available for this compound');
       }

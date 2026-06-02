@@ -1,5 +1,6 @@
 import Decimal from 'decimal.js';
 import { randomUUID } from 'crypto';
+import type { Prisma, Vial } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { withAudit } from '@/lib/audit/application/withAudit';
 import { getReconstitutedShelfLifeDays, getFreezerShelfLifeMonths } from '@/lib/reference/infrastructure/CompoundRepo';
@@ -107,6 +108,28 @@ export async function getVialsForUser(userId: string): Promise<VialWithBadges[]>
   });
 
   return vials.map(toVialWithBadges);
+}
+
+/**
+ * The single "which reconstituted vial is the user drawing from" resolver — used by the
+ * dose-units display surfaces AND the log paths so the displayed units always match the
+ * vial that is actually deducted (tracker-dose-units-design.md §3.2).
+ *
+ * Phase 1: FIFO only — lowest `shelfOrder`, then soonest `expiresAt`. (Phase 2 will prefer an
+ * explicit `isActiveForCompound` pointer, falling back to this FIFO order.)
+ *
+ * Accepts an optional transaction client so callers inside `$transaction` resolve against the
+ * same tx (no TOCTOU window); defaults to the base client for read-only display use.
+ */
+export async function resolveActiveVial(
+  userId: string,
+  compoundId: string,
+  client: Prisma.TransactionClient = prisma
+): Promise<Vial | null> {
+  return client.vial.findFirst({
+    where: { userId, compoundId, status: VIAL_STATUS.RECONSTITUTED },
+    orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }],
+  });
 }
 
 function toVialWithBadges(
