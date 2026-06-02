@@ -16,13 +16,24 @@ Three follow-up PRs addressing the caveats from the tracker-units + inventory wo
 - Make `getInventorySummaryByCompound`'s `await import('./InventoryService')` a static import
   (no real cycle).
 
-## PR B — Next/React RC → stable (issue #2)
+## PR B — Next/React RC → stable (issue #2) — **ATTEMPTED, DEFERRED**
 
-- Bump `next` `15.0.0-rc.0 → 15.x` stable and `react`/`react-dom` `19.0.0-rc.0 → 19` stable
-  (own PR). Verify `pnpm check` **and `pnpm build`** — the `useContext` static-prerender errors
-  should clear. Address minor RC→stable migration deltas; if the upgrade is unexpectedly hairy,
-  fall back to `export const dynamic = 'force-dynamic'` on the auth-gated pages that fail
-  prerender rather than block.
+Outcome of the attempt (2026-06-02): upgrading to `next@15.5.19`/`15.1.8` + `react@19.2`
+**did clear the `useContext` prerender errors** and passed `pnpm check` (after the
+`unstable_after → after` rename and making one page's `searchParams` a Promise). **But** stable
+Next 15.x then hard-fails `pnpm build` (exit 1) on the framework `/404`/`/_error` pages with
+`<Html> should not be imported outside of pages/_document` — a Next-internal error with **no
+source cause** (no `next/document` import, no `next.config`, no `pages/`). It persisted across
+cache-clear, `force-dynamic`, explicit `app/not-found.tsx` + `app/global-error.tsx`, and two Next
+patches (15.1.8 and 15.5.19). It is a structural interaction between this app's **dynamic root
+layout** (`cookies()`/`auth()`) and Next 15's static error-page generation.
+
+**Decision:** reverted the upgrade. The RC build currently **exits 0** (the `useContext` lines are
+non-fatal log noise; CI's Build step passes on RC), so `main` stays deployable. The stable upgrade
+is the right long-term fix but needs **dedicated investigation** of the `/404` `<Html>` build
+failure (candidate angles: refactor the root layout so it isn't request-dynamic for error routes,
+or track the upstream Next issue). Re-attempt as its own focused effort — do **not** bundle with
+other work.
 
 ## PR C — Managed-user inventory support (issue #4)
 

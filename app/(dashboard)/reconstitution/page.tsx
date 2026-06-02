@@ -11,6 +11,7 @@ import {
 import { listProtocolsForUser } from '@/lib/tracker/infrastructure/ProtocolRepo';
 import { utcMidnightToday } from '@/lib/shared/date';
 import { ReconstitutionClient } from './_components/ReconstitutionClient';
+import { resolveSubjectUserId } from './_lib/resolveSubject';
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -20,20 +21,41 @@ export default async function ReconstitutionPage({ searchParams }: PageProps) {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
 
-  const userId = session.user.id;
+  const actorUserId = session.user.id;
   const resolvedSearchParams = await searchParams;
   const autoReconstituteCompoundId =
     typeof resolvedSearchParams.reconstitute === 'string' ? resolvedSearchParams.reconstitute : undefined;
 
+  // Resolve + authorize the subject whose inventory we render. The actor may view a managed
+  // user's inventory only; any unauthorized `?subject=` silently falls back to the actor.
+  // The managed-user list is power-user-gated and also populates the subject selector.
+  const isPowerUser = session.user.role === 'POWER_USER';
+  const managedUsers = isPowerUser
+    ? await prisma.user.findMany({
+        where: { managedBy: actorUserId, status: 'ACTIVE' },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      })
+    : [];
+  const managedUserIds = managedUsers.map((u) => u.id);
+
+  const subjectUserId = resolveSubjectUserId(
+    actorUserId,
+    resolvedSearchParams.subject,
+    managedUserIds
+  );
+
+  // Every subject-scoped fetch below uses subjectUserId (never actorUserId) so a caregiver
+  // sees exactly the authorized subject's inventory/settings/protocols and nothing else.
   const [compounds, activeVials, dryVials, userSettings, protocols] = await Promise.all([
     listCompounds(),
-    getVialsForUser(userId),
-    getDryVialsForUser(userId),
+    getVialsForUser(subjectUserId),
+    getDryVialsForUser(subjectUserId),
     prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: subjectUserId },
       select: { syringeStandard: true, syringeSize: true },
     }),
-    listProtocolsForUser(prisma, userId),
+    listProtocolsForUser(prisma, subjectUserId),
   ]);
 
   const compoundsForPicker = compounds.map((c) => ({
@@ -54,7 +76,7 @@ export default async function ReconstitutionPage({ searchParams }: PageProps) {
     serializeVial(v, utcMidnightToday(), protocols, syringeStandard)
   );
 
-  const inventorySummary = await getInventorySummaryByCompound(userId, protocols, syringeStandard);
+  const inventorySummary = await getInventorySummaryByCompound(subjectUserId, protocols, syringeStandard);
 
   // Reconstituted vials grouped by compound — drives the per-compound "drawing from" selector.
   const reconstitutedVialsByCompound = serializedActiveVials.reduce<
@@ -69,7 +91,9 @@ export default async function ReconstitutionPage({ searchParams }: PageProps) {
   return (
     <main className="max-w-4xl mx-auto px-4 py-8 space-y-10 animate-page-enter">
       <ReconstitutionClient
-        userId={userId}
+        userId={subjectUserId}
+        actorUserId={actorUserId}
+        managedUsers={managedUsers}
         compounds={compoundsForPicker}
         compoundsMinimal={compoundsMinimal}
         dryVials={serializedDryVials}
