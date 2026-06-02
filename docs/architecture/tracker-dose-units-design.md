@@ -34,8 +34,12 @@ Worked example (the reported case): `1 mg` from a 20 mg vial + 2 mL BAC water = 
 A pure, **total** function (never throws) in `lib/reconstitution/domain` — `doseToSyringeUnits`:
 
 ```
+// DoseAmount = the tracker type: lib/tracker/domain/types.ts ({ amount: string, unit: DoseUnit })
+// DoseUnit is the CLOSED union 'mcg'|'mg'|'IU'|'mL' — required so the exhaustive switch's
+// default branch ('invalid_input') is reachable/testable. (Do NOT use the reference-domain
+// DoseAmount, whose unit is a free string.)
 doseToSyringeUnits(
-  dose: DoseAmount,                                  // { amount: string, unit }
+  dose: DoseAmount,                                  // { amount: string, unit: DoseUnit }
   vialConcentration: { totalMg: string; bacWaterMl: string | null } | null,
   syringeStandard: 'U100' | 'U40'
 ): { computable: true;  units: Decimal; injectionVolMl: Decimal }
@@ -253,23 +257,33 @@ dosesLeft, unitsEach | 'varies' | null }`.
 - **Query:** one `vial.findMany({ where: { userId, status: { in: ['DRY','RECONSTITUTED',
   'EXPIRED'] } }, include: { compound }, take: 500 }, orderBy: [...] })` reduced in memory by
   `compoundId`. DEPLETED/DELETED excluded. **EXPIRED is included** (display only — §10.4) so a
-  compound row doesn't disappear the moment the expiry cron flips a vial's status. A `take: 500`
-  cap bounds the result (mirrors `reorderVialsAction`'s 50-cap philosophy; log if hit).
+  compound row doesn't disappear the moment the expiry cron flips a vial's status. `take: 500`
+  is a **read-path safety cap that silently truncates** (logs if hit) — this is *not* the hard
+  rejection `reorderVialsAction` uses for its 50-vial limit; different semantics, stated plainly.
+- **EXPIRED badge derivation (gotcha):** `toVialWithBadges` computes the `EXPIRED` *badge* from
+  `expiresAt < now`, **not** from `status === 'EXPIRED'`, and runs the `LOW_INVENTORY` branch for
+  any non-DRY status. So an `EXPIRED`-status vial may not carry the `EXPIRED` badge. Therefore
+  `worstBadge` must treat **`status === 'EXPIRED'` as EXPIRED-level directly** (don't rely on the
+  badge alone). Confirm `serializeVial`/`toVialWithBadges` is safe to call on EXPIRED-status input
+  (it is — it keys off `expiresAt`/`remainingMg`), but the row's expired indicator keys off
+  `status`/`expiredCount`, not the badge.
 - **Additive, not consolidating:** this does **not** replace `getVialsForUser` /
   `getDryVialsForUser` (single-status, separately ordered — the storage view still uses them).
-  It is a third query and is near-identical in shape to `getSerializedVialsForCompound` but
-  un-scoped to a single compound. Extract a shared helper if practical.
-- **`worstBadge` severity ordering (must be explicit):** `EXPIRED` > `EXPIRING_SOON` >
-  `LOW_INVENTORY`. The most-severe badge across the compound's vials is shown.
+  Near-identical in shape to `getSerializedVialsForCompound` but un-scoped to one compound.
+- **`worstBadge` severity ordering (must be explicit):** `EXPIRED` (status or badge) >
+  `EXPIRING_SOON` > `LOW_INVENTORY`.
 - **`hasMixedConcentration`:** true when `reconstitutedCount > 1` and `totalMg/bacWaterMl` differs
-  across the compound's reconstituted vials — drives the units-each suppression in §10.4.
+  across the compound's reconstituted vials — drives §10.4 omission rules.
 
-The **"Not in inventory / All"** views need the global compound list. The reconstitution page
-**already fetches** the published compounds list (`listCompounds()`, exempt/global) for the
-calculator picker, so it is **joined in the page** with the `userId`-scoped aggregate — never in
-one query (identity-scoping preserved). The not-in-inventory rows only need `id/name/slug` —
-use the minimal compound fields (avoid shipping the full `profile`+citations payload to the
-client for compounds the user doesn't even have).
+The **"Not in inventory / All"** views need the global compound list. **Correction to an earlier
+draft:** the reconstitution page currently calls `listCompounds()` (full `Compound`, incl.
+`profile`) and passes `Pick<Compound,'id'|'name'|'profile'|'slug'>` to `ReconstitutionClient`
+(profile **is** already shipped). Two options, pick in the plan: (1) **reuse** that existing
+prop for not-in-inventory rows (accept the already-shipped `profile`; zero new query — simplest),
+or (2) add a separate `getCompoundsMinimal()` (`id/name/slug`) list for the not-in-inventory rows
+and keep the `profile`-bearing prop only for the calculator picker. Either way the global query
+stays exempt and is **joined in the page** with the `userId`-scoped aggregate (never one query).
+The aggregate also **reuses the `protocols` array the page already fetches** (no redundant query).
 
 ### 10.2 View, toggle & component surface
 
@@ -315,13 +329,20 @@ refactor — out of scope). The page's existing `?reconstitute=` deep-link param
 - **Doses-left line — Phase 3b (requires units P1).** Phase 3a ships the **counts/mg row only**;
   the doses-left line is additive.
   - `dosesLeft = floor(totalReconstitutedRemainingMg / doseMg)`.
-  - **`doseMg` is concentration-dependent for mL/IU doses.** Compute it via
-    `convertDoseToMg(dose, activeVial, syringeStandard)` (the **same active vial** used for
-    units), **not** `dose.amount` — otherwise an `10 IU` dose would be read as `10 mg` and report
-    `1 dose` instead of ~28 (a ~28× error). For mcg/mg doses no vial is needed.
+  - **`doseMg` is concentration-dependent for mL/IU doses.** Compute it via the **real**
+    signature `convertDoseToMg(new Decimal(dose.amount), dose.unit, { totalMg:
+    new Decimal(activeVial.totalMg), bacWaterMl: activeVial.bacWaterMl ? new
+    Decimal(activeVial.bacWaterMl) : null }, syringeStandard)` (it takes a `Decimal` amount + a
+    separate `unit` + a Decimal-typed vial — **not** a `SerializedVialData`, and it **throws** on
+    `bacWaterMl ≤ 0`, so the omit-guards below must run first). Using `dose.amount` as mg would
+    read `10 IU` as `10 mg` → `1 dose` instead of ~28 (~28× error). For mcg/mg doses no vial is
+    needed (`mcg→mg ÷1000`, `mg` as-is).
   - `unitsEach` from `doseToSyringeUnits` on the active vial (`resolveActiveVial`).
-  - **Mixed concentration:** if `hasMixedConcentration`, **suppress `unitsEach`** and render
-    `(units vary by vial — see tracker)`; the mg-based `dosesLeft` still shows.
+  - **Mixed concentration:** if `hasMixedConcentration`, **suppress `unitsEach`** → render
+    `(units vary by vial — see tracker)`. The mg-based `dosesLeft` still shows **only for mcg/mg
+    doses** (mass is concentration-independent). **For mL/IU doses with `hasMixedConcentration`,
+    also OMIT `dosesLeft`** — the per-vial mg-equivalent differs, so a single mass pool ÷
+    active-vial `doseMg` is wrong (e.g. could under/over-count by the concentration ratio).
   - **Planning-estimate copy (safety):** the units sub-line must be qualified as a *planning
     estimate*, not a draw instruction — e.g. tooltip/parenthetical
     "*estimate from your active vial — use the Tracker for the exact draw*".
@@ -373,8 +394,8 @@ refactor — out of scope). The page's existing `?reconstitute=` deep-link param
 
 | Risk | Mitigation |
 |------|------------|
-| mL/IU doses-left magnitude error (×10–100) | `doseMg` via `convertDoseToMg(dose, activeVial, standard)`, not `dose.amount`; omit if no active vial (§10.4). |
-| Mixed-concentration `units each` silently wrong | Detect `hasMixedConcentration`; suppress units-each → `units vary by vial — see tracker` (§10.4). |
+| mL/IU doses-left magnitude error (×10–100) | `doseMg` via `convertDoseToMg` with the active vial (real 4-arg signature — §10.4), not `dose.amount`; omit if no active vial. |
+| Mixed-concentration silently wrong | Suppress `unitsEach`; also **omit `dosesLeft` for mL/IU** doses under mixed concentration (mass pool ÷ active-vial doseMg is wrong) — §10.4. |
 | Units read as a dosing instruction | Planning-estimate qualifier on the units sub-line (§10.4). |
 | EXPIRED vials vanish post-cron | EXPIRED included in the row with a discard hint; excluded from doses-left (§9/§10.4). |
 | Representative-dose ambiguity (multiple ACTIVE protocols) | Omit doses-left when >1 ACTIVE protocol (§10.4). |
@@ -391,3 +412,99 @@ refactor — out of scope). The page's existing `?reconstitute=` deep-link param
 - Whether the By-compound view should become the default once it matures (v1: storage stays default).
 - Exact placement of the doses-left / units-each sub-line on narrow viewports.
 - Whether to add a managed-user subject selector to this view in a later phase.
+
+---
+
+# Part III — Implementation Reference (file homes, signatures, tests)
+
+Consolidated so the implementation plan is unambiguous. Where this conflicts with prose above,
+this section wins.
+
+## 14. File homes (new code)
+
+| Symbol | Path | Kind |
+|--------|------|------|
+| `doseToSyringeUnits` | `lib/reconstitution/domain/doseUnits.ts` (new) | pure domain |
+| `syringeMaxUnits` | `lib/reconstitution/domain/syringe.ts` (existing) | pure domain |
+| `resolveActiveVial` | `lib/reconstitution/application/VialService.ts` (existing) | Prisma query helper |
+| `getInventorySummaryByCompound` | `lib/reconstitution/application/VialService.ts` (existing) | Prisma aggregate |
+| `setActiveVialAction` | `app/actions/reconstitution/set-active-vial.ts` (new) | Server Action |
+| `Vial.isActiveForCompound` migration | `prisma/migrations/<ts>_add_vial_active_for_compound/` | additive schema |
+| `CompoundInventoryView` | `app/(dashboard)/reconstitution/_components/CompoundInventoryView.tsx` (new) | client component |
+| `DoseUnitsDisplay` type | `lib/reconstitution/domain/doseUnits.ts` | shared display type |
+
+## 15. Exact signatures & contracts
+
+- **`doseToSyringeUnits(dose, vialConcentration|null, syringeStandard)`** — total function, §3.1.
+- **`syringeMaxUnits(standard: 'U100'|'U40', size: '0.3'|'0.5'|'1.0'): number`**.
+- **`resolveActiveVial`** — `async resolveActiveVial(userId: string, compoundId: string, client:
+  Prisma.TransactionClient | PrismaClient = prisma): Promise<Vial | null>`. Returns the raw
+  Prisma `Vial` (P1: FIFO `orderBy [shelfOrder asc, expiresAt asc]`; P2: prefer
+  `isActiveForCompound=true`, else FIFO). **Display surfaces serialize the result via
+  `serializeVial` themselves.** Must be passed the `tx` inside `$transaction` callers.
+- **`DoseUnitsDisplay`** (the single server-computed shape for ALL three surfaces) —
+  `{ computable: boolean; unitsText: string | null; warning?: string }` where `unitsText` is e.g.
+  `"≈ 10 units (U-100)"` or the `· reconstitute to see units` affordance text. Computed
+  server-side; client never receives `Decimal`.
+- **`setActiveVialAction(subjectUserId, compoundId, vialId)`** audit (via `withAudit`):
+  `action: 'VIAL_SET_ACTIVE'`, `category: 'Reconstitution'`, `resourceType: 'Vial'`,
+  `resourceId: vialId`, `oldValues: { previousActiveVialId: string | null }`,
+  `newValues: { vialId, compoundId }`, `actorUserId`, `subjectUserId`. The in-transaction
+  `updateMany` that sets `isActiveForCompound=true` must assert `count === 1` (throw + roll back
+  if the vial depleted between guard and write); then unset siblings.
+- **`getInventorySummaryByCompound(userId, protocols, syringeStandard)`** — §10.1; returns the
+  documented per-compound shape; `dryVialRefs: Pick<SerializedVialData,'id'|'totalMg'|
+  'remainingMg'|'expiresAt'>[]`.
+
+## 16. Surface prop changes (P1)
+
+- **`TrackerCalendar`** — new props (P1): `syringeStandard: 'U100'|'U40'`, `syringeSize:
+  '0.3'|'0.5'|'1.0'`, `doseUnitsByCompoundId: Record<string, DoseUnitsDisplay>` (server-computed
+  for the active/FIFO vial). P2 adds the per-compound reconstituted-vial list for the selector.
+  The page (`tracker/page.tsx`, no vial query today) fetches the active vial per due-dose compound
+  via `resolveActiveVial` + serializes + computes `DoseUnitsDisplay` before render.
+- **Protocol detail page** (`protocols/[id]/page.tsx`) — fetch `syringeStandard`/`syringeSize` +
+  `resolveActiveVial(userId, compound.id)`; compute one `DoseUnitsDisplay`; render next to the dose.
+- **`BatchLogReview`** — add `doseUnits: DoseUnitsDisplay | null` to `SerializedBatchDueItem`
+  (`BatchLogReview.tsx`); `getDueTodayForBatch` computes it per item server-side.
+- **`logDose` individual path:** `logDoseAction` resolves the vial server-side — when
+  `input.vialId` is absent and `status === 'LOGGED'`, it calls `resolveActiveVial(subjectUserId,
+  compoundId, tx)` inside the transaction and uses that id. (UI need not pass a vialId.)
+- **`BatchLogService`:** replace **all three** inline `tx.vial.findFirst(... FIFO ...)` copies
+  (in `logOneInBatch`) with `resolveActiveVial(subjectUserId, compoundId, tx)` **inside** each
+  existing `$transaction` callback (no TOCTOU window).
+
+## 17. Test locations
+
+- **Colocated unit tests** (no DB; 100% branch): `lib/reconstitution/domain/doseUnits.test.ts`
+  (`doseToSyringeUnits` incl. the `convertDoseToMg`/`ReconstitutionCalculator` **parity test** —
+  parity asserted only for **mcg/mg** where both resolve to units via the same path; for **IU**
+  assert `doseToSyringeUnits = amount` separately, since `convertDoseToMg(IU)` returns *mg*, a
+  different quantity, so direct parity is N/A); `syringeMaxUnits` cases in the existing
+  `lib/reconstitution/domain/*` test.
+- **Acceptance/integration** (`tests/acceptance/`, real Postgres): `REC-active-vial.test.ts`
+  (`resolveActiveVial` incl. FIFO tiebreak — lowest `shelfOrder` wins; equal `shelfOrder` →
+  earliest `expiresAt`; pointer beats FIFO in P2), `REC-set-active-vial.test.ts`
+  (`setActiveVialAction`: subject/manager scoping, count-guard race, audit fields, idempotent),
+  `REC-inventory-summary.test.ts` (`getInventorySummaryByCompound` branches per §11).
+
+## 18. Added test branches (from review)
+
+- `doseToSyringeUnits`: `totalMg ≤ 0` → `invalid_input`; IU on **both** standards.
+- `getInventorySummaryByCompound`: **mL/IU dose + `hasMixedConcentration` → `dosesLeft` omitted**;
+  mixed DRY+RECONSTITUTED counts; EXPIRED-status vial → EXPIRED `worstBadge` (not LOW); `>1 ACTIVE
+  protocol` → omit; `totalRemaining = 0` but `reconstitutedCount > 0` → 0 doses.
+
+## 19. Migration & index note
+
+`add_vial_active_for_compound`: `isActiveForCompound Boolean @default(false)` — additive, no
+backfill (`false` = use FIFO). **No new index needed at v1 user scale**; the existing
+`@@index([userId, compoundId, status])` covers `resolveActiveVial`'s predicate.
+
+## 20. Execution order (foundation first)
+
+1. `doseToSyringeUnits` (+ tests) → 2. `syringeMaxUnits` (+ tests) → 3. `resolveActiveVial`
+(FIFO-only, + tests) → 4. wire `resolveActiveVial` into `BatchLogService` (3 copies) and
+`logDoseAction` → 5. the three display surfaces (§16). That is **Phase 1**. Phases 2 (selector +
+`isActiveForCompound` + `setActiveVialAction`), 3a (inventory aggregate + view, counts/mg), 3b
+(doses-left line) follow.
