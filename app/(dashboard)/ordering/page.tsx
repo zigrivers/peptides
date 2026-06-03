@@ -11,7 +11,7 @@ export default async function OrderingPage() {
   const vendors = await listVendorsForUser(session.user.id);
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 animate-page-enter">
+    <main className="max-w-4xl mx-auto px-4 py-8 animate-page-enter">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-foreground">Vendors</h1>
         <div className="flex items-center gap-3">

@@ -133,44 +133,69 @@ export default async function DashboardPage() {
   ).length;
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 space-y-8 animate-page-enter">
-      <h1 className="text-3xl font-extrabold tracking-tight text-foreground mb-6">Dashboard</h1>
+    <main className="max-w-5xl mx-auto px-4 py-8 space-y-8 animate-page-enter">
+      <div className="space-y-6">
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Dashboard</h1>
 
-      {orderingEnabled && staleOrderCount > 0 && (
-        <Link href="/ordering/orders" className="block mb-5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100 transition-colors">
-          ⚠ {staleOrderCount} order{staleOrderCount > 1 ? 's' : ''} may be stale — check your order history.
-        </Link>
+        {orderingEnabled && staleOrderCount > 0 && (
+          <Link href="/ordering/orders" className="block rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100 transition-colors">
+            ⚠ {staleOrderCount} order{staleOrderCount > 1 ? 's' : ''} may be stale — check your order history.
+          </Link>
+        )}
+
+        {showChecklist && onboardingState && (
+          <GettingStartedChecklist
+            state={onboardingState}
+            userRole={userRole}
+            orderingEnabled={orderingEnabled}
+          />
+        )}
+      </div>
+
+      {hasActiveProtocols ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column: Stack & Sentiment Overview */}
+          <div className="lg:col-span-5 space-y-6">
+            <StackOverview
+              weekInfo={weekInfo}
+              vials={serializedVials}
+              ratingAvg={ratingAvg}
+              adherence={adherence}
+              hasActiveProtocols={hasActiveProtocols}
+              hasDoseToday={hasDoseToday}
+              userRole={userRole}
+              fetchedAt={new Date().toISOString()}
+              streak={streak}
+            />
+            <WellbeingSentimentInsights insights={sentimentInsights} />
+          </div>
+
+          {/* Right Column: Interactive Analytics & Charts */}
+          <div className="lg:col-span-7">
+            <InteractiveAnalytics
+              doseLogs={serializedDoseLogs}
+              outcomeLogs={serializedOutcomeLogs}
+              compounds={protocolCompoundsMap}
+              todayScheduledCount={todayScheduledCount}
+              todayLogsCount={todayLogsCount}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <StackOverview
+            weekInfo={weekInfo}
+            vials={serializedVials}
+            ratingAvg={ratingAvg}
+            adherence={adherence}
+            hasActiveProtocols={hasActiveProtocols}
+            hasDoseToday={hasDoseToday}
+            userRole={userRole}
+            fetchedAt={new Date().toISOString()}
+            streak={streak}
+          />
+        </div>
       )}
-
-      {showChecklist && onboardingState && (
-        <GettingStartedChecklist
-          state={onboardingState}
-          userRole={userRole}
-          orderingEnabled={orderingEnabled}
-        />
-      )}
-
-      <StackOverview
-        weekInfo={weekInfo}
-        vials={serializedVials}
-        ratingAvg={ratingAvg}
-        adherence={adherence}
-        hasActiveProtocols={hasActiveProtocols}
-        hasDoseToday={hasDoseToday}
-        userRole={userRole}
-        fetchedAt={new Date().toISOString()}
-        streak={streak}
-      />
-
-      <WellbeingSentimentInsights insights={sentimentInsights} />
-
-      <InteractiveAnalytics
-        doseLogs={serializedDoseLogs}
-        outcomeLogs={serializedOutcomeLogs}
-        compounds={protocolCompoundsMap}
-        todayScheduledCount={todayScheduledCount}
-        todayLogsCount={todayLogsCount}
-      />
     </main>
   );
 }

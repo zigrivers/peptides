@@ -27,7 +27,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     >
       <DashboardNav orderingEnabled={orderingEnabled} hasUnloggedDoses={hasUnloggedDoses} />
       
-      <div className="flex-1 flex flex-col min-w-0 pt-[var(--mobile-header-height)] pb-16 sm:pt-0 sm:pb-0 sm:pl-16 lg:pl-64">
+      <div className="flex-1 flex flex-col min-w-0 pt-[var(--mobile-header-height)] pb-24 sm:pt-0 sm:pb-0 sm:pl-16 lg:pl-64">
         <div className="fixed bottom-20 right-4 z-50 sm:hidden">
           <PWARegistry />
         </div>

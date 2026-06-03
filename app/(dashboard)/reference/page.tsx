@@ -69,8 +69,8 @@ function CompoundCard({ compound }: { compound: Compound }) {
 
 function CatalogSkeleton() {
   return (
-    <div className="space-y-3 animate-pulse" aria-label="Loading catalog">
-      {[1, 2, 3].map((n) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse" aria-label="Loading catalog">
+      {[1, 2, 3, 4].map((n) => (
         <div key={n} className="rounded-lg border border-gray-100 p-4 space-y-3 dark:border-zinc-800/80">
           <div className="flex items-center justify-between">
             <div className="h-4 bg-gray-200 rounded w-1/3 dark:bg-zinc-800" />
@@ -95,14 +95,14 @@ async function CatalogResults({ query, tag }: { query: string; tag: string }) {
 
   if (compounds.length === 0) {
     return (
-      <p className="text-sm text-gray-500 text-center py-8 dark:text-gray-400">
+      <p className="text-sm text-gray-500 text-center py-8 dark:text-gray-400 col-span-2">
         No compounds found. Try adjusting your search.
       </p>
     );
   }
 
   return (
-    <ul className="space-y-3">
+    <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {compounds.map((c) => (
         <CompoundCard key={c.id} compound={c} />
       ))}
@@ -121,8 +121,8 @@ export default async function ReferencePage({
   const { q = '', tag = '' } = await searchParams;
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 animate-page-enter">
-      <h1 className="text-3xl font-extrabold tracking-tight text-foreground mb-6">Compound Catalog</h1>
+    <main className="max-w-5xl mx-auto px-4 py-8 space-y-6 animate-page-enter">
+      <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Compound Catalog</h1>
       <Suspense fallback={null}>
         <CatalogSearch />
       </Suspense>

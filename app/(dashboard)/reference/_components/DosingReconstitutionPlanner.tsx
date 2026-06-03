@@ -409,8 +409,8 @@ export function DosingReconstitutionPlanner({
                 <defs>
                   {/* Glowing Plunger Shading */}
                   <linearGradient id="liquidGrad" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="var(--primary-color, #3b82f6)" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="var(--primary-color, #3b82f6)" stopOpacity="0.2" />
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.2" />
                   </linearGradient>
                   <linearGradient id="plungerGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#94a3b8" />

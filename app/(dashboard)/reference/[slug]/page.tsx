@@ -153,7 +153,7 @@ export default async function CompoundProfilePage({
   const syringeStandard = (userSettings?.syringeStandard as 'U100' | 'U40') ?? 'U100';
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8">
+    <main className="max-w-4xl mx-auto px-4 py-8 space-y-6 animate-page-enter">
       <nav className="mb-4">
         <Link href="/reference" className="text-sm text-primary hover:underline">
           ← Catalog
