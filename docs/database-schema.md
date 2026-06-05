@@ -123,6 +123,7 @@ model Compound {
   orderItems          OrderItem[]
   sourcePairings      CompoundPairing[] @relation("CompoundPairingSource")
   pairedInPairings    CompoundPairing[] @relation("CompoundPairingPartner")
+  sourceAdjunctRecommendations CompoundAdjunctRecommendation[]
 
   @@index([status])
 }
@@ -169,6 +170,47 @@ model CompoundPairing {
 }
 
 model CompoundPairingCitation { id, pairingId, citationId }
+
+model CatalogAdjunct {
+  id              String
+  name            String
+  slug            String
+  category        String
+  description     String
+  evidenceSummary String
+  safetyNotes     String
+  status          String
+  citations       CatalogAdjunctCitation[]
+  recommendations CompoundAdjunctRecommendation[]
+}
+
+model CatalogAdjunctCitation {
+  id                      String
+  adjunctId               String
+  title                   String
+  url                     String?
+  doi                     String?
+  pmid                    String?
+  recommendationCitations CompoundAdjunctRecommendationCitation[]
+}
+
+model CompoundAdjunctRecommendation {
+  id                  String
+  sourceCompoundId    String
+  adjunctId           String
+  benefitGoal         String
+  rationale           String
+  expectedBenefit     String
+  evidenceQuality     String
+  safetyCategory      String
+  safetyCaveats       String
+  avoidIf             String
+  implementationNotes String?
+  sortOrder           Int
+  citations           CompoundAdjunctRecommendationCitation[]
+}
+
+model CompoundAdjunctRecommendationCitation { id, recommendationId, citationId }
 
 // --- Tracker Domain ---
 
@@ -431,6 +473,12 @@ Per `.claude/rules/safety-math.md` and ADR-008, all dose-amount, volume, and con
 | `CompoundPairing` | `@@unique([sourceCompoundId, pairedCompoundName, benefitGoal])` | Idempotent seed sync and duplicate prevention |
 | `CompoundPairing` | `@@index([sourceCompoundId, benefitGoal])` | Compound detail pairing lookup grouped by benefit goal |
 | `CompoundPairingCitation` | `@@unique([pairingId, citationId])` | Prevent duplicate citation links on a pairing |
+| `CatalogAdjunct` | `name` / `slug` (unique) | Idempotent adjunct seed sync and future adjunct lookup |
+| `CatalogAdjunct` | `@@index([category, status])` | Browse or filter adjunct support types |
+| `CatalogAdjunctCitation` | `@@unique([adjunctId, title])` | Prevent duplicate adjunct citation rows |
+| `CompoundAdjunctRecommendation` | `@@unique([sourceCompoundId, adjunctId, benefitGoal])` | Idempotent seed sync and duplicate prevention |
+| `CompoundAdjunctRecommendation` | `@@index([sourceCompoundId, benefitGoal])` | Compound detail adjunct lookup grouped by support goal |
+| `CompoundAdjunctRecommendationCitation` | `@@unique([recommendationId, citationId])` | Prevent duplicate citation links on an adjunct recommendation |
 | `DoseLog` | `@@index([userId, scheduledDate])` | Dashboard "today's doses" + history paging |
 | `DoseLog` | `@@unique([userId, protocolId, scheduledDate])` | PWA sync conflict prevention (server-side) |
 | `OutcomeLog` | `@@index([userId, scheduledDate])` + `@@unique` | Daily outcome lookup + uniqueness invariant |

@@ -1,7 +1,7 @@
 # Follow-Up Plan: Adjunct Pairings Beyond Compounds
 
-This plan is intentionally deferred until the compound-to-compound pairing phase is
-reviewed and implemented.
+This plan was implemented as the Phase 2 adjunct-support layer after the
+compound-to-compound pairing phase was opened for review.
 
 ## Objective
 
@@ -32,11 +32,11 @@ review.
    - `SAFETY_MITIGATION`
 
 2. Decide data modeling.
-   - Option A: introduce `CatalogAdjunct` with kind-specific fields.
-   - Option B: continue the broader `CatalogItem` platform plan and model
-     compounds, supplements, and protocols under one catalog spine.
-   - Recommendation: align this with `docs/catalog-platform-upgrade-plan.md`
-     rather than adding a one-off adjunct table.
+   - Implemented: introduce `CatalogAdjunct` plus compound-specific
+     `CompoundAdjunctRecommendation` rows.
+   - Deferred: a broader `CatalogItem` platform can still absorb adjuncts later,
+     but Phase 2 keeps supplements, labs, and lifestyle protocols separate from
+     trackable peptide compounds.
 
 3. Define adjunct-specific evidence rules.
    - Supplements/minerals: require human evidence or strong deficiency/biochemical
@@ -77,6 +77,16 @@ review.
    - Seed idempotency tests.
    - UI tests ensuring contraindication warnings render before benefits.
 
+## Phase 2 Implementation Boundary
+
+- Adjuncts render in a separate "Supportive Adjuncts and Monitoring" section.
+- The first seeded set includes safety mitigation, lifestyle protocols,
+  supplements, and lab-monitoring supports.
+- Medication adjuncts are represented in the taxonomy but are not seeded in this
+  pass; they should require a higher safety bar and clinician-managed wording.
+- Monitoring supports are explicitly rendered as context, not dose
+  recommendations or diagnostic instructions.
+
 ## Open Questions For That Phase
 
 - Should medication adjuncts be allowed at all, or only shown as "clinician-managed
@@ -87,10 +97,8 @@ review.
 - Should users be able to hide adjunct content if they only want compound catalog
   data?
 
-## Recommended Phase Boundary
+## Future Expansion Boundary
 
-Do not start this phase until:
-
-- The compound pairing data model is reviewed.
-- The initial pairing UI is implemented.
-- The team decides whether to proceed with the broader catalog-platform upgrade.
+Before expanding this layer, decide whether adjuncts should become searchable,
+whether users can hide adjunct content, and whether the broader catalog-platform
+upgrade should replace the dedicated adjunct tables.

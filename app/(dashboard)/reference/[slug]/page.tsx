@@ -10,6 +10,7 @@ import { getSerializedVialsForCompound } from '@/lib/reconstitution/application/
 import { CompoundInventoryManager } from '../_components/CompoundInventoryManager';
 import { DosingReconstitutionPlanner } from '../_components/DosingReconstitutionPlanner';
 import { CompoundPairingsSection } from '../_components/CompoundPairingsSection';
+import { CompoundAdjunctsSection } from '../_components/CompoundAdjunctsSection';
 
 function CitationLink({ citation }: { citation: Citation }) {
   const href = citation.url
@@ -392,6 +393,8 @@ export default async function CompoundProfilePage({
           )}
 
           <CompoundPairingsSection pairings={compound.profile.pairings} />
+
+          <CompoundAdjunctsSection adjuncts={compound.profile.adjuncts} />
 
           {compound.profile.stackingNotes && (
             <section className="mt-6">

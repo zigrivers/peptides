@@ -29,6 +29,36 @@ type SeedPairing = {
   citationRefs: SeedCitationRef[];
 };
 
+type SeedAdjunctCitationRef = {
+  title: string;
+  url?: string | null;
+  doi?: string | null;
+  pmid?: string | null;
+};
+
+type SeedAdjunct = {
+  name: string;
+  category: string;
+  description: string;
+  evidenceSummary: string;
+  safetyNotes: string;
+  citationRefs: SeedAdjunctCitationRef[];
+};
+
+type SeedAdjunctRecommendation = {
+  sourceCompound: string;
+  adjunct: SeedAdjunct;
+  benefitGoal: string;
+  rationale: string;
+  expectedBenefit: string;
+  evidenceQuality: string;
+  safetyCategory: string;
+  safetyCaveats: string;
+  avoidIf: string;
+  implementationNotes?: string | null;
+  sortOrder?: number;
+};
+
 function normalizeCompoundName(name: string): string {
   return name.toLowerCase();
 }
@@ -45,6 +75,30 @@ function citationMatchesRef(
   citation: { title: string; doi: string | null; pmid: string | null },
   ref: SeedCitationRef
 ): boolean {
+  if (ref.doi && citation.doi === ref.doi) return true;
+  if (ref.pmid && citation.pmid === ref.pmid) return true;
+  return citation.title === ref.title;
+}
+
+function adjunctRecommendationFixtureKey(recommendation: {
+  adjunct: { name: string };
+  benefitGoal: string;
+}): string {
+  return `${recommendation.adjunct.name}\u0000${recommendation.benefitGoal}`;
+}
+
+function adjunctRecommendationRowKey(recommendation: {
+  adjunct: { name: string };
+  benefitGoal: string;
+}): string {
+  return `${recommendation.adjunct.name}\u0000${recommendation.benefitGoal}`;
+}
+
+function adjunctCitationMatchesRef(
+  citation: { title: string; url: string | null; doi: string | null; pmid: string | null },
+  ref: SeedAdjunctCitationRef
+): boolean {
+  if (ref.url && citation.url === ref.url) return true;
   if (ref.doi && citation.doi === ref.doi) return true;
   if (ref.pmid && citation.pmid === ref.pmid) return true;
   return citation.title === ref.title;
@@ -159,6 +213,182 @@ async function syncCompoundPairings(pairingFixtures: SeedPairing[]) {
     if (pairingsToDelete.length > 0) {
       await prisma.compoundPairing.deleteMany({
         where: { id: { in: pairingsToDelete.map((pairing) => pairing.id) } },
+      });
+    }
+  }
+}
+
+async function syncAdjunctCitations(adjunctId: string, citationRefs: SeedAdjunctCitationRef[]) {
+  const existingCitations = await prisma.catalogAdjunctCitation.findMany({
+    where: { adjunctId },
+    select: { id: true, title: true, url: true, doi: true, pmid: true },
+  });
+
+  const citationsToDelete = existingCitations.filter(
+    (citation) => !citationRefs.some((ref) => adjunctCitationMatchesRef(citation, ref))
+  );
+  if (citationsToDelete.length > 0) {
+    await prisma.catalogAdjunctCitation.deleteMany({
+      where: { id: { in: citationsToDelete.map((citation) => citation.id) } },
+    });
+  }
+
+  for (const ref of citationRefs) {
+    await prisma.catalogAdjunctCitation.upsert({
+      where: {
+        adjunctId_title: {
+          adjunctId,
+          title: ref.title,
+        },
+      },
+      update: {
+        url: ref.url ?? null,
+        doi: ref.doi ?? null,
+        pmid: ref.pmid ?? null,
+      },
+      create: {
+        adjunctId,
+        title: ref.title,
+        url: ref.url ?? null,
+        doi: ref.doi ?? null,
+        pmid: ref.pmid ?? null,
+      },
+    });
+  }
+}
+
+async function syncCompoundAdjunctRecommendations(adjunctFixtures: SeedAdjunctRecommendation[]) {
+  const compounds = await prisma.compound.findMany({
+    select: { id: true, name: true },
+  });
+  const compoundsByName = new Map(
+    compounds.map((compound) => [normalizeCompoundName(compound.name), compound])
+  );
+
+  const recommendationsBySource = new Map<string, SeedAdjunctRecommendation[]>();
+  for (const recommendation of adjunctFixtures) {
+    const existing = recommendationsBySource.get(recommendation.sourceCompound) ?? [];
+    existing.push(recommendation);
+    recommendationsBySource.set(recommendation.sourceCompound, existing);
+  }
+
+  for (const [sourceCompoundName, sourceRecommendations] of recommendationsBySource.entries()) {
+    const sourceCompound = compoundsByName.get(normalizeCompoundName(sourceCompoundName));
+    if (!sourceCompound) {
+      console.warn(`[seed] Skipping adjuncts for unknown source compound: ${sourceCompoundName}`);
+      continue;
+    }
+
+    const desiredKeys = new Set(sourceRecommendations.map(adjunctRecommendationFixtureKey));
+    const existingRecommendations = await prisma.compoundAdjunctRecommendation.findMany({
+      where: { sourceCompoundId: sourceCompound.id },
+      select: {
+        id: true,
+        benefitGoal: true,
+        adjunct: {
+          select: { name: true },
+        },
+      },
+    });
+
+    for (const [index, recommendation] of sourceRecommendations.entries()) {
+      const adjunct = await prisma.catalogAdjunct.upsert({
+        where: { name: recommendation.adjunct.name },
+        update: {
+          slug: nameToSlug(recommendation.adjunct.name),
+          category: recommendation.adjunct.category,
+          description: recommendation.adjunct.description,
+          evidenceSummary: recommendation.adjunct.evidenceSummary,
+          safetyNotes: recommendation.adjunct.safetyNotes,
+          status: 'PUBLISHED',
+        },
+        create: {
+          name: recommendation.adjunct.name,
+          slug: nameToSlug(recommendation.adjunct.name),
+          category: recommendation.adjunct.category,
+          description: recommendation.adjunct.description,
+          evidenceSummary: recommendation.adjunct.evidenceSummary,
+          safetyNotes: recommendation.adjunct.safetyNotes,
+          status: 'PUBLISHED',
+        },
+      });
+
+      await syncAdjunctCitations(adjunct.id, recommendation.adjunct.citationRefs);
+      const adjunctCitations = await prisma.catalogAdjunctCitation.findMany({
+        where: { adjunctId: adjunct.id },
+        select: { id: true, title: true, url: true, doi: true, pmid: true },
+      });
+
+      const upsertedRecommendation = await prisma.compoundAdjunctRecommendation.upsert({
+        where: {
+          sourceCompoundId_adjunctId_benefitGoal: {
+            sourceCompoundId: sourceCompound.id,
+            adjunctId: adjunct.id,
+            benefitGoal: recommendation.benefitGoal,
+          },
+        },
+        update: {
+          rationale: recommendation.rationale,
+          expectedBenefit: recommendation.expectedBenefit,
+          evidenceQuality: recommendation.evidenceQuality,
+          safetyCategory: recommendation.safetyCategory,
+          safetyCaveats: recommendation.safetyCaveats,
+          avoidIf: recommendation.avoidIf,
+          implementationNotes: recommendation.implementationNotes ?? null,
+          sortOrder: recommendation.sortOrder ?? index,
+        },
+        create: {
+          sourceCompoundId: sourceCompound.id,
+          adjunctId: adjunct.id,
+          benefitGoal: recommendation.benefitGoal,
+          rationale: recommendation.rationale,
+          expectedBenefit: recommendation.expectedBenefit,
+          evidenceQuality: recommendation.evidenceQuality,
+          safetyCategory: recommendation.safetyCategory,
+          safetyCaveats: recommendation.safetyCaveats,
+          avoidIf: recommendation.avoidIf,
+          implementationNotes: recommendation.implementationNotes ?? null,
+          sortOrder: recommendation.sortOrder ?? index,
+        },
+      });
+
+      const desiredCitationIds = recommendation.adjunct.citationRefs
+        .map((ref) => adjunctCitations.find((citation) => adjunctCitationMatchesRef(citation, ref))?.id)
+        .filter((id): id is string => Boolean(id));
+      const desiredCitationIdSet = new Set(desiredCitationIds);
+      const existingCitationLinks = await prisma.compoundAdjunctRecommendationCitation.findMany({
+        where: { recommendationId: upsertedRecommendation.id },
+        select: { id: true, citationId: true },
+      });
+
+      const citationLinksToDelete = existingCitationLinks.filter(
+        (link) => !desiredCitationIdSet.has(link.citationId)
+      );
+      if (citationLinksToDelete.length > 0) {
+        await prisma.compoundAdjunctRecommendationCitation.deleteMany({
+          where: { id: { in: citationLinksToDelete.map((link) => link.id) } },
+        });
+      }
+
+      const existingCitationIdSet = new Set(existingCitationLinks.map((link) => link.citationId));
+      for (const citationId of desiredCitationIds) {
+        if (!existingCitationIdSet.has(citationId)) {
+          await prisma.compoundAdjunctRecommendationCitation.create({
+            data: {
+              recommendationId: upsertedRecommendation.id,
+              citationId,
+            },
+          });
+        }
+      }
+    }
+
+    const recommendationsToDelete = existingRecommendations.filter(
+      (recommendation) => !desiredKeys.has(adjunctRecommendationRowKey(recommendation))
+    );
+    if (recommendationsToDelete.length > 0) {
+      await prisma.compoundAdjunctRecommendation.deleteMany({
+        where: { id: { in: recommendationsToDelete.map((recommendation) => recommendation.id) } },
       });
     }
   }
@@ -1824,6 +2054,15 @@ GLOW70 is the ultimate skin restoration formula. It uses a double-dampening appr
     console.error('Failed to load compound pairing fixtures:', err);
   }
 
+  const adjunctFixturesPath = path.join(__dirname, 'seed-data/compound_adjuncts.json');
+  let adjunctFixtures: SeedAdjunctRecommendation[] = [];
+  try {
+    const raw = fs.readFileSync(adjunctFixturesPath, 'utf-8');
+    adjunctFixtures = JSON.parse(raw) as SeedAdjunctRecommendation[];
+  } catch (err) {
+    console.error('Failed to load compound adjunct fixtures:', err);
+  }
+
   for (const { profile, ...compoundData } of compounds) {
     const dataWithSlug = {
       ...compoundData,
@@ -1912,6 +2151,7 @@ GLOW70 is the ultimate skin restoration formula. It uses a double-dampening appr
   }
 
   await syncCompoundPairings(pairingFixtures);
+  await syncCompoundAdjunctRecommendations(adjunctFixtures);
 
   // 1. Create default Power User
   const email = 'test@example.com';

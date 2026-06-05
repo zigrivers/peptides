@@ -47,6 +47,53 @@ export type CompoundPairing = {
   citationRefs: CompoundPairingCitation[];
 };
 
+export type AdjunctCategory =
+  | 'SUPPLEMENT'
+  | 'MINERAL'
+  | 'MEDICATION'
+  | 'LIFESTYLE_PROTOCOL'
+  | 'LAB_MONITORING'
+  | 'SAFETY_MITIGATION';
+
+export type AdjunctSafetyCategory =
+  | 'CONTRAINDICATED'
+  | 'CLINICIAN_SUPERVISION'
+  | 'LAB_MONITORING_RECOMMENDED'
+  | 'TIMING_SENSITIVE'
+  | 'INTERACTION_SENSITIVE'
+  | 'SAFETY_MITIGATION'
+  | 'OPTIONAL_SUPPORTIVE_MEASURE';
+
+export type CatalogAdjunctCitation = {
+  id: string;
+  adjunctId: string;
+  title: string;
+  url: string | null;
+  doi: string | null;
+  pmid: string | null;
+};
+
+export type CompoundAdjunctRecommendation = {
+  id: string;
+  sourceCompoundId: string;
+  adjunctId: string;
+  adjunctName: string;
+  adjunctSlug: string;
+  adjunctCategory: AdjunctCategory;
+  adjunctDescription: string;
+  adjunctEvidenceSummary: string;
+  adjunctSafetyNotes: string;
+  benefitGoal: string;
+  rationale: string;
+  expectedBenefit: string;
+  evidenceQuality: EvidenceQuality;
+  safetyCategory: AdjunctSafetyCategory;
+  safetyCaveats: string;
+  avoidIf: string;
+  implementationNotes: string | null;
+  citationRefs: CatalogAdjunctCitation[];
+};
+
 export type BenefitTimelineItem = {
   week: number;
   benefits: string[];
@@ -99,6 +146,7 @@ export type CompoundProfile = {
   timingNotes: string | null;
   isFdaApproved: boolean;
   pairings: CompoundPairing[];
+  adjuncts: CompoundAdjunctRecommendation[];
 };
 
 export type Compound = {
