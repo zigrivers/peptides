@@ -105,7 +105,7 @@ function adjunctCitationMatchesRef(
 }
 
 async function syncCompoundPairings(pairingFixtures: SeedPairing[]) {
-  const compounds = await prisma.compound.findMany({
+  const compounds = await prisma.catalogItem.findMany({
     select: { id: true, name: true, slug: true },
   });
   const compoundsByName = new Map(
@@ -258,7 +258,7 @@ async function syncAdjunctCitations(adjunctId: string, citationRefs: SeedAdjunct
 }
 
 async function syncCompoundAdjunctRecommendations(adjunctFixtures: SeedAdjunctRecommendation[]) {
-  const compounds = await prisma.compound.findMany({
+  const compounds = await prisma.catalogItem.findMany({
     select: { id: true, name: true },
   });
   const compoundsByName = new Map(
@@ -396,11 +396,11 @@ async function syncCompoundAdjunctRecommendations(adjunctFixtures: SeedAdjunctRe
 
 async function main() {
   // Rename old space-separated name to hyphenated name to avoid unique slug conflicts
-  const oldSemax = await prisma.compound.findFirst({
+  const oldSemax = await prisma.catalogItem.findFirst({
     where: { name: 'NA Semax Amidate' },
   });
   if (oldSemax) {
-    await prisma.compound.update({
+    await prisma.catalogItem.update({
       where: { id: oldSemax.id },
       data: { name: 'NA-Semax-Amidate' },
     });
@@ -1162,12 +1162,12 @@ Testosterone is the primary blueprint for male cellular development. It acts lik
         dosingTypical: { amount: '100', unit: 'mg', researchBenefits: 'TRT replacement protocol, lean mass maintenance', recommendedFrequency: 'Weekly (or split twice weekly)' },
         dosingHigh: { amount: '200', unit: 'mg', researchBenefits: 'Maximum replacement dose, rapid tissue recovery', recommendedFrequency: 'Weekly' },
         sideEffects: 'Erythrocytosis, hair loss, gynecomastia, suppression of endogenous testosterone. Safety Assessment: Shuts down endogenous testosterone (testicular atrophy; managed with HCG). Elevates hematocrit and blood viscosity. Risk of aromatization to estrogen.',
-        stackingNotes: 'Often stacked with HCG to maintain testicular function during administration. Storage: Multidose vials formulated in carrier oils are stable at room temperature for 90 days once punctured. Do not freeze.',
-        reconstitutedShelfLifeDays: 90,
+        stackingNotes: 'Often stacked with HCG to maintain testicular function during administration. Storage: Testosterone Cypionate is a pre-dissolved oil-based solution and does NOT require reconstitution. Once punctured, multi-dose vials should be discarded after 28 days (per USP <797> safety guidelines). Store at room temperature (20°C–25°C / 68°F–77°F); do not refrigerate or freeze, as low temperatures can cause the hormone to crystallize out of solution.',
+        reconstitutedShelfLifeDays: 28,
         
-        fridgeShelfLifeMonths: 60,
+        fridgeShelfLifeMonths: null,
         
-        freezerShelfLifeMonths: 60,
+        freezerShelfLifeMonths: null,
         
         citations: [
           {
@@ -2034,6 +2034,152 @@ GLOW70 is the ultimate skin restoration formula. It uses a double-dampening appr
         ],
       },
     },
+    {
+      name: 'CJC-1295 No DAC',
+      iupacName: 'L-tyrosyl-D-alanyl-L-α-aspartyl-L-alanyl-L-isoleucyl-L-phenylalanyl-L-threonyl-L-glutaminyl-L-seryl-L-tyrosyl-L-arginyl-L-lysyl-L-valyl-L-leucyl-L-alanyl-L-glutaminyl-L-leucyl-L-seryl-L-alanyl-L-arginyl-L-lysyl-L-leucyl-L-leucyl-L-glutaminyl-L-α-aspartyl-L-isoleucyl-L-leucyl-L-seryl-L-argininamide',
+      synonyms: ['Modified GRF 1-29', 'Mod GRF 1-29', 'Sermorelin Tetrasubstituted', 'ModGRF'],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+A synthetic, 29-amino acid analog of Growth Hormone-Releasing Hormone (GHRH) modified at positions 2, 8, 15, and 27 (specifically [D-Ala2, Gln8, Ala15, Leu27]-GHRH(1-29)) to resist rapid enzymatic cleavage by dipeptidyl peptidase-4 (DPP-4). By binding selectively to GHRH receptors on pituitary somatotropes, it stimulates the adenylate cyclase/cAMP/PKA pathway. This leads to increased intracellular calcium concentration, promoting the transcription, translation, and pulsatile secretion of endogenous growth hormone (GH) without causing rapid receptor down-regulation or desensitization.
+
+### The Analogy (The Layman Explanation)
+CJC-1295 No DAC is a highly durable key that fits directly into your body's natural growth hormone engine. Unlike natural growth hormone keys that are immediately destroyed by protective enzymes after one use, this modified key is reinforced to withstand those enzymes. This allows it to gently turn the engine on and off, stimulating natural, healthy, wave-like releases of growth hormone to support cellular recovery and metabolism without overwhelming your system.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Pituitary receptor activation begins, initiating pulsatile growth hormone release; noticeable improvement in deep slow-wave sleep quality and overnight physical recovery.
+* **Week 2 (Days 8–14)**: Elevated hepatic IGF-1 (insulin-like growth factor 1) secretion, leading to accelerated cellular regeneration, reduced morning joint stiffness, and improved daily energy.
+* **Week 4 (Days 15–28)**: Enhanced muscle preservation signaling, early visceral fat mobilization (lipolysis), and noticeable improvements in skin elasticity and moisture retention.
+* **Week 8 (Days 29–56)**: Visible changes in body composition (fat loss/muscle preservation), enhanced muscle fullness, and improved joint flexibility and comfort due to extracellular matrix repair.
+* **Week 12 (Days 57–84)**: Peak body composition remodeling, optimized somatotropic axis balance, sustained metabolic efficiency, and maximum tissue repair.`,
+      administrationRoutes: ['SubQ'],
+      tags: ['muscle-building', 'recovery', 'fat-loss'],
+      profile: {
+        dosingLow: { amount: '100', unit: 'mcg', researchBenefits: 'Mild recovery, sleep enhancement, and metabolic support', recommendedFrequency: 'Once daily' },
+        dosingTypical: { amount: '150', unit: 'mcg', researchBenefits: 'Accelerated tissue repair, lean muscle preservation, and fat loss synergy', recommendedFrequency: 'Once or twice daily' },
+        dosingHigh: { amount: '200', unit: 'mcg', researchBenefits: 'Maximum growth hormone release stimulation and recovery speed', recommendedFrequency: 'Twice daily' },
+        sideEffects: 'Transient facial flushing, mild headache, injection-site irritation, or slight water retention.',
+        stackingNotes: 'Typically stacked with a growth hormone secretagogue (like Ipamorelin) for maximum synergistic release of GH. Must be administered in a fasted state (at least 2 hours post-meal) to avoid blunting the growth hormone pulse. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        reconstitutedShelfLifeDays: 28,
+        fridgeShelfLifeMonths: 12,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Pulsatile Secretion of Growth Hormone (GH) Persists during Continuous Stimulation by CJC-1295, a Long-Acting GH-Releasing Hormone Analog',
+            doi: '10.1210/jc.2006-1702',
+            pmid: '17018654',
+          },
+          {
+            title: 'Human growth hormone-releasing factor (hGRF)1-29-albumin bioconjugates activate the GRF receptor on the anterior pituitary in rats: identification of CJC-1295 as a long-lasting GRF analog',
+            doi: '10.1210/en.2004-1286',
+            pmid: '15817669',
+          },
+        ],
+      },
+    },
+    {
+      name: 'CJC-1295 No DAC / Ipamorelin',
+      iupacName: 'Blend of CJC-1295 No DAC and Ipamorelin',
+      synonyms: ['cjc-1295 no dac / ipamorelin mix', 'cjc/ipamorelin', 'cjc 1295 ipamorelin mix', 'modified grf 1-29 / ipamorelin stack', 'ghrh/ghrp combo'],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+A synergistic combination of a Growth Hormone-Releasing Hormone (GHRH) receptor agonist (CJC-1295 No DAC, a modified GRF 1-29) and a Growth Hormone Secretagogue Receptor (GHS-R1a) agonist (Ipamorelin). 
+
+Taken individually, each peptide works through a separate pathway: CJC-1295 binds to the GHRH receptor, initiating adenylate cyclase/cAMP-dependent transcription and preparing growth hormone (GH) somatotrophic vesicles for release (*priming*). Ipamorelin acts as a ghrelin mimetic, binding to GHS-R1a to activate phospholipase C, mobilizing intracellular calcium ions to trigger the exocytosis of those prepared GH vesicles (*triggering*). 
+
+When combined, they bypass natural regulatory feedback mechanisms: CJC-1295 increases pituitary sensitivity and synthesizes GH stores, while Ipamorelin suppresses somatostatin (a growth hormone inhibitor) and triggers calcium-influx-mediated exocytosis. This dual-pathway "priming and triggering" synergy generates a pulsatile growth hormone surge that is multiple times greater than the sum of their independent effects.
+
+### The Analogy (The Layman Explanation)
+Think of your pituitary gland as a biological water tower. CJC-1295 No DAC acts as the high-capacity pump that fills the tower with water (priming the pituitary with newly synthesized growth hormone). Ipamorelin is the release valve handle that opens the floodgates to release the water (triggering the growth hormone pulse). If you use the pump without opening the valve, or open the valve without pumping first, you get a minimal, inefficient trickle. By using them together, the tower is fully filled and the gates are wide open, producing a powerful, clean, natural wave of growth hormone release for cellular recovery.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Immediate dual-pathway activation and pituitary receptor priming; deep slow-wave sleep cycles lengthen significantly, yielding improved morning energy and rapid reduction in workout-induced fatigue.
+* **Week 2 (Days 8–14)**: Elevated systemic growth hormone and hepatic IGF-1 levels; enhanced cellular regeneration starts clearing baseline joint and muscle soreness.
+* **Week 4 (Days 15–28)**: Synergistic activation of lipolysis (fat breakdown), starting the mobilization of stubborn visceral abdominal fat; lean muscle mass is shielded from breakdown; skin looks hydrated and firm.
+* **Week 8 (Days 29–56)**: Visible improvements in body composition (reduced waist measurements, improved muscle definition); connective tissues strengthen; joint movement becomes smoother.
+* **Week 12 (Days 57–84)**: Peak physical remodeling (optimal fat loss and muscle retention ratio); natural somatotropic axis balance is sustained; maximum metabolic efficiency and cell renewal are established.`,
+      administrationRoutes: ['SubQ'],
+      tags: ['muscle-building', 'recovery', 'fat-loss'],
+      profile: {
+        dosingLow: { amount: '100/100', unit: 'mcg', researchBenefits: 'Mild sleep optimization, subtle recovery increase, and general metabolic support', recommendedFrequency: 'Once daily (before bed)' },
+        dosingTypical: { amount: '100/100', unit: 'mcg', researchBenefits: 'Standard fat loss support, muscle preservation, and enhanced workout recovery', recommendedFrequency: 'Twice daily (morning and before bed)' },
+        dosingHigh: { amount: '150/150', unit: 'mcg', researchBenefits: 'Advanced body composition remodeling and accelerated injury rehabilitation', recommendedFrequency: 'Twice daily' },
+        sideEffects: 'Transient facial flushing, mild headache, injection-site redness, or slight water retention. Notably free from the cortisol and prolactin spikes associated with older secretagogues.',
+        stackingNotes: 'Administered subcutaneously on an empty stomach. Must be fasted for at least 2 hours prior and 30 minutes post-injection to prevent dietary insulin from blunting the growth hormone release pulse. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        reconstitutedShelfLifeDays: 28,
+        fridgeShelfLifeMonths: 12,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Pulsatile Secretion of Growth Hormone (GH) Persists during Continuous Stimulation by CJC-1295, a Long-Acting GH-Releasing Hormone Analog',
+            doi: '10.1210/jc.2006-1702',
+            pmid: '17018654',
+          },
+          {
+            title: 'Ipamorelin, the first selective growth hormone secretagogue',
+            doi: '10.1530/eje.0.1390552',
+            pmid: '9849822',
+          },
+          {
+            title: 'Pharmacokinetic-pharmacodynamic modeling of ipamorelin, a growth hormone releasing peptide, in human volunteers',
+            doi: '10.1023/A:1018955126402',
+            pmid: '10496658',
+          },
+        ],
+      },
+    },
+    {
+      name: 'BPC-157 / TB-500',
+      iupacName: 'Blend of BPC-157 and TB-500',
+      synonyms: ['bpc-157 / tb-500 mix', 'bpc157/tb500 mix', 'bpc 157 tb 500 stack', 'wolverine stack', 'healing combo'],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+A synergistic combination of Body Protection Compound-157 (BPC-157) and Thymosin Beta-4 (TB-500). 
+
+BPC-157 functions as a localized healing accelerator by upregulating Vascular Endothelial Growth Factor receptor 2 (VEGFR2) expression, promoting rapid site-specific angiogenesis (new blood vessel formation) to restore perfusion and nutrient delivery. It also stimulates the FAK-paxillin pathway, triggering local fibroblast migration and collagen type I synthesis to construct structural tissue scaffolding at the injury site. 
+
+TB-500 acts systemically as a major G-actin monomer-sequestering peptide, preventing actin polymerization to maintain cell membrane fluidity and structural mobility. This facilitates the rapid migration of fibroblasts, keratinocytes, and endothelial cells over long distances to the injury site. It also upregulates matrix metalloproteinases (MMPs) to degrade and clear damaged extracellular matrix debris, while suppressing pro-inflammatory cytokines (TNF-alpha, IL-1beta). 
+
+Combined, BPC-157 builds the localized structural pathways (angiogenesis and collagen) while TB-500 clears the cellular debris and provides the actin-mediated cell mobility, producing a powerful localized and systemic tag-team response that dramatically accelerates musculoskeletal recovery.
+
+### The Analogy (The Layman Explanation)
+Think of an injury as a collapsed bridge in a remote town. BPC-157 acts as the local construction foreman who sets up the site, builds new access roads (blood vessels), and orders the raw concrete (collagen). TB-500 acts as the logistics coordinator who clears the wreckage and rubble off the roads (MMPs clearing debris) and provides high-speed transit vehicles (actin-driven cell mobility) so that repair workers can easily travel from all over the body. If you only have access roads but no vehicles (only BPC-157), rebuilding is slow. If you have vehicles but no roads or concrete (only TB-500), workers cannot reach the bridge. Together, they rebuild the bridge in record time.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Rapid suppression of localized swelling and inflammatory signaling; early reduction in acute joint, tendon, and muscle stiffness; early gastric mucosal lining stabilization.
+* **Week 2 (Days 8–14)**: Upregulated cell migration and capillary sprout formation (angiogenesis); significantly accelerated post-workout muscle recovery and reduced post-exercise soreness.
+* **Week 4 (Days 15–28)**: Substantial deposition of organized collagen type I fibers and fibroblast migration; noticeable improvement in flexibility, range of motion, and ligament load-bearing capacity.
+* **Week 8 (Days 29–56)**: Mechanical strength of repaired ligaments, tendons, and muscle fibers increases dramatically; old or chronic scar tissue begins remodeling into flexible, healthy tissue.
+* **Week 12 (Days 57–84)**: Peak biomechanical restoration of injured structures; complete recovery of range of motion and tissue resiliency; joints, muscles, and tendons return to baseline strength.`,
+      administrationRoutes: ['SubQ', 'IM'],
+      tags: ['healing', 'recovery'],
+      profile: {
+        dosingLow: { amount: '250/2.0', unit: 'mcg/mg', researchBenefits: 'Mild recovery support, systemic inflammation management, and joint maintenance', recommendedFrequency: 'BPC-157 daily, TB-500 twice weekly' },
+        dosingTypical: { amount: '500/5.0', unit: 'mcg/mg', researchBenefits: 'Standard tendon, ligament, muscle, and joint healing protocol', recommendedFrequency: 'BPC-157 daily, TB-500 twice weekly' },
+        dosingHigh: { amount: '1000/10.0', unit: 'mcg/mg', researchBenefits: 'Accelerated loading protocol for severe or acute muscle and ligament tears', recommendedFrequency: 'BPC-157 twice daily, TB-500 twice weekly' },
+        sideEffects: 'Temporary injection-site redness, mild headache, transient fatigue, or slight nausea at high loading doses.',
+        stackingNotes: 'Administered via subcutaneous or intramuscular injection near the injury site (for BPC-157 localized effect) or systemically. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        reconstitutedShelfLifeDays: 28,
+        fridgeShelfLifeMonths: 12,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Stable Gastric Pentadecapeptide BPC 157 and Wound Healing',
+            doi: '10.3389/fphar.2021.627533',
+            pmid: '34267654',
+          },
+          {
+            title: 'Thymosin beta-4: a multi-functional regenerative peptide. Basic properties and clinical applications',
+            doi: '10.1517/14712598.2012.634793',
+            pmid: '22074294',
+          },
+          {
+            title: 'Thymosin beta-4 accelerates wound healing',
+            doi: '10.1096/fj.09-140046',
+            pmid: '20103959',
+          },
+        ],
+      },
+    },
   ];
 
   const fixturesPath = path.join(__dirname, 'seed-data/dosing_fixtures.json');
@@ -2067,11 +2213,12 @@ GLOW70 is the ultimate skin restoration formula. It uses a double-dampening appr
     const dataWithSlug = {
       ...compoundData,
       slug: nameToSlug(compoundData.name),
+      catalogKey: nameToSlug(compoundData.name),
       // Store synonyms lowercase so case-insensitive synonym search works
       // (Prisma 'has' on string arrays is case-sensitive).
       synonyms: compoundData.synonyms.map((s) => s.toLowerCase()),
     };
-    const compound = await prisma.compound.upsert({
+    const compound = await prisma.catalogItem.upsert({
       where: { name: compoundData.name },
       update: dataWithSlug,
       create: dataWithSlug,
@@ -2100,14 +2247,14 @@ GLOW70 is the ultimate skin restoration formula. It uses a double-dampening appr
         benefitTimeline: timeline,
       };
       const upsertedProfile = await prisma.compoundProfile.upsert({
-        where: { compoundId: compound.id },
+        where: { catalogItemId: compound.id },
         update: dataWithTimeline,
-        create: { compoundId: compound.id, ...dataWithTimeline },
+        create: { catalogItemId: compound.id, ...dataWithTimeline },
       });
 
       // Perform differential sync for citations to preserve unchanged entries and avoid blanket deletes.
       const existingCitations = await prisma.citation.findMany({
-        where: { profileId: upsertedProfile.id },
+        where: { catalogItemId: compound.id },
       });
 
       const citationsToDelete = existingCitations.filter((existing) => {
@@ -2139,7 +2286,7 @@ GLOW70 is the ultimate skin restoration formula. It uses a double-dampening appr
       for (const citation of citationsToCreate) {
         await prisma.citation.create({
           data: {
-            profileId: upsertedProfile.id,
+            catalogItemId: compound.id,
             title: citation.title,
             doi: citation.doi ?? null,
             pmid: citation.pmid ?? null,
@@ -2172,9 +2319,9 @@ GLOW70 is the ultimate skin restoration formula. It uses a double-dampening appr
   });
 
   // 2. Fetch seeded compounds
-  const bpc = await prisma.compound.findFirst({ where: { name: 'BPC-157' } });
-  const tb500 = await prisma.compound.findFirst({ where: { name: 'TB-500' } });
-  const tirz = await prisma.compound.findFirst({ where: { name: 'Tirzepatide' } });
+  const bpc = await prisma.catalogItem.findFirst({ where: { name: 'BPC-157' } });
+  const tb500 = await prisma.catalogItem.findFirst({ where: { name: 'TB-500' } });
+  const tirz = await prisma.catalogItem.findFirst({ where: { name: 'Tirzepatide' } });
 
   if (bpc && tb500 && tirz) {
     // 3. Upsert Vendor
@@ -2337,25 +2484,361 @@ main()
 function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | null) {
   const normName = name.toLowerCase();
 
+  if (normName.includes('testosterone')) {
+    return [
+      {
+        week: 1,
+        benefits: [
+          'Energy & Mood Boost: Noticeable increase in mental focus, drive, and morning energy levels; helps lift mood and reduce daily irritability',
+          'CNS Recovery Support: Improves sleep quality and brain cell recovery, reducing brain fog and afternoon energy crashes',
+          'Endocrine Stabilization: Initial physical adaptation as the body responds to stable circulating hormone levels'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Improved Workout Recovery: Speeds up muscle recovery after physical exertion, reducing soreness and returning you to full capacity faster',
+          'Intracellular Water Retention: Enhances muscle cell hydration and glycogen storage, giving muscles a fuller appearance and better pump',
+          'Metabolic Kickstart: Begins increasing metabolic efficiency and the rate at which cells generate energy'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Libido & Vitality: Notable improvements in libido, morning erections, and overall sexual vitality',
+          'Strength and Stamina: Initial increases in physical strength, endurance, and workout stamina',
+          'Vascular Health Support: Supports healthy blood vessel dilation, improving oxygen and nutrient delivery to active tissues'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Muscle Density & Growth: Increases muscle protein synthesis, leading to visible changes in lean muscle density and mass',
+          'Fat Metabolism: Accelerates the breakdown of stored fat, particularly around the abdomen, and improves insulin sensitivity',
+          'Red Blood Cell Volume: Stimulates the bone marrow to produce more red blood cells, enhancing long-term cardiovascular stamina'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Peak Physical Adaptation: Achieves maximum cellular strength adaptation, resulting in peak muscle mass gains and physical performance',
+          'Bone Density Protection: Promotes calcium retention and bone mineral density support, reinforcing the skeletal system',
+          'Stable Endocrine Homeostasis: Re-establishes a stable physical and emotional baseline, maintaining sustained vigor, motivation, and recovery'
+        ]
+      }
+    ];
+  }
+  if (normName.includes('ara-290') || normName.includes('ara290')) {
+    return [
+      {
+        week: 1,
+        benefits: [
+          'Nerve Repair Activation: Triggers the body\'s natural "repair switch" on damaged nerves to silence cells that are sending urgent, burning pain signals',
+          'Calming Burning & Tingling: Provides early relief from acute neuropathic discomfort, such as burning, tingling, or electric-shock sensations in the hands and feet',
+          'Reducing Neuroinflammation: Begins lowering the inflammatory chemicals that keep nerve endings irritated and hypersensitive'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Pain Score Reduction: Decreases the intensity of daily nerve pain, making it easier to fall asleep and move around comfortably',
+          'Blood Vessel Protection: Strengthens the tiny blood vessels that feed oxygen and nutrients to nerve endings, preventing further nerve damage',
+          'Fatigue Relief: Helps lower the deep, chronic physical exhaustion that often accompanies persistent nerve pain'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Stabilizing Nerve Wiring: Protects and stabilizes the delicate microscopic wiring (axons) of your nerves, preventing them from breaking down further',
+          'Temperature Sensitivity Support: Improves the body\'s ability to correctly feel temperature changes, helping hands and feet better sense warm and cold',
+          'Nerve Cell Preservation: Activates protective cellular survival paths to keep struggling nerve cells alive and functional'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Small Nerve Regrowth: Stimulates the actual regrowth and branching of tiny nerve fibers that have withered due to injury or illness',
+          'Restoring Touch Sensitivity: Decreases numbness in the hands and feet, helping you feel surfaces and textures more naturally',
+          'Better Daily Mobility: Restores confidence in standing and walking by relieving the pain triggered by foot-to-ground contact'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Peak Neuropathic Relief: Reaches maximum pain reduction, bringing long-term stability to nerve signaling and a return to daily comfort',
+          'Calming Touch Hypersensitivity: Relieves hypersensitivity where even a light touch, clothing, or bedsheets feel uncomfortable or painful',
+          'Nervous System Peace: Optimizes sleep, focus, and energy by permanently lowering systemic inflammatory stress on the nervous system'
+        ]
+      }
+    ];
+  }
+  if (normName.includes('kpv')) {
+    return [
+      {
+        week: 1,
+        benefits: [
+          'Mast Cell Stabilization: Calms hyperactive immune cells (mast cells) to prevent the sudden release of histamine, reducing allergic flare-ups, skin itching, and hives',
+          'Histamine Regulation: Lowers overall histamine responses, helping to soothe allergy symptoms and food sensitivities',
+          'Gut Spasm Relief: Relaxes the smooth muscles of the digestive tract to cool down painful stomach cramps and intestinal spasms'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Soothing Gut Inflammation: Shuts down the genetic signals (NF-kB pathway) that drive chronic inflammation, cooling digestive irritation',
+          'Bloating and Gas Reduction: Lowers swelling in the gut wall, leading to a flatter stomach and significant relief from post-meal bloating',
+          'Skin Barrier Calming: Relieves the redness, itching, and scaling associated with inflammatory skin issues like eczema, psoriasis, and dermatitis'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Gut Barrier Repair: Rebuilds and tightens the microscopic seals in the gut wall (vital for fixing leaky gut and preventing toxins from entering the bloodstream)',
+          'Skin Healing Support: Speeds up the early stages of skin repair, helping cuts, scrapes, or mild burns heal faster',
+          'Local Immune Defense: Strengthens the body\'s natural defenses on mucosal linings to help prevent minor infections'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Mucosal Lining Healing: Rebuilds and thickens the protective mucosal lining of the stomach and intestines, guarding against irritation and ulcers',
+          'Antimicrobial & Anti-Fungal Action: Helps the body control opportunistic yeast and bacterial overgrowths (specifically targeting Candida and Staph)',
+          'Better Cosmetic Healing: Promotes the organized growth of new skin cells as wounds heal, helping to prevent thick, visible scars'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Gastrointestinal Balance: Achieves stable digestive homeostasis, helping you process foods comfortably without inflammatory bloating or cramps',
+          'Systemic Immune Balance: Calms an overactive immune system, providing long-term defense against chronic inflammatory flare-ups in the skin, joints, and organs',
+          'Peak Skin Resilience: Strengthens the skin\'s outer barrier, reducing sensitivity to environmental allergens and daily irritants'
+        ]
+      }
+    ];
+  }
+
+  if (normName.includes('mots-c') || normName.includes('mots c')) {
+    return [
+      {
+        week: 1,
+        benefits: [
+          'Immediate Stamina Boost: Increases physical endurance and aerobic exercise capacity, allowing you to sustain higher exertion levels with less effort',
+          'Lactic Acid Reduction: Delays the buildup of lactic acid in active muscles, reducing the burning sensation and muscle fatigue during exercise',
+          'Mitochondrial Wake-up: Activates existing cellular energy generators to optimize oxygen utilization at the start of your cycle'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Metabolic Rate Shift: Signals cells to switch to burning fatty acids and glucose more efficiently, raising overall resting energy expenditure',
+          'Improved Insulin Sensitivity: Enhances the uptake of glucose into muscle tissues after meals, promoting stable blood sugar levels',
+          'Active Fuel Mobilization: Mobilizes fatty acids from storage, preparing the body to consume fat directly for metabolic heat'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Substantial Fat Burning: Accelerates the breakdown of stubborn white adipose tissue, supporting a leaner overall body composition',
+          'Lower Metabolic Inflammation: Suppresses the inflammatory signals linked to metabolic dysfunction, promoting systemic vascular health',
+          'Healthy Cholesterol Support: Improves lipid transport pathways, helping to lower harmful triglycerides and optimize cholesterol levels'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Lean Muscle Preservation: Prevents muscle breakdown during caloric deficits, protecting structural integrity and physical strength',
+          'Visceral Fat Clearance: Targets and reduces hazardous deep visceral fat surrounding internal organs',
+          'Bone Density Building: Stimulates osteoblasts (bone-forming cells) to lay down new bone matrix, reinforcing skeletal strength'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Cellular Energy Flexibility: Fully restores the cells\' ability to switch smoothly between burning fat and carbohydrates based on demand',
+          'Complete Metabolic Reset: Establishes a clean, highly efficient homeostatic baseline for daily calorie utilization and energy production',
+          'Peak Long-term Vitality: Sustains improved insulin sensitivity, cell survival pathways, and overall physical recovery capacity'
+        ]
+      }
+    ];
+  }
+
+  if ((normName.includes('bpc-157') || normName.includes('bpc 157')) && (normName.includes('tb-500') || normName.includes('tb 500'))) {
+    return [
+      {
+        week: 1,
+        benefits: [
+          'Dual-Pathway Inflammation Cooling: Rapidly cools localized swelling and systemic inflammatory signals, noticeably reducing acute joint, tendon, and muscle stiffness',
+          'Immediate Gut Comfort: Comforts and calms the gastrointestinal lining, supporting gut barrier integrity and early digestive relief',
+          'Initial Mobility Support: Prepares muscle and soft tissue fibers for cellular motility and repair, easing everyday discomfort'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Accelerated Angiogenesis & Motility: Promotes new capillary blood vessel sprouting (angiogenesis) to feed slow-healing tissues, while boosting cell mobility to transport healing factors to injuries',
+          'Workout Recovery Acceleration: Speeds up metabolic muscle recovery between exercises, allowing you to bounce back faster from exercise',
+          'Gastric Lining Healing: Accelerates the repair of micro-abrasions in the stomach and intestinal tracts'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Organized Collagen Deposition: Speeds up the deposition of organized type I collagen and actin-mediated cell migration to rebuild damaged ligaments, tendons, and muscles',
+          'Connective Tissue Flexibility: Increases structural elasticity, leading to improved range of motion and joint fluidity',
+          'Nervous System Protection: Modulates nitric oxide pathways to support healthy blood flow, while protecting peripheral nerve pathways'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Mechanical Load Reinforcement: Strengthens tendon-to-bone junctions and muscle fiber alignment, allowing joints to carry heavier physical loads comfortably',
+          'Scar Tissue Remodeling: Modulates tissue remodeling to break down and smooth over stiff, old scar tissue, restoring natural fiber movement',
+          'Deep Gut Barrier Seal: Resolves digestive permeability by tightening cellular junctions, maximizing nutrient uptake and calming systemic food sensitivities'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Peak Biomechanical Restoration: Reestablishes complete range of motion and tensile strength in previously injured musculoskeletal structures',
+          'Musculoskeletal Resilience: Resolves soft tissue recovery cycles, leaving joints, muscles, and tendons structurally sound and fully recovered',
+          'Sustained Systemic Vitality: Returns cellular repair cycles and physical performance to a highly resilient baseline, protecting against future strain'
+        ]
+      }
+    ];
+  }
   if (normName.includes('bpc-157') || normName.includes('bpc 157')) {
     return [
-      { week: 1, benefits: ['Initial gut mucosal adaptation and reduction of localized inflammation', 'Early reduction in post-exercise muscle soreness'] },
-      { week: 2, benefits: ['Accelerated angiogenesis (upregulation of VEGF expression) and fibroblast migration to damaged areas'] },
-      { week: 4, benefits: ['Initiation of active collagen type I synthesis via the FAK-paxillin intracellular pathway'] },
-      { week: 8, benefits: ['Consolidation of tendon-to-bone or ligament structural repairs with improved mechanical load-bearing capacity'] },
-      { week: 12, benefits: ['Full cellular maturation and remodeling of organized collagen fibers, returning tissue to baseline tensile strength'] },
+      {
+        week: 1,
+        benefits: [
+          'Gut Lining Relief: Cools localized inflammation in the stomach and digestive tract to support a healthy gut barrier (helps relieve heartburn, bloating, and indigestion)',
+          'Initial Recovery Kickstart: Reduces muscle soreness and joint stiffness after exercise, helping you bounce back faster from physical activity',
+          'Internal Tissue Shield: Begins protecting the stomach lining and organ tissues from medication or lifestyle stress (such as pain reliever irritation)'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'New Blood Vessel Support: Promotes blood vessel growth in injured areas (crucial for bringing oxygen and healing nutrients directly to slow-healing tissues like tendons and ligaments)',
+          'Active Tissue Repair: Guides specialized healing cells to migrate to areas of soft tissue damage, laying the groundwork for physical recovery',
+          'Organ and Stomach Healing: Accelerates the natural repair of micro-tears in the digestive tract and stomach lining'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Collagen Production: Triggers the production of collagen, the body\'s main structural building block, to rebuild damaged muscles, tendons, ligaments, and joints',
+          'Brain and Nerve Support: Balances brain chemical messengers (like dopamine and serotonin) to help protect nerve cells and support emotional well-being',
+          'Circulation Regulation: Modulates nitric oxide pathways to support healthy blood flow and blood pressure throughout the body'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Structural Reinforcement: Bonds and strengthens tissue-to-bone connections (essential for completing recovery from tendon or ligament tears)',
+          'Weight and Load Capacity: Restores physical stability to joints, allowing them to bear weight and handle daily physical tasks comfortably',
+          'Sealing the Gut Barrier: Restores tight junctions in the digestive system, sealing the gut lining to prevent food particles from leaking and improving nutrient absorption'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Flexible Tissue Remodeling: Complete maturation of newly formed fibers, returning injured areas to their normal strength, flexibility, and range of motion',
+          'Peak Gastrointestinal Harmony: Re-establishes healthy communication between the gut and brain, promoting optimal digestion and reducing general systemic inflammation',
+          'Long-term Joint & Muscle Protection: Stabilizes newly repaired areas to protect against re-injury during workouts or demanding daily labor'
+        ]
+      }
     ];
   }
   if (normName.includes('tb-500') || normName.includes('tb 500') || normName.includes('thymosin beta')) {
     return [
-      { week: 1, benefits: ['Actin polymerization initiation and early reduction of acute joint stiffness'] },
-      { week: 2, benefits: ['Substantial reduction in localized inflammatory cytokines, improved mobility and flexibility'] },
-      { week: 4, benefits: ['Upregulated cell migration and vascular repair signals in soft tissue tears'] },
-      { week: 8, benefits: ['Accelerated myofibrillar remodeling and baseline tissue repair stabilization'] },
-      { week: 12, benefits: ['Advanced muscular/tendinous remodeling, peak flexibility, and protection against re-injury'] },
+      {
+        week: 1,
+        benefits: [
+          'Actin Cell Activation: Initiates the biological process that allows cells to travel and repair tissue, easing acute joint and muscle stiffness',
+          'Calming Early Swelling: Reduces acute localized swelling and inflammatory signaling at injury sites, promoting early comfort',
+          'Vascular Priming: Begins preparing micro-blood vessels to supply damaged fibers with recovery resources'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Joint & Muscle Flexibility: Significantly lowers joint stiffness and increases flexibility, improving daily mobility and range of motion',
+          'Systemic Inflammation Reduction: Shuts down pro-inflammatory cytokines, calming generalized muscle soreness and body-wide tissue stress',
+          'Hair Follicle Support: Wakes up hair follicles by encouraging blood flow to roots, promoting early hair growth cues'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Healing Cell Migration: Speeds up cell migration to tears in soft tissues (muscles, tendons, ligaments), accelerating structural healing',
+          'New Blood Vessel Growth: Stimulates angiogenesis (new blood vessel formation) to feed recovering tissues with oxygen and nutrients',
+          'Cardiovascular Protection: Supports protective cell signals that help preserve heart muscle health under stress'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Remodeling Muscle Fibers: Rebuilds and reorganizes structural fibers in injured muscles, restoring their natural load-bearing alignment',
+          'Tendinous & Ligament Strength: Accelerates the healing of slow-recovery connective tissues (tendons and ligaments), reinforcing joint stability',
+          'Neuroprotective Shielding: Promotes pathways that protect nerve cells from injury and support repair in the central nervous system'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Advanced Muscle Recovery: Peak regeneration of newly formed fibers, restoring normal physical strength, speed, and endurance',
+          'Peak Joint Flexibility: Reaches maximum improvement in flexibility and joint elasticity, eliminating chronic post-workout stiffness',
+          'Injury Protection: Stabilizes newly repaired areas to protect against re-injury during heavy physical training or daily tasks'
+        ]
+      }
     ];
   }
-  if (normName.includes('semaglutide') || normName.includes('tirzepatide') || normName.includes('retatrutide')) {
+  if (normName.includes('retatrutide')) {
+    return [
+      {
+        week: 1,
+        benefits: [
+          'Appetite & Sugar Control: Significantly reduces mental "food noise" and cravings while keeping blood sugar spikes flat after eating',
+          'Lowering Systemic Stress: Begins calming key inflammatory chemical pathways in cells, reducing general cellular stress and systemic irritation',
+          'Initial Gastric Adjustment: Gently regulates digestion speed to encourage long-term digestive stability'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Early Weight & Water Shift: Promotes consistent, slow digestion, helping you drop initial water weight (typically 1–2% of body weight)',
+          'Fat Clearing in the Liver: Activates liver receptors to burn stored liver fat directly, helping reverse fatty liver changes and optimize liver function',
+          'Fat Oxidation Start: Signals the cell\'s furnaces to burn fat cells directly for energy, elevating daily calorie consumption'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Cellular Receptor Saturation: Reaches therapeutic levels on all three target receptors (GLP-1, GIP, glucagon) to trigger full-scale cellular protection',
+          'Mitochondrial Energy Boost: Upgrades cellular energy output, supporting physical recovery, metabolic flexibility, and daily stamina',
+          'Endothelial Vessel Support: Supports healthy blood vessel lining function, assisting with oxygen and nutrient flow to active tissues'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Deep Fat Burn: Promotes rapid breakdown of stubborn visceral and abdominal fat (typically achieving 4–6% total weight reduction)',
+          'Bone Density Protection: Stimulates bone-building cells to safeguard bone minerals and maintain skeletal/joint structural integrity as weight drops',
+          'Improved Lipid Profile: Enhances lipid transport pathways to help clear blood triglycerides and normalize cholesterol'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Deep Metabolic Reset: Resolves insulin resistance and achieves a significant, long-term reduction in average blood sugar (HbA1c)',
+          'Peak Anti-Inflammatory Remodeling: Re-establishes a clean, calm physical baseline with a marked drop in systemic inflammation markers (like hsCRP)',
+          'Muscle Preservation & Strength: Promotes body composition adjustments that focus on burning fat while preserving lean muscle mass and supporting general strength recovery'
+        ]
+      }
+    ];
+  }
+  if (normName.includes('semaglutide') || normName.includes('tirzepatide')) {
     return [
       { week: 1, benefits: ['Hypothalamic food noise reduction and suppression of glycemic spikes'] },
       { week: 2, benefits: ['Consistent delay in gastric emptying, initial 1-2% mean body weight reduction (primarily water weight)'] },
@@ -2375,14 +2858,181 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
   }
   if (normName.includes('oxytocin')) {
     return [
-      { week: 1, benefits: ['Acute G-protein coupled oxytocin receptor binding, decreased social anxiety and stress response'] },
-      { week: 2, benefits: ['Consolidated amygdala hyperactivity downregulation, improved empathetic communication signals'] },
-      { week: 4, benefits: ['Established cognitive trust pathways and stable interpersonal bonding resilience'] },
-      { week: 8, benefits: ['Upregulated cortisol counter-regulation, balanced emotional response homeostasis'] },
-      { week: 12, benefits: ['Established long-term stress axis downregulation, baseline anxiety management, and mood stabilization'] },
+      {
+        week: 1,
+        benefits: [
+          'Immediate Stress Relief: Quiets down the brain\'s threat-detection system, bringing a rapid drop in daily stress and social anxiety',
+          'Enhanced Social Ease: Boosts early feelings of security and relaxation during social interactions, making it easier to connect with others',
+          'Soothing Tissue Inflammation: Initiates early anti-inflammatory actions to quiet down localized tissue stress'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Empathy & Cue Connection: Calms brain hyperactivity to improve your ability to read social cues and understand others\' feelings',
+          'Mood Support: Promotes the natural release of dopamine and serotonin, supporting feelings of emotional warmth and contentment',
+          'Vascular Protection: Supports healthy blood vessel relaxation and circulation, promoting cardiovascular calmness'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Deepening Connections: Strengthens pathways for bonding, building authentic trust, and deepening personal and professional relationships',
+          'Cortisol Control: Lowers the production of cortisol (the main stress hormone), shielding cells from the physical wear-and-tear of chronic worry',
+          'Accelerated Skin Repair: Promotes cell migration and tissue repair, helping skin blemishes, scrapes, or cuts heal more cleanly'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Balanced Emotional Response: Regulates the body\'s stress-response axis, helping you maintain a calm, balanced perspective when handling stressful events',
+          'Cardioprotective Support: Aids in protecting heart muscle tissues and regulating arterial health through nitric oxide pathway support',
+          'Bone Density Protection: Stimulates pathways that support bone-remodeling cells, maintaining skeletal strength during shifts in diet or activity'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Long-term Anxiety Control: Sets a permanently lower baseline for daily anxiety, helping you manage stress smoothly and stay grounded',
+          'Restful Sleep Support: Promotes the body\'s "rest-and-digest" mode to improve deep, restorative sleep quality',
+          'Sustained Mood Harmony: Establishes a highly resilient emotional state, maintaining steady mood stability and connection'
+        ]
+      }
     ];
   }
-  if (normName.includes('ghrp') || normName.includes('ipamorelin') || normName.includes('sermorelin') || normName.includes('cjc') || normName.includes('tesamorelin')) {
+  if (normName.includes('ipamorelin') && (normName.includes('cjc') || normName.includes('modified grf'))) {
+    return [
+      {
+        week: 1,
+        benefits: [
+          'Dual-Pathway Priming: Pituitary priming and dual-pathway activation begin, initiating wave-like growth hormone release; deep slow-wave sleep cycles lengthen significantly, leading to improved morning energy and reduced waking fatigue',
+          'Accelerated Sleep Recovery: Speeds up cellular and metabolic recovery during sleep, allowing you to wake up feeling physically refreshed',
+          'Enhanced Pituitary Output: Encourages highly selective, pulsatile growth hormone surges without causing cortisol or prolactin spikes'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Hepatic IGF-1 Elevation: Promotes elevated systemic growth hormone and liver-derived IGF-1 secretion, accelerating cell renewal and tissue repair pathways',
+          'Decreased Joint Stiffness: Enhances extracellular matrix repair and tissue lubrication, reducing exercise-induced soreness and morning joint creaking',
+          'Collagen Optimization: Stimulates dermal collagen synthesis, improving skin hydration, density, and natural elasticity'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Synergistic Fat Oxidation: Accelerates lipolysis (fat breakdown), specifically targeting deep, stubborn visceral abdominal fat',
+          'Lean Muscle Preservation: Sends potent muscle-protective cellular signals that shield lean mass from breaking down, supporting physical tone and stamina',
+          'Rapid Structural Healing: Speeds up recovery of minor skin blemishes, muscle pulls, tendon strains, and athletic fatigue'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Visually Leaner Composition: Visible reductions in body fat combined with enhanced muscle fullness and definition',
+          'Joint Fluid & Flexibility: Promotes healthy synovial fluid production, making daily movement smoother and reducing joint friction',
+          'Bone Density Support: Stimulates bone-forming cells to strengthen skeletal density and improve long-term structural integrity'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Somatotropic Axis Homeostasis: Reaches maximum improvements in fat-to-muscle partitioning while sustaining high metabolic efficiency',
+          'Peak Physical Remodeling: Completes body composition improvements and supports long-term athletic and strength maintenance goals',
+          'Resilient Anti-Aging: Restores youthful cell turnover and tissue bounce, leaving muscles, joints, and skin feeling fully recovered'
+        ]
+      }
+    ];
+  }
+  if (normName.includes('ipamorelin')) {
+    return [
+      {
+        week: 1,
+        benefits: [
+          'Deep Sleep Enhancement: Stimulates receptors in the pituitary gland to trigger pulsatile growth hormone release, significantly improving deep slow-wave sleep quality',
+          'Accelerated Nighttime Recovery: Maximizes the body\'s overnight repair cycle, allowing you to wake up feeling more refreshed and less fatigued',
+          'Pituitary Activation: Gentle, highly selective activation of growth hormone pathways without raising cortisol (stress) or prolactin levels'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Cellular Regeneration: Elevates natural IGF-1 (insulin-like growth factor 1) secretion from the liver to accelerate cell renewal and tissue repair',
+          'Skin Elasticity & Glow: Boosts collagen production, improving skin moisture retention and reducing early signs of fine lines',
+          'Initial Metabolic Lift: Begins optimizing the rate at which cells convert nutrients into energy, enhancing daily vitality'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Muscle Preservation: Initiates cellular signals that protect lean muscle mass from breaking down, supporting physical tone',
+          'Visceral Fat Burn: Promotes lipolysis (fat breakdown), starting the clearance of deep, stubborn visceral fat',
+          'Faster Wound Healing: Speeds up recovery from minor skin cuts, muscle pulls, or athletic strains'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Visually Leaner Composition: Decreases abdominal fat and improves overall muscle definition',
+          'Joint Comfort & Lubrication: Promotes extracellular fluid health, leading to smoother joint movement and reduced friction or creaking',
+          'Bone Mineral Support: Stimulates bone-forming cells to build and protect bone density and skeletal structure'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Metabolic Homeostasis: Achieves complete balance in the growth hormone axis, sustaining high energy and metabolic efficiency',
+          'Peak Physical Remodeling: Reaches maximum improvements in fat-to-muscle ratio, supporting strength maintenance and body composition goals',
+          'Systemic Anti-Aging: Restores youthful cell turnover and skin bounce, leaving joints, muscles, and skin feeling resilient and fully recovered'
+        ]
+      }
+    ];
+  }
+  if (normName.includes('cjc-1295') || normName.includes('cjc 1295') || normName.includes('modified grf')) {
+    return [
+      {
+        week: 1,
+        benefits: [
+          'Improved Sleep Quality: Gentle stimulation of GHRH receptors helps regulate and lengthen deep slow-wave sleep cycles, leading to more restful nights',
+          'Accelerated Nighttime Recovery: Speeds up metabolic recovery during sleep, allowing you to wake up feeling less fatigued and physically refreshed',
+          'Gentle Pituitary Stimulation: Encourages natural, wave-like releases of growth hormone without stressing or exhausting the pituitary gland'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Enhanced Cell Repair: Elevates natural IGF-1 levels, accelerating repair pathways in muscle, skin, and connective tissues',
+          'Decreased Joint Stiffness: Supports tissue lubrication, reducing morning stiffness and physical soreness from exercise or daily activity',
+          'Vibrant Skin & Elasticity: Increases internal collagen pathways to help skin hold moisture, improving texture and reducing early wrinkles'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Muscle Preservation: Sends cellular signals that shield lean muscle mass from breakdown, supporting tone and physical strength',
+          'Visceral Fat Loss: Promotes lipolysis, assisting in the targeted clearance of stubborn, deep abdominal fat',
+          'Faster Injury Healing: Speeds up the recovery of minor skin cuts, muscle strains, or tendon discomfort'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Visibly Leaner Physique: Decreases fat stores and enhances lean muscle definition, improving overall body composition',
+          'Joint Flexibility & Comfort: Supports extracellular fluid health to make joint movement smoother and reduce friction',
+          'Skeletal Density Support: Strengthens bone-remodeling cells, aiding in bone mineral density preservation and long-term skeletal health'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Metabolic Balance: Achieves full, natural balance in the growth hormone axis, sustaining high energy levels and metabolic efficiency',
+          'Peak Composition Remodeling: Achieves maximum improvements in fat-to-muscle ratios, supporting long-term physical goals',
+          'Systemic Vitality: Restores youthful cellular repair rates, keeping muscles, joints, and skin feeling resilient and fully recovered'
+        ]
+      }
+    ];
+  }
+  if (normName.includes('ghrp') || normName.includes('sermorelin') || normName.includes('cjc') || normName.includes('tesamorelin')) {
     return [
       { week: 1, benefits: ['Pituitary receptor (GHS-R1a) activation, pulsatile growth hormone release spikes, improved deep sleep'] },
       { week: 2, benefits: ['Elevated hepatic insulin-like growth factor 1 (IGF-1) secretion, accelerated cell regeneration'] },
@@ -2420,20 +3070,134 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
   }
   if (normName.includes('ghk-cu') || normName.includes('copper peptide')) {
     return [
-      { week: 1, benefits: ['Initial skin barrier protection, copper cofactor delivery to dermal cells'] },
-      { week: 2, benefits: ['Improved extracellular matrix (ECM) transcription, reduced micro-inflammation'] },
-      { week: 4, benefits: ['Stimulation of collagen and glycosaminoglycan synthesis, improved skin thickness'] },
-      { week: 8, benefits: ['Upregulated decorin and metalloproteinases, visible firming of sagging skin'] },
-      { week: 12, benefits: ['Peak skin remodeling cycle, average 28% increase in collagen density, improved hair follicle thickness'] },
+      {
+        week: 1,
+        benefits: [
+          'Skin Barrier Protection: Delivers vital copper cofactors to deep skin layers, strengthening the skin\'s protective outer barrier',
+          'Calming Inflammation: Starts lowering local inflammatory chemicals, reducing redness, skin irritation, and micro-inflammation',
+          'Initial Cell Nutrition: Feeds hair follicles and skin cells with essential building blocks to prepare them for active regeneration'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Cellular Matrix Activation: Upregulates the production of structural support molecules (extracellular matrix) to begin repairing micro-damage',
+          'Antioxidant Support: Boosts natural antioxidant enzymes to neutralize environmental free-radical damage',
+          'Follicle Stimulation: Begins waking up dormant hair follicles, encouraging nutrient delivery to the roots'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Collagen & Elastin Growth: Accelerates the synthesis of collagen and elastin, increasing skin thickness, volume, and natural bounce',
+          'Deep Hydration: Stimulates glycosaminoglycans (water-retaining molecules), dramatically improving skin hydration from within',
+          'Follicle Enlargement: Increases the physical size of hair follicles, helping to reverse hair thinning and promote thicker strand growth'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Skin Firming & Lifting: Upregulates key architectural proteins (like decorin) to tighten sagging skin and improve facial contours',
+          'DNA Repair Activation: Promotes cell-survival and DNA repair pathways, helping correct damage from UV rays or pollution',
+          'Wrinkle Reduction: Visibly decreases the depth of fine lines and wrinkles by reinforcing the skin\'s structural scaffolding'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Peak Skin Remodeling: Achieves up to a 28% average increase in collagen density, resulting in firmer, younger-looking skin',
+          'Hair Thickness & Density: Reaches peak hair follicle enlargement, improving overall hair thickness, density, and follicle strength',
+          'Optimal Scar & Wound Healing: Stabilizes tissue remodeling, smoothing out old scar tissues and optimizing the healing of new minor wounds'
+        ]
+      }
     ];
   }
-  if (normName.includes('semax') || normName.includes('selank')) {
+  if (normName.includes('selank')) {
     return [
-      { week: 1, benefits: ['Upregulation of BDNF and NGF mRNA in the hippocampus within 4 hours, increased cognitive focus'] },
-      { week: 2, benefits: ['Enhanced TrkB receptor activation, improved working memory consolidation and stress adaptation'] },
-      { week: 4, benefits: ['Promoted neuroprotective adjustments, enhanced synaptic plasticity and long-term potentiation'] },
-      { week: 8, benefits: ['Sustained brain-derived neurotrophic factor elevation, neural network stabilization, and focus stamina'] },
-      { week: 12, benefits: ['Established elevated cognitive baseline, neurogenesis signaling, and baseline anxiety reduction'] },
+      {
+        week: 1,
+        benefits: [
+          'Calming Mental Noise: Amplifies the brain\'s natural calming signals (GABA) and protects comfort chemicals, quietening the background static of anxiety',
+          'Social Ease & Security: Soothes the brain\'s alarm system (amygdala), making you feel safer and more relaxed in social environments',
+          'Non-Drowsy Stress Buffer: Calms the nervous system without causing drowsiness, brain fog, or physical dependency'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Stress Resilience: Balances key brain messengers (like dopamine and serotonin) to help you adapt to high-pressure situations',
+          'Stable Cardiovascular Response: Helps regulate blood flow and heart rate responses under stress, preventing physical anxiety symptoms',
+          'Reduced Volatility: Lowers general irritability and emotional spikes, helping you maintain a patient, steady mindset'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Focused Calm: Combines anxiolytic relaxation with mental focus, improving memory consolidation and learning under pressure',
+          'Preserving Natural Comfort: Restricts the breakdown of enkephalins, supporting a more positive emotional baseline',
+          'Protecting Brain Cells: Upregulates BDNF (brain-derived neurotrophic factor) to support neural plasticity and protect brain cells from stress'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Steady Emotional Baseline: Establishes a highly resilient emotional state, guarding against sudden anxiety spikes',
+          'Immune Response Balance: Modulates cytokine activity to promote a healthy immune response and lower systemic inflammation',
+          'Synaptic Strength: Enhances communication pathways in the hippocampus, supporting memory retention and cognitive flexibility'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Established Quiet Mind: Re-establishes a permanently lower baseline for generalized anxiety, maintaining a quiet, clear mind',
+          'Hormonal Stress Reset: Normalizes the body\'s cortisol-release axis, protecting you from chronic burn-out and fatigue',
+          'Peak Cognitive Harmony: Integrates absolute emotional peace with sharp mental stamina, optimizing daily performance'
+        ]
+      }
+    ];
+  }
+  if (normName.includes('semax')) {
+    return [
+      {
+        week: 1,
+        benefits: [
+          'Immediate Mental Clarity: Quickly triggers the release of key brain growth factors (BDNF and NGF) in memory centers, improving initial cognitive focus and mental clarity',
+          'Non-Stimulant Alertness: Enhances attention and alertness without causing the jitters, crashes, or physical anxiety of traditional stimulants',
+          'Reducing Brain Fog: Begins clearing brain fog and fatigue, helping you stay sharp during long cognitive tasks'
+        ]
+      },
+      {
+        week: 2,
+        benefits: [
+          'Stress Adaptation: Enhances the brain\'s ability to cope with high-stress tasks, preventing mental burnout and decision fatigue',
+          'Memory Consolidation: Strengthens working memory pathways, helping you retain and process new information more efficiently',
+          'Dopamine Support: Boosts natural dopamine release to improve motivation, drive, and mental energy'
+        ]
+      },
+      {
+        week: 4,
+        benefits: [
+          'Synaptic Plasticity: Enhances the connections between brain cells, supporting neuroplasticity (the brain\'s ability to learn and adapt to new skills)',
+          'Nerve Cell Protection: Promotes long-term neuroprotection, helping defend brain cells from metabolic stress and toxic exposure',
+          'Serotonin Balance: Balances serotonin pathways to support emotional stability, mood, and cognitive performance'
+        ]
+      },
+      {
+        week: 8,
+        benefits: [
+          'Focus Stamina: Maintains elevated brain growth factors to support sustained focus and mental stamina over extended work or study periods',
+          'Stabilizing Brain Networks: Strengthens neural communication pathways, helping you maintain high productivity and attention under distraction',
+          'Nerve Fiber Development: Supports the development and health of nerve fibers in the central nervous system'
+        ]
+      },
+      {
+        week: 12,
+        benefits: [
+          'Elevated Cognitive Baseline: Establishes a permanently higher baseline for memory retrieval, mental speed, and daily intellectual capacity',
+          'Neurogenesis Signaling: Stimulates long-term brain cell renewal pathways (neurogenesis), promoting brain health and youthfulness',
+          'Calming Anxiety: Balances cognitive stimulation with anxiety reduction, keeping you cool, collected, and highly focused'
+        ]
+      }
     ];
   }
   if (normName.includes('epitalon') || normName.includes('thymalin') || normName.includes('epithalon')) {

@@ -125,7 +125,17 @@ export function buildDoseUnitsDisplay(
   }
 
   const label = STANDARD_LABEL[syringeStandard];
-  const unitsText = `≈ ${result.units.toFixed(1)} units (${label})`;
+  let unitsText = `≈ ${result.units.toFixed(1)} units (${label})`;
+
+  if (dose.unit === 'IU' && vialConcentration) {
+    const totalMg = parsePositive(vialConcentration.totalMg);
+    const bacWaterMl = vialConcentration.bacWaterMl ? parsePositive(vialConcentration.bacWaterMl) : null;
+    if (totalMg !== null && bacWaterMl !== null) {
+      const mg = result.injectionVolMl.times(totalMg).dividedBy(bacWaterMl);
+      const mgFormatted = mg.lt(1) ? mg.toFixed(2) : mg.toFixed(1);
+      unitsText = `≈ ${result.units.toFixed(1)} units (${label}) · ~${mgFormatted} mg`;
+    }
+  }
 
   if (syringeSize) {
     const max = syringeMaxUnits(syringeStandard, syringeSize);

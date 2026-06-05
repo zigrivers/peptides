@@ -2,7 +2,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { toUTCDay } from '@/lib/shared/date';
 import Decimal from 'decimal.js';
-import { decrementVialInventory, incrementVialInventory } from '@/lib/reconstitution/application/InventoryService';
+import { decrementVialInventory, incrementVialInventory, convertDoseToMg } from '@/lib/reconstitution/application/InventoryService';
 import { resolveActiveVial } from '@/lib/reconstitution/application/VialService';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 import type { LogDoseInput, LogDoseResult, SafetyWarning, DoseLog, InjectionSite } from '../domain/types';
@@ -17,7 +17,7 @@ import {
 } from '../infrastructure/DoseLogRepo';
 import { findProtocolByIdForActor } from '../infrastructure/ProtocolRepo';
 import { getManagedUserIds } from './ProtocolService';
-import { getSitesForRoute, sitesEqual } from '../domain/SiteRotation';
+import { getSitesForRoute, sitesEqual, sitesEqualLegacy } from '../domain/SiteRotation';
 import { isScheduledOn } from '../domain/ScheduleGenerator';
 import { parseSchedule, parseDoseAmount, parseInjectionSite } from '../domain/validation';
 import type { DoseLogStatus } from '../domain/types';
@@ -54,6 +54,103 @@ async function runInTx<T>(
     return client.$transaction(fn);
   }
   return fn(client as Prisma.TransactionClient);
+}
+
+async function resolveDoseCost(
+  tx: Prisma.TransactionClient,
+  vialId: string | null,
+  doseAmount: Decimal,
+  doseUnit: string,
+  syringeStandard: string,
+  userId: string,
+  compoundId: string
+): Promise<{ cost: Decimal | null; currency: string | null }> {
+  if (!vialId) {
+    const activeVial = await tx.vial.findFirst({
+      where: { userId, compoundId, status: 'RECONSTITUTED', isActiveForCompound: true },
+    });
+    if (activeVial && activeVial.cost) {
+      try {
+        const doseMg = convertDoseToMg(doseAmount, doseUnit, activeVial, syringeStandard);
+        const cost = doseMg.times(new Decimal(activeVial.cost).dividedBy(new Decimal(activeVial.totalMg)));
+        return { cost, currency: activeVial.currency };
+      } catch {
+        // unit conversion failed
+      }
+    }
+    
+    // Fallback: average cost per mg of historical vials (grouped by currency to prevent mixed-currency math)
+    const historicalVials = await tx.vial.findMany({
+      where: { userId, compoundId, cost: { not: null } },
+      select: { cost: true, totalMg: true, currency: true, bacWaterMl: true },
+    });
+    if (historicalVials.length > 0) {
+      try {
+        // Find the most frequent currency
+        const currencyCounts: Record<string, number> = {};
+        for (const v of historicalVials) {
+          currencyCounts[v.currency] = (currencyCounts[v.currency] || 0) + 1;
+        }
+        let dominantCurrency = 'USD';
+        let maxCount = 0;
+        for (const [curr, count] of Object.entries(currencyCounts)) {
+          if (count > maxCount) {
+            maxCount = count;
+            dominantCurrency = curr;
+          }
+        }
+
+        let totalCostVal = new Decimal(0);
+        let totalMgVal = new Decimal(0);
+        let totalBacWaterVal = new Decimal(0);
+        let bacWaterCount = 0;
+        let count = 0;
+        for (const v of historicalVials) {
+          if (v.cost && v.currency === dominantCurrency) {
+            totalCostVal = totalCostVal.plus(new Decimal(v.cost.toString()));
+            totalMgVal = totalMgVal.plus(new Decimal(v.totalMg.toString()));
+            count++;
+            if (v.bacWaterMl) {
+              totalBacWaterVal = totalBacWaterVal.plus(new Decimal(v.bacWaterMl.toString()));
+              bacWaterCount++;
+            }
+          }
+        }
+        if (totalMgVal.gt(0)) {
+          const avgBacWaterMl = bacWaterCount > 0 ? totalBacWaterVal.dividedBy(bacWaterCount) : null;
+          const avgTotalMg = count > 0 ? totalMgVal.dividedBy(count) : totalMgVal;
+          
+          // Ensure we have positive values to avoid convertDoseToMg throwing for volume/IU units
+          const fallbackBacWaterMl = (avgBacWaterMl && avgBacWaterMl.gt(0)) ? avgBacWaterMl : new Decimal('2.0');
+          const fallbackTotalMg = avgTotalMg.gt(0) ? avgTotalMg : new Decimal('10.0');
+          
+          const dummyVial = { totalMg: fallbackTotalMg, bacWaterMl: fallbackBacWaterMl };
+          const doseMg = convertDoseToMg(doseAmount, doseUnit, dummyVial, syringeStandard);
+          const cost = doseMg.times(totalCostVal.dividedBy(totalMgVal));
+          return { cost, currency: dominantCurrency };
+        }
+      } catch {
+        // fallback calculation failed, return nulls safely
+      }
+    }
+    return { cost: null, currency: null };
+  }
+
+  const vial = await tx.vial.findFirst({
+    where: { id: vialId, userId },
+    select: { cost: true, totalMg: true, currency: true, bacWaterMl: true },
+  });
+  if (!vial || !vial.cost) {
+    return { cost: null, currency: vial?.currency ?? null };
+  }
+  
+  try {
+    const doseMg = convertDoseToMg(doseAmount, doseUnit, { totalMg: vial.totalMg, bacWaterMl: vial.bacWaterMl }, syringeStandard);
+    const cost = doseMg.times(new Decimal(vial.cost).dividedBy(new Decimal(vial.totalMg)));
+    return { cost, currency: vial.currency };
+  } catch {
+    return { cost: null, currency: vial.currency };
+  }
 }
 
 export async function logDose(
@@ -110,19 +207,24 @@ export async function logDose(
 
   // Validate injectionSite against the protocol's administration route.
   const validSitesForRoute = getSitesForRoute(protocol.administrationRoute);
-  if (input.injectionSite) {
+  let injectionSite = input.injectionSite;
+  if (injectionSite && injectionSite.bodyPart === 'abdomen') {
+    injectionSite = { ...injectionSite, bodyPart: 'abdomen-lower' };
+  }
+
+  if (injectionSite) {
     if (validSitesForRoute.length === 0) {
       throw new Error(`invalid_injection_site: route ${protocol.administrationRoute} does not use injection sites`);
     }
-    if (!validSitesForRoute.some((v) => sitesEqual(v, input.injectionSite!))) {
+    if (!validSitesForRoute.some((v) => sitesEqual(v, injectionSite!))) {
       throw new Error(
-        `invalid_injection_site: ${input.injectionSite.side} ${input.injectionSite.bodyPart} is not valid for route ${protocol.administrationRoute}`
+        `invalid_injection_site: ${injectionSite.side} ${injectionSite.bodyPart} is not valid for route ${protocol.administrationRoute}`
       );
     }
   }
   // Require a site for injectable routes when the caller opts in (individual logging flow only).
   // Batch logging does not call logDose and is unaffected.
-  if (input.requireInjectionSite && input.status === 'LOGGED' && validSitesForRoute.length > 0 && !input.injectionSite) {
+  if (input.requireInjectionSite && input.status === 'LOGGED' && validSitesForRoute.length > 0 && !injectionSite) {
     throw new Error(`injection_site_required: injection site is required for route ${protocol.administrationRoute}`);
   }
 
@@ -147,9 +249,9 @@ export async function logDose(
     // True idempotent: same status AND injection site AND note unchanged → nothing to do.
     const injectionSiteChanged =
       input.status === 'LOGGED' &&
-      input.injectionSite !== undefined &&
+      injectionSite !== undefined &&
       (existing.injectionSite === null ||
-        !sitesEqual(input.injectionSite, existing.injectionSite as InjectionSite));
+        !sitesEqualLegacy(injectionSite, existing.injectionSite as InjectionSite));
 
     // Also update when a SKIPPED log somehow has a stale non-null site (defensive).
     const siteNeedsClearing = input.status === 'SKIPPED' && existing.injectionSite !== null;
@@ -207,14 +309,32 @@ export async function logDose(
         }
       }
 
+      let loggedCost: Decimal | null = null;
+      let loggedCurrency: string | null = null;
+      if (newStatus === 'LOGGED') {
+        const costRes = await resolveDoseCost(
+          innerTx,
+          newVialId,
+          doseAmountVal,
+          doseUnit,
+          syringeStandard,
+          subjectUserId,
+          protocol.compoundId
+        );
+        loggedCost = costRes.cost;
+        loggedCurrency = costRes.currency;
+      }
+
       const log = await updateDoseLog(innerTx, existing.id, subjectUserId, {
         status: input.status,
         // Explicitly null for SKIPPED; preserve or override for LOGGED.
-        injectionSite: input.status === 'SKIPPED' ? null : (input.injectionSite ?? existing.injectionSite),
+        injectionSite: input.status === 'SKIPPED' ? null : (injectionSite ?? existing.injectionSite),
         note: input.note !== undefined ? (input.note || null) : existing.note,
         vialId: input.status === 'SKIPPED' ? null : (input.vialId ?? existing.vialId),
         loggedByUserId: input.actorUserId,
         loggedAt: new Date(), // Update timestamp on actual logging action
+        loggedCost,
+        loggedCurrency,
       });
       await innerTx.auditEvent.create({
         data: {
@@ -265,6 +385,22 @@ export async function logDose(
         );
       }
 
+      let loggedCost: Decimal | null = null;
+      let loggedCurrency: string | null = null;
+      if (input.status === 'LOGGED') {
+        const costRes = await resolveDoseCost(
+          innerTx,
+          effectiveVialId,
+          new Decimal(amount.amount),
+          amount.unit,
+          syringeStandard,
+          subjectUserId,
+          protocol.compoundId
+        );
+        loggedCost = costRes.cost;
+        loggedCurrency = costRes.currency;
+      }
+
       const log = await createDoseLog(innerTx, {
         protocolId: input.protocolId,
         userId: subjectUserId,
@@ -272,10 +408,12 @@ export async function logDose(
         scheduledDate: toUTCDay(input.scheduledDate),
         amount,
         status: input.status,
-        injectionSite: input.status === 'LOGGED' ? input.injectionSite : undefined,
+        injectionSite: input.status === 'LOGGED' ? injectionSite : undefined,
         note: input.note,
         vialId: effectiveVialId,
         loggedByUserId: input.actorUserId,
+        loggedCost,
+        loggedCurrency,
       });
 
       await innerTx.auditEvent.create({
@@ -333,6 +471,8 @@ export async function getRecentDoseLogsForUser(userId: string, limitDays = 60): 
     isBatchLog: r.isBatchLog,
     note: r.note,
     loggedByUserId: r.loggedByUserId,
+    loggedCost: r.loggedCost ? new Decimal(r.loggedCost.toString()) : null,
+    loggedCurrency: r.loggedCurrency,
   }));
 }
 
@@ -355,5 +495,7 @@ export async function getDoseLogsRange(userId: string, since: Date): Promise<Dos
     isBatchLog: r.isBatchLog,
     note: r.note,
     loggedByUserId: r.loggedByUserId,
+    loggedCost: r.loggedCost ? new Decimal(r.loggedCost.toString()) : null,
+    loggedCurrency: r.loggedCurrency,
   }));
 }

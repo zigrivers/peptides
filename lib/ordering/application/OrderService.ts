@@ -8,7 +8,7 @@ import { ITEM_FORMS, VENDOR_CURRENCIES } from '@/lib/ordering/domain/types';
 import type { OrderLineItemInput, SendMethod } from '@/lib/ordering/domain/types';
 import { sendTelegramMessage } from '@/lib/ordering/infrastructure/MTProtoClient';
 import { getDecryptedSession, buildFallbackDeepLink } from './TelegramAuthService';
-import { findCompoundsByIds, getReconstitutedShelfLifeDays } from '@/lib/reference/infrastructure/CompoundRepo';
+import { findCompoundsByIds } from '@/lib/reference/infrastructure/CompoundRepo';
 
 type OrderForSend = Prisma.OrderGetPayload<{
   include: {
@@ -610,43 +610,29 @@ export async function markPaymentSent(userId: string, orderId: string): Promise<
 export async function receiveOrder(userId: string, orderId: string): Promise<void> {
   const order = await prisma.order.findFirst({
     where: { id: orderId, userId },
-    include: { items: { select: { id: true, compoundId: true, form: true, vialSizeMg: true, quantity: true } } },
+    include: { items: { select: { id: true, compoundId: true, form: true, vialSizeMg: true, quantity: true, unitPrice: true, unitCurrency: true } } },
   });
   if (!order) throw new Error('order_not_found');
   // Idempotent: already received — safe to return without creating duplicate vials
   if (order.status === 'RECEIVED') return;
   if (order.status !== 'PAYMENT_SENT') throw new Error('invalid_order_transition');
   const now = new Date();
-  const DEFAULT_SHELF_LIFE_DAYS = 14;
-
-  // Only SOLUTION items create vials on receipt — they arrive pre-mixed and are immediately active.
-  // LYOPHILIZED_POWDER items are added to the reconstitution tracker by the user after receipt.
+  // SOLUTION items create vials on receipt — they start as DRY (unopened) in the inventory
+  // and are transitioned to RECONSTITUTED (opened/active) when punctured by the user.
   const solutionItems = order.items.filter((i) => i.form === 'SOLUTION');
-  const uniqueSolutionCompoundIds = [...new Set(solutionItems.map((i) => i.compoundId))];
-
-  // Parallelize compound-specific shelf life lookups
-  const shelfLifeEntries = await Promise.all(
-    uniqueSolutionCompoundIds.map(async (compoundId) => {
-      const days = await getReconstitutedShelfLifeDays(compoundId);
-      return [compoundId, days ?? DEFAULT_SHELF_LIFE_DAYS] as const;
-    })
-  );
-  const shelfLifeByCompound = new Map(shelfLifeEntries);
 
   const vialRows = solutionItems.flatMap((item) => {
-    const shelfLifeDays = shelfLifeByCompound.get(item.compoundId) ?? DEFAULT_SHELF_LIFE_DAYS;
-    const expiresAt = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays, 23, 59, 59, 999)
-    );
     return Array.from({ length: item.quantity }, () => ({
       userId,
       compoundId: item.compoundId,
       orderItemId: item.id,
       totalMg: item.vialSizeMg,
       remainingMg: item.vialSizeMg,
-      status: 'RECONSTITUTED',
-      reconstitutedAt: now,
-      expiresAt,
+      status: 'DRY' as const,
+      cost: item.unitPrice,
+      currency: item.unitCurrency ?? 'USD',
+      reconstitutedAt: null,
+      expiresAt: null,
     }));
   });
 

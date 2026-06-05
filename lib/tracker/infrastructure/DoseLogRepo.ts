@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import type { DoseLog, DoseLogStatus, DoseAmount, InjectionSite } from '../domain/types';
+import Decimal from 'decimal.js';
 
 type PrismaClient_ = Prisma.TransactionClient | PrismaClient;
 
@@ -17,6 +18,8 @@ type RawDoseLog = {
   isBatchLog: boolean;
   note: string | null;
   loggedByUserId: string | null;
+  loggedCost: Prisma.Decimal | null;
+  loggedCurrency: string | null;
 };
 
 function mapDoseLog(raw: RawDoseLog): DoseLog {
@@ -34,6 +37,8 @@ function mapDoseLog(raw: RawDoseLog): DoseLog {
     isBatchLog: raw.isBatchLog,
     note: raw.note,
     loggedByUserId: raw.loggedByUserId,
+    loggedCost: raw.loggedCost ? new Decimal(raw.loggedCost.toString()) : null,
+    loggedCurrency: raw.loggedCurrency,
   };
 }
 
@@ -51,6 +56,8 @@ export async function createDoseLog(
     note?: string;
     vialId?: string;
     loggedByUserId?: string;
+    loggedCost?: Decimal | null;
+    loggedCurrency?: string | null;
   }
 ): Promise<DoseLog> {
   const raw = await tx.doseLog.create({
@@ -66,6 +73,8 @@ export async function createDoseLog(
       note: data.note ?? null,
       vialId: data.vialId ?? null,
       loggedByUserId: data.loggedByUserId ?? null,
+      loggedCost: data.loggedCost ?? null,
+      loggedCurrency: data.loggedCurrency ?? null,
     },
   });
   return mapDoseLog(raw as RawDoseLog);
@@ -133,6 +142,8 @@ export async function updateDoseLog(
     isBatchLog: boolean;
     loggedByUserId: string | null;
     loggedAt: Date;
+    loggedCost: Decimal | null;
+    loggedCurrency: string | null;
   }>
 ): Promise<DoseLog> {
   const data: Record<string, unknown> = {};
@@ -148,6 +159,8 @@ export async function updateDoseLog(
   if (updates.isBatchLog !== undefined) data.isBatchLog = updates.isBatchLog;
   if (updates.loggedByUserId !== undefined) data.loggedByUserId = updates.loggedByUserId;
   if (updates.loggedAt !== undefined) data.loggedAt = updates.loggedAt;
+  if (updates.loggedCost !== undefined) data.loggedCost = updates.loggedCost;
+  if (updates.loggedCurrency !== undefined) data.loggedCurrency = updates.loggedCurrency;
 
   // updateMany allows non-unique fields (userId) in the where clause for ownership enforcement.
   const result = await tx.doseLog.updateMany({ where: { id, userId }, data });

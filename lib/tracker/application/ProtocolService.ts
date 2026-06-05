@@ -12,6 +12,7 @@ import {
   listProtocolsForUser,
 } from '../infrastructure/ProtocolRepo';
 import type { Protocol, CreateProtocolInput, UpdateProtocolInput } from '../domain/types';
+import { getReconstitutedShelfLifeDays } from '@/lib/reference/infrastructure/CompoundRepo';
 
 type LifecycleInput = { actorUserId: string; protocolId: string };
 type CloneInput = LifecycleInput & { newStartDate: Date };
@@ -67,11 +68,7 @@ export async function createProtocol(input: CreateProtocolInput): Promise<Protoc
       }
 
       if (input.initialVial) {
-        const profile = await tx.compoundProfile.findFirst({
-          where: { compoundId: input.compoundId },
-          select: { reconstitutedShelfLifeDays: true },
-        });
-        const shelfLifeDays = profile?.reconstitutedShelfLifeDays ?? 14;
+        const shelfLifeDays = (await getReconstitutedShelfLifeDays(input.compoundId, tx)) ?? 14;
         const now = new Date();
         const expiresAt = input.initialVial.expiresAt ?? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays));
 

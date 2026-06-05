@@ -1,4 +1,4 @@
-// Auth-scoping exception (see CLAUDE.md + AGENTS.md): Compound/CompoundProfile/Citation
+// Auth-scoping exception (see CLAUDE.md + AGENTS.md): CatalogItem/CompoundProfile/SupplementProfile/Citation
 // are admin-curated global reference data. No userId column exists on these
 // models. All authenticated users have full read access to the catalog.
 import { Prisma } from '@prisma/client';
@@ -6,16 +6,16 @@ import { prisma } from '@/lib/shared/prisma';
 import type {
   AdjunctCategory,
   AdjunctSafetyCategory,
-  Compound,
+  CatalogItem,
+  CatalogItemKind,
   DoseAmount,
+  DosingFrequency,
   EvidenceQuality,
   MissingCompoundAction,
+  PreferredTime,
+  RevisionStatus,
 } from '../domain/types';
 import { parseCompoundDosing, parseBenefitTimeline } from '../domain/validation';
-
-const profileInclude = {
-  include: { citations: true },
-};
 
 const sourcePairingsInclude = {
   include: {
@@ -43,13 +43,17 @@ const sourceAdjunctRecommendationsInclude = {
   orderBy: [{ sortOrder: 'asc' as const }, { benefitGoal: 'asc' as const }],
 };
 
-type PrismaCompoundResult = Prisma.CompoundGetPayload<{
+const itemInclude = {
   include: {
-    profile: typeof profileInclude;
-    sourcePairings: typeof sourcePairingsInclude;
-    sourceAdjunctRecommendations: typeof sourceAdjunctRecommendationsInclude;
-  };
-}>;
+    profile: true,
+    supplementProfile: true,
+    citations: true,
+    sourcePairings: sourcePairingsInclude,
+    sourceAdjunctRecommendations: sourceAdjunctRecommendationsInclude,
+  },
+};
+
+type PrismaCatalogItemResult = Prisma.CatalogItemGetPayload<typeof itemInclude>;
 
 function parseDoseAmount(value: Prisma.JsonValue, _field: string): DoseAmount {
   return parseCompoundDosing(value);
@@ -102,25 +106,30 @@ function parseAdjunctSafetyCategory(value: string): AdjunctSafetyCategory {
     : 'OPTIONAL_SUPPORTIVE_MEASURE';
 }
 
-function mapCompound(raw: PrismaCompoundResult): Compound {
+function mapCatalogItem(raw: PrismaCatalogItemResult): CatalogItem {
   const sourcePairings = raw.sourcePairings ?? [];
   const sourceAdjunctRecommendations = raw.sourceAdjunctRecommendations ?? [];
 
   return {
     id: raw.id,
+    catalogKey: raw.catalogKey,
+    kind: raw.kind as CatalogItemKind,
     name: raw.name,
     slug: raw.slug,
     iupacName: raw.iupacName,
     synonyms: raw.synonyms,
     mechanismOfAction: raw.mechanismOfAction,
     administrationRoutes: raw.administrationRoutes,
+    sourceVersion: raw.sourceVersion,
+    lastReviewedAt: raw.lastReviewedAt,
+    revisionStatus: raw.revisionStatus as RevisionStatus,
     status: raw.status,
     tags: raw.tags,
     archivedAt: raw.archivedAt,
     profile: raw.profile
       ? {
           id: raw.profile.id,
-          compoundId: raw.profile.compoundId,
+          catalogItemId: raw.profile.catalogItemId,
           dosingLow: parseDoseAmount(raw.profile.dosingLow, 'dosingLow'),
           dosingTypical: parseDoseAmount(raw.profile.dosingTypical, 'dosingTypical'),
           dosingHigh: parseDoseAmount(raw.profile.dosingHigh, 'dosingHigh'),
@@ -129,16 +138,17 @@ function mapCompound(raw: PrismaCompoundResult): Compound {
           reconstitutedShelfLifeDays: raw.profile.reconstitutedShelfLifeDays,
           fridgeShelfLifeMonths: raw.profile.fridgeShelfLifeMonths,
           freezerShelfLifeMonths: raw.profile.freezerShelfLifeMonths,
-          citations: raw.profile.citations,
           benefitTimeline: parseBenefitTimeline(raw.profile.benefitTimeline),
           cycleLengthWeeks: raw.profile.cycleLengthWeeks,
+          cycleRationale: raw.profile.cycleRationale,
           restPeriodWeeks: raw.profile.restPeriodWeeks,
-          dosingFrequency: raw.profile.dosingFrequency,
+          restPeriodRationale: raw.profile.restPeriodRationale,
+          dosingFrequency: raw.profile.dosingFrequency as DosingFrequency | null,
           dosesPerDay: raw.profile.dosesPerDay,
           customFrequencyDescription: raw.profile.customFrequencyDescription,
           daysOn: raw.profile.daysOn,
           daysOff: raw.profile.daysOff,
-          preferredTime: raw.profile.preferredTime,
+          preferredTime: raw.profile.preferredTime as PreferredTime | null,
           timingNotes: raw.profile.timingNotes,
           isFdaApproved: raw.profile.isFdaApproved,
           pairings: sourcePairings.map((pairing) => ({
@@ -183,33 +193,54 @@ function mapCompound(raw: PrismaCompoundResult): Compound {
           })),
         }
       : null,
+    supplementProfile: raw.supplementProfile
+      ? {
+          id: raw.supplementProfile.id,
+          catalogItemId: raw.supplementProfile.catalogItemId,
+          form: raw.supplementProfile.form,
+          servingSize: raw.supplementProfile.servingSize.toString(),
+          servingUnit: raw.supplementProfile.servingUnit,
+          dosingLow: parseDoseAmount(raw.supplementProfile.dosingLow, 'dosingLow'),
+          dosingTypical: parseDoseAmount(raw.supplementProfile.dosingTypical, 'dosingTypical'),
+          dosingHigh: parseDoseAmount(raw.supplementProfile.dosingHigh, 'dosingHigh'),
+          benefitTimeline: parseBenefitTimeline(raw.supplementProfile.benefitTimeline),
+          dosingFrequency: raw.supplementProfile.dosingFrequency as DosingFrequency | null,
+          dosesPerDay: raw.supplementProfile.dosesPerDay,
+          preferredTime: raw.supplementProfile.preferredTime as PreferredTime | null,
+          timingNotes: raw.supplementProfile.timingNotes,
+        }
+      : null,
+    citations: raw.citations.map((citation) => ({
+      id: citation.id,
+      catalogItemId: citation.catalogItemId,
+      title: citation.title,
+      url: citation.url,
+      doi: citation.doi,
+      pmid: citation.pmid,
+    })),
+    // Revisions are intentionally omitted from read paths to avoid loading large JSON snapshots;
+    // they are managed via direct revision-history queries only when doing audit logs or admin history reviews.
+    revisions: [],
   };
 }
 
-export async function findCompoundBySlug(slug: string): Promise<Compound | null> {
-  const raw = await prisma.compound.findFirst({
+export async function findCatalogItemBySlug(slug: string): Promise<CatalogItem | null> {
+  const raw = await prisma.catalogItem.findFirst({
     where: { slug: slug.toLowerCase() },
-    include: {
-      profile: profileInclude,
-      sourcePairings: sourcePairingsInclude,
-      sourceAdjunctRecommendations: sourceAdjunctRecommendationsInclude,
-    },
+    ...itemInclude,
   });
-  return raw ? mapCompound(raw) : null;
+  return raw ? mapCatalogItem(raw) : null;
 }
 
-export async function findCompounds(
+export async function findCatalogItems(
   query: string,
   category?: string
-): Promise<Compound[]> {
-  const where: Prisma.CompoundWhereInput = {
+): Promise<CatalogItem[]> {
+  const where: Prisma.CatalogItemWhereInput = {
     status: 'PUBLISHED',
   };
 
   if (query) {
-    // name: partial case-insensitive match; synonyms: exact-match against the
-    // stored lowercase synonym (Prisma 'has' is case-sensitive; synonyms are
-    // stored lowercase in seed so callers should lowercase the query too).
     where.OR = [
       { name: { contains: query, mode: 'insensitive' } },
       { synonyms: { has: query.toLowerCase() } },
@@ -220,79 +251,81 @@ export async function findCompounds(
     where.tags = { has: category };
   }
 
-  const rows = await prisma.compound.findMany({
+  const rows = await prisma.catalogItem.findMany({
     where,
-    include: {
-      profile: profileInclude,
-      sourcePairings: sourcePairingsInclude,
-      sourceAdjunctRecommendations: sourceAdjunctRecommendationsInclude,
-    },
+    ...itemInclude,
   });
-  return rows.map(mapCompound);
+  return rows.map((row) => mapCatalogItem(row));
 }
 
-export async function findCompoundById(id: string): Promise<{ name: string; slug: string } | null> {
-  return prisma.compound.findUnique({
+export async function findCatalogItemById(id: string): Promise<{ name: string; slug: string } | null> {
+  return prisma.catalogItem.findUnique({
     where: { id },
     select: { name: true, slug: true },
   });
 }
 
-export async function findCompoundsByIds(ids: string[]): Promise<Record<string, string>> {
+export async function findCatalogItemsByIds(ids: string[]): Promise<Record<string, string>> {
   if (ids.length === 0) return {};
-  const rows = await prisma.compound.findMany({
+  const rows = await prisma.catalogItem.findMany({
     where: { id: { in: ids } },
     select: { id: true, name: true },
   });
-  return Object.fromEntries(rows.map((r) => [r.id, r.name]));
+  return Object.fromEntries(rows.map((row) => [row.id, row.name]));
 }
 
-export async function getReconstitutedShelfLifeDays(compoundId: string): Promise<number | null> {
-  const profile = await prisma.compoundProfile.findFirst({
-    where: { compoundId },
+export async function getReconstitutedShelfLifeDays(catalogItemId: string, tx?: Prisma.TransactionClient): Promise<number | null> {
+  const client = tx || prisma;
+  const profile = await client.compoundProfile.findFirst({
+    where: { catalogItemId },
     select: { reconstitutedShelfLifeDays: true },
   });
   return profile?.reconstitutedShelfLifeDays ?? null;
 }
 
-export async function getFreezerShelfLifeMonths(compoundId: string): Promise<number | null> {
-  const profile = await prisma.compoundProfile.findFirst({
-    where: { compoundId },
+export async function getFreezerShelfLifeMonths(catalogItemId: string, tx?: Prisma.TransactionClient): Promise<number | null> {
+  const client = tx || prisma;
+  const profile = await client.compoundProfile.findFirst({
+    where: { catalogItemId },
     select: { freezerShelfLifeMonths: true },
   });
   return profile?.freezerShelfLifeMonths ?? null;
 }
 
-export async function getFridgeShelfLifeMonths(compoundId: string): Promise<number | null> {
-  const profile = await prisma.compoundProfile.findFirst({
-    where: { compoundId },
+export async function getFridgeShelfLifeMonths(catalogItemId: string, tx?: Prisma.TransactionClient): Promise<number | null> {
+  const client = tx || prisma;
+  const profile = await client.compoundProfile.findFirst({
+    where: { catalogItemId },
     select: { fridgeShelfLifeMonths: true },
   });
   return profile?.fridgeShelfLifeMonths ?? null;
 }
 
-export async function listCompounds(opts?: { includeArchived?: boolean }): Promise<Compound[]> {
-  const where: Prisma.CompoundWhereInput = {};
+export async function listCatalogItems(opts?: { includeArchived?: boolean }): Promise<CatalogItem[]> {
+  const where: Prisma.CatalogItemWhereInput = {};
 
   if (!opts?.includeArchived) {
     where.status = 'PUBLISHED';
   }
 
-  const rows = await prisma.compound.findMany({
+  const rows = await prisma.catalogItem.findMany({
     where,
-    include: {
-      profile: profileInclude,
-      sourcePairings: sourcePairingsInclude,
-      sourceAdjunctRecommendations: sourceAdjunctRecommendationsInclude,
-    },
+    ...itemInclude,
     orderBy: { name: 'asc' },
   });
-  return rows.map(mapCompound);
+  return rows.map((row) => mapCatalogItem(row));
 }
 
-export async function getCompoundsMinimal(): Promise<{ id: string; name: string; slug: string }[]> {
-  return prisma.compound.findMany({
+export async function getCatalogItemsMinimal(): Promise<{ id: string; name: string; slug: string }[]> {
+  return prisma.catalogItem.findMany({
     select: { id: true, name: true, slug: true },
     orderBy: { name: 'asc' },
   });
 }
+
+export const findCompoundById = findCatalogItemById;
+export const findCompoundsByIds = findCatalogItemsByIds;
+export const findCompoundBySlug = findCatalogItemBySlug;
+export const findCompounds = findCatalogItems;
+export const listCompounds = listCatalogItems;
+export const getCompoundsMinimal = getCatalogItemsMinimal;

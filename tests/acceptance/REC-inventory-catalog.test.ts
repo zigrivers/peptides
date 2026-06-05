@@ -318,7 +318,7 @@ describe('Inventory Management from Catalog Detail Page', () => {
       const result = await getFridgeShelfLifeMonths('compound-1');
       expect(result).toBe(12);
       expect(prisma.compoundProfile.findFirst).toHaveBeenCalledWith({
-        where: { compoundId: 'compound-1' },
+        where: { catalogItemId: 'compound-1' },
         select: { fridgeShelfLifeMonths: true },
       });
     });
@@ -332,7 +332,7 @@ describe('Inventory Management from Catalog Detail Page', () => {
       const result = await getFreezerShelfLifeMonths('compound-1');
       expect(result).toBe(24);
       expect(prisma.compoundProfile.findFirst).toHaveBeenCalledWith({
-        where: { compoundId: 'compound-1' },
+        where: { catalogItemId: 'compound-1' },
         select: { freezerShelfLifeMonths: true },
       });
     });

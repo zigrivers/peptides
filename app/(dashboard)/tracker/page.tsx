@@ -43,7 +43,42 @@ export default async function TrackerPage() {
   ]);
 
   const compoundsMap = Object.fromEntries(
-    compoundsList.map((c) => [c.id, { name: c.name, slug: c.slug, profile: c.profile }])
+    compoundsList.map((c) => [
+      c.id,
+      {
+        name: c.name,
+        slug: c.slug,
+        profile: c.profile
+          ? c.profile
+          : c.supplementProfile
+          ? {
+              id: c.supplementProfile.id,
+              catalogItemId: c.supplementProfile.catalogItemId,
+              benefitTimeline: c.supplementProfile.benefitTimeline,
+              dosingLow: c.supplementProfile.dosingLow,
+              dosingTypical: c.supplementProfile.dosingTypical,
+              dosingHigh: c.supplementProfile.dosingHigh,
+              dosingFrequency: c.supplementProfile.dosingFrequency,
+              preferredTime: c.supplementProfile.preferredTime,
+              sideEffects: null,
+              stackingNotes: null,
+              reconstitutedShelfLifeDays: null,
+              fridgeShelfLifeMonths: null,
+              freezerShelfLifeMonths: null,
+              cycleLengthWeeks: null,
+              cycleRationale: null,
+              restPeriodWeeks: null,
+              restPeriodRationale: null,
+              dosesPerDay: c.supplementProfile.dosesPerDay,
+              customFrequencyDescription: null,
+              daysOn: null,
+              daysOff: null,
+              timingNotes: c.supplementProfile.timingNotes,
+              isFdaApproved: false,
+            }
+          : null,
+      },
+    ])
   );
 
   const serializedProtocols = protocols.map((p) => ({
@@ -159,6 +194,23 @@ export default async function TrackerPage() {
     .filter((log) => log.status === 'LOGGED')
     .map((log) => log.scheduledDate.toISOString().split('T')[0]);
 
+  // Fetch cycles for the user's protocols
+  const cycleIds = [...new Set(protocols.map((p) => p.cycleId).filter(Boolean))] as string[];
+  const subjectUserIds = [...new Set(protocols.map((p) => p.userId))];
+  const cycles = await prisma.cycle.findMany({
+    where: { id: { in: cycleIds }, userId: { in: subjectUserIds } },
+    select: { id: true, startDate: true, endDate: true },
+  });
+  const cyclesMap = Object.fromEntries(
+    cycles.map((c) => [
+      c.id,
+      {
+        startDate: c.startDate.toISOString(),
+        endDate: c.endDate ? c.endDate.toISOString() : null,
+      },
+    ])
+  );
+
   return (
     <main className="max-w-6xl mx-auto px-4 py-8 space-y-6 animate-page-enter">
       {/* Page Header */}
@@ -184,6 +236,7 @@ export default async function TrackerPage() {
               loggedDates={loggedDates}
               doseUnitsByCompoundId={doseUnitsByCompoundId}
               syringeStandard={syringeStandard}
+              cycles={cyclesMap}
             />
           </section>
 

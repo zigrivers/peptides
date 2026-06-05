@@ -130,4 +130,35 @@ describe('buildDoseUnitsDisplay — formatting', () => {
     expect(d.warning).toBeUndefined();
     expect(d.unitsText).toBe('≈ 10.0 units (U-100)');
   });
+
+  it('IU dose with a vial concentration derives and appends the mg value', () => {
+    // 15 IU on U100 = 15 units. volume = 15 * 0.01 = 0.15 mL.
+    // Concentration = 20mg / 2mL = 10 mg/mL.
+    // mg = 0.15 * 10 = 1.5 mg.
+    const d = buildDoseUnitsDisplay({ amount: '15', unit: 'IU' }, vial20mg2ml, 'U100');
+    expect(d).toEqual({ computable: true, unitsText: '≈ 15.0 units (U-100) · ~1.5 mg' });
+  });
+
+  it('IU dose with a vial concentration does not append the mg value', () => {
+    const d = buildDoseUnitsDisplay({ amount: '15', unit: 'IU' }, null, 'U100');
+    expect(d).toEqual({ computable: true, unitsText: '≈ 15.0 units (U-100)' });
+  });
+
+  it('IU dose yielding less than 1 mg uses 2 decimal places', () => {
+    // 5 IU on U100 = 5 units. volume = 5 * 0.01 = 0.05 mL.
+    // Concentration = 20mg / 2mL = 10 mg/mL.
+    // mg = 0.05 * 10 = 0.5 mg.
+    const d = buildDoseUnitsDisplay({ amount: '5', unit: 'IU' }, vial20mg2ml, 'U100');
+    expect(d).toEqual({ computable: true, unitsText: '≈ 5.0 units (U-100) · ~0.50 mg' });
+  });
+
+  it('IU dose with null bacWaterMl falls back to not appending mg', () => {
+    const d = buildDoseUnitsDisplay({ amount: '15', unit: 'IU' }, { totalMg: '20', bacWaterMl: null }, 'U100');
+    expect(d).toEqual({ computable: true, unitsText: '≈ 15.0 units (U-100)' });
+  });
+
+  it('IU dose with invalid totalMg falls back to not appending mg', () => {
+    const d = buildDoseUnitsDisplay({ amount: '15', unit: 'IU' }, { totalMg: 'invalid', bacWaterMl: '2' }, 'U100');
+    expect(d).toEqual({ computable: true, unitsText: '≈ 15.0 units (U-100)' });
+  });
 });

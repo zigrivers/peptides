@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderToString } from 'react-dom/server';
+import React from 'react';
 
 // vi.hoisted is unnecessary here: the factory closure reads these variables
 // lazily (only when `await import('@/lib/reference/application/CompoundService')`
@@ -9,36 +11,62 @@ const mockFindMany = vi.fn();
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
-    compound: {
+    catalogItem: {
       findFirst: mockFindFirst,
       findMany: mockFindMany,
     },
   },
 }));
 
+vi.mock('@/lib/auth', () => ({
+  auth: vi.fn().mockResolvedValue({ user: { id: 'user-1' } }),
+}));
+
 const bpc157 = {
   id: 'c-1',
+  catalogKey: 'bpc-157',
+  kind: 'PEPTIDE',
   name: 'BPC-157',
   slug: 'bpc-157',
   iupacName: 'L-Valyl-L-prolyl-L-prolyl-L-alanyl-glycyl-L-glutaminyl-L-arginyl-L-leucyl-L-phenylalanyl-L-alpha-glutamyl-L-leucyl-L-leucyl-L-tyrosyl-L-leucyl-L-valyl-L-leucyl-L-seryl-L-glutamine',
   synonyms: ['Pentadecapeptide BPC-157'],
   mechanismOfAction: 'Activates growth hormone receptor signalling and promotes angiogenesis.',
   administrationRoutes: ['SubQ', 'IM', 'Oral'],
+  sourceVersion: 1,
+  lastReviewedAt: null,
+  revisionStatus: 'PUBLISHED',
   status: 'PUBLISHED',
   tags: ['healing', 'recovery'],
   archivedAt: null,
   profile: {
     id: 'p-1',
-    compoundId: 'c-1',
+    catalogItemId: 'c-1',
     dosingLow: { amount: '200', unit: 'mcg' },
     dosingTypical: { amount: '500', unit: 'mcg' },
     dosingHigh: { amount: '1000', unit: 'mcg' },
     sideEffects: 'Generally well-tolerated.',
     stackingNotes: 'Commonly stacked with TB-500 for enhanced healing.',
-    citations: [
-      { id: 'cit-1', profileId: 'p-1', title: 'BPC-157 healing study', url: null, doi: '10.1234/bpc', pmid: '12345678' },
-    ],
+    reconstitutedShelfLifeDays: null,
+    fridgeShelfLifeMonths: 12,
+    freezerShelfLifeMonths: 24,
+    benefitTimeline: null,
+    cycleLengthWeeks: null,
+    cycleRationale: null,
+    restPeriodWeeks: null,
+    restPeriodRationale: null,
+    dosingFrequency: null,
+    dosesPerDay: null,
+    customFrequencyDescription: null,
+    daysOn: null,
+    daysOff: null,
+    preferredTime: null,
+    timingNotes: null,
+    isFdaApproved: false,
   },
+  supplementProfile: null,
+  citations: [
+    { id: 'cit-1', catalogItemId: 'c-1', title: 'BPC-157 healing study', url: null, doi: '10.1234/bpc', pmid: '12345678' },
+  ],
   sourcePairings: [
     {
       id: 'pair-1',
@@ -56,13 +84,13 @@ const bpc157 = {
       partnerExistsInCatalog: true,
       missingCompoundAction: 'none',
       sortOrder: 0,
-      pairedCompound: { id: 'c-tb', name: 'TB-500', slug: 'tb-500' },
+      pairedCompound: { name: 'TB-500', slug: 'tb-500' },
       citations: [
         {
           id: 'pc-1',
           pairingId: 'pair-1',
           citationId: 'cit-1',
-          citation: { id: 'cit-1', profileId: 'p-1', title: 'BPC-157 healing study', url: null, doi: '10.1234/bpc', pmid: '12345678' },
+          citation: { id: 'cit-1', catalogItemId: 'c-1', title: 'BPC-157 healing study', url: null, doi: '10.1234/bpc', pmid: '12345678' },
         },
       ],
     },
@@ -118,30 +146,48 @@ const compoundWithNoPairings = {
 
 const archivedCompound = {
   id: 'c-2',
+  catalogKey: 'oldpeptide',
+  kind: 'PEPTIDE',
   name: 'OldPeptide',
   slug: 'oldpeptide',
   iupacName: null,
   synonyms: [],
   mechanismOfAction: null,
   administrationRoutes: [],
+  sourceVersion: 1,
+  lastReviewedAt: null,
+  revisionStatus: 'PUBLISHED',
   status: 'ARCHIVED',
   tags: [],
   archivedAt: new Date('2025-01-01'),
   profile: null,
+  supplementProfile: null,
+  citations: [],
+  sourcePairings: [],
+  sourceAdjunctRecommendations: [],
 };
 
 const noProfileCompound = {
   id: 'c-3',
+  catalogKey: 'newpeptide',
+  kind: 'PEPTIDE',
   name: 'NewPeptide',
   slug: 'newpeptide',
   iupacName: null,
   synonyms: [],
   mechanismOfAction: null,
   administrationRoutes: [],
+  sourceVersion: 1,
+  lastReviewedAt: null,
+  revisionStatus: 'PUBLISHED',
   status: 'PUBLISHED',
   tags: [],
   archivedAt: null,
   profile: null,
+  supplementProfile: null,
+  citations: [],
+  sourcePairings: [],
+  sourceAdjunctRecommendations: [],
 };
 
 beforeEach(() => {
@@ -168,7 +214,7 @@ describe('US-REF-01: View Compound Profile', () => {
     it('AC-2: profile citations include DOI or PMID links', async () => {
       mockFindFirst.mockResolvedValue(bpc157);
       const result = await getCompoundBySlug('bpc-157');
-      const cit = result?.profile?.citations[0];
+      const cit = result?.citations[0];
       expect(cit?.doi ?? cit?.pmid).toBeTruthy();
     });
 
@@ -246,6 +292,21 @@ describe('US-REF-01: View Compound Profile', () => {
       expect(result?.archivedAt).toBeInstanceOf(Date);
     });
 
+    it('AC-7: returns profile containing cycle and rest period rationales when present', async () => {
+      const bpcWithRationales = {
+        ...bpc157,
+        profile: {
+          ...bpc157.profile,
+          cycleRationale: 'Test cycle rationale for BPC-157',
+          restPeriodRationale: 'Test rest period rationale for BPC-157',
+        },
+      };
+      mockFindFirst.mockResolvedValue(bpcWithRationales);
+      const result = await getCompoundBySlug('bpc-157');
+      expect(result?.profile?.cycleRationale).toBe('Test cycle rationale for BPC-157');
+      expect(result?.profile?.restPeriodRationale).toBe('Test rest period rationale for BPC-157');
+    });
+
     it('returns null for unknown slug', async () => {
       mockFindFirst.mockResolvedValue(null);
       const result = await getCompoundBySlug('does-not-exist');
@@ -307,5 +368,67 @@ describe('US-REF-02: Search & Browse Catalog', () => {
         })
       );
     });
+  });
+});
+
+describe('US-REF-02: Search & Browse Catalog UI Rendering', () => {
+  it('renders compound catalog list with why statement and common name badge', async () => {
+    const testCompound = {
+      ...bpc157,
+      name: 'BPC-157 / TB-500',
+    };
+    mockFindMany.mockResolvedValue([testCompound]);
+
+    const CatalogResults = (await import('@/app/(dashboard)/reference/_components/CatalogResults')).CatalogResults;
+    const page = await CatalogResults({
+      query: '',
+      tag: '',
+    });
+    const html = renderToString(page);
+
+    // Verify common name badge is rendered
+    expect(html).toContain('Wolverine Stack');
+    // Verify custom why statement is rendered
+    expect(html).toContain('Combines localized blood vessel growth and systemic cell mobility');
+  });
+
+  it('renders compound with no custom why statement or common name, falling back to mechanism of action', async () => {
+    const testCompound = {
+      ...noProfileCompound,
+      name: 'Uncommon Peptide',
+      mechanismOfAction: 'Increases natural cellular resistance to stress.',
+    };
+    mockFindMany.mockResolvedValue([testCompound]);
+
+    const CatalogResults = (await import('@/app/(dashboard)/reference/_components/CatalogResults')).CatalogResults;
+    const page = await CatalogResults({
+      query: '',
+      tag: '',
+    });
+    const html = renderToString(page);
+
+    // Verify common name badge is NOT rendered
+    expect(html).not.toContain('Wolverine Stack');
+    // Verify mechanismOfAction is rendered as description fallback
+    expect(html).toContain('Increases natural cellular resistance to stress.');
+  });
+
+  it('renders compound with no custom why or mechanism, falling back to generic description', async () => {
+    const testCompound = {
+      ...noProfileCompound,
+      name: 'Uncommon Peptide 2',
+      mechanismOfAction: null,
+    };
+    mockFindMany.mockResolvedValue([testCompound]);
+
+    const CatalogResults = (await import('@/app/(dashboard)/reference/_components/CatalogResults')).CatalogResults;
+    const page = await CatalogResults({
+      query: '',
+      tag: '',
+    });
+    const html = renderToString(page);
+
+    // Verify final generic fallback description is rendered
+    expect(html).toContain('A specialized compound researched for its unique properties');
   });
 });

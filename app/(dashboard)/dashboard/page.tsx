@@ -23,6 +23,8 @@ import { GettingStartedChecklist } from './_components/GettingStartedChecklist';
 import { StackOverview } from './_components/StackOverview';
 import { InteractiveAnalytics } from './_components/InteractiveAnalytics';
 import { WellbeingSentimentInsights } from './_components/WellbeingSentimentInsights';
+import { SpendAnalyticsCard } from './_components/SpendAnalyticsCard';
+import { getSpendAnalytics } from '@/lib/dashboard/application/SpendAnalyticsService';
 import { calculateStreak } from '@/lib/tracker/domain/streak';
 
 export default async function DashboardPage() {
@@ -56,6 +58,7 @@ export default async function DashboardPage() {
     sentimentInsights,
     dueToday,
     userSettings,
+    spendAnalytics,
   ] = await Promise.all([
     getOnboardingState(userId),
     getProtocolsForUser(userId),
@@ -73,6 +76,19 @@ export default async function DashboardPage() {
     prisma.user.findUnique({
       where: { id: userId },
       select: { syringeStandard: true },
+    }),
+    getSpendAnalytics(userId).catch((err) => {
+      console.error('[Dashboard] Failed to fetch spend analytics:', err);
+      return {
+        loggedSpendYtd: '0.00',
+        loggedSpendMonthly: '0.00',
+        projectedSpend: {
+          daily: '0.00',
+          weekly: '0.00',
+          monthly: '0.00',
+        },
+        spendByCompound: [],
+      };
     }),
   ]);
 
@@ -168,6 +184,7 @@ export default async function DashboardPage() {
               streak={streak}
             />
             <WellbeingSentimentInsights insights={sentimentInsights} />
+            <SpendAnalyticsCard analytics={spendAnalytics} />
           </div>
 
           {/* Right Column: Interactive Analytics & Charts */}
@@ -194,6 +211,7 @@ export default async function DashboardPage() {
             fetchedAt={new Date().toISOString()}
             streak={streak}
           />
+          <SpendAnalyticsCard analytics={spendAnalytics} />
         </div>
       )}
     </main>

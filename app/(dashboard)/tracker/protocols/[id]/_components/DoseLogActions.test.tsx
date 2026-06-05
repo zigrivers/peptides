@@ -26,20 +26,20 @@ vi.mock('@/lib/offline/application/OfflineQueue', () => ({
 
 describe('DoseLogActions Component UI/UX with JSDOM', () => {
   const mockSiteData = {
-    suggestion: { bodyPart: 'abdomen', side: 'left' } as InjectionSite,
+    suggestion: { bodyPart: 'abdomen-upper', side: 'left' } as InjectionSite,
     validSites: [
-      { bodyPart: 'abdomen', side: 'left' },
-      { bodyPart: 'abdomen', side: 'right' },
+      { bodyPart: 'abdomen-upper', side: 'left' },
+      { bodyPart: 'abdomen-upper', side: 'right' },
     ] as InjectionSite[],
     siteMeta: [
       {
-        site: { bodyPart: 'abdomen', side: 'left' } as InjectionSite,
+        site: { bodyPart: 'abdomen-upper', side: 'left' } as InjectionSite,
         lastUsed: null,
         daysSinceLastUse: null,
         isRested: true,
       },
       {
-        site: { bodyPart: 'abdomen', side: 'right' } as InjectionSite,
+        site: { bodyPart: 'abdomen-upper', side: 'right' } as InjectionSite,
         lastUsed: null,
         daysSinceLastUse: null,
         isRested: true,
@@ -75,36 +75,36 @@ describe('DoseLogActions Component UI/UX with JSDOM', () => {
   it('allows selecting a site via SVG hotspots and text buttons', () => {
     render(<DoseLogActions {...defaultProps} />);
     
-    // Left Abdomen should be selected initially by default (indicated as Selected)
-    const leftAbdomenHotspot = screen.getByLabelText('Left Abdomen (Selected)');
+    // Left Upper Abdomen should be selected initially by default (indicated as Selected)
+    const leftAbdomenHotspot = screen.getByLabelText('Left Upper Abdomen (Selected)');
     expect(leftAbdomenHotspot.getAttribute('aria-pressed')).toBe('true');
 
-    // Click Right Abdomen text button
-    fireEvent.click(screen.getByText('Right Abdomen'));
+    // Click Right Upper Abdomen text button
+    fireEvent.click(screen.getByText('Right Upper Abdomen'));
 
-    // Right Abdomen hotspot should now be selected, Left Abdomen becomes suggested
-    const rightAbdomenHotspot = screen.getByLabelText('Right Abdomen (Selected)');
+    // Right Upper Abdomen hotspot should now be selected, Left Upper Abdomen becomes suggested
+    const rightAbdomenHotspot = screen.getByLabelText('Right Upper Abdomen (Selected)');
     expect(rightAbdomenHotspot.getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByLabelText('Left Abdomen (Suggested)').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByLabelText('Left Upper Abdomen (Suggested)').getAttribute('aria-pressed')).toBe('false');
   });
 
   it('supports Enter and Space keyboard activation on SVG hotspots', () => {
     render(<DoseLogActions {...defaultProps} />);
     
-    // Initial selection is Left Abdomen (Selected)
-    expect(screen.getByLabelText('Left Abdomen (Selected)').getAttribute('aria-pressed')).toBe('true');
+    // Initial selection is Left Upper Abdomen (Selected)
+    expect(screen.getByLabelText('Left Upper Abdomen (Selected)').getAttribute('aria-pressed')).toBe('true');
 
-    // Select Right Abdomen hotspot via Space key
-    const rightAbdomenHotspot = screen.getByLabelText('Right Abdomen (Rested)');
+    // Select Right Upper Abdomen hotspot via Space key
+    const rightAbdomenHotspot = screen.getByLabelText('Right Upper Abdomen (Rested)');
     fireEvent.keyDown(rightAbdomenHotspot, { key: ' ' });
 
-    expect(screen.getByLabelText('Right Abdomen (Selected)').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByLabelText('Right Upper Abdomen (Selected)').getAttribute('aria-pressed')).toBe('true');
 
-    // Select Left Abdomen hotspot back via Enter key
-    const leftAbdomenHotspot = screen.getByLabelText('Left Abdomen (Suggested)');
+    // Select Left Upper Abdomen hotspot back via Enter key
+    const leftAbdomenHotspot = screen.getByLabelText('Left Upper Abdomen (Suggested)');
     fireEvent.keyDown(leftAbdomenHotspot, { key: 'Enter' });
 
-    expect(screen.getByLabelText('Left Abdomen (Selected)').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByLabelText('Left Upper Abdomen (Selected)').getAttribute('aria-pressed')).toBe('true');
   });
 
   it('enables the Log Dose button and triggers logDoseAction on click', async () => {
@@ -121,14 +121,14 @@ describe('DoseLogActions Component UI/UX with JSDOM', () => {
       protocolId: 'proto-1',
       amount: { amount: '250', unit: 'mcg' },
       status: 'LOGGED',
-      injectionSite: { bodyPart: 'abdomen', side: 'left' },
+      injectionSite: { bodyPart: 'abdomen-upper', side: 'left' },
     });
   });
 
   it('renders rotation alert when selecting the same site as the last dose', () => {
     const conflictSiteData = {
       ...mockSiteData,
-      recentSites: [{ bodyPart: 'abdomen', side: 'left' } as InjectionSite],
+      recentSites: [{ bodyPart: 'abdomen-upper', side: 'left' } as InjectionSite],
     };
     render(<DoseLogActions {...defaultProps} siteData={conflictSiteData} />);
 
@@ -140,7 +140,7 @@ describe('DoseLogActions Component UI/UX with JSDOM', () => {
   it('does not render rotation alert when a different/rested site is selected', () => {
     const conflictSiteData = {
       ...mockSiteData,
-      recentSites: [{ bodyPart: 'abdomen', side: 'right' } as InjectionSite],
+      recentSites: [{ bodyPart: 'abdomen-upper', side: 'right' } as InjectionSite],
     };
     render(<DoseLogActions {...defaultProps} siteData={conflictSiteData} />);
 
@@ -181,7 +181,7 @@ describe('DoseLogActions Component UI/UX with JSDOM', () => {
         protocolId: 'proto-1',
         amount: { amount: '250', unit: 'mcg' },
         status: 'LOGGED',
-        injectionSite: { bodyPart: 'abdomen', side: 'left' },
+        injectionSite: { bodyPart: 'abdomen-upper', side: 'left' },
       }));
     });
 

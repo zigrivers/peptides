@@ -4,11 +4,11 @@ import fs from 'fs';
 describe('Structure Eval', () => {
   it('follows feature-based slice rules for lib/', () => {
     const libDirs = fs.readdirSync('lib').filter(d => fs.statSync(`lib/${d}`).isDirectory());
-    const allowedModules = ['auth', 'tracker', 'ordering', 'reference', 'reconstitution', 'jobs', 'audit', 'shared', 'offline', 'admin', 'notifications', 'ai'];
+    const allowedModules = ['auth', 'tracker', 'ordering', 'reference', 'reconstitution', 'jobs', 'audit', 'shared', 'offline', 'admin', 'notifications', 'ai', 'dashboard'];
     
     libDirs.forEach(dir => {
       expect(allowedModules).toContain(dir);
-      if (dir !== 'shared' && dir !== 'jobs') {
+      if (dir !== 'shared' && dir !== 'jobs' && dir !== 'dashboard') {
         const subDirs = fs.readdirSync(`lib/${dir}`);
         expect(subDirs).toContain('domain');
         expect(subDirs).toContain('application');

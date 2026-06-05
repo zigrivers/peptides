@@ -38,10 +38,11 @@ describe('REF Dosing Protocol Acceptances', () => {
     }
 
     // Set up a test compound
-    const comp = await prisma.compound.create({
+    const comp = await prisma.catalogItem.create({
       data: {
         name: 'Test Temp Dosing Compound',
         slug: 'test-temp-dosing-compound',
+        catalogKey: 'test-temp-dosing-compound-key',
         administrationRoutes: ['SubQ'],
         status: 'PUBLISHED',
       },
@@ -56,7 +57,7 @@ describe('REF Dosing Protocol Acceptances', () => {
 
   afterAll(async () => {
     // Clean up
-    await prisma.compound.deleteMany({
+    await prisma.catalogItem.deleteMany({
       where: { slug: 'test-temp-dosing-compound' },
     });
   });
@@ -211,7 +212,7 @@ describe('REF Dosing Protocol Acceptances', () => {
       // Clean up previous test record if it exists
       await prisma.$executeRawUnsafe(`DELETE FROM "CompoundProfile" WHERE id = '${id}'`);
 
-      const cols = ['id', 'compoundId', 'dosingLow', 'dosingTypical', 'dosingHigh'];
+      const cols = ['id', 'catalogItemId', 'dosingLow', 'dosingTypical', 'dosingHigh'];
       const paramSlots = ['$1', '$2', '$3::jsonb', '$4::jsonb', '$5::jsonb'];
       const params: any[] = [
         id,
@@ -331,18 +332,17 @@ describe('REF Dosing Protocol Acceptances', () => {
 
       // Verify that for all seeded compounds, if they exist in the DB, they have citations
       for (const item of fixtures) {
-        const compound = await prisma.compound.findFirst({
+        const compound = await prisma.catalogItem.findFirst({
           where: { name: item.name },
           include: {
-            profile: {
-              include: { citations: true },
-            },
+            profile: true,
+            citations: true,
           },
         });
 
         if (compound && compound.profile) {
-          expect(compound.profile.citations.length).toBeGreaterThanOrEqual(1);
-          for (const citation of compound.profile.citations) {
+          expect(compound.citations.length).toBeGreaterThanOrEqual(1);
+          for (const citation of compound.citations) {
             expect(citation.title).toBeTruthy();
           }
         }
@@ -409,14 +409,16 @@ describe('REF Dosing Protocol Acceptances', () => {
         administrationRoutes: ['SubQ'],
         profile: {
           id: 'prof-1',
-          compoundId: 'comp-1',
+          catalogItemId: 'comp-1',
           dosingLow: { amount: '1', unit: 'mg' },
           dosingTypical: { amount: '2', unit: 'mg' },
           dosingHigh: { amount: '2', unit: 'mg' },
           fridgeShelfLifeMonths: 12,
           freezerShelfLifeMonths: 24,
           cycleLengthWeeks: null,
+          cycleRationale: null,
           restPeriodWeeks: null,
+          restPeriodRationale: null,
           dosingFrequency: 'DAILY',
           dosesPerDay: 1,
           customFrequencyDescription: null,
@@ -428,6 +430,7 @@ describe('REF Dosing Protocol Acceptances', () => {
           citations: [],
           benefitTimeline: [],
         },
+        citations: [],
       };
       mockGetCompoundBySlug.mockResolvedValue(mockCompound);
 
@@ -455,14 +458,16 @@ describe('REF Dosing Protocol Acceptances', () => {
         administrationRoutes: ['SubQ'],
         profile: {
           id: 'prof-2',
-          compoundId: 'comp-2',
+          catalogItemId: 'comp-2',
           dosingLow: { amount: '250', unit: 'mcg' },
           dosingTypical: { amount: '500', unit: 'mcg' },
           dosingHigh: { amount: '1000', unit: 'mcg' },
           fridgeShelfLifeMonths: 12,
           freezerShelfLifeMonths: 24,
           cycleLengthWeeks: 8,
+          cycleRationale: 'Test cycle rationale text',
           restPeriodWeeks: 4,
+          restPeriodRationale: 'Test rest period rationale text',
           dosingFrequency: 'DAILY',
           dosesPerDay: 2,
           customFrequencyDescription: null,
@@ -474,6 +479,7 @@ describe('REF Dosing Protocol Acceptances', () => {
           citations: [],
           benefitTimeline: [],
         },
+        citations: [],
       };
       mockGetCompoundBySlug.mockResolvedValue(mockCompound);
 
@@ -482,6 +488,8 @@ describe('REF Dosing Protocol Acceptances', () => {
 
       expect(html).toContain('8 Weeks');
       expect(html).toContain('4 Weeks Washout');
+      expect(html).toContain('Test cycle rationale text');
+      expect(html).toContain('Test rest period rationale text');
       expect(html).toContain('5 Days On / 2 Off');
       expect(html).toContain('Morning and Night');
       expect(html).toContain('Take on an empty stomach');
@@ -502,14 +510,16 @@ describe('REF Dosing Protocol Acceptances', () => {
         administrationRoutes: ['Topical'],
         profile: {
           id: 'prof-3',
-          compoundId: 'comp-3',
+          catalogItemId: 'comp-3',
           dosingLow: { amount: '1', unit: 'mg' },
           dosingTypical: { amount: '2', unit: 'mg' },
           dosingHigh: { amount: '4', unit: 'mg' },
           fridgeShelfLifeMonths: 12,
           freezerShelfLifeMonths: 24,
           cycleLengthWeeks: null,
+          cycleRationale: null,
           restPeriodWeeks: null,
+          restPeriodRationale: null,
           dosingFrequency: 'CUSTOM',
           dosesPerDay: null,
           customFrequencyDescription: 'Apply topically once or twice daily',
@@ -521,6 +531,7 @@ describe('REF Dosing Protocol Acceptances', () => {
           citations: [],
           benefitTimeline: [],
         },
+        citations: [],
       };
       mockGetCompoundBySlug.mockResolvedValue(mockCompound);
 

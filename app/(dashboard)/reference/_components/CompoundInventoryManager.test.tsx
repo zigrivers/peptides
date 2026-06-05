@@ -218,6 +218,52 @@ describe('CompoundInventoryManager Client Component', () => {
     expect(display?.textContent).toContain('5.00 mg/mL (50.0 mcg/Unit)');
   });
 
+  it('adapts labels and options for room-temperature compounds', () => {
+    const roomTempProps = {
+      ...defaultProps,
+      compoundName: 'Testosterone Cypionate',
+      fridgeShelfLifeMonths: null,
+      freezerShelfLifeMonths: null,
+      reconstitutedShelfLifeDays: 28,
+    };
+
+    const { container } = render(<CompoundInventoryManager {...roomTempProps} />);
+
+    // Add Vials button is visible
+    const addBtn = screenBorderBtn(container, 'Add Vials');
+    expect(addBtn).toBeTruthy();
+
+    // Open the form
+    fireEvent.click(addBtn!);
+
+    // Expiration date field should be empty by default for room-temperature unopened vials (user checks manufacturer date)
+    const dateInputs = container.querySelectorAll('input[type="date"]');
+    // For room temp dry/unopened form, dateInputs[0] is Received Date, dateInputs[1] is Expiration Date
+    expect(dateInputs.length).toBe(2);
+    const expiryInput = dateInputs[1] as HTMLInputElement;
+    expect(expiryInput.value).toBe('');
+
+    // "Dry Vials (Powder)" tab should be "Unopened Vial"
+    const unopenedTab = findButtonByText(container, 'Unopened Vial');
+    expect(unopenedTab).toBeTruthy();
+
+    // "Reconstituted Vial (Liquid)" tab should be "Opened Vial (In Use)"
+    const openedTab = findButtonByText(container, 'Opened Vial (In Use)');
+    expect(openedTab).toBeTruthy();
+
+    // Storage method select should be disabled and show "Room Temp"
+    const storageSelect = container.querySelector('select[disabled]');
+    expect(storageSelect).toBeTruthy();
+    expect(storageSelect?.textContent).toContain('Room Temp (20-25°C)');
+
+    // Switch to Opened Vial tab
+    fireEvent.click(openedTab!);
+
+    // Reconstitution Date label should be "Puncture / Open Date"
+    const label = Array.from(container.querySelectorAll('label')).find(l => l.textContent === 'Puncture / Open Date');
+    expect(label).toBeTruthy();
+  });
+
   // Helper utility functions to locate elements inside testing-library JSDOM environment
   function screenBorderBtn(container: HTMLElement, text: string): HTMLElement | null {
     const buttons = Array.from(container.querySelectorAll('button'));

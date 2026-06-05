@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition, useEffect } from 'react';
+import React, { useState, useTransition, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Decimal from 'decimal.js';
 import type { Compound, DoseAmount } from '@/lib/reference/domain/types';
@@ -105,6 +105,25 @@ export function CreateProtocolForm({
   const dosingTypical = selectedCompound?.profile?.dosingTypical ? parseCompoundDosing(selectedCompound.profile.dosingTypical) : null;
   const dosingHigh = selectedCompound?.profile?.dosingHigh ? parseCompoundDosing(selectedCompound.profile.dosingHigh) : null;
 
+  const activeGuidanceDose = useMemo(() => {
+    if (!doseAmount) return null;
+    try {
+      const currentVal = new Decimal(doseAmount);
+      if (dosingTypical && currentVal.equals(new Decimal(dosingTypical.amount)) && doseUnit === dosingTypical.unit) {
+        return { tierName: 'Typical Range', dose: dosingTypical };
+      }
+      if (dosingLow && currentVal.equals(new Decimal(dosingLow.amount)) && doseUnit === dosingLow.unit) {
+        return { tierName: 'Conservative', dose: dosingLow };
+      }
+      if (dosingHigh && currentVal.equals(new Decimal(dosingHigh.amount)) && doseUnit === dosingHigh.unit) {
+        return { tierName: 'Aggressive', dose: dosingHigh };
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  }, [doseAmount, doseUnit, dosingLow, dosingTypical, dosingHigh]);
+
   // Real-time dose range warnings
   const [doseWarning, setDoseWarning] = useState<string | null>(null);
   useEffect(() => {
@@ -204,17 +223,37 @@ export function CreateProtocolForm({
     }
   }
 
+  function applyFrequencyString(freqStr: string) {
+    const freq = freqStr.toLowerCase();
+    if (freq.includes('daily') || freq.includes('every day') || freq.includes('once daily') || freq.includes('twice daily')) {
+      setFrequency('Daily');
+    } else if (freq.includes('eod') || freq.includes('every other day')) {
+      setFrequency('EOD');
+    } else if (freq.includes('twice weekly') || freq.includes('twice-weekly') || freq.includes('thrice weekly') || freq.includes('thrice-weekly') || freq.includes('three times weekly') || freq.includes('three-times-weekly')) {
+      setFrequency('SpecificDaysOfWeek');
+      if (freq.includes('twice')) {
+        setDaysOfWeek(['Mon', 'Thu']);
+      } else {
+        setDaysOfWeek(['Mon', 'Wed', 'Fri']);
+      }
+    } else if (freq.includes('weekly') && !freq.includes('twice') && !freq.includes('thrice') && !freq.includes('three')) {
+      setFrequency('CustomInterval');
+      setIntervalDays(7);
+    } else if (freq.includes('every 3 days') || freq.includes('every third day')) {
+      setFrequency('CustomInterval');
+      setIntervalDays(3);
+    } else if (freq.includes('every 4 days')) {
+      setFrequency('CustomInterval');
+      setIntervalDays(4);
+    }
+  }
+
   function applyDoseTile(doseInfo: DoseAmount) {
     if (!doseInfo) return;
     setDoseAmount(doseInfo.amount);
     setDoseUnit(doseInfo.unit as 'mcg' | 'mg' | 'IU' | 'mL');
     if (doseInfo.recommendedFrequency) {
-      const freq = doseInfo.recommendedFrequency.toLowerCase();
-      if (freq.includes('daily') || freq.includes('every day')) {
-        setFrequency('Daily');
-      } else if (freq.includes('eod') || freq.includes('every other day')) {
-        setFrequency('EOD');
-      }
+      applyFrequencyString(doseInfo.recommendedFrequency);
     }
   }
 
@@ -391,45 +430,72 @@ export function CreateProtocolForm({
                   <button
                     type="button"
                     onClick={() => applyDoseTile(dosingLow)}
-                    className="text-left p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 hover:border-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                    className="text-left p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 hover:border-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex flex-col justify-between"
                   >
-                    <p className="text-xs font-bold text-gray-400 uppercase">Conservative</p>
-                    <p className="text-base font-extrabold text-gray-900 dark:text-gray-100 mt-1 font-mono">
-                      {dosingLow.amount} {dosingLow.unit}
-                    </p>
-                    <p className="text-[10px] text-gray-500 mt-1 leading-snug">
-                      <span className="font-semibold text-gray-700 dark:text-gray-300">Benefits:</span> {dosingLow.researchBenefits}
-                    </p>
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase">Conservative</p>
+                      <p className="text-base font-extrabold text-gray-900 dark:text-gray-100 mt-1 font-mono">
+                        {dosingLow.amount} {dosingLow.unit}
+                      </p>
+                    </div>
+                    <div className="mt-2 space-y-1">
+                      {dosingLow.recommendedFrequency && dosingLow.recommendedFrequency !== 'N/A' && (
+                        <p className="text-[10px] text-gray-500 leading-snug">
+                          <span className="font-semibold text-gray-700 dark:text-gray-300">Frequency:</span> {dosingLow.recommendedFrequency}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-gray-500 leading-snug">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">Benefits:</span> {dosingLow.researchBenefits}
+                      </p>
+                    </div>
                   </button>
                 )}
                 {dosingTypical && (
                   <button
                     type="button"
                     onClick={() => applyDoseTile(dosingTypical)}
-                    className="text-left p-3.5 rounded-xl border border-primary/20 dark:border-primary/30 bg-primary/5 dark:bg-primary/10 hover:border-primary/60 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                    className="text-left p-3.5 rounded-xl border border-primary/20 dark:border-primary/30 bg-primary/5 dark:bg-primary/10 hover:border-primary/60 hover:scale-[1.02] active:scale-[0.98] transition-all flex flex-col justify-between"
                   >
-                    <p className="text-xs font-bold text-primary uppercase">Typical Range</p>
-                    <p className="text-base font-extrabold text-gray-900 dark:text-gray-100 mt-1 font-mono">
-                      {dosingTypical.amount} {dosingTypical.unit}
-                    </p>
-                    <p className="text-[10px] text-gray-500 mt-1 leading-snug">
-                      <span className="font-semibold text-gray-700 dark:text-gray-300">Benefits:</span> {dosingTypical.researchBenefits}
-                    </p>
+                    <div>
+                      <p className="text-xs font-bold text-primary uppercase">Typical Range</p>
+                      <p className="text-base font-extrabold text-gray-900 dark:text-gray-100 mt-1 font-mono">
+                        {dosingTypical.amount} {dosingTypical.unit}
+                      </p>
+                    </div>
+                    <div className="mt-2 space-y-1">
+                      {dosingTypical.recommendedFrequency && dosingTypical.recommendedFrequency !== 'N/A' && (
+                        <p className="text-[10px] text-gray-500 leading-snug">
+                          <span className="font-semibold text-gray-700 dark:text-gray-300">Frequency:</span> {dosingTypical.recommendedFrequency}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-gray-500 leading-snug">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">Benefits:</span> {dosingTypical.researchBenefits}
+                      </p>
+                    </div>
                   </button>
                 )}
                 {dosingHigh && (
                   <button
                     type="button"
                     onClick={() => applyDoseTile(dosingHigh)}
-                    className="text-left p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 hover:border-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                    className="text-left p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 hover:border-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex flex-col justify-between"
                   >
-                    <p className="text-xs font-bold text-gray-400 uppercase">Aggressive</p>
-                    <p className="text-base font-extrabold text-gray-900 dark:text-gray-100 mt-1 font-mono">
-                      {dosingHigh.amount} {dosingHigh.unit}
-                    </p>
-                    <p className="text-[10px] text-gray-500 mt-1 leading-snug">
-                      <span className="font-semibold text-gray-700 dark:text-gray-300">Benefits:</span> {dosingHigh.researchBenefits}
-                    </p>
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase">Aggressive</p>
+                      <p className="text-base font-extrabold text-gray-900 dark:text-gray-100 mt-1 font-mono">
+                        {dosingHigh.amount} {dosingHigh.unit}
+                      </p>
+                    </div>
+                    <div className="mt-2 space-y-1">
+                      {dosingHigh.recommendedFrequency && dosingHigh.recommendedFrequency !== 'N/A' && (
+                        <p className="text-[10px] text-gray-500 leading-snug">
+                          <span className="font-semibold text-gray-700 dark:text-gray-300">Frequency:</span> {dosingHigh.recommendedFrequency}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-gray-500 leading-snug">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">Benefits:</span> {dosingHigh.researchBenefits}
+                      </p>
+                    </div>
                   </button>
                 )}
               </div>
@@ -485,6 +551,21 @@ export function CreateProtocolForm({
               <option value="SpecificDaysOfWeek">Specific days of the week</option>
               <option value="CustomInterval">Custom interval (every N days)</option>
             </select>
+
+            {activeGuidanceDose?.dose.recommendedFrequency && activeGuidanceDose.dose.recommendedFrequency !== 'N/A' && (
+              <div className="mt-2 text-xs text-indigo-700 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-950/40 rounded-lg p-2.5 flex items-center justify-between animate-[fadeIn_0.2s_ease-out]">
+                <span>
+                  💡 Recommended for <strong>{activeGuidanceDose.tierName}</strong>: <strong>{activeGuidanceDose.dose.recommendedFrequency}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => activeGuidanceDose.dose.recommendedFrequency && applyFrequencyString(activeGuidanceDose.dose.recommendedFrequency)}
+                  className="text-[10px] font-bold bg-primary hover:bg-primary/90 text-primary-foreground px-2.5 py-1 rounded transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+            )}
           </div>
 
           {frequency === 'SpecificDaysOfWeek' && (

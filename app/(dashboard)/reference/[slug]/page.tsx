@@ -5,12 +5,14 @@ import { Info } from 'lucide-react';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/shared/prisma';
 import { getCompoundBySlug } from '@/lib/reference/application/CompoundService';
-import type { Citation } from '@/lib/reference/domain/types';
+import type { Citation, BenefitTimelineItem } from '@/lib/reference/domain/types';
 import { getSerializedVialsForCompound } from '@/lib/reconstitution/application/VialService';
 import { CompoundInventoryManager } from '../_components/CompoundInventoryManager';
 import { DosingReconstitutionPlanner } from '../_components/DosingReconstitutionPlanner';
 import { CompoundPairingsSection } from '../_components/CompoundPairingsSection';
 import { CompoundAdjunctsSection } from '../_components/CompoundAdjunctsSection';
+import { CompoundStorageStabilityGuide } from '../_components/CompoundStorageStabilityGuide';
+import { getCompoundCommonName } from '@/lib/reference/domain/commonName';
 
 function CitationLink({ citation }: { citation: Citation }) {
   const href = citation.url
@@ -143,16 +145,26 @@ export default async function CompoundProfilePage({
 
   const isArchived = compound.status === 'ARCHIVED';
 
-  const serializedVials = await getSerializedVialsForCompound(session.user.id, compound.id);
+  const serializedVials = compound.kind === 'PEPTIDE'
+    ? await getSerializedVialsForCompound(session.user.id, compound.id)
+    : [];
 
   // The catalog planner defaults to the user's saved syringe standard (U-100 by
   // default) so its unit math matches the standalone calculator and the rest of
   // the app. Users can still flip U-100/U-40 within the planner.
-  const userSettings = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { syringeStandard: true },
-  });
-  const syringeStandard = (userSettings?.syringeStandard as 'U100' | 'U40') ?? 'U100';
+  const syringeStandard = compound.kind === 'PEPTIDE'
+    ? await (async () => {
+        const userSettings = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { syringeStandard: true },
+        });
+        return (userSettings?.syringeStandard as 'U100' | 'U40') ?? 'U100';
+      })()
+    : 'U100';
+
+  const commonName = getCompoundCommonName(compound.name);
+  const profile = compound.profile;
+  const timeline = (profile?.benefitTimeline || compound.supplementProfile?.benefitTimeline) as BenefitTimelineItem[] | null;
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-8 space-y-6 animate-page-enter">
@@ -162,9 +174,16 @@ export default async function CompoundProfilePage({
         </Link>
       </nav>
 
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-        {isArchived ? `${compound.name} (archived)` : compound.name}
-      </h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+          {isArchived ? `${compound.name} (archived)` : compound.name}
+        </h1>
+        {commonName && !isArchived && (
+          <span className="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary ring-1 ring-inset ring-primary/20">
+            {commonName}
+          </span>
+        )}
+      </div>
 
       {compound.iupacName && (
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 font-mono break-all">{compound.iupacName}</p>
@@ -189,16 +208,101 @@ export default async function CompoundProfilePage({
         </div>
       )}
 
-      <CompoundInventoryManager
-        compoundId={compound.id}
-        compoundName={compound.name}
-        vials={serializedVials}
-        fridgeShelfLifeMonths={compound.profile?.fridgeShelfLifeMonths ?? 12}
-        freezerShelfLifeMonths={compound.profile?.freezerShelfLifeMonths ?? 24}
-        reconstitutedShelfLifeDays={compound.profile?.reconstitutedShelfLifeDays ?? 14}
-      />
+      {compound.kind === 'PEPTIDE' && (
+        <div className="space-y-6">
+          <CompoundInventoryManager
+            compoundId={compound.id}
+            compoundName={compound.name}
+            vials={serializedVials}
+            fridgeShelfLifeMonths={profile?.fridgeShelfLifeMonths}
+            freezerShelfLifeMonths={profile?.freezerShelfLifeMonths}
+            reconstitutedShelfLifeDays={profile?.reconstitutedShelfLifeDays}
+          />
+          {profile && (
+            <CompoundStorageStabilityGuide
+              compoundName={compound.name}
+              fridgeShelfLifeMonths={profile.fridgeShelfLifeMonths}
+              freezerShelfLifeMonths={profile.freezerShelfLifeMonths}
+              reconstitutedShelfLifeDays={profile.reconstitutedShelfLifeDays}
+            />
+          )}
+        </div>
+      )}
 
-      {!compound.profile && (
+      {compound.kind === 'SUPPLEMENT' && compound.supplementProfile && (
+        <section className="mt-8 border border-border bg-card text-card-foreground rounded-xl p-5 shadow-sm">
+          <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
+            <span>💊</span> Supplement Profile
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="border border-border/50 bg-background/50 rounded-lg p-4">
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Form & Serving</span>
+              <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
+                {compound.supplementProfile.servingSize?.toString() ?? ''} {compound.supplementProfile.servingUnit} ({compound.supplementProfile.form})
+              </div>
+            </div>
+            <div className="border border-border/50 bg-background/50 rounded-lg p-4">
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timing & Cadence</span>
+              <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
+                {formatFrequency(compound.supplementProfile.dosingFrequency)}
+                {compound.supplementProfile.dosesPerDay && compound.supplementProfile.dosesPerDay > 1 ? ` (${compound.supplementProfile.dosesPerDay}x daily)` : ''}
+              </div>
+              {compound.supplementProfile.preferredTime && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Preferred Time: {formatPreferredTime(compound.supplementProfile.preferredTime)}
+                </div>
+              )}
+            </div>
+          </div>
+          {compound.supplementProfile.timingNotes && (
+            <div className="mt-4 border-t border-border pt-4">
+              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timing Notes</h3>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300 italic">
+                &quot;{compound.supplementProfile.timingNotes}&quot;
+              </p>
+            </div>
+          )}
+
+          {/* Expected Dosing Tiers */}
+          <div className="mt-6 border-t border-border pt-4">
+            <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Expected Dosing Tiers</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Low */}
+              <div className="border border-border/50 bg-background/30 rounded-lg p-3">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Conservative / Low</span>
+                <div className="mt-1 text-sm font-bold text-gray-900 dark:text-gray-100">
+                  {compound.supplementProfile.dosingLow?.amount} {compound.supplementProfile.dosingLow?.unit}
+                </div>
+                {compound.supplementProfile.dosingLow?.researchBenefits && (
+                  <p className="mt-1 text-xs text-muted-foreground">{compound.supplementProfile.dosingLow.researchBenefits}</p>
+                )}
+              </div>
+              {/* Typical */}
+              <div className="border border-border/50 bg-background/30 rounded-lg p-3">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Moderate / Typical</span>
+                <div className="mt-1 text-sm font-bold text-gray-900 dark:text-gray-100">
+                  {compound.supplementProfile.dosingTypical?.amount} {compound.supplementProfile.dosingTypical?.unit}
+                </div>
+                {compound.supplementProfile.dosingTypical?.researchBenefits && (
+                  <p className="mt-1 text-xs text-muted-foreground">{compound.supplementProfile.dosingTypical.researchBenefits}</p>
+                )}
+              </div>
+              {/* High */}
+              <div className="border border-border/50 bg-background/30 rounded-lg p-3">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Aggressive / High</span>
+                <div className="mt-1 text-sm font-bold text-gray-900 dark:text-gray-100">
+                  {compound.supplementProfile.dosingHigh?.amount} {compound.supplementProfile.dosingHigh?.unit}
+                </div>
+                {compound.supplementProfile.dosingHigh?.researchBenefits && (
+                  <p className="mt-1 text-xs text-muted-foreground">{compound.supplementProfile.dosingHigh.researchBenefits}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!(compound.profile || compound.supplementProfile) && (
         <div className="mt-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-950/30 dark:bg-yellow-950/20">
           <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">Profile in progress</p>
           <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-400">
@@ -216,13 +320,13 @@ export default async function CompoundProfilePage({
         </section>
       )}
 
-      {compound.profile?.benefitTimeline && compound.profile.benefitTimeline.length > 0 && (
+      {timeline && timeline.length > 0 && (
         <section className="mt-8 border border-border bg-card text-card-foreground rounded-xl p-5 shadow-sm animate-[fadeIn_0.3s_ease-out]">
           <h2 className="text-lg font-bold flex items-center gap-2 mb-6">
             <span>⏱️</span> Clinical Progression Timeline
           </h2>
           <div className="relative pl-6 border-l-2 border-primary/20 space-y-6">
-            {compound.profile.benefitTimeline.map((item) => (
+            {timeline.map((item) => (
               <div key={item.week} className="relative group">
                 {/* Pulsing Timeline Node Indicator */}
                 <div className="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-card border-2 border-primary group-hover:scale-125 transition-all duration-200 shadow-sm">
@@ -258,7 +362,7 @@ export default async function CompoundProfilePage({
         </section>
       )}
 
-      {compound.profile && (
+      {profile && (
         <section className="mt-8 border border-border bg-card text-card-foreground rounded-xl p-5 shadow-sm animate-[fadeIn_0.3s_ease-out]">
           <h2 className="text-lg font-bold flex items-center gap-2 mb-4" id="dosing-protocol-header">
             <span>⏱️</span> {"Protocol & Scheduling"}
@@ -269,10 +373,10 @@ export default async function CompoundProfilePage({
             <div className="border border-border/50 bg-background/50 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">🗓️ Cycle Duration</span>
-                <InfoTooltip content="The active duration of continuous administration. Restricting use to a defined cycle length prevents receptor downregulation and lets your body recover." />
+                <InfoTooltip content={profile.cycleRationale || "The active duration of continuous administration. Restricting use to a defined cycle length prevents receptor downregulation and lets your body recover."} />
               </div>
               <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
-                {compound.profile.cycleLengthWeeks ? `${compound.profile.cycleLengthWeeks} Weeks` : 'Continuous'}
+                {profile.cycleLengthWeeks ? `${profile.cycleLengthWeeks} Weeks` : 'Continuous'}
               </div>
             </div>
 
@@ -283,18 +387,18 @@ export default async function CompoundProfilePage({
                 <InfoTooltip content="The weekly timing cadence. Some protocols include planned 'days off' per week to preserve receptor sensitivity and prevent habituation." />
               </div>
               <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
-                {compound.profile.dosingFrequency === 'CUSTOM' ? (
-                  compound.profile.customFrequencyDescription || 'Custom Protocol'
-                ) : compound.profile.dosingFrequency === 'DAILY' ? (
-                  compound.profile.daysOn && compound.profile.daysOff ? (
-                    `${compound.profile.dosesPerDay && compound.profile.dosesPerDay > 1 ? `${compound.profile.dosesPerDay}x Daily: ` : ''}${compound.profile.daysOn} Days On / ${compound.profile.daysOff} Off`
+                {profile.dosingFrequency === 'CUSTOM' ? (
+                  profile.customFrequencyDescription || 'Custom Protocol'
+                ) : profile.dosingFrequency === 'DAILY' ? (
+                  profile.daysOn && profile.daysOff ? (
+                    `${profile.dosesPerDay && profile.dosesPerDay > 1 ? `${profile.dosesPerDay}x Daily: ` : ''}${profile.daysOn} Days On / ${profile.daysOff} Off`
                   ) : (
-                    `${compound.profile.dosesPerDay && compound.profile.dosesPerDay > 1 ? `${compound.profile.dosesPerDay}x ` : ''}Daily`
+                    `${profile.dosesPerDay && profile.dosesPerDay > 1 ? `${profile.dosesPerDay}x ` : ''}Daily`
                   )
                 ) : (
-                  `${formatFrequency(compound.profile.dosingFrequency)}${
-                    compound.profile.dosesPerDay && compound.profile.dosesPerDay > 1 
-                      ? ` (${compound.profile.dosesPerDay}x per admin day)` 
+                  `${formatFrequency(profile.dosingFrequency)}${
+                    profile.dosesPerDay && profile.dosesPerDay > 1 
+                      ? ` (${profile.dosesPerDay}x per admin day)` 
                       : ''
                   }`
                 )}
@@ -305,10 +409,10 @@ export default async function CompoundProfilePage({
             <div className="border border-border/50 bg-background/50 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">🛑 Rest Period</span>
-                <InfoTooltip content="The recommended off-cycle washout period. Essential to clear active substances, restore baseline hormone production, and maintain long-term efficacy." />
+                <InfoTooltip content={profile.restPeriodRationale || "The recommended off-cycle washout period. Essential to clear active substances, restore baseline hormone production, and maintain long-term efficacy."} />
               </div>
               <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
-                {compound.profile.restPeriodWeeks ? `${compound.profile.restPeriodWeeks} Weeks Washout` : 'N/A'}
+                {profile.restPeriodWeeks ? `${profile.restPeriodWeeks} Weeks Washout` : 'N/A'}
               </div>
             </div>
 
@@ -319,25 +423,25 @@ export default async function CompoundProfilePage({
                 <InfoTooltip content="The optimal time of day to administer the dose. Timing is aligned with natural circadian rhythms, sleep cycles, or fasted states for maximum uptake." />
               </div>
               <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
-                {formatPreferredTime(compound.profile.preferredTime)}
+                {formatPreferredTime(profile.preferredTime)}
               </div>
             </div>
           </div>
 
           {/* Timing Protocol */}
-          {compound.profile.timingNotes && compound.profile.timingNotes.trim().length > 0 && (
+          {profile.timingNotes && profile.timingNotes.trim().length > 0 && (
             <div className="mt-4 border-t border-border pt-4">
               <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
                 <span>💡</span> Timing Protocol
               </h3>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-300 italic">
-                &quot;{compound.profile.timingNotes}&quot;
+                &quot;{profile.timingNotes}&quot;
               </p>
             </div>
           )}
 
           {/* Safety Disclaimer */}
-          {!compound.profile.isFdaApproved && (
+          {!profile.isFdaApproved && (
             <div className="mt-4 border border-red-200 bg-red-50/50 p-4 rounded-lg dark:border-red-950/30 dark:bg-red-950/10">
               <div className="flex gap-2 text-red-800 dark:text-red-300">
                 <span className="text-base shrink-0">⚠️</span>
@@ -368,56 +472,61 @@ export default async function CompoundProfilePage({
         </section>
       )}
 
-      {compound.profile && (
+      {profile && (
         <>
           <section className="mt-6">
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">
               Dosing Reference
             </h2>
             <DosingReconstitutionPlanner
-              dosingLow={compound.profile.dosingLow}
-              dosingTypical={compound.profile.dosingTypical}
-              dosingHigh={compound.profile.dosingHigh}
-              isFdaApproved={compound.profile.isFdaApproved}
+              dosingLow={profile.dosingLow}
+              dosingTypical={profile.dosingTypical}
+              dosingHigh={profile.dosingHigh}
+              isFdaApproved={profile.isFdaApproved}
               initialSyringeStandard={syringeStandard}
+              fridgeShelfLifeMonths={profile.fridgeShelfLifeMonths}
+              freezerShelfLifeMonths={profile.freezerShelfLifeMonths}
+              reconstitutedShelfLifeDays={profile.reconstitutedShelfLifeDays}
+              compoundName={compound.name}
             />
           </section>
 
-          {compound.profile.sideEffects && (
+          {profile.sideEffects && (
             <section className="mt-6">
               <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
                 Side Effects
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300">{compound.profile.sideEffects}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{profile.sideEffects}</p>
             </section>
           )}
 
-          <CompoundPairingsSection pairings={compound.profile.pairings} />
+          <CompoundPairingsSection pairings={profile.pairings} />
 
-          <CompoundAdjunctsSection adjuncts={compound.profile.adjuncts} />
+          <CompoundAdjunctsSection adjuncts={profile.adjuncts} />
 
-          {compound.profile.stackingNotes && (
+          {profile.stackingNotes && (
             <section className="mt-6">
               <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
                 Stacking Notes
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300">{compound.profile.stackingNotes}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{profile.stackingNotes}</p>
             </section>
           )}
 
-          {compound.profile.citations.length > 0 && (
-            <section className="mt-6">
-              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
-                Citations
-              </h2>
-              <ul className="space-y-1">
-                {compound.profile.citations.map((cit) => (
-                  <CitationLink key={cit.id} citation={cit} />
-                ))}
-              </ul>
-            </section>
-          )}
         </>
+      )}
+
+      {compound.citations && compound.citations.length > 0 && (
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
+            Citations
+          </h2>
+          <ul className="space-y-1">
+            {compound.citations.map((cit) => (
+              <CitationLink key={cit.id} citation={cit} />
+            ))}
+          </ul>
+        </section>
       )}
     </main>
   );

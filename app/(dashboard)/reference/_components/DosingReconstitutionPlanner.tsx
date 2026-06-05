@@ -12,6 +12,10 @@ interface DosingReconstitutionPlannerProps {
   isFdaApproved: boolean;
   /** U-100 (default) or U-40 insulin-syringe standard; drives unit conversion. */
   initialSyringeStandard?: 'U100' | 'U40';
+  fridgeShelfLifeMonths?: number | null;
+  freezerShelfLifeMonths?: number | null;
+  reconstitutedShelfLifeDays?: number | null;
+  compoundName?: string;
 }
 
 export function DosingReconstitutionPlanner({
@@ -20,12 +24,39 @@ export function DosingReconstitutionPlanner({
   dosingHigh,
   isFdaApproved,
   initialSyringeStandard = 'U100',
+  fridgeShelfLifeMonths,
+  freezerShelfLifeMonths,
+  reconstitutedShelfLifeDays,
+  compoundName = 'vial',
 }: DosingReconstitutionPlannerProps) {
+  const isRoomTemp = fridgeShelfLifeMonths === null && freezerShelfLifeMonths === null;
+
+  const isComboDose = useMemo(() => {
+    const checkIsNonNumeric = (val: string | null | undefined) => {
+      if (!val) return false;
+      if (val.includes('/')) return true;
+      try {
+        new Decimal(val);
+        return false;
+      } catch {
+        return true;
+      }
+    };
+    return (
+      checkIsNonNumeric(dosingLow?.amount) ||
+      checkIsNonNumeric(dosingTypical?.amount) ||
+      checkIsNonNumeric(dosingHigh?.amount)
+    );
+  }, [dosingLow, dosingTypical, dosingHigh]);
+
   // Helper to parse dose to mcg in Decimal
-  const getAmountInMcg = (amountStr: string, unitStr: string): Decimal => {
+  const getAmountInMcg = (amountStr: string | null | undefined, unitStr: string | null | undefined): Decimal => {
+    if (isComboDose || !amountStr || amountStr.includes('/')) {
+      return new Decimal('0');
+    }
     try {
       const amount = new Decimal(amountStr || '0');
-      if (unitStr.toLowerCase() === 'mg') {
+      if (unitStr?.toLowerCase() === 'mg') {
         return amount.times(1000);
       }
       return amount;
@@ -34,23 +65,27 @@ export function DosingReconstitutionPlanner({
     }
   };
 
-  const lowMcg = useMemo(() => getAmountInMcg(dosingLow.amount, dosingLow.unit), [dosingLow]);
-  const typicalMcg = useMemo(() => getAmountInMcg(dosingTypical.amount, dosingTypical.unit), [dosingTypical]);
-  const highMcg = useMemo(() => getAmountInMcg(dosingHigh.amount, dosingHigh.unit), [dosingHigh]);
+  const lowMcg = useMemo(() => getAmountInMcg(dosingLow?.amount, dosingLow?.unit), [dosingLow, isComboDose]);
+  const typicalMcg = useMemo(() => getAmountInMcg(dosingTypical?.amount, dosingTypical?.unit), [dosingTypical, isComboDose]);
+  const highMcg = useMemo(() => getAmountInMcg(dosingHigh?.amount, dosingHigh?.unit), [dosingHigh, isComboDose]);
 
   // Determine standard default vial size (mg) based on typical dose range
   const defaultVialMg = useMemo(() => {
     try {
-      const typicalAmt = new Decimal(dosingTypical.amount || '0');
-      const isMg = dosingTypical.unit.toLowerCase() === 'mg';
+      const typicalAmtStr = dosingTypical?.amount || '0';
+      if (isComboDose || !typicalAmtStr || typicalAmtStr.includes('/')) {
+        return 5;
+      }
+      const typicalAmt = new Decimal(typicalAmtStr);
+      const isMg = dosingTypical?.unit?.toLowerCase() === 'mg';
       return (isMg && typicalAmt.gte(1)) || typicalMcg.gte(1000) ? 10 : 5;
     } catch {
       return 5;
     }
-  }, [dosingTypical, typicalMcg]);
+  }, [dosingTypical, typicalMcg, isComboDose]);
 
-  const [vialSizeMg, setVialSizeMg] = useState<number>(defaultVialMg);
-  const [bacWaterMl, setBacWaterMl] = useState<number>(2.0);
+  const [vialSizeMg, setVialSizeMg] = useState<number>(isRoomTemp ? 2000 : defaultVialMg);
+  const [bacWaterMl, setBacWaterMl] = useState<number>(isRoomTemp ? 10.0 : 2.0);
   const [syringeUnits, setSyringeUnits] = useState<number>(50); // 30, 50, or 100
   const [syringeStandard, setSyringeStandard] = useState<'U100' | 'U40'>(initialSyringeStandard);
   const [selectedTier, setSelectedTier] = useState<'low' | 'typical' | 'high'>('typical');
@@ -154,6 +189,32 @@ export function DosingReconstitutionPlanner({
     return arr;
   }, [syringeUnits]);
 
+  if (isComboDose) {
+    return (
+      <div className="space-y-6">
+        <div className="border border-border/60 bg-background/50 rounded-xl p-5 shadow-sm space-y-4">
+          <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wide flex items-center justify-between gap-1.5">
+            <span className="flex items-center gap-1.5">
+              <span>⚙️</span> Reconstitution Planner
+            </span>
+          </h3>
+          <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-850 p-6 text-center text-sm text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center gap-3 bg-muted/10">
+            <span className="text-2xl">⚠️</span>
+            <div className="space-y-1">
+              <p className="font-bold text-gray-700 dark:text-gray-300">Combination Blend Detected</p>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                This item is a combo stack with multi-component dosing ({dosingLow?.amount ?? ''} {dosingLow?.unit ?? ''} to {dosingHigh?.amount ?? ''} {dosingHigh?.unit ?? ''}). Because reconstitution math depends on the specific ratio of components in your vial, automated calculations are disabled.
+              </p>
+            </div>
+            <div className="mt-2 text-xs font-semibold text-primary">
+              Please refer to the compound details above or perform a manual calculation based on your specific mix ratio.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -163,7 +224,7 @@ export function DosingReconstitutionPlanner({
           <div className="border border-border/60 bg-background/50 rounded-xl p-5 shadow-sm space-y-4">
             <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wide flex items-center justify-between gap-1.5">
               <span className="flex items-center gap-1.5">
-                <span>⚙️</span> Interactive Reconstitution Planner
+                <span>⚙️</span> {isRoomTemp ? 'Interactive Dose & Draw Calculator' : 'Interactive Reconstitution Planner'}
               </span>
               {isFdaApproved && (
                 <span className="text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded-md font-bold tracking-wide uppercase dark:bg-green-950/40 dark:text-green-300" id="fda-badge">
@@ -225,15 +286,25 @@ export function DosingReconstitutionPlanner({
                     className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
                     id="vial-size-select"
                   >
-                    <option value="2">2 mg</option>
-                    <option value="5">5 mg</option>
-                    <option value="10">10 mg</option>
-                    <option value="15">15 mg</option>
+                    {isRoomTemp ? (
+                      <>
+                        <option value="200">200 mg (1 mL)</option>
+                        <option value="1000">1000 mg (5 mL)</option>
+                        <option value="2000">2000 mg (10 mL)</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="2">2 mg</option>
+                        <option value="5">5 mg</option>
+                        <option value="10">10 mg</option>
+                        <option value="15">15 mg</option>
+                      </>
+                    )}
                     <option value="custom">Custom...</option>
                   </select>
                 )}
               </div>
-
+ 
               {/* 2. Diluent Volume */}
               <div className="space-y-1.5 sm:col-span-4">
                 {isCustomBac ? (
@@ -242,7 +313,7 @@ export function DosingReconstitutionPlanner({
                       htmlFor="custom-bac-input"
                       className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                     >
-                      BAC Water (mL)
+                      {isRoomTemp ? 'Vial Volume (mL)' : 'BAC Water (mL)'}
                     </label>
                     <button
                       type="button"
@@ -257,7 +328,7 @@ export function DosingReconstitutionPlanner({
                     htmlFor="bac-water-select"
                     className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-end min-h-[2rem]"
                   >
-                    BAC Water (mL)
+                    {isRoomTemp ? 'Vial Volume (mL)' : 'BAC Water (mL)'}
                   </label>
                 )}
                 {isCustomBac ? (
@@ -284,10 +355,20 @@ export function DosingReconstitutionPlanner({
                     className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
                     id="bac-water-select"
                   >
-                    <option value="1">1.0 mL</option>
-                    <option value="2">2.0 mL</option>
-                    <option value="2.5">2.5 mL</option>
-                    <option value="3">3.0 mL</option>
+                    {isRoomTemp ? (
+                      <>
+                        <option value="1">1.0 mL</option>
+                        <option value="5">5.0 mL</option>
+                        <option value="10">10.0 mL</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="1">1.0 mL</option>
+                        <option value="2">2.0 mL</option>
+                        <option value="2.5">2.5 mL</option>
+                        <option value="3">3.0 mL</option>
+                      </>
+                    )}
                     <option value="custom">Custom...</option>
                   </select>
                 )}
@@ -382,7 +463,7 @@ export function DosingReconstitutionPlanner({
             {/* Concentration Quick Info */}
             <div className="text-xs text-gray-500 dark:text-gray-400 font-medium bg-muted/30 p-2.5 rounded-lg border border-border/30 flex justify-between items-center">
               <span>
-                Reconstitution Concentration:
+                {isRoomTemp ? 'Vial Concentration:' : 'Reconstitution Concentration:'}
               </span>
               <span className="font-bold font-mono text-gray-700 dark:text-gray-300">
                 {isInvalidInput
@@ -536,14 +617,14 @@ export function DosingReconstitutionPlanner({
                 <div className="border border-yellow-200 bg-yellow-50/70 p-3 rounded-lg dark:border-yellow-950/30 dark:bg-yellow-950/20 text-yellow-800 dark:text-yellow-300 text-xs leading-relaxed flex gap-2" id="invalid-inputs-warning">
                   <span className="text-sm shrink-0">⚠️</span>
                   <div>
-                    <strong className="font-semibold">Invalid Reconstitution Parameters:</strong> Please enter a positive custom vial size (mg) and BAC water dilution (mL) to view drawing calculations.
+                    <strong className="font-semibold">{isRoomTemp ? 'Invalid Calculator Parameters:' : 'Invalid Reconstitution Parameters:'}</strong> {isRoomTemp ? 'Please enter a positive custom vial size (mg) and volume (mL) to view drawing calculations.' : 'Please enter a positive custom vial size (mg) and BAC water dilution (mL) to view drawing calculations.'}
                   </div>
                 </div>
               ) : isOverflow ? (
                 <div className="border border-red-200 bg-red-50/70 p-3 rounded-lg dark:border-red-950/30 dark:bg-red-950/20 text-red-800 dark:text-red-300 text-xs leading-relaxed flex gap-2" id="syringe-overflow-warning">
                   <span className="text-sm shrink-0">🚨</span>
                   <div>
-                    <strong className="font-semibold">Syringe Overflow Alert:</strong> This target dose ({activeDose.amount} {activeDose.unit}) requires {drawUnitsDec.toFixed(1)} units, which exceeds your {syringeUnits} Unit syringe limit. Reconstitute with less BAC water (e.g. 1.0 mL) to increase concentration, or administer across multiple separate draws.
+                    <strong className="font-semibold">Syringe Overflow Alert:</strong> This target dose ({activeDose.amount} {activeDose.unit}) requires {drawUnitsDec.toFixed(1)} units, which exceeds your {syringeUnits} Unit syringe limit. {isRoomTemp ? 'Administer across multiple separate draws or use a larger syringe.' : 'Reconstitute with less BAC water (e.g. 1.0 mL) to increase concentration, or administer across multiple separate draws.'}
                   </div>
                 </div>
               ) : (
@@ -564,39 +645,75 @@ export function DosingReconstitutionPlanner({
       {/* Safety Reconstitution Checklist Card */}
       <div className="border border-border/60 bg-background/50 rounded-xl p-5 shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wide flex items-center gap-1.5">
-          <span>💡</span> Reconstitution Preparation Checklist
+          <span>💡</span> {isRoomTemp ? 'Dosing & Storage Preparation Checklist' : 'Reconstitution Preparation Checklist'}
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-600 dark:text-gray-400">
-          <div className="space-y-3">
-            <div className="flex gap-2.5 items-start">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">1</span>
-              <p className="leading-relaxed">
-                <strong className="text-gray-700 dark:text-gray-300 font-semibold">Sanitize Equipment:</strong> Swab the top of the lyophilized peptide vial and the Bacteriostatic Water bottle rubber stopper with a fresh alcohol pad. Allow them to air-dry.
-              </p>
-            </div>
-            <div className="flex gap-2.5 items-start">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">2</span>
-              <p className="leading-relaxed">
-                <strong className="text-gray-700 dark:text-gray-300 font-semibold">Equalize Pressure:</strong> Draw exactly <span className="font-mono">{isInvalidInput ? '2.0' : activeBacMlDec.toFixed(1)} mL</span> of air into the syringe, insert the needle into the BAC Water bottle, inject the air, and then draw out <span className="font-mono">{isInvalidInput ? '2.0' : activeBacMlDec.toFixed(1)} mL</span> of liquid BAC water.
-              </p>
-            </div>
-          </div>
+          {isRoomTemp ? (
+            <>
+              <div className="space-y-3">
+                <div className="flex gap-2.5 items-start">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">1</span>
+                  <p className="leading-relaxed">
+                    <strong className="text-gray-700 dark:text-gray-300 font-semibold">Sanitize Equipment:</strong> Swab the top of the {compoundName} vial rubber stopper with a fresh alcohol pad. Allow it to air-dry completely. Clean the injection site.
+                  </p>
+                </div>
+                <div className="flex gap-2.5 items-start">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">2</span>
+                  <p className="leading-relaxed">
+                    <strong className="text-gray-700 dark:text-gray-300 font-semibold">Equalize Pressure:</strong> Draw exactly <span className="font-mono">{isInvalidInput ? '0.5' : drawMlDec.toFixed(2)} mL</span> of air into the syringe. Insert the needle into the vial and inject the air to facilitate drawing the thick oil.
+                  </p>
+                </div>
+              </div>
 
-          <div className="space-y-3">
-            <div className="flex gap-2.5 items-start">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">3</span>
-              <p className="leading-relaxed">
-                <strong className="text-gray-700 dark:text-gray-300 font-semibold">Inject Slowly:</strong> Insert the needle into the peptide vial and aim the stream along the glass wall. Slowly inject the water. Do <strong className="text-red-500 font-bold">NOT</strong> inject directly into the powder, which can degrade the fragile peptide chains.
-              </p>
-            </div>
-            <div className="flex gap-2.5 items-start">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">4</span>
-              <p className="leading-relaxed">
-                <strong className="text-gray-700 dark:text-gray-300 font-semibold">Dissolve Gently:</strong> Withdraw the needle. Do <strong className="text-red-500 font-bold">NOT</strong> shake the vial. Roll it gently between your palms or swirl in a slow circle until the liquid is fully transparent and clear.
-              </p>
-            </div>
-          </div>
+              <div className="space-y-3">
+                <div className="flex gap-2.5 items-start">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">3</span>
+                  <p className="leading-relaxed">
+                    <strong className="text-gray-700 dark:text-gray-300 font-semibold">Draw Solution:</strong> Invert the vial. Slowly draw the oil-based solution into the syringe. Tap the barrel gently to clear any air bubbles and push them back into the vial.
+                  </p>
+                </div>
+                <div className="flex gap-2.5 items-start">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">4</span>
+                  <p className="leading-relaxed">
+                    <strong className="text-gray-700 dark:text-gray-300 font-semibold">Room Temp Storage:</strong> Store the vial at room temperature (20°C to 25°C). Do <strong className="text-red-500 font-bold">NOT</strong> refrigerate or freeze, as cold temperatures cause the compound to crystallize. Use within {reconstitutedShelfLifeDays ?? 28} days of first puncture.
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-3">
+                <div className="flex gap-2.5 items-start">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">1</span>
+                  <p className="leading-relaxed">
+                    <strong className="text-gray-700 dark:text-gray-300 font-semibold">Sanitize Equipment:</strong> Swab the top of the lyophilized peptide vial and the Bacteriostatic Water rubber stopper with a fresh alcohol pad. Allow them to air-dry.
+                  </p>
+                </div>
+                <div className="flex gap-2.5 items-start">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">2</span>
+                  <p className="leading-relaxed">
+                    <strong className="text-gray-700 dark:text-gray-300 font-semibold">Equalize Pressure:</strong> Draw exactly <span className="font-mono">{isInvalidInput ? '2.0' : activeBacMlDec.toFixed(1)} mL</span> of air into the syringe, insert the needle into the BAC Water bottle, inject the air, and then draw out <span className="font-mono">{isInvalidInput ? '2.0' : activeBacMlDec.toFixed(1)} mL</span> of liquid BAC water.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex gap-2.5 items-start">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">3</span>
+                  <p className="leading-relaxed">
+                    <strong className="text-gray-700 dark:text-gray-300 font-semibold">Inject Slowly:</strong> Insert the needle into the peptide vial and aim the stream along the glass wall. Slowly inject the water. Do <strong className="text-red-500 font-bold">NOT</strong> inject directly into the powder, which can degrade the fragile peptide chains.
+                  </p>
+                </div>
+                <div className="flex gap-2.5 items-start">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">4</span>
+                  <p className="leading-relaxed">
+                    <strong className="text-gray-700 dark:text-gray-300 font-semibold">Dissolve Gently:</strong> Withdraw the needle. Do <strong className="text-red-500 font-bold">NOT</strong> shake the vial. Roll it gently between your palms or swirl in a slow circle until the liquid is fully transparent and clear.
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

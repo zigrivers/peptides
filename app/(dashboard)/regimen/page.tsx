@@ -35,9 +35,9 @@ export default async function RegimenPage() {
     include: {
       compound: {
         include: {
-          profile: {
-            include: { citations: true },
-          },
+          profile: true,
+          supplementProfile: true,
+          citations: true,
         },
       },
     },
@@ -97,7 +97,24 @@ export default async function RegimenPage() {
             sideEffects: p.compound.profile.sideEffects,
             stackingNotes: p.compound.profile.stackingNotes,
             reconstitutedShelfLifeDays: p.compound.profile.reconstitutedShelfLifeDays,
-            citations: p.compound.profile.citations.map((c) => ({
+            citations: p.compound.citations.map((c) => ({
+              id: c.id,
+              title: c.title,
+              url: c.url,
+              doi: c.doi,
+              pmid: c.pmid,
+            })),
+          }
+        : p.compound.supplementProfile
+        ? {
+            id: p.compound.supplementProfile.id,
+            dosingLow: p.compound.supplementProfile.dosingLow,
+            dosingTypical: p.compound.supplementProfile.dosingTypical,
+            dosingHigh: p.compound.supplementProfile.dosingHigh,
+            sideEffects: null,
+            stackingNotes: null,
+            reconstitutedShelfLifeDays: null,
+            citations: p.compound.citations.map((c) => ({
               id: c.id,
               title: c.title,
               url: c.url,

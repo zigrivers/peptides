@@ -106,17 +106,37 @@ model EmailChangeRequest     { id, userId, newEmail, tokenHash (unique), created
 
 // --- Reference Domain ---
 
-model Compound {
-  id                  String  @id @default(uuid())
-  name                String  @unique
+enum CatalogItemKind {
+  PEPTIDE
+  SUPPLEMENT
+}
+
+enum RevisionStatus {
+  PUBLISHED
+  PENDING_REVIEW
+}
+
+model CatalogItem {
+  id                  String    @id @default(uuid())
+  catalogKey          String    @unique // stable, code-assigned sync key
+  kind                CatalogItemKind @default(PEPTIDE)
+  name                String    @unique
+  slug                String    @unique
   iupacName           String?
   synonyms            String[]
   mechanismOfAction   String?
-  administrationRoutes String[]   // PostgreSQL text[] (e.g. ["SC", "IM"])
-  status              String  @default("PUBLISHED")  // PUBLISHED | DRAFT | ARCHIVED
+  administrationRoutes String[]
+  sourceVersion       Int       @default(1)
+  lastReviewedAt      DateTime?
+  revisionStatus      RevisionStatus @default(PUBLISHED)
+  status              String    @default("PUBLISHED")
+  tags                String[]  @default([])
   archivedAt          DateTime?
 
   profile             CompoundProfile?
+  supplementProfile   SupplementProfile?
+  citations           Citation[]
+  revisions           CatalogItemRevision[]
   products            VendorProduct[]
   protocols           Protocol[]
   vials               Vial[]
@@ -126,34 +146,70 @@ model Compound {
   sourceAdjunctRecommendations CompoundAdjunctRecommendation[]
 
   @@index([status])
+  @@map("Compound")
 }
 
 model CompoundProfile {
-  id            String   @id @default(uuid())
-  compoundId    String   @unique
-  compound      Compound @relation(...)
-  dosingLow     Json     // DoseAmount value object
-  dosingTypical Json     // DoseAmount value object
-  dosingHigh    Json     // DoseAmount value object
-  sideEffects   String?
-  stackingNotes String?
-  citations     Citation[]
+  id                         String           @id @default(uuid())
+  catalogItemId              String           @unique
+  catalogItem                CatalogItem      @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  dosingLow                  Json             // DoseAmount object
+  dosingTypical              Json             // DoseAmount object
+  dosingHigh                 Json             // DoseAmount object
+  sideEffects                String?
+  stackingNotes              String?
+  reconstitutedShelfLifeDays Int?
+  fridgeShelfLifeMonths      Int?             @default(12)
+  freezerShelfLifeMonths     Int?             @default(24)
+  benefitTimeline            Json?
+  cycleLengthWeeks           Int?
+  cycleRationale             String?
+  restPeriodWeeks            Int?
+  restPeriodRationale        String?
+  dosingFrequency            DosingFrequency?
+  dosesPerDay                Int?
+  customFrequencyDescription String?
+  daysOn                     Int?
+  daysOff                    Int?
+  preferredTime              PreferredTime?
+  timingNotes                String?
+  isFdaApproved              Boolean          @default(false)
+}
+
+model SupplementProfile {
+  id              String        @id @default(uuid())
+  catalogItemId   String        @unique
+  catalogItem     CatalogItem   @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  form            String
+  servingSize     Decimal       @db.Decimal(10, 3)
+  servingUnit     String
+  dosingLow       Json
+  dosingTypical   Json
+  dosingHigh      Json
+  benefitTimeline Json?
+  dosingFrequency DosingFrequency?
+  dosesPerDay     Int?
+  preferredTime   PreferredTime?
+  timingNotes     String?
 }
 
 model Citation {
-  id               String
-  profileId        String
-  title            String
-  url              String?
-  doi              String?
-  pmid             String?
-  pairingCitations CompoundPairingCitation[]
+  id                String    @id @default(uuid())
+  catalogItemId     String
+  catalogItem       CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  title             String
+  url               String?
+  doi               String?
+  pmid              String?
+  pairingCitations  CompoundPairingCitation[]
 }
 
 model CompoundPairing {
-  id                      String
+  id                      String      @id @default(uuid())
   sourceCompoundId        String
+  sourceCompound          CatalogItem @relation("CompoundPairingSource", fields: [sourceCompoundId], references: [id], onDelete: Cascade)
   pairedCompoundId        String?
+  pairedCompound          CatalogItem? @relation("CompoundPairingPartner", fields: [pairedCompoundId], references: [id], onDelete: SetNull)
   pairedCompoundName      String
   benefitGoal             String
   rationale               String
@@ -162,14 +218,18 @@ model CompoundPairing {
   safetyCaveats           String
   avoidIf                 String
   timingOrSequencingNotes String?
-  bestOverall             Boolean
-  partnerExistsInCatalog  Boolean
-  missingCompoundAction   String
-  sortOrder               Int
+  bestOverall             Boolean     @default(false)
+  partnerExistsInCatalog  Boolean     @default(true)
+  missingCompoundAction   String      @default("none")
+  sortOrder               Int         @default(0)
   citations               CompoundPairingCitation[]
 }
 
-model CompoundPairingCitation { id, pairingId, citationId }
+model CompoundPairingCitation {
+  id         String
+  pairingId  String
+  citationId String
+}
 
 model CatalogAdjunct {
   id              String
@@ -197,7 +257,9 @@ model CatalogAdjunctCitation {
 model CompoundAdjunctRecommendation {
   id                  String
   sourceCompoundId    String
+  sourceCompound      CatalogItem
   adjunctId           String
+  adjunct             CatalogAdjunct
   benefitGoal         String
   rationale           String
   expectedBenefit     String
@@ -210,7 +272,23 @@ model CompoundAdjunctRecommendation {
   citations           CompoundAdjunctRecommendationCitation[]
 }
 
-model CompoundAdjunctRecommendationCitation { id, recommendationId, citationId }
+model CompoundAdjunctRecommendationCitation {
+  id               String
+  recommendationId String
+  citationId       String
+}
+
+model CatalogItemRevision {
+  id            String          @id @default(uuid())
+  catalogItemId String
+  catalogItem   CatalogItem     @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  version       Int
+  kind          CatalogItemKind
+  snapshot      Json
+  source        String
+  createdAt     DateTime        @default(now())
+  publishedAt   DateTime?
+}
 
 // --- Tracker Domain ---
 
@@ -434,7 +512,7 @@ model AuditEvent {
 ### 2.1 Normalization
 - **3NF compliance**: all relational tables are in 3NF.
 - **JSON columns** are intentionally used for: `DoseAmount`, `Schedule`, `InjectionSite`, `PaymentConfirmation`, `onboardingState`. These are value-object payloads with infrequent v1 query needs (filters/joins go through the relational columns; JSON is for retrieval).
-- **PostgreSQL text arrays** (`String[]`) are used for `Compound.administrationRoutes`, `Compound.synonyms`, and `OutcomeLog.tags` — small, low-cardinality multi-selects without join tables.
+- **PostgreSQL text arrays** (`String[]`) are used for `CatalogItem.administrationRoutes`, `CatalogItem.synonyms`, and `OutcomeLog.tags` — small, low-cardinality multi-selects without join tables.
 
 ### 2.2 Precision (`Decimal` only for safety-critical numeric fields)
 Per `.claude/rules/safety-math.md` and ADR-008, all dose-amount, volume, and concentration fields use `Decimal`:
@@ -469,7 +547,11 @@ Per `.claude/rules/safety-math.md` and ADR-008, all dose-amount, volume, and con
 | `Session` | `@@index([userId, revokedAt])` | Active session enumeration for password-change session invalidation |
 | `Invite` | `token` (unique) | Invite link resolution |
 | `EmailChangeRequest` | `@@index([userId, status])` | Pending-request lookup on settings page |
-| `Compound` | `@@index([status])` | Catalog browse filtered to PUBLISHED |
+| `CatalogItem` (`Compound` table) | `@@index([status])` | Catalog browse filtered to PUBLISHED |
+| `CatalogItem` | `catalogKey` (unique) | Stable sync key lookup |
+| `CatalogItem` | `slug` (unique) | Detail page lookup |
+| `CompoundProfile` | `catalogItemId` (unique) | 1-to-1 relationship lookup |
+| `SupplementProfile` | `catalogItemId` (unique) | 1-to-1 relationship lookup |
 | `CompoundPairing` | `@@unique([sourceCompoundId, pairedCompoundName, benefitGoal])` | Idempotent seed sync and duplicate prevention |
 | `CompoundPairing` | `@@index([sourceCompoundId, benefitGoal])` | Compound detail pairing lookup grouped by benefit goal |
 | `CompoundPairingCitation` | `@@unique([pairingId, citationId])` | Prevent duplicate citation links on a pairing |
@@ -485,6 +567,7 @@ Per `.claude/rules/safety-math.md` and ADR-008, all dose-amount, volume, and con
 | `Protocol` | `@@index([userId, status])` | Active protocol list |
 | `Cycle` | `@@index([userId])` | Cycle list per user |
 | `Vial` | `@@index([userId, compoundId, status])` | Active vial lookup for dose logging + reconstitution |
+| `Vial` | `@@index([userId, status, shelfOrder, expiresAt])` | Inventory listing order |
 | `Vendor` | `@@unique([userId, telegramUsername])` + `@@index([userId, status])` | Vendor list per user |
 | `VendorProduct` | `@@index([vendorId, inStock])` | Order builder catalog browse |
 | `Order` | `@@index([userId, status])` | Order history filter |

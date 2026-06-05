@@ -30,6 +30,8 @@ export interface SaveVialInput {
   totalMg: Decimal;
   bacWaterMl: Decimal;
   orderItemId?: string;
+  cost?: Decimal;
+  currency?: string;
   /** Override the computed expiry (allows user editing before save). */
   expiresAt?: Date;
 }
@@ -47,6 +49,8 @@ export interface VialWithBadges {
   reconstitutedAt: Date | null;
   expiresAt: Date | null;
   badges: VialBadge[];
+  cost?: Decimal | null;
+  currency?: string;
 }
 
 export async function saveVial(input: SaveVialInput): Promise<VialWithBadges> {
@@ -61,12 +65,21 @@ export async function saveVial(input: SaveVialInput): Promise<VialWithBadges> {
 
   const vial = await withAudit(
     async (tx) => {
+      let finalCost = input.cost;
+      let finalCurrency = input.currency ?? 'USD';
+
       if (input.orderItemId) {
         const orderItem = await tx.orderItem.findFirst({
           where: { id: input.orderItemId, compoundId: input.compoundId, order: { userId: input.userId } },
-          select: { id: true },
+          select: { id: true, unitPrice: true, unitCurrency: true },
         });
         if (!orderItem) throw new Error('order_item_not_found_or_not_owned');
+        if (finalCost === undefined || finalCost === null) {
+          finalCost = orderItem.unitPrice ?? undefined;
+        }
+        if (!input.currency && orderItem.unitCurrency) {
+          finalCurrency = orderItem.unitCurrency;
+        }
       }
 
       return tx.vial.create({
@@ -80,6 +93,8 @@ export async function saveVial(input: SaveVialInput): Promise<VialWithBadges> {
           status: VIAL_STATUS.RECONSTITUTED,
           reconstitutedAt: now,
           expiresAt,
+          cost: finalCost,
+          currency: finalCurrency,
         },
         include: { compound: { select: { name: true, slug: true } } },
       });
@@ -95,6 +110,8 @@ export async function saveVial(input: SaveVialInput): Promise<VialWithBadges> {
         totalMg: input.totalMg.toFixed(3),
         bacWaterMl: input.bacWaterMl.toFixed(3),
         expiresAt: expiresAt.toISOString(),
+        cost: vialRow.cost ? vialRow.cost.toString() : null,
+        currency: vialRow.currency,
       },
     }),
   );
@@ -154,6 +171,8 @@ function toVialWithBadges(
     reconstitutedAt: Date | null;
     expiresAt: Date | null;
     compound: { name: string; slug: string };
+    cost?: Decimal | null;
+    currency?: string;
   }
 ): VialWithBadges {
   const badges: VialBadge[] = [];
@@ -188,6 +207,8 @@ function toVialWithBadges(
     reconstitutedAt: vial.reconstitutedAt,
     expiresAt: vial.expiresAt,
     badges,
+    cost: vial.cost ? new Decimal(vial.cost) : null,
+    currency: vial.currency,
   };
 }
 
@@ -305,6 +326,8 @@ export interface SaveDryVialsInput {
   compoundId: string;
   totalMg: Decimal;
   quantity: number;
+  cost?: Decimal;
+  currency?: string;
   expiresAt?: Date;
 }
 
@@ -331,6 +354,8 @@ export async function saveDryVials(input: SaveDryVialsInput): Promise<VialWithBa
         bacWaterMl: null,
         reconstitutedAt: null,
         expiresAt,
+        cost: input.cost ?? null,
+        currency: input.currency ?? 'USD',
       }));
       await tx.vial.createMany({ data });
       const ids = data.map((d) => d.id);
@@ -350,6 +375,8 @@ export async function saveDryVials(input: SaveDryVialsInput): Promise<VialWithBa
         totalMg: input.totalMg.toFixed(3),
         quantity: input.quantity,
         expiresAt: expiresAt.toISOString(),
+        cost: input.cost ? input.cost.toString() : null,
+        currency: input.currency ?? 'USD',
       },
     })
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useTransition, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { Compound } from '@/lib/reference/domain/types';
 import { addDryVialsAction } from '@/app/actions/reconstitution/inventory-actions';
 import { X, AlertTriangle, Snowflake, Plus } from 'lucide-react';
@@ -17,6 +18,8 @@ export function AddDryVialsModal({ compounds, initialCompoundId, onSuccess, onCl
   const [compoundId, setCompoundId] = useState(initialCompoundId ?? '');
   const [totalMg, setTotalMg] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [cost, setCost] = useState('');
+  const [currency, setCurrency] = useState('USD');
   const [expiresAt, setExpiresAt] = useState('');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +60,8 @@ export function AddDryVialsModal({ compounds, initialCompoundId, onSuccess, onCl
         compoundId,
         totalMg,
         quantity: qtyVal,
+        cost: cost || undefined,
+        currency: cost ? currency : undefined,
         expiresAt: expiresAt || undefined,
       });
 
@@ -71,7 +76,9 @@ export function AddDryVialsModal({ compounds, initialCompoundId, onSuccess, onCl
 
   const isFormValid = compoundId && totalMg && parseFloat(totalMg) > 0 && parseInt(quantity, 10) >= 1;
 
-  return (
+  if (!isMounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/20 dark:border-slate-800/40 bg-white/10 dark:bg-slate-950/20 backdrop-blur-xl shadow-2xl animate-scale-in">
         
@@ -177,6 +184,41 @@ export function AddDryVialsModal({ compounds, initialCompoundId, onSuccess, onCl
                 </p>
               )}
             </div>
+
+            {/* Cost and Currency */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="modal-cost" className="block text-xs font-semibold text-foreground/80 mb-1">
+                  Cost per Vial <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
+                </label>
+                <input
+                  id="modal-cost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="E.g., 45.00"
+                  value={cost}
+                  onChange={(e) => setCost(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="modal-currency" className="block text-xs font-semibold text-foreground/80 mb-1">
+                  Currency
+                </label>
+                <select
+                  id="modal-currency"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+                >
+                  <option value="USD">USD ($)</option>
+                  <option value="USDT">USDT</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-3 border-t border-white/10">
@@ -198,6 +240,7 @@ export function AddDryVialsModal({ compounds, initialCompoundId, onSuccess, onCl
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
