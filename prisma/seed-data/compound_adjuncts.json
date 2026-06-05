@@ -1,0 +1,351 @@
+[
+  {
+    "sourceCompound": "Semaglutide",
+    "adjunct": {
+      "name": "Hydration and Electrolyte Support",
+      "category": "SAFETY_MITIGATION",
+      "description": "Structured hydration habits and electrolyte replacement when appetite, intake, vomiting, or diarrhea reduce fluid balance.",
+      "evidenceSummary": "Semaglutide labeling identifies GI adverse effects and acute kidney injury due to volume depletion; NIDDK constipation guidance supports fluids with fiber.",
+      "safetyNotes": "Avoid aggressive electrolyte loading when fluid, sodium, potassium, or kidney restrictions are medically directed.",
+      "citationRefs": [
+        {
+          "title": "DailyMed WEGOVY semaglutide prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=ee06186f-2aa3-4990-a760-757579d8f77b"
+        },
+        {
+          "title": "Eating, Diet, and Nutrition for Constipation - NIDDK",
+          "url": "https://www.niddk.nih.gov/health-information/digestive-diseases/constipation/eating-diet-nutrition"
+        }
+      ]
+    },
+    "benefitGoal": "GI tolerability and hydration support",
+    "rationale": "Reduced appetite, nausea, vomiting, diarrhea, and constipation can lower fluid intake and increase dehydration risk.",
+    "expectedBenefit": "Supports hydration habits and constipation prevention without adding another compound.",
+    "evidenceQuality": "human_limited",
+    "safetyCategory": "SAFETY_MITIGATION",
+    "safetyCaveats": "Escalating GI symptoms, persistent vomiting, severe constipation, dizziness, or suspected dehydration require clinician review.",
+    "avoidIf": "Fluid restriction, severe kidney disease, heart failure fluid limits, or clinician-directed electrolyte restrictions.",
+    "implementationNotes": "Supportive context only; not a peptide dose recommendation.",
+    "sortOrder": 0
+  },
+  {
+    "sourceCompound": "Tirzepatide",
+    "adjunct": {
+      "name": "Hydration and Electrolyte Support",
+      "category": "SAFETY_MITIGATION",
+      "description": "Structured hydration habits and electrolyte replacement when appetite, intake, vomiting, or diarrhea reduce fluid balance.",
+      "evidenceSummary": "Tirzepatide labeling identifies GI adverse effects and acute kidney injury due to volume depletion; NIDDK constipation guidance supports fluids with fiber.",
+      "safetyNotes": "Avoid aggressive electrolyte loading when fluid, sodium, potassium, or kidney restrictions are medically directed.",
+      "citationRefs": [
+        {
+          "title": "DailyMed ZEPBOUND tirzepatide prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=487cd7e7-434c-4925-99fa-aa80b1cc776b"
+        },
+        {
+          "title": "Eating, Diet, and Nutrition for Constipation - NIDDK",
+          "url": "https://www.niddk.nih.gov/health-information/digestive-diseases/constipation/eating-diet-nutrition"
+        }
+      ]
+    },
+    "benefitGoal": "GI tolerability and hydration support",
+    "rationale": "Reduced appetite, nausea, vomiting, diarrhea, and constipation can lower fluid intake and increase dehydration risk.",
+    "expectedBenefit": "Supports hydration habits and constipation prevention without adding another compound.",
+    "evidenceQuality": "human_limited",
+    "safetyCategory": "SAFETY_MITIGATION",
+    "safetyCaveats": "Escalating GI symptoms, persistent vomiting, severe constipation, dizziness, or suspected dehydration require clinician review.",
+    "avoidIf": "Fluid restriction, severe kidney disease, heart failure fluid limits, or clinician-directed electrolyte restrictions.",
+    "implementationNotes": "Supportive context only; not a peptide dose recommendation.",
+    "sortOrder": 0
+  },
+  {
+    "sourceCompound": "Cagrilintide/Semaglutide",
+    "adjunct": {
+      "name": "Hydration and Electrolyte Support",
+      "category": "SAFETY_MITIGATION",
+      "description": "Structured hydration habits and electrolyte replacement when appetite, intake, vomiting, or diarrhea reduce fluid balance.",
+      "evidenceSummary": "Cagrilintide and semaglutide trials report GI adverse events; NIDDK constipation guidance supports fluids with fiber.",
+      "safetyNotes": "Avoid aggressive electrolyte loading when fluid, sodium, potassium, or kidney restrictions are medically directed.",
+      "citationRefs": [
+        {
+          "title": "Coadministered Cagrilintide and Semaglutide in Adults with Overweight or Obesity",
+          "pmid": "40544433"
+        },
+        {
+          "title": "Eating, Diet, and Nutrition for Constipation - NIDDK",
+          "url": "https://www.niddk.nih.gov/health-information/digestive-diseases/constipation/eating-diet-nutrition"
+        }
+      ]
+    },
+    "benefitGoal": "GI tolerability and hydration support",
+    "rationale": "Dual amylin and GLP-1 signaling can intensify satiety and GI adverse effects, making hydration and bowel-habit monitoring especially relevant.",
+    "expectedBenefit": "Helps users notice fluid-intake, constipation, and volume-depletion risks while avoiding another active compound.",
+    "evidenceQuality": "human_limited",
+    "safetyCategory": "SAFETY_MITIGATION",
+    "safetyCaveats": "Persistent vomiting, abdominal pain, severe constipation, or inability to maintain fluids requires clinician review.",
+    "avoidIf": "Fluid restriction, severe kidney disease, heart failure fluid limits, or clinician-directed electrolyte restrictions.",
+    "implementationNotes": "Supportive context only; not a peptide dose recommendation.",
+    "sortOrder": 0
+  },
+  {
+    "sourceCompound": "Semaglutide",
+    "adjunct": {
+      "name": "Protein and Resistance Training",
+      "category": "LIFESTYLE_PROTOCOL",
+      "description": "Adequate protein intake plus progressive resistance training to protect lean mass during pharmacologic weight loss.",
+      "evidenceSummary": "Reviews and expert consensus on incretin-based therapy emphasize resistance training, adequate protein, and body-composition monitoring for muscle preservation.",
+      "safetyNotes": "Training should be scaled to injury status, frailty, cardiometabolic risk, and clinician or coach guidance.",
+      "citationRefs": [
+        {
+          "title": "Incretin-Based Weight Loss Pharmacotherapy: Can Resistance Exercise Optimize Changes in Body Composition?",
+          "pmid": "38687506"
+        },
+        {
+          "title": "Nutritional and lifestyle supportive care recommendations for management of obesity with GLP-1-based therapies",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12768930/"
+        }
+      ]
+    },
+    "benefitGoal": "lean-mass preservation during weight loss",
+    "rationale": "Rapid appetite reduction can reduce total protein intake and weight loss can include lean mass loss.",
+    "expectedBenefit": "Supports body-composition quality, strength retention, and weight-maintenance resilience during therapy.",
+    "evidenceQuality": "human_limited",
+    "safetyCategory": "OPTIONAL_SUPPORTIVE_MEASURE",
+    "safetyCaveats": "New or intensive training should be scaled for orthopedic limits, frailty, cardiovascular disease, and recovery capacity.",
+    "avoidIf": "Unstable cardiac symptoms, acute injury, severe illness, or clinician-advised exercise restriction.",
+    "implementationNotes": "Supportive lifestyle context only; does not define a nutrition or training prescription.",
+    "sortOrder": 1
+  },
+  {
+    "sourceCompound": "Tirzepatide",
+    "adjunct": {
+      "name": "Protein and Resistance Training",
+      "category": "LIFESTYLE_PROTOCOL",
+      "description": "Adequate protein intake plus progressive resistance training to protect lean mass during pharmacologic weight loss.",
+      "evidenceSummary": "Reviews and expert consensus on incretin-based therapy emphasize resistance training, adequate protein, and body-composition monitoring for muscle preservation.",
+      "safetyNotes": "Training should be scaled to injury status, frailty, cardiometabolic risk, and clinician or coach guidance.",
+      "citationRefs": [
+        {
+          "title": "Incretin-Based Weight Loss Pharmacotherapy: Can Resistance Exercise Optimize Changes in Body Composition?",
+          "pmid": "38687506"
+        },
+        {
+          "title": "Nutritional and lifestyle supportive care recommendations for management of obesity with GLP-1-based therapies",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12768930/"
+        }
+      ]
+    },
+    "benefitGoal": "lean-mass preservation during weight loss",
+    "rationale": "Large weight reductions can include lean mass loss, especially when appetite suppression lowers protein intake.",
+    "expectedBenefit": "Supports body-composition quality, strength retention, and weight-maintenance resilience during therapy.",
+    "evidenceQuality": "human_limited",
+    "safetyCategory": "OPTIONAL_SUPPORTIVE_MEASURE",
+    "safetyCaveats": "New or intensive training should be scaled for orthopedic limits, frailty, cardiovascular disease, and recovery capacity.",
+    "avoidIf": "Unstable cardiac symptoms, acute injury, severe illness, or clinician-advised exercise restriction.",
+    "implementationNotes": "Supportive lifestyle context only; does not define a nutrition or training prescription.",
+    "sortOrder": 1
+  },
+  {
+    "sourceCompound": "NAD+",
+    "adjunct": {
+      "name": "Trimethylglycine Methylation Support",
+      "category": "SUPPLEMENT",
+      "description": "Betaine or trimethylglycine context for methyl-donor support when NAD precursor use raises methylation questions.",
+      "evidenceSummary": "Betaine participates in homocysteine remethylation; NR methylation literature shows methyl-dependent NAM metabolite handling but does not prove routine TMG is required.",
+      "safetyNotes": "This is a mechanistic support concept, not a requirement. Review homocysteine, methylation history, and supplement tolerance before use.",
+      "citationRefs": [
+        {
+          "title": "Betaine - LiverTox - NCBI Bookshelf",
+          "url": "https://www.ncbi.nlm.nih.gov/books/NBK548774/"
+        },
+        {
+          "title": "Betaine supplementation decreases plasma homocysteine in healthy adult participants: a meta-analysis",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3610948/"
+        },
+        {
+          "title": "Nicotinamide riboside supplementation is not associated with altered methylation homeostasis in Parkinson's disease",
+          "pmid": "36936793"
+        }
+      ]
+    },
+    "benefitGoal": "methylation context for NAD precursor use",
+    "rationale": "Nicotinamide handling can involve methyl-dependent metabolites, while betaine provides an alternate remethylation pathway for homocysteine.",
+    "expectedBenefit": "Frames TMG as a candidate support when methylation labs, homocysteine, or clinician review indicate a need.",
+    "evidenceQuality": "mechanistic",
+    "safetyCategory": "OPTIONAL_SUPPORTIVE_MEASURE",
+    "safetyCaveats": "Do not assume methyl donors are universally beneficial; excess or poorly tolerated methyl donors can worsen symptoms in susceptible users.",
+    "avoidIf": "Clinician-advised methyl donor avoidance, unstable psychiatric symptoms, supplement intolerance, or unmanaged kidney disease.",
+    "implementationNotes": "Mechanistic context only; not a supplement prescription.",
+    "sortOrder": 0
+  },
+  {
+    "sourceCompound": "GHK-Cu",
+    "adjunct": {
+      "name": "Topical Hyaluronic Acid Hydration Support",
+      "category": "SUPPLEMENT",
+      "description": "Topical hyaluronic-acid skin hydration context for cosmetic or dermal barrier goals.",
+      "evidenceSummary": "Hyaluronic acid is a key skin-moisture molecule, and topical/oral trials show hydration and barrier-function signals in selected populations.",
+      "safetyNotes": "Patch-test sensitive skin and avoid applying irritating products to broken or infected skin unless directed by a clinician.",
+      "citationRefs": [
+        {
+          "title": "Hyaluronic acid: A key molecule in skin aging",
+          "doi": "10.4161/derm.21923",
+          "pmid": "23467280"
+        },
+        {
+          "title": "Effectiveness of topical hyaluronic acid of different molecular weights in xerosis cutis treatment in elderly",
+          "pmid": "38829483"
+        }
+      ]
+    },
+    "benefitGoal": "skin hydration and barrier support",
+    "rationale": "GHK-Cu is framed around dermal remodeling, while hyaluronic acid specifically supports water-binding and barrier hydration.",
+    "expectedBenefit": "Complements dermal peptide goals with non-peptide hydration support.",
+    "evidenceQuality": "human_limited",
+    "safetyCategory": "OPTIONAL_SUPPORTIVE_MEASURE",
+    "safetyCaveats": "Topical irritation, fragrance sensitivity, or barrier disruption can occur with unsuitable formulations.",
+    "avoidIf": "Known sensitivity to the formulation, active skin infection, or open wounds without clinician guidance.",
+    "implementationNotes": "Supportive skincare context only; not an injectable protocol.",
+    "sortOrder": 0
+  },
+  {
+    "sourceCompound": "Epitalon",
+    "adjunct": {
+      "name": "Circadian Light Timing",
+      "category": "LIFESTYLE_PROTOCOL",
+      "description": "Consistent wake time, morning light exposure, and evening light reduction as circadian support context.",
+      "evidenceSummary": "AASM and NHLBI resources support appropriately timed light therapy for selected circadian rhythm disorders.",
+      "safetyNotes": "Bright light timing can be counterproductive in some circadian disorders and should be personalized for severe sleep-wake disruption.",
+      "citationRefs": [
+        {
+          "title": "AASM clinical guideline for circadian rhythm sleep-wake disorders",
+          "url": "https://aasm.org/new-clinical-guideline-to-help-clinicians-treat-circadian-rhythm-sleep-wake-disorders/"
+        },
+        {
+          "title": "Circadian Rhythm Disorders - Treatment - NHLBI",
+          "url": "https://www.nhlbi.nih.gov/health/circadian-rhythm-disorders/treatment"
+        }
+      ]
+    },
+    "benefitGoal": "circadian rhythm support",
+    "rationale": "Epitalon is often discussed in pineal and circadian contexts, but light-dark timing is the foundational non-compound circadian signal.",
+    "expectedBenefit": "Supports sleep-wake regularity without adding another compound.",
+    "evidenceQuality": "expert_consensus",
+    "safetyCategory": "TIMING_SENSITIVE",
+    "safetyCaveats": "Incorrect light timing may worsen delayed or non-24 sleep patterns.",
+    "avoidIf": "Photosensitive eye disease, medications that increase photosensitivity, mania risk, or clinician-advised light-therapy avoidance.",
+    "implementationNotes": "Lifestyle context only; not a sleep-disorder treatment plan.",
+    "sortOrder": 0
+  },
+  {
+    "sourceCompound": "DSIP",
+    "adjunct": {
+      "name": "Circadian Light Timing",
+      "category": "LIFESTYLE_PROTOCOL",
+      "description": "Consistent wake time, morning light exposure, and evening light reduction as circadian support context.",
+      "evidenceSummary": "AASM and NHLBI resources support appropriately timed light therapy for selected circadian rhythm disorders.",
+      "safetyNotes": "Bright light timing can be counterproductive in some circadian disorders and should be personalized for severe sleep-wake disruption.",
+      "citationRefs": [
+        {
+          "title": "AASM clinical guideline for circadian rhythm sleep-wake disorders",
+          "url": "https://aasm.org/new-clinical-guideline-to-help-clinicians-treat-circadian-rhythm-sleep-wake-disorders/"
+        },
+        {
+          "title": "Circadian Rhythm Disorders - Treatment - NHLBI",
+          "url": "https://www.nhlbi.nih.gov/health/circadian-rhythm-disorders/treatment"
+        }
+      ]
+    },
+    "benefitGoal": "sleep-wake rhythm support",
+    "rationale": "DSIP is framed around sleep quality, while light-dark timing is a non-compound driver of circadian alignment.",
+    "expectedBenefit": "Supports sleep schedule regularity without adding another compound.",
+    "evidenceQuality": "expert_consensus",
+    "safetyCategory": "TIMING_SENSITIVE",
+    "safetyCaveats": "Incorrect light timing may worsen delayed or non-24 sleep patterns.",
+    "avoidIf": "Photosensitive eye disease, medications that increase photosensitivity, mania risk, or clinician-advised light-therapy avoidance.",
+    "implementationNotes": "Lifestyle context only; not a sleep-disorder treatment plan.",
+    "sortOrder": 0
+  },
+  {
+    "sourceCompound": "Tesamorelin",
+    "adjunct": {
+      "name": "IGF-1 and Glucose Monitoring",
+      "category": "LAB_MONITORING",
+      "description": "Clinician-managed monitoring context for IGF-1, glucose status, and diabetes risk around GH-axis stimulation.",
+      "evidenceSummary": "Tesamorelin labeling states that it increases IGF-1 and requires periodic IGF-1 monitoring; it also warns about glucose intolerance or diabetes.",
+      "safetyNotes": "Monitoring supports safety context only and should not be interpreted as self-diagnosis or dose adjustment.",
+      "citationRefs": [
+        {
+          "title": "DailyMed EGRIFTA SV tesamorelin prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=3d783378-b02d-4f19-99dd-0fc91a042224"
+        }
+      ]
+    },
+    "benefitGoal": "GH-axis safety monitoring",
+    "rationale": "Tesamorelin stimulates GH and raises IGF-1, and the label highlights IGF-1 and glucose monitoring concerns.",
+    "expectedBenefit": "Keeps GH-axis benefits paired with explicit clinician-managed monitoring context.",
+    "evidenceQuality": "human_strong",
+    "safetyCategory": "LAB_MONITORING_RECOMMENDED",
+    "safetyCaveats": "Active malignancy, pituitary-axis disease, or glucose intolerance requires clinician oversight.",
+    "avoidIf": "Active malignancy, pregnancy, pituitary tumor context, or clinician-advised GH-axis avoidance.",
+    "implementationNotes": "Monitoring context only; not a lab-ordering or dose-adjustment recommendation.",
+    "sortOrder": 0
+  },
+  {
+    "sourceCompound": "HCG",
+    "adjunct": {
+      "name": "Semen Analysis and Reproductive Hormone Monitoring",
+      "category": "LAB_MONITORING",
+      "description": "Clinician-managed semen analysis and reproductive hormone context for fertility-oriented gonadotropin use.",
+      "evidenceSummary": "AUA/ASRM male infertility guidance emphasizes semen analysis and targeted hormonal evaluation in male infertility workups.",
+      "safetyNotes": "Monitoring supports fertility context only and should be managed by a clinician familiar with reproductive endocrinology.",
+      "citationRefs": [
+        {
+          "title": "Diagnosis and treatment of infertility in men: AUA/ASRM guideline part I",
+          "url": "https://www.asrm.org/practice-guidance/practice-committee-documents/diagnosis-and-treatment-of-infertility-in-men-auaasrm-guideline-part-i-2020/"
+        },
+        {
+          "title": "Diagnosis and treatment of infertility in men: AUA/ASRM guideline part II",
+          "url": "https://prod.asrm.org/practice-guidance/practice-committee-documents/diagnosis-and-treatment-of-infertility-in-men-aua-asrm-guideline-part2/"
+        }
+      ]
+    },
+    "benefitGoal": "fertility-context monitoring",
+    "rationale": "HCG is commonly discussed in testosterone and fertility contexts, where semen parameters and hormone status determine whether the goal is being met.",
+    "expectedBenefit": "Connects gonadotropin use with objective fertility and endocrine monitoring rather than symptom-only tracking.",
+    "evidenceQuality": "expert_consensus",
+    "safetyCategory": "LAB_MONITORING_RECOMMENDED",
+    "safetyCaveats": "Fertility goals, testicular pain, gynecomastia, abnormal estradiol, or suppressed gonadotropins require clinician review.",
+    "avoidIf": "Known hormone-sensitive malignancy, unexplained testicular mass, or clinician-advised gonadotropin avoidance.",
+    "implementationNotes": "Monitoring context only; not a fertility-treatment protocol.",
+    "sortOrder": 0
+  },
+  {
+    "sourceCompound": "HMG",
+    "adjunct": {
+      "name": "Semen Analysis and Reproductive Hormone Monitoring",
+      "category": "LAB_MONITORING",
+      "description": "Clinician-managed semen analysis and reproductive hormone context for fertility-oriented gonadotropin use.",
+      "evidenceSummary": "AUA/ASRM male infertility guidance emphasizes semen analysis and targeted hormonal evaluation in male infertility workups.",
+      "safetyNotes": "Monitoring supports fertility context only and should be managed by a clinician familiar with reproductive endocrinology.",
+      "citationRefs": [
+        {
+          "title": "Diagnosis and treatment of infertility in men: AUA/ASRM guideline part I",
+          "url": "https://www.asrm.org/practice-guidance/practice-committee-documents/diagnosis-and-treatment-of-infertility-in-men-auaasrm-guideline-part-i-2020/"
+        },
+        {
+          "title": "Diagnosis and treatment of infertility in men: AUA/ASRM guideline part II",
+          "url": "https://prod.asrm.org/practice-guidance/practice-committee-documents/diagnosis-and-treatment-of-infertility-in-men-aua-asrm-guideline-part2/"
+        }
+      ]
+    },
+    "benefitGoal": "fertility-context monitoring",
+    "rationale": "HMG is commonly discussed in fertility contexts where semen parameters and hormone status determine whether the goal is being met.",
+    "expectedBenefit": "Connects gonadotropin use with objective fertility and endocrine monitoring rather than symptom-only tracking.",
+    "evidenceQuality": "expert_consensus",
+    "safetyCategory": "LAB_MONITORING_RECOMMENDED",
+    "safetyCaveats": "Fertility goals, testicular pain, gynecomastia, abnormal estradiol, or suppressed gonadotropins require clinician review.",
+    "avoidIf": "Known hormone-sensitive malignancy, unexplained testicular mass, or clinician-advised gonadotropin avoidance.",
+    "implementationNotes": "Monitoring context only; not a fertility-treatment protocol.",
+    "sortOrder": 0
+  }
+]

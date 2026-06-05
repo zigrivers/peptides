@@ -3,7 +3,14 @@
 // models. All authenticated users have full read access to the catalog.
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
-import type { Compound, DoseAmount, EvidenceQuality, MissingCompoundAction } from '../domain/types';
+import type {
+  AdjunctCategory,
+  AdjunctSafetyCategory,
+  Compound,
+  DoseAmount,
+  EvidenceQuality,
+  MissingCompoundAction,
+} from '../domain/types';
 import { parseCompoundDosing, parseBenefitTimeline } from '../domain/validation';
 
 const profileInclude = {
@@ -24,10 +31,23 @@ const sourcePairingsInclude = {
   orderBy: [{ sortOrder: 'asc' as const }, { pairedCompoundName: 'asc' as const }],
 };
 
+const sourceAdjunctRecommendationsInclude = {
+  include: {
+    adjunct: true,
+    citations: {
+      include: {
+        citation: true,
+      },
+    },
+  },
+  orderBy: [{ sortOrder: 'asc' as const }, { benefitGoal: 'asc' as const }],
+};
+
 type PrismaCompoundResult = Prisma.CompoundGetPayload<{
   include: {
     profile: typeof profileInclude;
     sourcePairings: typeof sourcePairingsInclude;
+    sourceAdjunctRecommendations: typeof sourceAdjunctRecommendationsInclude;
   };
 }>;
 
@@ -55,7 +75,37 @@ function parseMissingCompoundAction(value: string): MissingCompoundAction {
   return allowed.has(value as MissingCompoundAction) ? (value as MissingCompoundAction) : 'none';
 }
 
+function parseAdjunctCategory(value: string): AdjunctCategory {
+  const allowed = new Set<AdjunctCategory>([
+    'SUPPLEMENT',
+    'MINERAL',
+    'MEDICATION',
+    'LIFESTYLE_PROTOCOL',
+    'LAB_MONITORING',
+    'SAFETY_MITIGATION',
+  ]);
+  return allowed.has(value as AdjunctCategory) ? (value as AdjunctCategory) : 'SUPPLEMENT';
+}
+
+function parseAdjunctSafetyCategory(value: string): AdjunctSafetyCategory {
+  const allowed = new Set<AdjunctSafetyCategory>([
+    'CONTRAINDICATED',
+    'CLINICIAN_SUPERVISION',
+    'LAB_MONITORING_RECOMMENDED',
+    'TIMING_SENSITIVE',
+    'INTERACTION_SENSITIVE',
+    'SAFETY_MITIGATION',
+    'OPTIONAL_SUPPORTIVE_MEASURE',
+  ]);
+  return allowed.has(value as AdjunctSafetyCategory)
+    ? (value as AdjunctSafetyCategory)
+    : 'OPTIONAL_SUPPORTIVE_MEASURE';
+}
+
 function mapCompound(raw: PrismaCompoundResult): Compound {
+  const sourcePairings = raw.sourcePairings ?? [];
+  const sourceAdjunctRecommendations = raw.sourceAdjunctRecommendations ?? [];
+
   return {
     id: raw.id,
     name: raw.name,
@@ -91,7 +141,7 @@ function mapCompound(raw: PrismaCompoundResult): Compound {
           preferredTime: raw.profile.preferredTime,
           timingNotes: raw.profile.timingNotes,
           isFdaApproved: raw.profile.isFdaApproved,
-          pairings: raw.sourcePairings.map((pairing) => ({
+          pairings: sourcePairings.map((pairing) => ({
             id: pairing.id,
             sourceCompoundId: pairing.sourceCompoundId,
             pairedCompoundId: pairing.pairedCompoundId,
@@ -109,6 +159,28 @@ function mapCompound(raw: PrismaCompoundResult): Compound {
             missingCompoundAction: parseMissingCompoundAction(pairing.missingCompoundAction),
             citationRefs: pairing.citations.map((pairingCitation) => pairingCitation.citation),
           })),
+          adjuncts: sourceAdjunctRecommendations.map((recommendation) => ({
+            id: recommendation.id,
+            sourceCompoundId: recommendation.sourceCompoundId,
+            adjunctId: recommendation.adjunctId,
+            adjunctName: recommendation.adjunct.name,
+            adjunctSlug: recommendation.adjunct.slug,
+            adjunctCategory: parseAdjunctCategory(recommendation.adjunct.category),
+            adjunctDescription: recommendation.adjunct.description,
+            adjunctEvidenceSummary: recommendation.adjunct.evidenceSummary,
+            adjunctSafetyNotes: recommendation.adjunct.safetyNotes,
+            benefitGoal: recommendation.benefitGoal,
+            rationale: recommendation.rationale,
+            expectedBenefit: recommendation.expectedBenefit,
+            evidenceQuality: parseEvidenceQuality(recommendation.evidenceQuality),
+            safetyCategory: parseAdjunctSafetyCategory(recommendation.safetyCategory),
+            safetyCaveats: recommendation.safetyCaveats,
+            avoidIf: recommendation.avoidIf,
+            implementationNotes: recommendation.implementationNotes,
+            citationRefs: recommendation.citations.map(
+              (recommendationCitation) => recommendationCitation.citation
+            ),
+          })),
         }
       : null,
   };
@@ -117,7 +189,11 @@ function mapCompound(raw: PrismaCompoundResult): Compound {
 export async function findCompoundBySlug(slug: string): Promise<Compound | null> {
   const raw = await prisma.compound.findFirst({
     where: { slug: slug.toLowerCase() },
-    include: { profile: profileInclude, sourcePairings: sourcePairingsInclude },
+    include: {
+      profile: profileInclude,
+      sourcePairings: sourcePairingsInclude,
+      sourceAdjunctRecommendations: sourceAdjunctRecommendationsInclude,
+    },
   });
   return raw ? mapCompound(raw) : null;
 }
@@ -146,7 +222,11 @@ export async function findCompounds(
 
   const rows = await prisma.compound.findMany({
     where,
-    include: { profile: profileInclude, sourcePairings: sourcePairingsInclude },
+    include: {
+      profile: profileInclude,
+      sourcePairings: sourcePairingsInclude,
+      sourceAdjunctRecommendations: sourceAdjunctRecommendationsInclude,
+    },
   });
   return rows.map(mapCompound);
 }
@@ -200,7 +280,11 @@ export async function listCompounds(opts?: { includeArchived?: boolean }): Promi
 
   const rows = await prisma.compound.findMany({
     where,
-    include: { profile: profileInclude, sourcePairings: sourcePairingsInclude },
+    include: {
+      profile: profileInclude,
+      sourcePairings: sourcePairingsInclude,
+      sourceAdjunctRecommendations: sourceAdjunctRecommendationsInclude,
+    },
     orderBy: { name: 'asc' },
   });
   return rows.map(mapCompound);

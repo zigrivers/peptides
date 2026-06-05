@@ -199,6 +199,7 @@ model Compound {
   orderItems          OrderItem[]
   sourcePairings      CompoundPairing[] @relation("CompoundPairingSource")
   pairedInPairings    CompoundPairing[] @relation("CompoundPairingPartner")
+  sourceAdjunctRecommendations CompoundAdjunctRecommendation[]
 
   @@index([status])
 }
@@ -273,6 +274,68 @@ model CompoundPairingCitation {
   citation   Citation        @relation(fields: [citationId], references: [id], onDelete: Cascade)
 
   @@unique([pairingId, citationId])
+  @@index([citationId])
+}
+
+model CatalogAdjunct {
+  id              String    @id @default(uuid())
+  name            String    @unique
+  slug            String    @unique
+  category        String
+  description     String
+  evidenceSummary String
+  safetyNotes     String
+  status          String    @default("PUBLISHED")
+  citations       CatalogAdjunctCitation[]
+  recommendations CompoundAdjunctRecommendation[]
+
+  @@index([category, status])
+}
+
+model CatalogAdjunctCitation {
+  id                      String    @id @default(uuid())
+  adjunctId               String
+  adjunct                 CatalogAdjunct @relation(fields: [adjunctId], references: [id], onDelete: Cascade)
+  title                   String
+  url                     String?
+  doi                     String?
+  pmid                    String?
+  recommendationCitations CompoundAdjunctRecommendationCitation[]
+
+  @@unique([adjunctId, title])
+  @@index([adjunctId])
+}
+
+model CompoundAdjunctRecommendation {
+  id                  String    @id @default(uuid())
+  sourceCompoundId    String
+  sourceCompound      Compound  @relation(fields: [sourceCompoundId], references: [id], onDelete: Cascade)
+  adjunctId           String
+  adjunct             CatalogAdjunct @relation(fields: [adjunctId], references: [id], onDelete: Cascade)
+  benefitGoal         String
+  rationale           String
+  expectedBenefit     String
+  evidenceQuality     String
+  safetyCategory      String
+  safetyCaveats       String
+  avoidIf             String
+  implementationNotes String?
+  sortOrder           Int       @default(0)
+  citations           CompoundAdjunctRecommendationCitation[]
+
+  @@unique([sourceCompoundId, adjunctId, benefitGoal])
+  @@index([sourceCompoundId, benefitGoal])
+  @@index([adjunctId])
+}
+
+model CompoundAdjunctRecommendationCitation {
+  id               String    @id @default(uuid())
+  recommendationId String
+  recommendation   CompoundAdjunctRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  citationId       String
+  citation         CatalogAdjunctCitation @relation(fields: [citationId], references: [id], onDelete: Cascade)
+
+  @@unique([recommendationId, citationId])
   @@index([citationId])
 }
 

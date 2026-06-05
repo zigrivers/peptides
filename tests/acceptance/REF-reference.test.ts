@@ -67,11 +67,53 @@ const bpc157 = {
       ],
     },
   ],
+  sourceAdjunctRecommendations: [
+    {
+      id: 'adjrec-1',
+      sourceCompoundId: 'c-1',
+      adjunctId: 'adj-1',
+      benefitGoal: 'GI tolerability and hydration support',
+      rationale: 'Reduced appetite and slowed GI transit can lower fluid intake and increase constipation risk.',
+      expectedBenefit: 'Supports hydration habits and constipation prevention without adding another compound.',
+      evidenceQuality: 'human_limited',
+      safetyCategory: 'SAFETY_MITIGATION',
+      safetyCaveats: 'Escalating GI symptoms, persistent vomiting, or suspected dehydration require clinician review.',
+      avoidIf: 'Fluid restriction, severe kidney disease, or clinician-directed electrolyte restrictions.',
+      implementationNotes: 'Supportive context only; not a peptide dose recommendation.',
+      sortOrder: 0,
+      adjunct: {
+        id: 'adj-1',
+        name: 'Hydration and Electrolyte Support',
+        slug: 'hydration-and-electrolyte-support',
+        category: 'SAFETY_MITIGATION',
+        description: 'Structured hydration habits and electrolyte replacement when intake is reduced.',
+        evidenceSummary: 'GLP-1 labels and GI guidance support monitoring hydration and constipation risk.',
+        safetyNotes: 'Avoid aggressive electrolyte loading when fluids or electrolytes are medically restricted.',
+        status: 'PUBLISHED',
+      },
+      citations: [
+        {
+          id: 'adjl-1',
+          recommendationId: 'adjrec-1',
+          citationId: 'adjcit-1',
+          citation: {
+            id: 'adjcit-1',
+            adjunctId: 'adj-1',
+            title: 'Treatment for Constipation - NIDDK',
+            url: 'https://www.niddk.nih.gov/health-information/digestive-diseases/constipation/treatment',
+            doi: null,
+            pmid: null,
+          },
+        },
+      ],
+    },
+  ],
 };
 
 const compoundWithNoPairings = {
   ...bpc157,
   sourcePairings: [],
+  sourceAdjunctRecommendations: [],
 };
 
 const archivedCompound = {
@@ -164,6 +206,30 @@ describe('US-REF-01: View Compound Profile', () => {
       mockFindFirst.mockResolvedValue(compoundWithNoPairings);
       const result = await getCompoundBySlug('bpc-157');
       expect(result?.profile?.pairings).toEqual([]);
+    });
+
+    it('AC-9: returns structured supportive adjuncts with safety and citations', async () => {
+      mockFindFirst.mockResolvedValue(bpc157);
+      const result = await getCompoundBySlug('bpc-157');
+      expect(result?.profile?.adjuncts[0]).toMatchObject({
+        adjunctName: 'Hydration and Electrolyte Support',
+        adjunctSlug: 'hydration-and-electrolyte-support',
+        adjunctCategory: 'SAFETY_MITIGATION',
+        benefitGoal: 'GI tolerability and hydration support',
+        evidenceQuality: 'human_limited',
+        safetyCategory: 'SAFETY_MITIGATION',
+        safetyCaveats: expect.stringContaining('persistent vomiting'),
+        implementationNotes: expect.stringContaining('not a peptide dose recommendation'),
+        citationRefs: expect.arrayContaining([
+          expect.objectContaining({ title: 'Treatment for Constipation - NIDDK' }),
+        ]),
+      });
+    });
+
+    it('AC-10: returns an empty adjuncts array when no adjuncts are curated', async () => {
+      mockFindFirst.mockResolvedValue(compoundWithNoPairings);
+      const result = await getCompoundBySlug('bpc-157');
+      expect(result?.profile?.adjuncts).toEqual([]);
     });
 
     it('AC-5: returns compound without profile as placeholder (no 404)', async () => {
