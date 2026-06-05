@@ -14,6 +14,39 @@ export type Citation = {
   pmid: string | null;
 };
 
+export type EvidenceQuality =
+  | 'human_strong'
+  | 'human_limited'
+  | 'mechanistic'
+  | 'preclinical'
+  | 'expert_consensus';
+
+export type MissingCompoundAction =
+  | 'none'
+  | 'add_complete_compound'
+  | 'defer_candidate';
+
+export type CompoundPairingCitation = Citation;
+
+export type CompoundPairing = {
+  id: string;
+  sourceCompoundId: string;
+  pairedCompoundId: string | null;
+  pairedCompoundName: string;
+  pairedCompoundSlug: string | null;
+  benefitGoal: string;
+  rationale: string;
+  expectedSynergy: string;
+  evidenceQuality: EvidenceQuality;
+  safetyCaveats: string;
+  avoidIf: string;
+  timingOrSequencingNotes: string | null;
+  bestOverall: boolean;
+  partnerExistsInCatalog: boolean;
+  missingCompoundAction: MissingCompoundAction;
+  citationRefs: CompoundPairingCitation[];
+};
+
 export type BenefitTimelineItem = {
   week: number;
   benefits: string[];
@@ -65,6 +98,7 @@ export type CompoundProfile = {
   preferredTime: PreferredTime | null;
   timingNotes: string | null;
   isFdaApproved: boolean;
+  pairings: CompoundPairing[];
 };
 
 export type Compound = {

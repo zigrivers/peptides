@@ -6,6 +6,164 @@ import * as path from 'path';
 
 const prisma = new PrismaClient();
 
+type SeedCitationRef = {
+  title: string;
+  doi?: string | null;
+  pmid?: string | null;
+};
+
+type SeedPairing = {
+  sourceCompound: string;
+  pairedCompound: string;
+  benefitGoal: string;
+  rationale: string;
+  expectedSynergy: string;
+  evidenceQuality: string;
+  safetyCaveats: string;
+  avoidIf: string;
+  timingOrSequencingNotes?: string | null;
+  bestOverall: boolean;
+  partnerExistsInCatalog: boolean;
+  missingCompoundAction: string;
+  sortOrder?: number;
+  citationRefs: SeedCitationRef[];
+};
+
+function normalizeCompoundName(name: string): string {
+  return name.toLowerCase();
+}
+
+function pairingFixtureKey(pairing: { pairedCompound: string; benefitGoal: string }): string {
+  return `${pairing.pairedCompound}\u0000${pairing.benefitGoal}`;
+}
+
+function pairingRowKey(pairing: { pairedCompoundName: string; benefitGoal: string }): string {
+  return `${pairing.pairedCompoundName}\u0000${pairing.benefitGoal}`;
+}
+
+function citationMatchesRef(
+  citation: { title: string; doi: string | null; pmid: string | null },
+  ref: SeedCitationRef
+): boolean {
+  if (ref.doi && citation.doi === ref.doi) return true;
+  if (ref.pmid && citation.pmid === ref.pmid) return true;
+  return citation.title === ref.title;
+}
+
+async function syncCompoundPairings(pairingFixtures: SeedPairing[]) {
+  const compounds = await prisma.compound.findMany({
+    select: { id: true, name: true, slug: true },
+  });
+  const compoundsByName = new Map(
+    compounds.map((compound) => [normalizeCompoundName(compound.name), compound])
+  );
+  const citations = await prisma.citation.findMany({
+    select: { id: true, title: true, doi: true, pmid: true },
+  });
+
+  const pairingsBySource = new Map<string, SeedPairing[]>();
+  for (const pairing of pairingFixtures) {
+    const existing = pairingsBySource.get(pairing.sourceCompound) ?? [];
+    existing.push(pairing);
+    pairingsBySource.set(pairing.sourceCompound, existing);
+  }
+
+  for (const [sourceCompoundName, sourcePairings] of pairingsBySource.entries()) {
+    const sourceCompound = compoundsByName.get(normalizeCompoundName(sourceCompoundName));
+    if (!sourceCompound) {
+      console.warn(`[seed] Skipping pairings for unknown source compound: ${sourceCompoundName}`);
+      continue;
+    }
+
+    const desiredKeys = new Set(sourcePairings.map(pairingFixtureKey));
+    const existingPairings = await prisma.compoundPairing.findMany({
+      where: { sourceCompoundId: sourceCompound.id },
+      select: { id: true, pairedCompoundName: true, benefitGoal: true },
+    });
+
+    for (const [index, pairing] of sourcePairings.entries()) {
+      const pairedCompound = compoundsByName.get(normalizeCompoundName(pairing.pairedCompound));
+      const upsertedPairing = await prisma.compoundPairing.upsert({
+        where: {
+          sourceCompoundId_pairedCompoundName_benefitGoal: {
+            sourceCompoundId: sourceCompound.id,
+            pairedCompoundName: pairing.pairedCompound,
+            benefitGoal: pairing.benefitGoal,
+          },
+        },
+        update: {
+          pairedCompoundId: pairedCompound?.id ?? null,
+          rationale: pairing.rationale,
+          expectedSynergy: pairing.expectedSynergy,
+          evidenceQuality: pairing.evidenceQuality,
+          safetyCaveats: pairing.safetyCaveats,
+          avoidIf: pairing.avoidIf,
+          timingOrSequencingNotes: pairing.timingOrSequencingNotes ?? null,
+          bestOverall: pairing.bestOverall,
+          partnerExistsInCatalog: Boolean(pairedCompound) && pairing.partnerExistsInCatalog,
+          missingCompoundAction: pairedCompound ? pairing.missingCompoundAction : 'add_complete_compound',
+          sortOrder: pairing.sortOrder ?? index,
+        },
+        create: {
+          sourceCompoundId: sourceCompound.id,
+          pairedCompoundId: pairedCompound?.id ?? null,
+          pairedCompoundName: pairing.pairedCompound,
+          benefitGoal: pairing.benefitGoal,
+          rationale: pairing.rationale,
+          expectedSynergy: pairing.expectedSynergy,
+          evidenceQuality: pairing.evidenceQuality,
+          safetyCaveats: pairing.safetyCaveats,
+          avoidIf: pairing.avoidIf,
+          timingOrSequencingNotes: pairing.timingOrSequencingNotes ?? null,
+          bestOverall: pairing.bestOverall,
+          partnerExistsInCatalog: Boolean(pairedCompound) && pairing.partnerExistsInCatalog,
+          missingCompoundAction: pairedCompound ? pairing.missingCompoundAction : 'add_complete_compound',
+          sortOrder: pairing.sortOrder ?? index,
+        },
+      });
+
+      const desiredCitationIds = pairing.citationRefs
+        .map((ref) => citations.find((citation) => citationMatchesRef(citation, ref))?.id)
+        .filter((id): id is string => Boolean(id));
+      const desiredCitationIdSet = new Set(desiredCitationIds);
+      const existingCitationLinks = await prisma.compoundPairingCitation.findMany({
+        where: { pairingId: upsertedPairing.id },
+        select: { id: true, citationId: true },
+      });
+
+      const citationLinksToDelete = existingCitationLinks.filter(
+        (link) => !desiredCitationIdSet.has(link.citationId)
+      );
+      if (citationLinksToDelete.length > 0) {
+        await prisma.compoundPairingCitation.deleteMany({
+          where: { id: { in: citationLinksToDelete.map((link) => link.id) } },
+        });
+      }
+
+      const existingCitationIdSet = new Set(existingCitationLinks.map((link) => link.citationId));
+      for (const citationId of desiredCitationIds) {
+        if (!existingCitationIdSet.has(citationId)) {
+          await prisma.compoundPairingCitation.create({
+            data: {
+              pairingId: upsertedPairing.id,
+              citationId,
+            },
+          });
+        }
+      }
+    }
+
+    const pairingsToDelete = existingPairings.filter(
+      (pairing) => !desiredKeys.has(pairingRowKey(pairing))
+    );
+    if (pairingsToDelete.length > 0) {
+      await prisma.compoundPairing.deleteMany({
+        where: { id: { in: pairingsToDelete.map((pairing) => pairing.id) } },
+      });
+    }
+  }
+}
+
 async function main() {
   // Rename old space-separated name to hyphenated name to avoid unique slug conflicts
   const oldSemax = await prisma.compound.findFirst({
@@ -1657,6 +1815,15 @@ GLOW70 is the ultimate skin restoration formula. It uses a double-dampening appr
     console.error('Failed to load dosing fixtures:', err);
   }
 
+  const pairingFixturesPath = path.join(__dirname, 'seed-data/compound_pairings.json');
+  let pairingFixtures: SeedPairing[] = [];
+  try {
+    const raw = fs.readFileSync(pairingFixturesPath, 'utf-8');
+    pairingFixtures = JSON.parse(raw) as SeedPairing[];
+  } catch (err) {
+    console.error('Failed to load compound pairing fixtures:', err);
+  }
+
   for (const { profile, ...compoundData } of compounds) {
     const dataWithSlug = {
       ...compoundData,
@@ -1743,6 +1910,8 @@ GLOW70 is the ultimate skin restoration formula. It uses a double-dampening appr
       }
     }
   }
+
+  await syncCompoundPairings(pairingFixtures);
 
   // 1. Create default Power User
   const email = 'test@example.com';

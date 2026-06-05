@@ -197,6 +197,8 @@ model Compound {
   protocols           Protocol[]
   vials               Vial[]
   orderItems          OrderItem[]
+  sourcePairings      CompoundPairing[] @relation("CompoundPairingSource")
+  pairedInPairings    CompoundPairing[] @relation("CompoundPairingPartner")
 
   @@index([status])
 }
@@ -235,6 +237,43 @@ model Citation {
   url               String?
   doi               String?
   pmid              String?
+  pairingCitations  CompoundPairingCitation[]
+}
+
+model CompoundPairing {
+  id                      String    @id @default(uuid())
+  sourceCompoundId        String
+  sourceCompound          Compound  @relation("CompoundPairingSource", fields: [sourceCompoundId], references: [id], onDelete: Cascade)
+  pairedCompoundId        String?
+  pairedCompound          Compound? @relation("CompoundPairingPartner", fields: [pairedCompoundId], references: [id], onDelete: SetNull)
+  pairedCompoundName      String
+  benefitGoal             String
+  rationale               String
+  expectedSynergy         String
+  evidenceQuality         String
+  safetyCaveats           String
+  avoidIf                 String
+  timingOrSequencingNotes String?
+  bestOverall             Boolean   @default(false)
+  partnerExistsInCatalog  Boolean   @default(true)
+  missingCompoundAction   String    @default("none")
+  sortOrder               Int       @default(0)
+  citations               CompoundPairingCitation[]
+
+  @@unique([sourceCompoundId, pairedCompoundName, benefitGoal])
+  @@index([sourceCompoundId, benefitGoal])
+  @@index([pairedCompoundId])
+}
+
+model CompoundPairingCitation {
+  id         String          @id @default(uuid())
+  pairingId  String
+  pairing    CompoundPairing @relation(fields: [pairingId], references: [id], onDelete: Cascade)
+  citationId String
+  citation   Citation        @relation(fields: [citationId], references: [id], onDelete: Cascade)
+
+  @@unique([pairingId, citationId])
+  @@index([citationId])
 }
 
 // --- Tracker Domain ---
