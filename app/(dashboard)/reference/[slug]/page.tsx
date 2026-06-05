@@ -9,6 +9,7 @@ import type { Citation } from '@/lib/reference/domain/types';
 import { getSerializedVialsForCompound } from '@/lib/reconstitution/application/VialService';
 import { CompoundInventoryManager } from '../_components/CompoundInventoryManager';
 import { DosingReconstitutionPlanner } from '../_components/DosingReconstitutionPlanner';
+import { CompoundPairingsSection } from '../_components/CompoundPairingsSection';
 
 function CitationLink({ citation }: { citation: Citation }) {
   const href = citation.url
@@ -389,6 +390,8 @@ export default async function CompoundProfilePage({
               <p className="text-sm text-gray-600 dark:text-gray-300">{compound.profile.sideEffects}</p>
             </section>
           )}
+
+          <CompoundPairingsSection pairings={compound.profile.pairings} />
 
           {compound.profile.stackingNotes && (
             <section className="mt-6">

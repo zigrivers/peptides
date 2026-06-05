@@ -39,6 +39,39 @@ const bpc157 = {
       { id: 'cit-1', profileId: 'p-1', title: 'BPC-157 healing study', url: null, doi: '10.1234/bpc', pmid: '12345678' },
     ],
   },
+  sourcePairings: [
+    {
+      id: 'pair-1',
+      sourceCompoundId: 'c-1',
+      pairedCompoundId: 'c-tb',
+      pairedCompoundName: 'TB-500',
+      benefitGoal: 'tissue repair',
+      rationale: 'BPC-157 supports localized repair while TB-500 supports repair-cell migration.',
+      expectedSynergy: 'Complementary repair signaling plus cell migration.',
+      evidenceQuality: 'preclinical',
+      safetyCaveats: 'No direct high-quality human combination trial found.',
+      avoidIf: 'Active malignancy concern, pregnancy, or clinician-advised avoidance of experimental peptides.',
+      timingOrSequencingNotes: 'Render as a research note, not a dosing protocol.',
+      bestOverall: true,
+      partnerExistsInCatalog: true,
+      missingCompoundAction: 'none',
+      sortOrder: 0,
+      pairedCompound: { id: 'c-tb', name: 'TB-500', slug: 'tb-500' },
+      citations: [
+        {
+          id: 'pc-1',
+          pairingId: 'pair-1',
+          citationId: 'cit-1',
+          citation: { id: 'cit-1', profileId: 'p-1', title: 'BPC-157 healing study', url: null, doi: '10.1234/bpc', pmid: '12345678' },
+        },
+      ],
+    },
+  ],
+};
+
+const compoundWithNoPairings = {
+  ...bpc157,
+  sourcePairings: [],
 };
 
 const archivedCompound = {
@@ -109,6 +142,28 @@ describe('US-REF-01: View Compound Profile', () => {
       mockFindFirst.mockResolvedValue(bpc157);
       const result = await getCompoundBySlug('bpc-157');
       expect(result?.profile?.stackingNotes).toMatch(/TB-500/);
+    });
+
+    it('AC-7: returns structured compound pairings with evidence and citations', async () => {
+      mockFindFirst.mockResolvedValue(bpc157);
+      const result = await getCompoundBySlug('bpc-157');
+      expect(result?.profile?.pairings[0]).toMatchObject({
+        pairedCompoundName: 'TB-500',
+        pairedCompoundSlug: 'tb-500',
+        benefitGoal: 'tissue repair',
+        evidenceQuality: 'preclinical',
+        safetyCaveats: expect.stringContaining('No direct'),
+        bestOverall: true,
+        citationRefs: expect.arrayContaining([
+          expect.objectContaining({ title: 'BPC-157 healing study', doi: '10.1234/bpc' }),
+        ]),
+      });
+    });
+
+    it('AC-8: returns an empty pairings array when no pairings are curated', async () => {
+      mockFindFirst.mockResolvedValue(compoundWithNoPairings);
+      const result = await getCompoundBySlug('bpc-157');
+      expect(result?.profile?.pairings).toEqual([]);
     });
 
     it('AC-5: returns compound without profile as placeholder (no 404)', async () => {

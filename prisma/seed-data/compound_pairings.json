@@ -1,0 +1,116 @@
+[
+  {
+    "sourceCompound": "BPC-157",
+    "pairedCompound": "TB-500",
+    "benefitGoal": "tissue repair",
+    "rationale": "BPC-157 supports localized tissue repair signaling while TB-500 supports repair-cell migration and wound-healing pathways.",
+    "expectedSynergy": "Complementary repair pathways: BPC-157 emphasizes angiogenic and fibroblast/tendon signaling; TB-500 emphasizes repair-cell migration and inflammatory resolution.",
+    "evidenceQuality": "preclinical",
+    "safetyCaveats": "No direct high-quality human combination trial found. Keep this as research metadata, not a therapeutic protocol.",
+    "avoidIf": "Active malignancy concern, pregnancy, or clinician-advised avoidance of experimental peptides.",
+    "timingOrSequencingNotes": "Render as a paired research note; do not encode exact co-dosing.",
+    "bestOverall": true,
+    "partnerExistsInCatalog": true,
+    "missingCompoundAction": "none",
+    "sortOrder": 0,
+    "citationRefs": [
+      { "title": "Stable Gastric Pentadecapeptide BPC 157 and Wound Healing", "doi": "10.3389/fphar.2021.627533", "pmid": "34267654" },
+      { "title": "Thymosin beta-4: a multi-functional regenerative peptide. Basic properties and clinical applications", "doi": "10.1517/14712598.2012.634793", "pmid": "22074294" }
+    ]
+  },
+  {
+    "sourceCompound": "Semaglutide",
+    "pairedCompound": "Cagrilintide",
+    "benefitGoal": "metabolic support",
+    "rationale": "Cagrilintide plus semaglutide has direct randomized human evidence as CagriSema, combining amylin and GLP-1 mechanisms.",
+    "expectedSynergy": "Distinct satiety and gastric-emptying pathways can produce greater weight loss than either component alone in trials.",
+    "evidenceQuality": "human_strong",
+    "safetyCaveats": "Additive GI adverse events, dehydration risk, hypoglycemia risk when used with insulin/secretagogues, and pancreatitis/gallbladder warning context.",
+    "avoidIf": "Personal/family MTC or MEN2 risk, severe gastroparesis, pancreatitis history unless clinician-reviewed, pregnancy, or concurrent GLP-1/GIP/glucagon agonist use.",
+    "timingOrSequencingNotes": "Represent as coadministration evidence; do not encode self-mixing or dosing instructions.",
+    "bestOverall": true,
+    "partnerExistsInCatalog": true,
+    "missingCompoundAction": "none",
+    "sortOrder": 0,
+    "citationRefs": [
+      { "title": "Once-Weekly Semaglutide in Adults with Overweight or Obesity", "doi": "10.1056/NEJMoa2032183", "pmid": "33567185" },
+      { "title": "Cagrilintide, a dual amylin agonist, for weight management", "doi": "10.1016/S0140-6736(21)01751-7", "pmid": "34751433" }
+    ]
+  },
+  {
+    "sourceCompound": "Cagrilintide",
+    "pairedCompound": "Semaglutide",
+    "benefitGoal": "metabolic support",
+    "rationale": "Semaglutide plus cagrilintide is the reciprocal CagriSema pairing with direct randomized human evidence.",
+    "expectedSynergy": "Amylin-receptor agonism plus GLP-1 receptor agonism for stronger satiety and weight-management effects.",
+    "evidenceQuality": "human_strong",
+    "safetyCaveats": "Additive GI adverse events, dehydration risk, hypoglycemia risk when used with insulin/secretagogues, and pancreatitis/gallbladder warning context.",
+    "avoidIf": "Personal/family MTC or MEN2 risk, severe gastroparesis, pancreatitis history unless clinician-reviewed, pregnancy, or concurrent GLP-1/GIP/glucagon agonist use.",
+    "timingOrSequencingNotes": "Represent as coadministration evidence; do not encode self-mixing or dosing instructions.",
+    "bestOverall": true,
+    "partnerExistsInCatalog": true,
+    "missingCompoundAction": "none",
+    "sortOrder": 0,
+    "citationRefs": [
+      { "title": "Cagrilintide, a dual amylin agonist, for weight management", "doi": "10.1016/S0140-6736(21)01751-7", "pmid": "34751433" },
+      { "title": "Once-Weekly Semaglutide in Adults with Overweight or Obesity", "doi": "10.1056/NEJMoa2032183", "pmid": "33567185" }
+    ]
+  },
+  {
+    "sourceCompound": "Testosterone",
+    "pairedCompound": "HCG",
+    "benefitGoal": "fertility",
+    "rationale": "hCG can support intratesticular testosterone signaling during testosterone-induced gonadotropin suppression.",
+    "expectedSynergy": "Exogenous testosterone symptom replacement plus LH-like testicular signaling support.",
+    "evidenceQuality": "human_limited",
+    "safetyCaveats": "Can raise estradiol, acne, gynecomastia, mood changes, and polycythemia risk context. Requires clinician monitoring.",
+    "avoidIf": "Active prostate/breast cancer, untreated severe sleep apnea, high hematocrit, uncontrolled heart failure, or no fertility/testicular-preservation goal.",
+    "timingOrSequencingNotes": "Avoid protocol dosing; monitoring guidance belongs in the later adjunct/monitoring phase.",
+    "bestOverall": true,
+    "partnerExistsInCatalog": true,
+    "missingCompoundAction": "none",
+    "sortOrder": 0,
+    "citationRefs": [
+      { "title": "Testosterone replacement therapy: a review of benefits and risks", "doi": "10.2147/tcrm.s68932", "pmid": "25484889" },
+      { "title": "Co-administration of HCG with testosterone replacement therapy", "doi": "10.1016/j.juro.2012.11.027", "pmid": "23219544" }
+    ]
+  },
+  {
+    "sourceCompound": "HCG",
+    "pairedCompound": "HMG",
+    "benefitGoal": "fertility",
+    "rationale": "hCG supplies LH-like signaling and hMG supplies FSH/LH activity; combined gonadotropin therapy is established for spermatogenesis induction in male hypogonadotropic hypogonadism.",
+    "expectedSynergy": "Leydig-cell testosterone support plus Sertoli-cell/spermatogenesis support.",
+    "evidenceQuality": "human_strong",
+    "safetyCaveats": "Requires semen, testosterone, estradiol, LH/FSH, and testicular-volume context; can raise estradiol and gynecomastia risk.",
+    "avoidIf": "Primary testicular failure without specialist plan, active hormone-sensitive cancer, pregnancy exposure concerns, or unsupervised fertility treatment.",
+    "timingOrSequencingNotes": "Attach semen analysis and hormone-lab monitoring in the later monitoring-support phase.",
+    "bestOverall": true,
+    "partnerExistsInCatalog": true,
+    "missingCompoundAction": "none",
+    "sortOrder": 0,
+    "citationRefs": [
+      { "title": "Co-administration of HCG with testosterone replacement therapy", "doi": "10.1016/j.juro.2012.11.027", "pmid": "23219544" },
+      { "title": "HMG and HCG combination therapy for male hypogonadotropic hypogonadism", "doi": "10.1002/j.1939-4640.2005.tb02890.x", "pmid": "15764047" }
+    ]
+  },
+  {
+    "sourceCompound": "Ipamorelin",
+    "pairedCompound": "Sermorelin",
+    "benefitGoal": "growth hormone axis",
+    "rationale": "Ipamorelin is a selective GHS-R agonist and Sermorelin is a GHRH analog; this is the cleanest current in-catalog GH secretagogue pairing.",
+    "expectedSynergy": "Selective GHS-R stimulation plus GHRH receptor stimulation for physiologic GH pulse support.",
+    "evidenceQuality": "mechanistic",
+    "safetyCaveats": "Monitor IGF-1/glucose; avoid redundant GH-axis exposure.",
+    "avoidIf": "Elevated IGF-1, uncontrolled diabetes, active malignancy, untreated sleep apnea, pregnancy, or concurrent HGH.",
+    "timingOrSequencingNotes": "Best current in-catalog GH pairing but still not direct outcome evidence.",
+    "bestOverall": true,
+    "partnerExistsInCatalog": true,
+    "missingCompoundAction": "none",
+    "sortOrder": 0,
+    "citationRefs": [
+      { "title": "Ipamorelin, the first selective growth hormone secretagogue", "doi": "10.1080/09208390701416390", "pmid": "9865611" },
+      { "title": "Sermorelin (GRF 1-29) in aging: growth hormone secretagogue overview", "doi": "10.2147/cia.s113", "pmid": "18728706" }
+    ]
+  }
+]

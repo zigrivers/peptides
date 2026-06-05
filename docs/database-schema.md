@@ -121,6 +121,8 @@ model Compound {
   protocols           Protocol[]
   vials               Vial[]
   orderItems          OrderItem[]
+  sourcePairings      CompoundPairing[] @relation("CompoundPairingSource")
+  pairedInPairings    CompoundPairing[] @relation("CompoundPairingPartner")
 
   @@index([status])
 }
@@ -137,7 +139,36 @@ model CompoundProfile {
   citations     Citation[]
 }
 
-model Citation { id, profileId, title, url?, doi?, pmid? }
+model Citation {
+  id               String
+  profileId        String
+  title            String
+  url              String?
+  doi              String?
+  pmid             String?
+  pairingCitations CompoundPairingCitation[]
+}
+
+model CompoundPairing {
+  id                      String
+  sourceCompoundId        String
+  pairedCompoundId        String?
+  pairedCompoundName      String
+  benefitGoal             String
+  rationale               String
+  expectedSynergy         String
+  evidenceQuality         String
+  safetyCaveats           String
+  avoidIf                 String
+  timingOrSequencingNotes String?
+  bestOverall             Boolean
+  partnerExistsInCatalog  Boolean
+  missingCompoundAction   String
+  sortOrder               Int
+  citations               CompoundPairingCitation[]
+}
+
+model CompoundPairingCitation { id, pairingId, citationId }
 
 // --- Tracker Domain ---
 
@@ -397,6 +428,9 @@ Per `.claude/rules/safety-math.md` and ADR-008, all dose-amount, volume, and con
 | `Invite` | `token` (unique) | Invite link resolution |
 | `EmailChangeRequest` | `@@index([userId, status])` | Pending-request lookup on settings page |
 | `Compound` | `@@index([status])` | Catalog browse filtered to PUBLISHED |
+| `CompoundPairing` | `@@unique([sourceCompoundId, pairedCompoundName, benefitGoal])` | Idempotent seed sync and duplicate prevention |
+| `CompoundPairing` | `@@index([sourceCompoundId, benefitGoal])` | Compound detail pairing lookup grouped by benefit goal |
+| `CompoundPairingCitation` | `@@unique([pairingId, citationId])` | Prevent duplicate citation links on a pairing |
 | `DoseLog` | `@@index([userId, scheduledDate])` | Dashboard "today's doses" + history paging |
 | `DoseLog` | `@@unique([userId, protocolId, scheduledDate])` | PWA sync conflict prevention (server-side) |
 | `OutcomeLog` | `@@index([userId, scheduledDate])` + `@@unique` | Daily outcome lookup + uniqueness invariant |

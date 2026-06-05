@@ -1,0 +1,1498 @@
+{
+  "generatedAt": "2026-06-05",
+  "stage": "stage_1_research_only",
+  "scope": {
+    "pairingType": "compound_to_compound_only",
+    "excludedRowTypes": [
+      "supplement",
+      "mineral",
+      "lifestyle_protocol",
+      "lab_monitoring_support"
+    ],
+    "pairingTarget": "1-5 per compound when evidence supports it; 0 allowed",
+    "medicalAdviceDisclaimer": "Catalog research metadata only; not medical advice."
+  },
+  "catalogInventory": [
+    "BPC-157",
+    "TB-500",
+    "Semaglutide",
+    "Tirzepatide",
+    "GHK-Cu",
+    "Tesamorelin",
+    "Epitalon",
+    "MOTS-c",
+    "KPV",
+    "ARA-290",
+    "Cagrilintide/Semaglutide",
+    "Retatrutide",
+    "Thymosin Alpha-1",
+    "GLOW50",
+    "FOXO4-DRI",
+    "DSIP",
+    "Hexarelin",
+    "Adipotide",
+    "Testosterone",
+    "Tadalafil",
+    "Vardenafil",
+    "Thymalin",
+    "Turinabol",
+    "Dianabol",
+    "NA-Selank-Amidate",
+    "HCG",
+    "HMG",
+    "LL-37",
+    "Selank",
+    "Sermorelin",
+    "Snap-8",
+    "HGH",
+    "Semax",
+    "NA-Semax-Amidate",
+    "NAD+",
+    "Oxytocin",
+    "GHRP-2",
+    "GHRP-6",
+    "Ipamorelin",
+    "Cagrilintide",
+    "GLOW70"
+  ],
+  "citationCatalog": [
+    {
+      "id": "CAGRISEMA_REDEFINE2_2025",
+      "title": "Cagrilintide-Semaglutide in Adults with Overweight or Obesity and Type 2 Diabetes",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/40544432/",
+      "doi": "10.1056/NEJMoa2502082",
+      "pmid": "40544432",
+      "evidenceType": "human_phase_3_randomized"
+    },
+    {
+      "id": "CAGRISEMA_REDEFINE1_2025",
+      "title": "Coadministered Cagrilintide and Semaglutide in Adults with Overweight or Obesity",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/40544433/",
+      "doi": null,
+      "pmid": "40544433",
+      "evidenceType": "human_phase_3_randomized"
+    },
+    {
+      "id": "CAGRISEMA_PHASE2_T2D_2023",
+      "title": "Efficacy and safety of co-administered once-weekly cagrilintide 2.4 mg with once-weekly semaglutide 2.4 mg in type 2 diabetes",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/37364590/",
+      "doi": null,
+      "pmid": "37364590",
+      "evidenceType": "human_phase_2_randomized"
+    },
+    {
+      "id": "CAGRISEMA_PHASE1B_2021",
+      "title": "Safety, tolerability, pharmacokinetics, and pharmacodynamics of concomitant administration of multiple doses of cagrilintide with semaglutide 2.4 mg",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/33894838/",
+      "doi": null,
+      "pmid": "33894838",
+      "evidenceType": "human_phase_1b_randomized"
+    },
+    {
+      "id": "WEGOVY_DAILYMED_2026",
+      "title": "WEGOVY semaglutide prescribing information",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=f5e548d0-cc79-4c34-a3f5-e20a5b8b6564&type=display",
+      "doi": null,
+      "pmid": null,
+      "evidenceType": "official_label"
+    },
+    {
+      "id": "ZEPBOUND_DAILYMED_2026",
+      "title": "ZEPBOUND tirzepatide prescribing information",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=487cd7e7-434c-4925-99fa-aa80b1cc776b&type=display",
+      "doi": null,
+      "pmid": null,
+      "evidenceType": "official_label"
+    },
+    {
+      "id": "GHRH_GHRP6_SYNERGY_1998",
+      "title": "Growth hormone secretion elicited by GHRH, GHRP-6 or GHRH plus GHRP-6",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/9509075/",
+      "doi": null,
+      "pmid": "9509075",
+      "evidenceType": "human_mechanistic"
+    },
+    {
+      "id": "CJC1295_GH_IGF1_2006",
+      "title": "Prolonged stimulation of growth hormone and insulin-like growth factor I secretion by CJC-1295",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/16352683/",
+      "doi": null,
+      "pmid": "16352683",
+      "evidenceType": "human_mechanistic"
+    },
+    {
+      "id": "CJC1295_PULSATILE_GH_2006",
+      "title": "Pulsatile secretion of growth hormone persists during continuous stimulation by CJC-1295",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/17018654/",
+      "doi": null,
+      "pmid": "17018654",
+      "evidenceType": "human_mechanistic"
+    },
+    {
+      "id": "IPAMORELIN_SELECTIVE_1998",
+      "title": "Ipamorelin, the first selective growth hormone secretagogue",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/9849822/",
+      "doi": "10.1530/eje.0.1390552",
+      "pmid": "9849822",
+      "evidenceType": "preclinical_and_pharmacology"
+    },
+    {
+      "id": "IPAMORELIN_HUMAN_PKPD_1999",
+      "title": "Pharmacokinetic-pharmacodynamic modeling of ipamorelin in human volunteers",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/10496658/",
+      "doi": null,
+      "pmid": "10496658",
+      "evidenceType": "human_mechanistic"
+    },
+    {
+      "id": "HCG_INTRATESTICULAR_T_2005",
+      "title": "Low-dose human chorionic gonadotropin maintains intratesticular testosterone in normal men with testosterone-induced gonadotropin suppression",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/15713727/",
+      "doi": null,
+      "pmid": "15713727",
+      "evidenceType": "human_randomized_mechanistic"
+    },
+    {
+      "id": "HCG_HMG_CHH_2017",
+      "title": "Pulsatile GnRH therapy versus combined hCG/hMG therapy in congenital hypogonadotropic hypogonadism",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/28051040/",
+      "doi": null,
+      "pmid": "28051040",
+      "evidenceType": "human_comparative"
+    },
+    {
+      "id": "GONADOTROPIN_META_CHH_2020",
+      "title": "Spermatogenesis in congenital hypogonadotropic hypogonadism: GnRH versus gonadotropin therapy meta-analysis",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/32777865/",
+      "doi": null,
+      "pmid": "32777865",
+      "evidenceType": "systematic_review_meta_analysis"
+    },
+    {
+      "id": "FSH_HCG_HH_2009",
+      "title": "Predictive factors for spermatogenesis in men with hypogonadotropic hypogonadism treated with recombinant FSH and hCG",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/18930225/",
+      "doi": null,
+      "pmid": "18930225",
+      "evidenceType": "human_combined_analysis"
+    },
+    {
+      "id": "AUA_TESTOSTERONE_GUIDELINE",
+      "title": "American Urological Association Testosterone Deficiency Guideline",
+      "url": "https://www.auanet.org/guidelines-and-quality/guidelines/testosterone-deficiency-guideline",
+      "doi": null,
+      "pmid": null,
+      "evidenceType": "clinical_guideline"
+    },
+    {
+      "id": "TESTOSTERONE_TADALAFIL_RANDOMIZED_2020",
+      "title": "Testosterone replacement therapy plus alternate-day tadalafil for late-onset hypogonadism",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/33342003/",
+      "doi": null,
+      "pmid": "33342003",
+      "evidenceType": "human_randomized_open_label"
+    },
+    {
+      "id": "TESTOSTERONE_PDE5I_SYSTEMATIC_REVIEW",
+      "title": "Synergetic effect of testosterone and phosphodiesterase-5 inhibitors in hypogonadal men with erectile dysfunction",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3433544/",
+      "doi": null,
+      "pmid": null,
+      "evidenceType": "systematic_review"
+    },
+    {
+      "id": "TADALAFIL_FDA_QA",
+      "title": "FDA Questions and Answers for Cialis (tadalafil)",
+      "url": "https://www.fda.gov/drugs/postmarket-drug-safety-information-patients-and-providers/questions-and-answers-cialis-tadalafil",
+      "doi": null,
+      "pmid": null,
+      "evidenceType": "official_safety"
+    },
+    {
+      "id": "VARDENAFIL_DAILYMED",
+      "title": "Vardenafil orally disintegrating tablets prescribing information",
+      "url": "https://www.dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=0ad213e0-d18a-4e67-a405-df95322eaa52&type=display",
+      "doi": null,
+      "pmid": null,
+      "evidenceType": "official_label"
+    },
+    {
+      "id": "BPC157_ANGIOGENESIS_2009",
+      "title": "Modulatory effect of gastric pentadecapeptide BPC 157 on angiogenesis in muscle and tendon healing",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/20388964/",
+      "doi": null,
+      "pmid": "20388964",
+      "evidenceType": "preclinical"
+    },
+    {
+      "id": "BPC157_REVIEW_2018",
+      "title": "BPC 157 and standard angiogenic growth factors",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/29998800/",
+      "doi": null,
+      "pmid": "29998800",
+      "evidenceType": "review"
+    },
+    {
+      "id": "TB4_DERMAL_HEALING_2016",
+      "title": "Thymosin beta 4 promotes dermal healing",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/27450738/",
+      "doi": null,
+      "pmid": "27450738",
+      "evidenceType": "review"
+    },
+    {
+      "id": "GHKCU_WOUNDS_1993",
+      "title": "In vivo stimulation of connective tissue accumulation by GHK-Cu in rat wounds",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/8227353/",
+      "doi": null,
+      "pmid": "8227353",
+      "evidenceType": "preclinical"
+    },
+    {
+      "id": "GHKCU_REVIEW_2018",
+      "title": "Regenerative and protective actions of the GHK-Cu peptide",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6073405/",
+      "doi": null,
+      "pmid": null,
+      "evidenceType": "review"
+    },
+    {
+      "id": "KPV_COLITIS_2008",
+      "title": "Melanocortin-derived tripeptide KPV has anti-inflammatory potential in murine models of inflammatory bowel disease",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/18092346/",
+      "doi": "10.1002/ibd.20334",
+      "pmid": "18092346",
+      "evidenceType": "preclinical"
+    },
+    {
+      "id": "KPV_ALPHA_MSH_REVIEW_2008",
+      "title": "Alpha-MSH and related tripeptides: anti-inflammatory and protective effects",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/18612139/",
+      "doi": null,
+      "pmid": "18612139",
+      "evidenceType": "review"
+    },
+    {
+      "id": "LL37_IMMUNOMODULATION_2020",
+      "title": "Immunomodulatory role of the antimicrobial LL-37 peptide in autoimmune diseases and viral infections",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/32927756/",
+      "doi": null,
+      "pmid": "32927756",
+      "evidenceType": "review"
+    },
+    {
+      "id": "THYMOSIN_ALPHA1_REVIEW_2020",
+      "title": "Thymosin alpha 1: a comprehensive review of the literature",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/33362999/",
+      "doi": null,
+      "pmid": "33362999",
+      "evidenceType": "review"
+    },
+    {
+      "id": "EPITALON_THYMALIN_LONGEVITY_2003",
+      "title": "Peptides of pineal gland and thymus prolong human life",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/14523363/",
+      "doi": null,
+      "pmid": "14523363",
+      "evidenceType": "human_limited_cohort"
+    },
+    {
+      "id": "DSIP_HUMAN_SLEEP_1981",
+      "title": "Acute and delayed effects of DSIP on human sleep behavior",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/6895513/",
+      "doi": null,
+      "pmid": "6895513",
+      "evidenceType": "human_controlled_trial_small"
+    },
+    {
+      "id": "DSIP_INSOMNIA_NEGATIVE_1992",
+      "title": "Effects of delta sleep-inducing peptide on sleep of chronic insomniac patients",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/1299794/",
+      "doi": null,
+      "pmid": "1299794",
+      "evidenceType": "human_double_blind_small_negative"
+    },
+    {
+      "id": "EPITALON_TELOMERE_2025",
+      "title": "Epitalon increases telomere length in human cell lines through telomerase upregulation or ALT activity",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/40908429/",
+      "doi": "10.1007/s10522-025-10315-x",
+      "pmid": "40908429",
+      "evidenceType": "in_vitro"
+    },
+    {
+      "id": "MOTSC_REVIEW_2023",
+      "title": "Mitochondria-derived peptide MOTS-c: effects and mechanisms related to stress, metabolism and aging",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/36670507/",
+      "doi": null,
+      "pmid": "36670507",
+      "evidenceType": "review"
+    },
+    {
+      "id": "MOTSC_AGING_REVIEW_2022",
+      "title": "MOTS-c, the most recent mitochondrial derived peptide in human aging and age-related diseases",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/36233287/",
+      "doi": null,
+      "pmid": "36233287",
+      "evidenceType": "review"
+    },
+    {
+      "id": "NAD_AGING_REVIEW_2020",
+      "title": "NAD+ metabolism and its roles in cellular processes during ageing",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/33299159/",
+      "doi": "10.1038/s41580-020-00313-x",
+      "pmid": "33299159",
+      "evidenceType": "review"
+    },
+    {
+      "id": "SEMAX_BDNF_2006",
+      "title": "Semax binds specifically and increases levels of brain-derived neurotrophic factor protein in rat basal forebrain",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/16635254/",
+      "doi": null,
+      "pmid": "16635254",
+      "evidenceType": "preclinical"
+    },
+    {
+      "id": "SEMAX_BDNF_EXPRESSION_2003",
+      "title": "The heptapeptide Semax stimulates BDNF expression in different areas of the rat brain in vivo",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/14556513/",
+      "doi": null,
+      "pmid": "14556513",
+      "evidenceType": "preclinical"
+    },
+    {
+      "id": "SELANK_ANXIETY_2007",
+      "title": "Selank heptapeptide reduces anxiety: clinical and animal studies",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/18084478/",
+      "doi": "10.1007/s11055-007-0047-y",
+      "pmid": "18084478",
+      "evidenceType": "human_limited_and_preclinical"
+    },
+    {
+      "id": "ACETYL_HEXAPEPTIDE8_REVIEW_2025",
+      "title": "Acetyl Hexapeptide-8 in Cosmeceuticals: a review of skin permeability and efficacy",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/40565185/",
+      "doi": "10.3390/ijms26125722",
+      "pmid": "40565185",
+      "evidenceType": "review"
+    },
+    {
+      "id": "ARGIRELINE_RCT_2013",
+      "title": "The anti-wrinkle efficacy of Argireline in Chinese subjects: randomized placebo-controlled study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/23417317/",
+      "doi": null,
+      "pmid": "23417317",
+      "evidenceType": "human_randomized_cosmetic"
+    },
+    {
+      "id": "FOXO4_DRI_2017",
+      "title": "Targeted apoptosis of senescent cells restores tissue homeostasis in response to chemotoxicity and aging",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/28340339/",
+      "doi": null,
+      "pmid": "28340339",
+      "evidenceType": "preclinical"
+    },
+    {
+      "id": "ADIPOTIDE_PRIMATE_2011",
+      "title": "A peptidomimetic targeting white fat causes weight loss and improved insulin resistance in obese monkeys",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/22072637/",
+      "doi": null,
+      "pmid": "22072637",
+      "evidenceType": "preclinical_primate"
+    }
+  ],
+  "pairings": [
+    {
+      "sourceCompound": "BPC-157",
+      "pairedCompound": "TB-500",
+      "benefitGoal": "tissue repair",
+      "rationale": "BPC-157 is supported by preclinical tendon/angiogenesis literature while thymosin beta-4/TB-500 is associated with actin-mediated cell migration, angiogenesis, and wound healing.",
+      "expectedSynergy": "Complementary repair pathways: BPC-157 emphasizes angiogenic and fibroblast/tendon signaling; TB-500 emphasizes repair-cell migration and inflammatory resolution.",
+      "evidenceQuality": "preclinical",
+      "safetyCaveats": "No direct high-quality human combination trial found. Avoid presenting as therapeutic human protocol.",
+      "avoidIf": "Active malignancy concern, uncontrolled inflammatory disease, pregnancy, or clinician-advised avoidance of experimental peptides.",
+      "timingOrSequencingNotes": "Keep as a paired research note; do not encode exact co-dosing until implementation review defines protocol safety language.",
+      "citationRefs": [
+        "BPC157_ANGIOGENESIS_2009",
+        "BPC157_REVIEW_2018",
+        "TB4_DERMAL_HEALING_2016"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "BPC-157",
+      "pairedCompound": "KPV",
+      "benefitGoal": "gut barrier",
+      "rationale": "BPC-157 has gut/tissue repair rationale, while KPV has anti-inflammatory activity in murine colitis models and alpha-MSH-derived inflammatory pathways.",
+      "expectedSynergy": "Mucosal repair plus local inflammatory tone modulation.",
+      "evidenceQuality": "preclinical",
+      "safetyCaveats": "No direct combination trial found; KPV evidence remains primarily preclinical.",
+      "avoidIf": "Inflammatory bowel disease flare requiring medical care, immunosuppression, pregnancy, or unknown peptide sensitivity.",
+      "timingOrSequencingNotes": "Represent as benefit-goal pairing only; do not imply a route or schedule.",
+      "citationRefs": [
+        "BPC157_REVIEW_2018",
+        "KPV_COLITIS_2008",
+        "KPV_ALPHA_MSH_REVIEW_2008"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "BPC-157",
+      "pairedCompound": "GHK-Cu",
+      "benefitGoal": "wound remodeling",
+      "rationale": "BPC-157 has tissue-healing and angiogenic preclinical support; GHK-Cu has connective-tissue/collagen accumulation and skin regeneration support.",
+      "expectedSynergy": "Repair signaling plus collagen/glycosaminoglycan matrix remodeling.",
+      "evidenceQuality": "preclinical",
+      "safetyCaveats": "No direct combination trial found; avoid claiming accelerated healing in humans.",
+      "avoidIf": "Copper metabolism disorders, active malignancy concern, or significant local skin reactions.",
+      "timingOrSequencingNotes": "Could render as skin/connective-tissue pairing with conservative language.",
+      "citationRefs": [
+        "BPC157_ANGIOGENESIS_2009",
+        "GHKCU_WOUNDS_1993",
+        "GHKCU_REVIEW_2018"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "TB-500",
+      "pairedCompound": "BPC-157",
+      "benefitGoal": "tissue repair",
+      "rationale": "Same reciprocal repair pairing as BPC-157 plus TB-500.",
+      "expectedSynergy": "Cell migration/angiogenesis plus tendon/fibroblast repair signaling.",
+      "evidenceQuality": "preclinical",
+      "safetyCaveats": "No direct high-quality human combination trial found.",
+      "avoidIf": "Active malignancy concern, pregnancy, or clinician-advised avoidance of experimental peptides.",
+      "timingOrSequencingNotes": "Use reciprocal pairing display; do not duplicate citations in UI if deduping pairings later.",
+      "citationRefs": [
+        "TB4_DERMAL_HEALING_2016",
+        "BPC157_ANGIOGENESIS_2009",
+        "BPC157_REVIEW_2018"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "TB-500",
+      "pairedCompound": "GHK-Cu",
+      "benefitGoal": "dermal repair",
+      "rationale": "TB-500/thymosin beta-4 literature supports dermal healing and repair-cell migration; GHK-Cu supports connective tissue accumulation and skin remodeling.",
+      "expectedSynergy": "Migration and wound-closure support plus extracellular matrix rebuilding.",
+      "evidenceQuality": "preclinical",
+      "safetyCaveats": "Mechanistic only; no direct combination outcome trial found.",
+      "avoidIf": "Copper metabolism disorders, active malignancy concern, or significant skin irritation.",
+      "timingOrSequencingNotes": "Treat as dermal/wound research pairing, not a protocol.",
+      "citationRefs": [
+        "TB4_DERMAL_HEALING_2016",
+        "GHKCU_WOUNDS_1993",
+        "GHKCU_REVIEW_2018"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Semaglutide",
+      "pairedCompound": "Cagrilintide",
+      "benefitGoal": "metabolic support",
+      "rationale": "Cagrilintide plus semaglutide has direct randomized human evidence as CagriSema, combining amylin and GLP-1 mechanisms.",
+      "expectedSynergy": "Distinct satiety and gastric-emptying pathways can produce greater weight loss than either component alone in trials.",
+      "evidenceQuality": "human_strong",
+      "safetyCaveats": "Additive GI adverse events, dehydration risk, hypoglycemia risk when used with insulin/secretagogues, pancreatitis/gallbladder warning context.",
+      "avoidIf": "Personal/family MTC or MEN2 risk, severe gastroparesis, pancreatitis history unless clinician-reviewed, pregnancy, or concurrent GLP-1/GIP/glucagon agonist use.",
+      "timingOrSequencingNotes": "Represent as coadministration evidence, but do not encode self-mixing or dosing instructions.",
+      "citationRefs": [
+        "CAGRISEMA_REDEFINE1_2025",
+        "CAGRISEMA_REDEFINE2_2025",
+        "CAGRISEMA_PHASE2_T2D_2023",
+        "CAGRISEMA_PHASE1B_2021",
+        "WEGOVY_DAILYMED_2026"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "GHK-Cu",
+      "pairedCompound": "Snap-8",
+      "benefitGoal": "skin health",
+      "rationale": "GHK-Cu targets skin repair and collagen/matrix biology, while Snap-8/acetyl-octapeptide logic overlaps the cosmetic expression-line peptide category.",
+      "expectedSynergy": "Matrix remodeling plus expression-line modulation.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "Most evidence is topical/cosmetic, not systemic. Skin penetration and formulation matter.",
+      "avoidIf": "Copper metabolism disorders, active dermatitis at application site, or sensitivity to cosmetic peptides.",
+      "timingOrSequencingNotes": "Prefer topical/cosmetic framing; avoid implying injectable cosmetic protocol.",
+      "citationRefs": [
+        "GHKCU_REVIEW_2018",
+        "ACETYL_HEXAPEPTIDE8_REVIEW_2025",
+        "ARGIRELINE_RCT_2013"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "GHK-Cu",
+      "pairedCompound": "BPC-157",
+      "benefitGoal": "wound remodeling",
+      "rationale": "Reciprocal skin/connective-tissue repair pairing.",
+      "expectedSynergy": "Collagen/matrix support plus angiogenic/tendon repair signaling.",
+      "evidenceQuality": "preclinical",
+      "safetyCaveats": "No direct combination trial found.",
+      "avoidIf": "Copper metabolism disorders, active malignancy concern, pregnancy, or significant local reactions.",
+      "timingOrSequencingNotes": "Pairing should be displayed as research rationale only.",
+      "citationRefs": [
+        "GHKCU_WOUNDS_1993",
+        "GHKCU_REVIEW_2018",
+        "BPC157_ANGIOGENESIS_2009"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Tesamorelin",
+      "pairedCompound": "Ipamorelin",
+      "benefitGoal": "body composition",
+      "rationale": "Tesamorelin is a GHRH analog and ipamorelin is a selective GHS-R agonist; GHRH + GHRP/GHS pathway complementarity supports GH pulse amplification.",
+      "expectedSynergy": "Pituitary GHRH receptor stimulation plus ghrelin/GHS receptor stimulation.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "Monitor IGF-1/glucose; avoid redundant GH-axis exposure, edema, carpal tunnel symptoms, and sleep apnea worsening.",
+      "avoidIf": "Active malignancy, uncontrolled diabetes, untreated sleep apnea, elevated IGF-1, pregnancy, or concurrent HGH.",
+      "timingOrSequencingNotes": "Cautious GH-axis pairing; not best overall because tesamorelin is long-acting and indication-specific.",
+      "citationRefs": [
+        "GHRH_GHRP6_SYNERGY_1998",
+        "IPAMORELIN_SELECTIVE_1998",
+        "IPAMORELIN_HUMAN_PKPD_1999"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Epitalon",
+      "pairedCompound": "Thymalin",
+      "benefitGoal": "longevity",
+      "rationale": "Limited human cohort data studied thymic and pineal peptide bioregulators together for geroprotective outcomes.",
+      "expectedSynergy": "Pineal/circadian regulatory support plus thymic/immune-aging support.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "Older non-Western cohort evidence; not a modern randomized standard. Avoid mortality-benefit claims in UI.",
+      "avoidIf": "Active malignancy concern, autoimmune instability, pregnancy, or use outside clinician-supervised research context.",
+      "timingOrSequencingNotes": "Render as limited human evidence with no therapeutic claim.",
+      "citationRefs": [
+        "EPITALON_THYMALIN_LONGEVITY_2003",
+        "EPITALON_TELOMERE_2025"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Epitalon",
+      "pairedCompound": "DSIP",
+      "benefitGoal": "sleep",
+      "rationale": "Epitalon is associated with pineal/circadian biology, while DSIP has small human sleep studies with mixed results.",
+      "expectedSynergy": "Circadian support plus sleep-architecture support.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "DSIP evidence is mixed, including a small negative insomnia study. Avoid strong claims.",
+      "avoidIf": "Severe sleep apnea, sedative polypharmacy, pregnancy, or unexplained hypersomnia.",
+      "timingOrSequencingNotes": "Sequence/timing should be deferred to clinical review; UI should show mixed evidence.",
+      "citationRefs": [
+        "DSIP_HUMAN_SLEEP_1981",
+        "DSIP_INSOMNIA_NEGATIVE_1992",
+        "EPITALON_TELOMERE_2025"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "MOTS-c",
+      "pairedCompound": "NAD+",
+      "benefitGoal": "metabolic support",
+      "rationale": "MOTS-c literature centers on mitochondrial stress/metabolic signaling, while NAD+ is a core redox and sirtuin/PARP substrate in aging biology.",
+      "expectedSynergy": "Mitochondrial signaling plus cellular redox/coenzyme availability.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "No direct combination clinical trial found; avoid claiming additive energy or fat-loss outcomes.",
+      "avoidIf": "Active cancer treatment unless oncology-reviewed, pregnancy, severe flushing/nausea reactions, or unstable metabolic disease.",
+      "timingOrSequencingNotes": "Keep as conceptual mitochondrial pairing; adjunct methylation supports are deferred.",
+      "citationRefs": [
+        "MOTSC_REVIEW_2023",
+        "MOTSC_AGING_REVIEW_2022",
+        "NAD_AGING_REVIEW_2020"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "KPV",
+      "pairedCompound": "BPC-157",
+      "benefitGoal": "gut barrier",
+      "rationale": "Reciprocal gut inflammation/repair pairing.",
+      "expectedSynergy": "Mucosal repair plus local inflammatory-tone modulation.",
+      "evidenceQuality": "preclinical",
+      "safetyCaveats": "No direct combination trial found.",
+      "avoidIf": "Acute severe GI symptoms requiring medical care, pregnancy, or unknown peptide sensitivity.",
+      "timingOrSequencingNotes": "Represent as gut-focused research pairing only.",
+      "citationRefs": [
+        "KPV_COLITIS_2008",
+        "KPV_ALPHA_MSH_REVIEW_2008",
+        "BPC157_REVIEW_2018"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "KPV",
+      "pairedCompound": "LL-37",
+      "benefitGoal": "immune modulation",
+      "rationale": "KPV has anti-inflammatory preclinical support; LL-37 is a host-defense peptide with antimicrobial and immunomodulatory actions.",
+      "expectedSynergy": "Inflammation modulation plus host-defense signaling.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "LL-37 can participate in inflammatory disease pathways; avoid simple 'immune boost' framing.",
+      "avoidIf": "Autoimmune flares, psoriasis/rosacea-like inflammatory skin disease, pregnancy, or active infection needing medical care.",
+      "timingOrSequencingNotes": "Use only as conservative immune/mucosal pairing.",
+      "citationRefs": [
+        "KPV_COLITIS_2008",
+        "LL37_IMMUNOMODULATION_2020"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Thymosin Alpha-1",
+      "pairedCompound": "LL-37",
+      "benefitGoal": "immune modulation",
+      "rationale": "Thymosin alpha-1 has human clinical immunomodulatory literature; LL-37 is an endogenous antimicrobial/immunomodulatory peptide.",
+      "expectedSynergy": "Adaptive immune modulation plus innate host-defense peptide signaling.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "No direct combination trial found. Avoid use in active autoimmune instability without specialist review.",
+      "avoidIf": "Autoimmune flare, transplant immunosuppression, active severe infection without care, pregnancy.",
+      "timingOrSequencingNotes": "Render as immune-support research pairing, not infection treatment.",
+      "citationRefs": [
+        "THYMOSIN_ALPHA1_REVIEW_2020",
+        "LL37_IMMUNOMODULATION_2020"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Thymosin Alpha-1",
+      "pairedCompound": "KPV",
+      "benefitGoal": "inflammatory tone",
+      "rationale": "Thymosin alpha-1 modulates immune response, while KPV has anti-inflammatory melanocortin-derived activity.",
+      "expectedSynergy": "Immune calibration plus inflammatory signaling modulation.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "No direct combination trial found.",
+      "avoidIf": "Autoimmune instability, pregnancy, or active infection requiring medical treatment.",
+      "timingOrSequencingNotes": "Avoid broad claims; keep as inflammation-balance pairing.",
+      "citationRefs": [
+        "THYMOSIN_ALPHA1_REVIEW_2020",
+        "KPV_ALPHA_MSH_REVIEW_2008"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "DSIP",
+      "pairedCompound": "Epitalon",
+      "benefitGoal": "sleep",
+      "rationale": "Reciprocal sleep/circadian pairing with mixed evidence.",
+      "expectedSynergy": "Sleep-pressure/sleep-architecture support plus circadian/pineal support.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "DSIP evidence is mixed and small. Avoid strong claims.",
+      "avoidIf": "Severe sleep apnea, sedative polypharmacy, pregnancy, or unexplained hypersomnia.",
+      "timingOrSequencingNotes": "Display mixed evidence caveat.",
+      "citationRefs": [
+        "DSIP_HUMAN_SLEEP_1981",
+        "DSIP_INSOMNIA_NEGATIVE_1992",
+        "EPITALON_TELOMERE_2025"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Hexarelin",
+      "pairedCompound": "Sermorelin",
+      "benefitGoal": "growth hormone axis",
+      "rationale": "Hexarelin is a GHS-R agonist and Sermorelin is a GHRH analog; GHRH + GHRP literature supports synergistic GH secretion.",
+      "expectedSynergy": "GHS-R stimulation plus GHRH receptor stimulation.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "Hexarelin has greater prolactin/cortisol and desensitization concerns than ipamorelin.",
+      "avoidIf": "Elevated IGF-1, uncontrolled diabetes, untreated sleep apnea, active malignancy, pregnancy, or concurrent HGH.",
+      "timingOrSequencingNotes": "Cycle/rest language should be reviewed before implementation.",
+      "citationRefs": [
+        "GHRH_GHRP6_SYNERGY_1998"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Hexarelin",
+      "pairedCompound": "CJC-1295",
+      "benefitGoal": "growth hormone axis",
+      "rationale": "CJC-1295 is a GHRH analog candidate that would complement Hexarelin's GHS-R activity.",
+      "expectedSynergy": "Longer GHRH receptor drive plus GHS-R stimulation.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "Missing compound; must distinguish DAC vs no-DAC. High GH/IGF-1 exposure risk.",
+      "avoidIf": "Elevated IGF-1, uncontrolled diabetes, active malignancy, untreated sleep apnea, pregnancy, or concurrent HGH.",
+      "timingOrSequencingNotes": "Do not add until CJC-1295 is modeled and reviewed.",
+      "citationRefs": [
+        "CJC1295_GH_IGF1_2006",
+        "CJC1295_PULSATILE_GH_2006",
+        "GHRH_GHRP6_SYNERGY_1998"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": false,
+      "missingCompoundAction": "add_complete_compound"
+    },
+    {
+      "sourceCompound": "Testosterone",
+      "pairedCompound": "HCG",
+      "benefitGoal": "fertility",
+      "rationale": "hCG can maintain intratesticular testosterone during testosterone-induced gonadotropin suppression and is used in fertility-preservation contexts.",
+      "expectedSynergy": "Exogenous testosterone symptom replacement plus LH-like testicular signaling support.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "Can raise estradiol, acne, gynecomastia, mood changes, and polycythemia risk context. Requires clinician monitoring.",
+      "avoidIf": "Active prostate/breast cancer, untreated severe sleep apnea, high hematocrit, uncontrolled heart failure, or no fertility/testicular-preservation goal.",
+      "timingOrSequencingNotes": "UI should avoid protocol dosing and suggest semen/lab monitoring in future monitoring-support phase.",
+      "citationRefs": [
+        "HCG_INTRATESTICULAR_T_2005",
+        "AUA_TESTOSTERONE_GUIDELINE"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Testosterone",
+      "pairedCompound": "Tadalafil",
+      "benefitGoal": "sexual function",
+      "rationale": "Combination testosterone and PDE5 inhibitor therapy has clinical literature in hypogonadal men with erectile dysfunction.",
+      "expectedSynergy": "Androgen deficiency correction plus PDE5-mediated erectile hemodynamic support.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "PDE5 hypotension risk; testosterone requires hematocrit, prostate, sleep apnea, and cardiovascular context review.",
+      "avoidIf": "Nitrate use, riociguat use, unstable cardiovascular disease, severe hypotension, high hematocrit, active prostate/breast cancer.",
+      "timingOrSequencingNotes": "Do not pair tadalafil with vardenafil; one PDE5 inhibitor at a time.",
+      "citationRefs": [
+        "TESTOSTERONE_TADALAFIL_RANDOMIZED_2020",
+        "TESTOSTERONE_PDE5I_SYSTEMATIC_REVIEW",
+        "TADALAFIL_FDA_QA"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Tadalafil",
+      "pairedCompound": "Testosterone",
+      "benefitGoal": "sexual function",
+      "rationale": "Reciprocal PDE5 inhibitor plus testosterone pairing for hypogonadal ED.",
+      "expectedSynergy": "PDE5-mediated erectile response plus androgen repletion when testosterone deficiency is present.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "Nitrates are contraindicated. Do not combine multiple PDE5 inhibitors.",
+      "avoidIf": "Nitrate use, riociguat use, unstable cardiovascular disease, severe hypotension, or concurrent vardenafil.",
+      "timingOrSequencingNotes": "Future UI should show red 'do not combine with nitrates' warning.",
+      "citationRefs": [
+        "TESTOSTERONE_TADALAFIL_RANDOMIZED_2020",
+        "TESTOSTERONE_PDE5I_SYSTEMATIC_REVIEW",
+        "TADALAFIL_FDA_QA"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Vardenafil",
+      "pairedCompound": "Testosterone",
+      "benefitGoal": "sexual function",
+      "rationale": "Class-level evidence supports testosterone plus PDE5 inhibitors for selected hypogonadal ED patients; vardenafil-specific pairing evidence is weaker than tadalafil.",
+      "expectedSynergy": "PDE5-mediated erectile response plus androgen repletion when testosterone deficiency is present.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "Vardenafil has nitrate contraindication and QT/CYP3A4 caveats in labeling.",
+      "avoidIf": "Nitrate use, riociguat use, unstable cardiovascular disease, congenital long QT, class IA/III antiarrhythmics, strong CYP3A4 inhibitors, or concurrent tadalafil.",
+      "timingOrSequencingNotes": "One PDE5 inhibitor at a time.",
+      "citationRefs": [
+        "TESTOSTERONE_PDE5I_SYSTEMATIC_REVIEW",
+        "VARDENAFIL_DAILYMED"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Thymalin",
+      "pairedCompound": "Epitalon",
+      "benefitGoal": "longevity",
+      "rationale": "Reciprocal thymic/pineal bioregulator pairing from limited human cohort literature.",
+      "expectedSynergy": "Thymic immune-aging support plus pineal/circadian regulatory support.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "Older cohort data; avoid mortality-benefit claims.",
+      "avoidIf": "Active malignancy concern, autoimmune instability, pregnancy, or use outside clinician-supervised research context.",
+      "timingOrSequencingNotes": "Display as limited evidence.",
+      "citationRefs": [
+        "EPITALON_THYMALIN_LONGEVITY_2003"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "NA-Selank-Amidate",
+      "pairedCompound": "Semax",
+      "benefitGoal": "cognition",
+      "rationale": "Selank/Semax pairing logic combines anxiolytic stress modulation with Semax neurotrophic/cognitive mechanisms; amidated Selank evidence is extrapolated.",
+      "expectedSynergy": "Calm focus: anxiety-buffering plus cognitive/neurotrophic signaling.",
+      "evidenceQuality": "expert_consensus",
+      "safetyCaveats": "Evidence for the amidated analog pairing is weaker than parent Selank/Semax literature.",
+      "avoidIf": "Bipolar/mania risk, severe anxiety destabilization, pregnancy, or concurrent psychoactive changes without clinician review.",
+      "timingOrSequencingNotes": "Prefer conservative cognitive/anxiolytic wording.",
+      "citationRefs": [
+        "SELANK_ANXIETY_2007",
+        "SEMAX_BDNF_2006",
+        "SEMAX_BDNF_EXPRESSION_2003"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "NA-Selank-Amidate",
+      "pairedCompound": "NA-Semax-Amidate",
+      "benefitGoal": "cognition",
+      "rationale": "Analog-to-analog version of the Selank/Semax cognitive/anxiolytic pairing.",
+      "expectedSynergy": "Stress-buffering plus cognitive/neurotrophic signaling.",
+      "evidenceQuality": "expert_consensus",
+      "safetyCaveats": "Extrapolated from parent compounds; no direct robust human analog-combination data found.",
+      "avoidIf": "Bipolar/mania risk, severe anxiety destabilization, pregnancy, or psychoactive medication changes without clinician review.",
+      "timingOrSequencingNotes": "Mark as low-confidence analog extrapolation.",
+      "citationRefs": [
+        "SELANK_ANXIETY_2007",
+        "SEMAX_BDNF_2006"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "HCG",
+      "pairedCompound": "HMG",
+      "benefitGoal": "fertility",
+      "rationale": "hCG supplies LH-like signaling and hMG supplies FSH/LH activity; combined gonadotropin therapy is established for spermatogenesis induction in male hypogonadotropic hypogonadism.",
+      "expectedSynergy": "Leydig-cell testosterone support plus Sertoli-cell/spermatogenesis support.",
+      "evidenceQuality": "human_strong",
+      "safetyCaveats": "Requires semen, testosterone, estradiol, LH/FSH, and testicular-volume context; can raise estradiol and gynecomastia risk.",
+      "avoidIf": "Primary testicular failure without specialist plan, active hormone-sensitive cancer, pregnancy exposure concerns, or unsupervised fertility treatment.",
+      "timingOrSequencingNotes": "Future monitoring-support model should attach semen analysis and hormone labs.",
+      "citationRefs": [
+        "HCG_HMG_CHH_2017",
+        "GONADOTROPIN_META_CHH_2020",
+        "FSH_HCG_HH_2009",
+        "AUA_TESTOSTERONE_GUIDELINE"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "HCG",
+      "pairedCompound": "Testosterone",
+      "benefitGoal": "fertility",
+      "rationale": "hCG can support intratesticular testosterone during testosterone-induced gonadotropin suppression.",
+      "expectedSynergy": "Symptom replacement plus testicular signaling support.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "Requires clinician monitoring and fertility-goal context.",
+      "avoidIf": "Active hormone-sensitive cancer, high hematocrit, uncontrolled sleep apnea, or no fertility/testicular-preservation goal.",
+      "timingOrSequencingNotes": "Avoid dosing language; future monitoring-support model should include semen analysis.",
+      "citationRefs": [
+        "HCG_INTRATESTICULAR_T_2005",
+        "AUA_TESTOSTERONE_GUIDELINE"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "HMG",
+      "pairedCompound": "HCG",
+      "benefitGoal": "fertility",
+      "rationale": "Reciprocal combined gonadotropin pairing for spermatogenesis support.",
+      "expectedSynergy": "FSH/LH activity plus LH-like hCG support.",
+      "evidenceQuality": "human_strong",
+      "safetyCaveats": "Requires fertility-specialist context and labs.",
+      "avoidIf": "Primary testicular failure without specialist plan or active hormone-sensitive cancer.",
+      "timingOrSequencingNotes": "Attach monitoring requirements in later phase.",
+      "citationRefs": [
+        "HCG_HMG_CHH_2017",
+        "GONADOTROPIN_META_CHH_2020",
+        "FSH_HCG_HH_2009"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "LL-37",
+      "pairedCompound": "Thymosin Alpha-1",
+      "benefitGoal": "immune modulation",
+      "rationale": "Reciprocal innate/adaptive immune-modulation pairing.",
+      "expectedSynergy": "Host-defense peptide signaling plus thymic immune modulation.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "No direct combination trial found.",
+      "avoidIf": "Autoimmune flare, transplant immunosuppression, severe active infection without medical care, pregnancy.",
+      "timingOrSequencingNotes": "Do not present as infection treatment.",
+      "citationRefs": [
+        "LL37_IMMUNOMODULATION_2020",
+        "THYMOSIN_ALPHA1_REVIEW_2020"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "LL-37",
+      "pairedCompound": "KPV",
+      "benefitGoal": "immune modulation",
+      "rationale": "Reciprocal mucosal immune-defense plus inflammatory-tone pairing.",
+      "expectedSynergy": "Host defense plus anti-inflammatory signaling.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "LL-37 has complex pro- and anti-inflammatory roles.",
+      "avoidIf": "Autoimmune flare, inflammatory skin disease flare, pregnancy, or active infection needing medical care.",
+      "timingOrSequencingNotes": "Use careful caveat language.",
+      "citationRefs": [
+        "LL37_IMMUNOMODULATION_2020",
+        "KPV_ALPHA_MSH_REVIEW_2008"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Selank",
+      "pairedCompound": "Semax",
+      "benefitGoal": "cognition",
+      "rationale": "Selank has anxiolytic/non-sedating research support; Semax has neurotrophic/BDNF preclinical support and limited non-US clinical use.",
+      "expectedSynergy": "Cognitive drive plus anxiety-buffering.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "No robust Western direct combination trial found; psychoactive response can vary.",
+      "avoidIf": "Bipolar/mania risk, severe anxiety destabilization, pregnancy, or medication changes without clinician review.",
+      "timingOrSequencingNotes": "Render as calm-focus research pairing.",
+      "citationRefs": [
+        "SELANK_ANXIETY_2007",
+        "SEMAX_BDNF_2006",
+        "SEMAX_BDNF_EXPRESSION_2003"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Selank",
+      "pairedCompound": "NA-Semax-Amidate",
+      "benefitGoal": "cognition",
+      "rationale": "Parent Selank plus amidated Semax analog pairing extrapolates the Selank/Semax calm-focus logic.",
+      "expectedSynergy": "Anxiolytic buffer plus cognitive/neurotrophic signaling.",
+      "evidenceQuality": "expert_consensus",
+      "safetyCaveats": "Analog-specific direct evidence is weak.",
+      "avoidIf": "Bipolar/mania risk, severe anxiety destabilization, pregnancy, or medication changes without clinician review.",
+      "timingOrSequencingNotes": "Mark as analog extrapolation.",
+      "citationRefs": [
+        "SELANK_ANXIETY_2007",
+        "SEMAX_BDNF_2006"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Sermorelin",
+      "pairedCompound": "Ipamorelin",
+      "benefitGoal": "growth hormone axis",
+      "rationale": "Sermorelin is a GHRH analog and Ipamorelin is a selective GHS-R agonist; GHRH + GHRP literature supports synergistic GH secretion.",
+      "expectedSynergy": "Physiologic GH pulse prompting through two receptor families.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "Monitor IGF-1/glucose; avoid redundant GH-axis exposure.",
+      "avoidIf": "Elevated IGF-1, uncontrolled diabetes, active malignancy, untreated sleep apnea, pregnancy, or concurrent HGH.",
+      "timingOrSequencingNotes": "Best current in-catalog GH secretagogue pairing; still needs conservative UI language.",
+      "citationRefs": [
+        "GHRH_GHRP6_SYNERGY_1998",
+        "IPAMORELIN_SELECTIVE_1998",
+        "IPAMORELIN_HUMAN_PKPD_1999"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Sermorelin",
+      "pairedCompound": "GHRP-2",
+      "benefitGoal": "growth hormone axis",
+      "rationale": "GHRP-2 is a GHS-R agonist that can complement Sermorelin's GHRH receptor activity.",
+      "expectedSynergy": "Higher GH pulse signaling than either pathway alone.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "More appetite/cortisol/prolactin concerns than ipamorelin.",
+      "avoidIf": "Elevated IGF-1, uncontrolled diabetes, active malignancy, untreated sleep apnea, pregnancy, or concurrent HGH.",
+      "timingOrSequencingNotes": "Secondary to Ipamorelin because selectivity is less favorable.",
+      "citationRefs": [
+        "GHRH_GHRP6_SYNERGY_1998"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Sermorelin",
+      "pairedCompound": "GHRP-6",
+      "benefitGoal": "growth hormone axis",
+      "rationale": "GHRP-6 can complement Sermorelin's GHRH receptor activity and adds appetite-support rationale.",
+      "expectedSynergy": "GH pulse amplification plus appetite support.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "Hunger/cravings, water retention, and desensitization concerns.",
+      "avoidIf": "Elevated IGF-1, uncontrolled diabetes, active malignancy, untreated sleep apnea, binge-eating risk, pregnancy, or concurrent HGH.",
+      "timingOrSequencingNotes": "Use only when appetite support is a desired benefit goal.",
+      "citationRefs": [
+        "GHRH_GHRP6_SYNERGY_1998"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Snap-8",
+      "pairedCompound": "GHK-Cu",
+      "benefitGoal": "skin health",
+      "rationale": "Reciprocal cosmetic skin pairing.",
+      "expectedSynergy": "Expression-line modulation plus matrix/collagen support.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "Cosmetic/topical evidence; penetration and formulation matter.",
+      "avoidIf": "Copper metabolism disorders, active dermatitis, or sensitivity to cosmetic peptides.",
+      "timingOrSequencingNotes": "Prefer topical/cosmetic framing.",
+      "citationRefs": [
+        "ACETYL_HEXAPEPTIDE8_REVIEW_2025",
+        "ARGIRELINE_RCT_2013",
+        "GHKCU_REVIEW_2018"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Semax",
+      "pairedCompound": "Selank",
+      "benefitGoal": "cognition",
+      "rationale": "Reciprocal calm-focus pairing.",
+      "expectedSynergy": "Neurotrophic/cognitive signaling plus anxiolytic buffering.",
+      "evidenceQuality": "human_limited",
+      "safetyCaveats": "No robust Western direct combination trial found.",
+      "avoidIf": "Bipolar/mania risk, severe anxiety destabilization, pregnancy, or medication changes without clinician review.",
+      "timingOrSequencingNotes": "Render as cognitive/anxiolytic balance.",
+      "citationRefs": [
+        "SEMAX_BDNF_2006",
+        "SEMAX_BDNF_EXPRESSION_2003",
+        "SELANK_ANXIETY_2007"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Semax",
+      "pairedCompound": "NA-Selank-Amidate",
+      "benefitGoal": "cognition",
+      "rationale": "Parent Semax plus amidated Selank analog pairing extrapolates the Semax/Selank calm-focus logic.",
+      "expectedSynergy": "Cognitive/neurotrophic signaling plus anxiolytic buffering.",
+      "evidenceQuality": "expert_consensus",
+      "safetyCaveats": "Analog-specific direct evidence is weak.",
+      "avoidIf": "Bipolar/mania risk, severe anxiety destabilization, pregnancy, or medication changes without clinician review.",
+      "timingOrSequencingNotes": "Mark as analog extrapolation.",
+      "citationRefs": [
+        "SEMAX_BDNF_2006",
+        "SELANK_ANXIETY_2007"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "NA-Semax-Amidate",
+      "pairedCompound": "Selank",
+      "benefitGoal": "cognition",
+      "rationale": "Amidated Semax analog plus parent Selank pairing extrapolates the Semax/Selank calm-focus logic.",
+      "expectedSynergy": "Cognitive/neurotrophic signaling plus anxiolytic buffering.",
+      "evidenceQuality": "expert_consensus",
+      "safetyCaveats": "Analog-specific direct evidence is weak.",
+      "avoidIf": "Bipolar/mania risk, severe anxiety destabilization, pregnancy, or medication changes without clinician review.",
+      "timingOrSequencingNotes": "Mark as analog extrapolation.",
+      "citationRefs": [
+        "SEMAX_BDNF_2006",
+        "SELANK_ANXIETY_2007"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "NA-Semax-Amidate",
+      "pairedCompound": "NA-Selank-Amidate",
+      "benefitGoal": "cognition",
+      "rationale": "Analog-to-analog version of Semax/Selank pairing.",
+      "expectedSynergy": "Cognitive/neurotrophic signaling plus anxiolytic buffering.",
+      "evidenceQuality": "expert_consensus",
+      "safetyCaveats": "Direct evidence is weak and extrapolated.",
+      "avoidIf": "Bipolar/mania risk, severe anxiety destabilization, pregnancy, or medication changes without clinician review.",
+      "timingOrSequencingNotes": "Mark as low-confidence analog extrapolation.",
+      "citationRefs": [
+        "SEMAX_BDNF_2006",
+        "SELANK_ANXIETY_2007"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "NAD+",
+      "pairedCompound": "MOTS-c",
+      "benefitGoal": "metabolic support",
+      "rationale": "Reciprocal mitochondrial/metabolic pairing.",
+      "expectedSynergy": "Redox/coenzyme substrate availability plus mitochondrial stress/metabolic signaling.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "No direct combination clinical trial found.",
+      "avoidIf": "Active cancer treatment unless oncology-reviewed, pregnancy, severe flushing/nausea reactions, or unstable metabolic disease.",
+      "timingOrSequencingNotes": "Adjunct methylation supports are deferred.",
+      "citationRefs": [
+        "NAD_AGING_REVIEW_2020",
+        "MOTSC_REVIEW_2023",
+        "MOTSC_AGING_REVIEW_2022"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "GHRP-2",
+      "pairedCompound": "Sermorelin",
+      "benefitGoal": "growth hormone axis",
+      "rationale": "GHRP-2 GHS-R activity complements Sermorelin GHRH receptor activity.",
+      "expectedSynergy": "GH pulse amplification through two receptor pathways.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "GHRP-2 may raise hunger, cortisol, or prolactin more than ipamorelin.",
+      "avoidIf": "Elevated IGF-1, uncontrolled diabetes, active malignancy, untreated sleep apnea, pregnancy, or concurrent HGH.",
+      "timingOrSequencingNotes": "Secondary to Ipamorelin-based pairing because selectivity is less favorable.",
+      "citationRefs": [
+        "GHRH_GHRP6_SYNERGY_1998"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "GHRP-2",
+      "pairedCompound": "CJC-1295",
+      "benefitGoal": "growth hormone axis",
+      "rationale": "CJC-1295 is a missing GHRH analog candidate for GHRP-2 pairing.",
+      "expectedSynergy": "GHRH receptor drive plus GHS-R stimulation.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "Missing compound; DAC/no-DAC distinction required. High GH/IGF-1 exposure risk.",
+      "avoidIf": "Elevated IGF-1, uncontrolled diabetes, active malignancy, untreated sleep apnea, pregnancy, or concurrent HGH.",
+      "timingOrSequencingNotes": "Do not add until CJC-1295 profile is modeled and reviewed.",
+      "citationRefs": [
+        "CJC1295_GH_IGF1_2006",
+        "CJC1295_PULSATILE_GH_2006",
+        "GHRH_GHRP6_SYNERGY_1998"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": false,
+      "missingCompoundAction": "add_complete_compound"
+    },
+    {
+      "sourceCompound": "GHRP-6",
+      "pairedCompound": "Sermorelin",
+      "benefitGoal": "growth hormone axis",
+      "rationale": "GHRP-6 GHS-R activity complements Sermorelin GHRH receptor activity.",
+      "expectedSynergy": "GH pulse amplification plus appetite support.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "GHRP-6 has stronger hunger/craving and water-retention caveats.",
+      "avoidIf": "Elevated IGF-1, uncontrolled diabetes, binge-eating risk, active malignancy, untreated sleep apnea, pregnancy, or concurrent HGH.",
+      "timingOrSequencingNotes": "Use when appetite support is a desired benefit goal.",
+      "citationRefs": [
+        "GHRH_GHRP6_SYNERGY_1998"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "GHRP-6",
+      "pairedCompound": "CJC-1295",
+      "benefitGoal": "growth hormone axis",
+      "rationale": "CJC-1295 is a missing GHRH analog candidate for GHRP-6 pairing.",
+      "expectedSynergy": "GHRH receptor drive plus GHS-R stimulation.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "Missing compound; DAC/no-DAC distinction required. High GH/IGF-1 exposure and appetite/glucose risk.",
+      "avoidIf": "Elevated IGF-1, uncontrolled diabetes, binge-eating risk, active malignancy, untreated sleep apnea, pregnancy, or concurrent HGH.",
+      "timingOrSequencingNotes": "Do not add until CJC-1295 profile is modeled and reviewed.",
+      "citationRefs": [
+        "CJC1295_GH_IGF1_2006",
+        "CJC1295_PULSATILE_GH_2006",
+        "GHRH_GHRP6_SYNERGY_1998"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": false,
+      "missingCompoundAction": "add_complete_compound"
+    },
+    {
+      "sourceCompound": "Ipamorelin",
+      "pairedCompound": "Sermorelin",
+      "benefitGoal": "growth hormone axis",
+      "rationale": "Ipamorelin is a selective GHS-R agonist and Sermorelin is a GHRH analog; this is the cleanest current in-catalog GH secretagogue pairing.",
+      "expectedSynergy": "Selective GHS-R stimulation plus GHRH receptor stimulation.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "Monitor IGF-1/glucose; avoid redundant GH-axis exposure.",
+      "avoidIf": "Elevated IGF-1, uncontrolled diabetes, active malignancy, untreated sleep apnea, pregnancy, or concurrent HGH.",
+      "timingOrSequencingNotes": "Best current in-catalog GH pairing but still not direct outcome evidence.",
+      "citationRefs": [
+        "IPAMORELIN_SELECTIVE_1998",
+        "IPAMORELIN_HUMAN_PKPD_1999",
+        "GHRH_GHRP6_SYNERGY_1998"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    },
+    {
+      "sourceCompound": "Ipamorelin",
+      "pairedCompound": "CJC-1295",
+      "benefitGoal": "growth hormone axis",
+      "rationale": "CJC-1295 is a missing GHRH analog candidate for the common Ipamorelin pairing pattern.",
+      "expectedSynergy": "GHRH receptor drive plus selective GHS-R stimulation.",
+      "evidenceQuality": "mechanistic",
+      "safetyCaveats": "Missing compound; DAC/no-DAC distinction required. High GH/IGF-1 exposure risk.",
+      "avoidIf": "Elevated IGF-1, uncontrolled diabetes, active malignancy, untreated sleep apnea, pregnancy, or concurrent HGH.",
+      "timingOrSequencingNotes": "Do not add until CJC-1295 profile is modeled and reviewed.",
+      "citationRefs": [
+        "CJC1295_GH_IGF1_2006",
+        "CJC1295_PULSATILE_GH_2006",
+        "IPAMORELIN_SELECTIVE_1998"
+      ],
+      "bestOverall": false,
+      "partnerExistsInCatalog": false,
+      "missingCompoundAction": "add_complete_compound"
+    },
+    {
+      "sourceCompound": "Cagrilintide",
+      "pairedCompound": "Semaglutide",
+      "benefitGoal": "metabolic support",
+      "rationale": "Reciprocal CagriSema pairing with direct randomized human evidence.",
+      "expectedSynergy": "Amylin-receptor agonism plus GLP-1 receptor agonism.",
+      "evidenceQuality": "human_strong",
+      "safetyCaveats": "Additive GI adverse events, dehydration, gallbladder/pancreatitis warning context, and glucose interactions.",
+      "avoidIf": "Personal/family MTC or MEN2 risk, severe gastroparesis, pancreatitis history unless clinician-reviewed, pregnancy, or concurrent GLP-1/GIP/glucagon agonist use.",
+      "timingOrSequencingNotes": "Do not encode self-mixing or dosing instructions.",
+      "citationRefs": [
+        "CAGRISEMA_REDEFINE1_2025",
+        "CAGRISEMA_REDEFINE2_2025",
+        "CAGRISEMA_PHASE2_T2D_2023",
+        "CAGRISEMA_PHASE1B_2021"
+      ],
+      "bestOverall": true,
+      "partnerExistsInCatalog": true,
+      "missingCompoundAction": "none"
+    }
+  ],
+  "noPairingRecommendations": [
+    {
+      "compound": "Tirzepatide",
+      "reason": "No responsible compound-to-compound pairing found. Avoid overlapping incretin therapy with other GLP-1/GIP/glucagon agents.",
+      "citationRefs": [
+        "ZEPBOUND_DAILYMED_2026"
+      ]
+    },
+    {
+      "compound": "ARA-290",
+      "reason": "No pairing proposed without indication-specific neuropathy/inflammation review."
+    },
+    {
+      "compound": "Cagrilintide/Semaglutide",
+      "reason": "Already a fixed combination. Additional incretin/amylin pairings would be redundant and risk-additive.",
+      "citationRefs": [
+        "CAGRISEMA_REDEFINE1_2025",
+        "CAGRISEMA_REDEFINE2_2025"
+      ]
+    },
+    {
+      "compound": "Retatrutide",
+      "reason": "Triple receptor activity already overlaps with GLP-1/GIP/glucagon pathways; no safe evidence-backed add-on pairing found."
+    },
+    {
+      "compound": "GLOW50",
+      "reason": "Already a cosmetic blend; best adjuncts are non-compound supports deferred to the adjunct phase."
+    },
+    {
+      "compound": "FOXO4-DRI",
+      "reason": "Current evidence is mainly preclinical senolytic research; common senolytic adjuncts need a separate safety model.",
+      "citationRefs": [
+        "FOXO4_DRI_2017"
+      ]
+    },
+    {
+      "compound": "Adipotide",
+      "reason": "Renal toxicity and experimental status dominate; no benefit-maximizing compound pairing recommended.",
+      "citationRefs": [
+        "ADIPOTIDE_PRIMATE_2011"
+      ]
+    },
+    {
+      "compound": "Turinabol",
+      "reason": "Safety profile and anabolic-steroid risk dominate; no benefit-maximizing pairing recommended."
+    },
+    {
+      "compound": "Dianabol",
+      "reason": "Safety profile, hepatotoxicity, endocrine suppression, and estrogenic risk dominate; no benefit-maximizing pairing recommended."
+    },
+    {
+      "compound": "HGH",
+      "reason": "Direct GH/IGF-1 exposure makes GH secretagogue pairings redundant and risk-additive."
+    },
+    {
+      "compound": "Oxytocin",
+      "reason": "Potential social/anxiolytic pairings are too speculative without psychiatric/endocrine indication review."
+    },
+    {
+      "compound": "GLOW70",
+      "reason": "Already a cosmetic blend containing GHK-Cu and SNAP-8-like support; further cosmetic peptide pairing is likely redundant."
+    }
+  ],
+  "missingCompoundsProposed": [
+    {
+      "name": "CJC-1295 / Modified GRF(1-29)",
+      "missingCompoundAction": "add_complete_compound",
+      "partnerFor": [
+        "Ipamorelin",
+        "GHRP-2",
+        "GHRP-6",
+        "Hexarelin"
+      ],
+      "rationale": "Existing catalog GH secretagogues repeatedly point to the missing GHRH analog pairing family. Human mechanistic evidence exists for CJC-1295 raising GH and IGF-1, but DAC/no-DAC representation must be decided before adding.",
+      "requiredProfileProperties": [
+        "name",
+        "slug",
+        "iupacName",
+        "synonyms",
+        "mechanismOfAction",
+        "administrationRoutes",
+        "tags",
+        "dosingLow",
+        "dosingTypical",
+        "dosingHigh",
+        "sideEffects",
+        "stackingNotes",
+        "reconstitutedShelfLifeDays",
+        "fridgeShelfLifeMonths",
+        "freezerShelfLifeMonths",
+        "cycleLengthWeeks",
+        "restPeriodWeeks",
+        "dosingFrequency",
+        "preferredTime",
+        "timingNotes",
+        "isFdaApproved",
+        "citations"
+      ],
+      "citationRefs": [
+        "CJC1295_GH_IGF1_2006",
+        "CJC1295_PULSATILE_GH_2006"
+      ]
+    }
+  ],
+  "deferredCandidates": [
+    {
+      "name": "TMG",
+      "type": "supplement",
+      "reason": "Relevant to NAD+ methylation support but out of scope for compound-only phase."
+    },
+    {
+      "name": "Hyaluronic acid",
+      "type": "cosmetic_adjunct",
+      "reason": "Relevant to GHK-Cu/GLOW topical skin support but out of scope for compound-only phase."
+    },
+    {
+      "name": "Quercetin",
+      "type": "supplement",
+      "reason": "Common senolytic adjunct with FOXO4-DRI context but requires adjunct safety model."
+    },
+    {
+      "name": "Dasatinib",
+      "type": "medication",
+      "reason": "Senolytic medication candidate; requires medication-specific safety model and is out of scope."
+    },
+    {
+      "name": "Melatonin and light-timing protocols",
+      "type": "lifestyle_or_supplement",
+      "reason": "Relevant to Epitalon/DSIP but belongs in the later adjunct phase."
+    },
+    {
+      "name": "Hydration/electrolyte and constipation management",
+      "type": "lifestyle_protocol",
+      "reason": "Important for GLP-1/amylin compounds but not a compound pairing."
+    },
+    {
+      "name": "Lab monitoring panels",
+      "type": "monitoring_support",
+      "reason": "IGF-1, glucose, A1c, semen analysis, renal markers, liver enzymes, hematocrit, and hormones should be modeled separately."
+    }
+  ],
+  "safetyExclusions": [
+    {
+      "rule": "Do not combine incretin agents with each other unless direct combination evidence exists.",
+      "appliesTo": [
+        "Semaglutide",
+        "Tirzepatide",
+        "Retatrutide",
+        "Cagrilintide/Semaglutide"
+      ],
+      "rationale": "Overlapping GLP-1/GIP/glucagon activity increases GI, dehydration, gallbladder, pancreatitis, and glucose risk."
+    },
+    {
+      "rule": "Do not combine PDE5 inhibitors with nitrates or with each other.",
+      "appliesTo": [
+        "Tadalafil",
+        "Vardenafil"
+      ],
+      "rationale": "Hypotension risk is potentially severe; concurrent PDE5 inhibitor use is redundant."
+    },
+    {
+      "rule": "Do not pair HGH with GH secretagogues in the catalog.",
+      "appliesTo": [
+        "HGH",
+        "Sermorelin",
+        "Tesamorelin",
+        "GHRP-2",
+        "GHRP-6",
+        "Ipamorelin",
+        "Hexarelin"
+      ],
+      "rationale": "Redundant GH/IGF-1 exposure with glucose, edema, sleep apnea, and malignancy-risk uncertainty."
+    },
+    {
+      "rule": "Do not create benefit-maximizing anabolic steroid stacks.",
+      "appliesTo": [
+        "Turinabol",
+        "Dianabol",
+        "Testosterone"
+      ],
+      "rationale": "Hepatic, lipid, endocrine, fertility, androgenic, and cardiovascular risks require medical framing, not benefit-maximizing catalog pairings."
+    }
+  ]
+}

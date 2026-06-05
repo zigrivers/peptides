@@ -3,19 +3,56 @@
 // models. All authenticated users have full read access to the catalog.
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/shared/prisma';
-import type { Compound, DoseAmount } from '../domain/types';
+import type { Compound, DoseAmount, EvidenceQuality, MissingCompoundAction } from '../domain/types';
 import { parseCompoundDosing, parseBenefitTimeline } from '../domain/validation';
+
+const profileInclude = {
+  include: { citations: true },
+};
+
+const sourcePairingsInclude = {
+  include: {
+    pairedCompound: {
+      select: { name: true, slug: true },
+    },
+    citations: {
+      include: {
+        citation: true,
+      },
+    },
+  },
+  orderBy: [{ sortOrder: 'asc' as const }, { pairedCompoundName: 'asc' as const }],
+};
 
 type PrismaCompoundResult = Prisma.CompoundGetPayload<{
   include: {
-    profile: {
-      include: { citations: true };
-    };
+    profile: typeof profileInclude;
+    sourcePairings: typeof sourcePairingsInclude;
   };
 }>;
 
 function parseDoseAmount(value: Prisma.JsonValue, _field: string): DoseAmount {
   return parseCompoundDosing(value);
+}
+
+function parseEvidenceQuality(value: string): EvidenceQuality {
+  const allowed = new Set<EvidenceQuality>([
+    'human_strong',
+    'human_limited',
+    'mechanistic',
+    'preclinical',
+    'expert_consensus',
+  ]);
+  return allowed.has(value as EvidenceQuality) ? (value as EvidenceQuality) : 'expert_consensus';
+}
+
+function parseMissingCompoundAction(value: string): MissingCompoundAction {
+  const allowed = new Set<MissingCompoundAction>([
+    'none',
+    'add_complete_compound',
+    'defer_candidate',
+  ]);
+  return allowed.has(value as MissingCompoundAction) ? (value as MissingCompoundAction) : 'none';
 }
 
 function mapCompound(raw: PrismaCompoundResult): Compound {
@@ -54,19 +91,33 @@ function mapCompound(raw: PrismaCompoundResult): Compound {
           preferredTime: raw.profile.preferredTime,
           timingNotes: raw.profile.timingNotes,
           isFdaApproved: raw.profile.isFdaApproved,
+          pairings: raw.sourcePairings.map((pairing) => ({
+            id: pairing.id,
+            sourceCompoundId: pairing.sourceCompoundId,
+            pairedCompoundId: pairing.pairedCompoundId,
+            pairedCompoundName: pairing.pairedCompound?.name ?? pairing.pairedCompoundName,
+            pairedCompoundSlug: pairing.pairedCompound?.slug ?? null,
+            benefitGoal: pairing.benefitGoal,
+            rationale: pairing.rationale,
+            expectedSynergy: pairing.expectedSynergy,
+            evidenceQuality: parseEvidenceQuality(pairing.evidenceQuality),
+            safetyCaveats: pairing.safetyCaveats,
+            avoidIf: pairing.avoidIf,
+            timingOrSequencingNotes: pairing.timingOrSequencingNotes,
+            bestOverall: pairing.bestOverall,
+            partnerExistsInCatalog: pairing.partnerExistsInCatalog,
+            missingCompoundAction: parseMissingCompoundAction(pairing.missingCompoundAction),
+            citationRefs: pairing.citations.map((pairingCitation) => pairingCitation.citation),
+          })),
         }
       : null,
   };
 }
 
-const profileInclude = {
-  include: { citations: true },
-};
-
 export async function findCompoundBySlug(slug: string): Promise<Compound | null> {
   const raw = await prisma.compound.findFirst({
     where: { slug: slug.toLowerCase() },
-    include: { profile: profileInclude },
+    include: { profile: profileInclude, sourcePairings: sourcePairingsInclude },
   });
   return raw ? mapCompound(raw) : null;
 }
@@ -95,7 +146,7 @@ export async function findCompounds(
 
   const rows = await prisma.compound.findMany({
     where,
-    include: { profile: profileInclude },
+    include: { profile: profileInclude, sourcePairings: sourcePairingsInclude },
   });
   return rows.map(mapCompound);
 }
@@ -149,7 +200,7 @@ export async function listCompounds(opts?: { includeArchived?: boolean }): Promi
 
   const rows = await prisma.compound.findMany({
     where,
-    include: { profile: profileInclude },
+    include: { profile: profileInclude, sourcePairings: sourcePairingsInclude },
     orderBy: { name: 'asc' },
   });
   return rows.map(mapCompound);
@@ -161,4 +212,3 @@ export async function getCompoundsMinimal(): Promise<{ id: string; name: string;
     orderBy: { name: 'asc' },
   });
 }
-

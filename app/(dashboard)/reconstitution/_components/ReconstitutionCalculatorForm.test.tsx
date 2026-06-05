@@ -50,6 +50,7 @@ describe('ReconstitutionCalculatorForm UI Warnings', () => {
         preferredTime: null,
         timingNotes: null,
         isFdaApproved: false,
+        pairings: [],
       },
     },
   ];
@@ -110,4 +111,3 @@ describe('ReconstitutionCalculatorForm UI Warnings', () => {
     expect(html).not.toContain('Injection volume exceeds 1.5 mL');
   });
 });
-
