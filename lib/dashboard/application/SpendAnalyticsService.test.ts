@@ -73,6 +73,50 @@ describe('SpendAnalyticsService', () => {
     expect(bpcSpend?.percentage).toBe(68); // 108 / 158 * 100 = 68.35% -> 68%
   });
 
+  it('skips unsupported currencies instead of treating them as USD', async () => {
+    mockDoseLogFindMany.mockResolvedValueOnce([
+      {
+        loggedCost: new Decimal('50.00'),
+        loggedCurrency: 'USD',
+        protocol: {
+          compoundId: 'comp-1',
+          compound: { name: 'Semaglutide' },
+        },
+      },
+      {
+        loggedCost: new Decimal('100.00'),
+        loggedCurrency: 'BTC',
+        protocol: {
+          compoundId: 'comp-2',
+          compound: { name: 'BPC-157' },
+        },
+      },
+    ]);
+    mockDoseLogFindMany.mockResolvedValueOnce([
+      {
+        loggedCost: new Decimal('100.00'),
+        loggedCurrency: 'BTC',
+      },
+    ]);
+    mockProtocolFindMany.mockResolvedValueOnce([]);
+    mockUserFindUnique.mockResolvedValueOnce({ syringeStandard: 'U100' });
+    mockVialFindMany.mockResolvedValueOnce([]);
+    mockVialFindMany.mockResolvedValueOnce([]);
+
+    const result = await getSpendAnalytics('user-1');
+
+    expect(result.loggedSpendYtd).toBe('50.00');
+    expect(result.loggedSpendMonthly).toBe('0.00');
+    expect(result.spendByCompound).toEqual([
+      {
+        compoundId: 'comp-1',
+        compoundName: 'Semaglutide',
+        amount: '50.00',
+        percentage: 100,
+      },
+    ]);
+  });
+
   it('correctly projects run-rate spend based on active protocols and active vials', async () => {
     mockDoseLogFindMany.mockResolvedValue([]); // YTD
     mockDoseLogFindMany.mockResolvedValue([]); // Monthly

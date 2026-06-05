@@ -19,7 +19,10 @@ export function CompoundStorageStabilityGuide({
   const isRoomTempOnly = fridgeShelfLifeMonths === null && freezerShelfLifeMonths === null;
 
   return (
-    <section className="border border-border/60 bg-background/50 rounded-xl p-5 shadow-sm space-y-5 animate-[fadeIn_0.3s_ease-out]">
+    <section
+      aria-label={`${compoundName} storage and stability guide`}
+      className="border border-border/60 bg-background/50 rounded-xl p-5 shadow-sm space-y-5 animate-[fadeIn_0.3s_ease-out]"
+    >
       <h2 className="text-lg font-bold flex items-center gap-2 text-foreground" id="storage-stability-header">
         <span>🛡️</span> Storage & Stability Guide
       </h2>

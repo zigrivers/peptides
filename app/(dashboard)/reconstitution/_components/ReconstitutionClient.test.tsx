@@ -190,6 +190,8 @@ describe('ReconstitutionClient room temperature storage partitioning', () => {
         preferredTime: null,
         timingNotes: null,
         isFdaApproved: false,
+        pairings: [],
+        adjuncts: [],
       },
     },
     {
@@ -220,6 +222,8 @@ describe('ReconstitutionClient room temperature storage partitioning', () => {
         preferredTime: null,
         timingNotes: null,
         isFdaApproved: false,
+        pairings: [],
+        adjuncts: [],
       },
     },
   ];
@@ -360,7 +364,7 @@ describe('ReconstitutionClient room temperature storage partitioning', () => {
   });
 
   it('collapses and expands the Standalone Calculator form', async () => {
-    const { getByRole, queryByLabelText, getByText } = render(
+    const { queryByLabelText, getByText } = render(
       <ReconstitutionClient
         userId="user-1"
         actorUserId="user-1"

@@ -1323,6 +1323,8 @@ describe('US-TRK-05: Batch Log', () => {
     isBatchLog: true,
     note: null,
     loggedByUserId: batchActorUserId,
+    loggedCost: null,
+    loggedCurrency: null,
   });
 
   it('AC-1: logs all selected ACTIVE protocols as LOGGED with isBatchLog=true', async () => {
@@ -1349,6 +1351,46 @@ describe('US-TRK-05: Batch Log', () => {
     expect(result.results.every((r) => r.ok)).toBe(true);
     const succeeded = result.results.filter((r) => r.ok) as Array<{ ok: true; doseLog: { isBatchLog: boolean } }>;
     expect(succeeded.every((r) => r.doseLog.isBatchLog)).toBe(true);
+  });
+
+  it('records logged cost and currency for batch-logged doses when the active vial has cost data', async () => {
+    mockProtocolFindFirst.mockResolvedValue(makeProtocolRow(proto1Id));
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    mockVialCount.mockResolvedValue(1);
+    mockVialFindFirst.mockResolvedValue({
+      id: 'vial-batch-cost',
+      userId: batchActorUserId,
+      compoundId: batchCompoundId,
+      totalMg: 5,
+      bacWaterMl: 2,
+      remainingMg: 5,
+      status: 'RECONSTITUTED',
+      cost: 100,
+      currency: 'USD',
+    });
+    mockDoseLogCreate.mockResolvedValue({
+      ...makeLogRow(proto1Id, 'log-batch-cost'),
+      vialId: 'vial-batch-cost',
+      loggedCost: 5,
+      loggedCurrency: 'USD',
+    });
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results[0].ok).toBe(true);
+    expect(mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          loggedCost: expect.any(Object),
+          loggedCurrency: 'USD',
+        }),
+      })
+    );
   });
 
   it('AC-2 (partial): already-logged protocols are returned as ok=true with existing log (idempotent)', async () => {
@@ -1811,7 +1853,7 @@ describe('US-TRK-10: Cost Tracking and Resolution', () => {
       protocolId: costProtocolId,
       userId: costActorUserId,
       status: 'LOGGED',
-      amount: { amount: 2.5, unit: 'mg' },
+      amount: { amount: '2.5', unit: 'mg' },
       loggedCost: 25,
       loggedCurrency: 'USD',
       scheduledDate,
@@ -1822,7 +1864,7 @@ describe('US-TRK-10: Cost Tracking and Resolution', () => {
       protocolId: costProtocolId,
       scheduledDate,
       status: 'LOGGED',
-      amount: { amount: 2.5, unit: 'mg' },
+      amount: { amount: '2.5', unit: 'mg' },
       vialId: 'vial-cost-1',
     });
 
@@ -1855,7 +1897,7 @@ describe('US-TRK-10: Cost Tracking and Resolution', () => {
       protocolId: costProtocolId,
       userId: costActorUserId,
       status: 'LOGGED',
-      amount: { amount: 2.5, unit: 'mg' },
+      amount: { amount: '2.5', unit: 'mg' },
       loggedCost: 25, // 150 total cost / 15 total Mg = 10 USD per mg * 2.5 mg = 25 USD
       loggedCurrency: 'USD',
       scheduledDate,
@@ -1866,7 +1908,7 @@ describe('US-TRK-10: Cost Tracking and Resolution', () => {
       protocolId: costProtocolId,
       scheduledDate,
       status: 'LOGGED',
-      amount: { amount: 2.5, unit: 'mg' },
+      amount: { amount: '2.5', unit: 'mg' },
     });
 
     expect(result.doseLog).toBeDefined();
@@ -1880,4 +1922,3 @@ describe('US-TRK-10: Cost Tracking and Resolution', () => {
     );
   });
 });
-

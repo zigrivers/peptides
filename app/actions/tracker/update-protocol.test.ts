@@ -3,6 +3,7 @@ import { updateProtocolAction } from './update-protocol';
 import { auth } from '@/lib/auth';
 import { updateProtocol } from '@/lib/tracker/application/ProtocolService';
 import { revalidatePath } from 'next/cache';
+import type { Protocol } from '@/lib/tracker/domain/types';
 
 vi.mock('@/lib/auth', () => ({
   auth: vi.fn(),
@@ -46,10 +47,20 @@ describe('updateProtocolAction', () => {
 
   it('should call updateProtocol and return ok on success', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'user-123' } } as never);
-    vi.mocked(updateProtocol).mockResolvedValue({
+    const updatedProtocol: Protocol = {
       id: '45a13798-41d4-46e8-9fdd-3812e6f0982a',
       userId: 'user-123',
-    } as any);
+      compoundId: 'compound-1',
+      cycleId: null,
+      dose: { amount: '300', unit: 'mcg' },
+      schedule: { frequency: 'Daily' },
+      administrationRoute: 'SubQ',
+      status: 'ACTIVE',
+      startDate: new Date('2026-06-01T00:00:00.000Z'),
+      endDate: null,
+      notes: null,
+    };
+    vi.mocked(updateProtocol).mockResolvedValue(updatedProtocol);
 
     const result = await updateProtocolAction({
       protocolId: '45a13798-41d4-46e8-9fdd-3812e6f0982a',

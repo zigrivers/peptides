@@ -390,7 +390,7 @@ export async function logDose(
       if (input.status === 'LOGGED') {
         const costRes = await resolveDoseCost(
           innerTx,
-          effectiveVialId,
+          effectiveVialId ?? null,
           new Decimal(amount.amount),
           amount.unit,
           syringeStandard,

@@ -143,11 +143,11 @@ export function ThemeSwitcher() {
 
     // System theme change listener
     let mediaQuery: MediaQueryList | null = null;
-    let handleSystemThemeChange: ((e: MediaQueryListEvent) => void) | null = null;
+    let handleSystemThemeChange: (() => void) | null = null;
 
     if (typeof window !== 'undefined' && window.matchMedia) {
       mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      handleSystemThemeChange = (e: any) => {
+      handleSystemThemeChange = () => {
         const currentTheme = document.documentElement.getAttribute('data-theme') || 'system';
         if (currentTheme === 'system') {
           syncThemeClass('system');
@@ -156,7 +156,7 @@ export function ThemeSwitcher() {
       if (mediaQuery.addEventListener) {
         mediaQuery.addEventListener('change', handleSystemThemeChange);
       } else {
-        (mediaQuery as any).addListener(handleSystemThemeChange);
+        mediaQuery.addListener(handleSystemThemeChange);
       }
     }
 
@@ -170,7 +170,7 @@ export function ThemeSwitcher() {
         if (mediaQuery.removeEventListener) {
           mediaQuery.removeEventListener('change', handleSystemThemeChange);
         } else {
-          (mediaQuery as any).removeListener(handleSystemThemeChange);
+          mediaQuery.removeListener(handleSystemThemeChange);
         }
       }
 

@@ -24,7 +24,7 @@ const pairings: CompoundPairing[] = [
     citationRefs: [
       {
         id: 'cit-1',
-        profileId: 'profile-1',
+        catalogItemId: 'bpc',
         title: 'BPC-157 healing study',
         url: null,
         doi: '10.1234/bpc',

@@ -123,7 +123,7 @@ export function ReconstituteModal({
   const useTypicalDose = () => {
     if (isRoomTemp) {
       if (profile?.dosingTypical) {
-        setTargetDoseMcg(String((profile.dosingTypical as any).amount));
+        setTargetDoseMcg(String(profile.dosingTypical.amount));
       }
     } else {
       if (profileTypicalMcg) {
@@ -294,7 +294,7 @@ export function ReconstituteModal({
                     onClick={useTypicalDose}
                     className="text-[10px] text-sky-500 hover:underline font-bold"
                   >
-                    Use standard typical dose ({(profile.dosingTypical as any).amount} {(profile.dosingTypical as any).unit})
+                    Use standard typical dose ({profile.dosingTypical.amount} {profile.dosingTypical.unit})
                   </button>
                 )}
               </div>

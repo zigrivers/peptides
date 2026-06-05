@@ -12,6 +12,8 @@ import {
   updateVialRemainingMg,
 } from '@/lib/reconstitution/application/VialService';
 
+const SupportedInventoryCurrencySchema = z.enum(['USD', 'USDT', 'EUR', 'GBP']);
+
 const AddDryVialsSchema = z.object({
   compoundId: z.string().uuid(),
   totalMg: z.string().refine((val) => {
@@ -32,7 +34,7 @@ const AddDryVialsSchema = z.object({
       return false;
     }
   }, 'Must be a non-negative decimal'),
-  currency: z.string().optional(),
+  currency: SupportedInventoryCurrencySchema.optional(),
   expiresAt: z.string().optional().refine((val) => {
     if (!val) return true;
     const date = new Date(val);
@@ -84,7 +86,7 @@ const AddReconstitutedVialSchema = z.object({
       return false;
     }
   }, 'Must be a non-negative decimal'),
-  currency: z.string().optional(),
+  currency: SupportedInventoryCurrencySchema.optional(),
   expiresAt: z.string().optional().refine((val) => {
     if (!val) return true;
     const date = new Date(val);

@@ -104,7 +104,33 @@ function adjunctCitationMatchesRef(
   return citation.title === ref.title;
 }
 
+async function tableExists(tableName: string): Promise<boolean> {
+  const rows = await prisma.$queryRaw<Array<{ exists: boolean }>>`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = current_schema()
+        AND table_name = ${tableName}
+    ) AS "exists"
+  `;
+  return Boolean(rows[0]?.exists);
+}
+
+async function tablesExist(tableNames: string[]): Promise<boolean> {
+  for (const tableName of tableNames) {
+    if (!(await tableExists(tableName))) return false;
+  }
+  return true;
+}
+
 async function syncCompoundPairings(pairingFixtures: SeedPairing[]) {
+  if (pairingFixtures.length === 0) return;
+  const hasPairingTables = await tablesExist(['CompoundPairing', 'CompoundPairingCitation']);
+  if (!hasPairingTables) {
+    console.warn('[seed] Skipping compound pairings; pairing tables have not been migrated yet.');
+    return;
+  }
+
   const compounds = await prisma.catalogItem.findMany({
     select: { id: true, name: true, slug: true },
   });
@@ -258,6 +284,18 @@ async function syncAdjunctCitations(adjunctId: string, citationRefs: SeedAdjunct
 }
 
 async function syncCompoundAdjunctRecommendations(adjunctFixtures: SeedAdjunctRecommendation[]) {
+  if (adjunctFixtures.length === 0) return;
+  const hasAdjunctTables = await tablesExist([
+    'CatalogAdjunct',
+    'CatalogAdjunctCitation',
+    'CompoundAdjunctRecommendation',
+    'CompoundAdjunctRecommendationCitation',
+  ]);
+  if (!hasAdjunctTables) {
+    console.warn('[seed] Skipping compound adjuncts; adjunct tables have not been migrated yet.');
+    return;
+  }
+
   const compounds = await prisma.catalogItem.findMany({
     select: { id: true, name: true },
   });

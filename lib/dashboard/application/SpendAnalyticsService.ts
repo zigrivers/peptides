@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/shared/prisma';
 import Decimal from 'decimal.js';
-import { convertDoseToMg } from '@/lib/reconstitution/application/InventoryService';
+import { convertDoseToMg, type VialInfo } from '@/lib/reconstitution/application/InventoryService';
 
 export interface SpendAnalytics {
   loggedSpendYtd: string;
@@ -25,8 +25,45 @@ const EXCHANGE_RATES: Record<string, number> = {
   GBP: 1.27,
 };
 
-function convertToUSD(amount: Decimal, fromCurrency: string): Decimal {
-  const rate = EXCHANGE_RATES[fromCurrency.toUpperCase()] ?? 1.0;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function getDosesPerDay(scheduleValue: unknown): Decimal {
+  if (!isRecord(scheduleValue)) return new Decimal(0);
+
+  if (scheduleValue.frequency === 'Daily') {
+    return new Decimal(1);
+  }
+  if (scheduleValue.frequency === 'EOD') {
+    return new Decimal(0.5);
+  }
+  if (
+    scheduleValue.frequency === 'SpecificDaysOfWeek' &&
+    Array.isArray(scheduleValue.daysOfWeek)
+  ) {
+    return new Decimal(scheduleValue.daysOfWeek.length).dividedBy(7);
+  }
+  if (
+    scheduleValue.frequency === 'CustomInterval' &&
+    typeof scheduleValue.intervalDays === 'number' &&
+    scheduleValue.intervalDays > 0
+  ) {
+    return new Decimal(1).dividedBy(scheduleValue.intervalDays);
+  }
+
+  return new Decimal(0);
+}
+
+function parseDoseAmount(value: unknown): { amount: string; unit: string } | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.amount !== 'string' || typeof value.unit !== 'string') return null;
+  return { amount: value.amount, unit: value.unit };
+}
+
+function convertToUSD(amount: Decimal, fromCurrency: string): Decimal | null {
+  const rate = EXCHANGE_RATES[fromCurrency.toUpperCase()];
+  if (rate === undefined) return null;
   return amount.times(new Decimal(rate));
 }
 
@@ -63,6 +100,7 @@ export async function getSpendAnalytics(userId: string): Promise<SpendAnalytics>
       const cost = new Decimal(log.loggedCost);
       const currency = log.loggedCurrency || 'USD';
       const costInUSD = convertToUSD(cost, currency);
+      if (!costInUSD) continue;
       
       totalLoggedYtd = totalLoggedYtd.plus(costInUSD);
 
@@ -91,6 +129,7 @@ export async function getSpendAnalytics(userId: string): Promise<SpendAnalytics>
       const cost = new Decimal(log.loggedCost);
       const currency = log.loggedCurrency || 'USD';
       const costInUSD = convertToUSD(cost, currency);
+      if (!costInUSD) continue;
       totalLoggedMonthly = totalLoggedMonthly.plus(costInUSD);
     }
   }
@@ -147,7 +186,7 @@ export async function getSpendAnalytics(userId: string): Promise<SpendAnalytics>
     const activeVial = activeVials.find((v) => v.compoundId === protocol.compoundId) || null;
 
     let costPerMg: Decimal | null = null;
-    let vialForConversion = activeVial;
+    let vialForConversion: VialInfo | null = activeVial;
     let currency = 'USD';
 
     if (activeVial && activeVial.cost) {
@@ -162,6 +201,7 @@ export async function getSpendAnalytics(userId: string): Promise<SpendAnalytics>
         for (const v of historicalVials) {
           if (v.cost) {
             const costInUSD = convertToUSD(new Decimal(v.cost.toString()), v.currency);
+            if (!costInUSD) continue;
             totalCostVal = totalCostVal.plus(costInUSD);
             totalMgVal = totalMgVal.plus(new Decimal(v.totalMg.toString()));
           }
@@ -182,32 +222,16 @@ export async function getSpendAnalytics(userId: string): Promise<SpendAnalytics>
           vialForConversion = {
             totalMg: fallbackTotalMg,
             bacWaterMl: fallbackBacWaterMl,
-          } as any;
+          };
         }
       }
     }
 
     if (!costPerMg) continue;
 
-    // Determine doses per day from schedule
-    const schedule = protocol.schedule as any;
-    let dosesPerDay = new Decimal(0);
-
-    if (schedule) {
-      if (schedule.frequency === 'Daily') {
-        dosesPerDay = new Decimal(1);
-      } else if (schedule.frequency === 'EOD') {
-        dosesPerDay = new Decimal(0.5);
-      } else if (schedule.frequency === 'SpecificDaysOfWeek' && Array.isArray(schedule.daysOfWeek)) {
-        dosesPerDay = new Decimal(schedule.daysOfWeek.length).dividedBy(7);
-      } else if (schedule.frequency === 'CustomInterval' && typeof schedule.intervalDays === 'number' && schedule.intervalDays > 0) {
-        dosesPerDay = new Decimal(1).dividedBy(schedule.intervalDays);
-      }
-    }
-
-    // Convert dose to mg
-    const doseObj = protocol.dose as any;
-    if (doseObj && doseObj.amount && doseObj.unit) {
+    const dosesPerDay = getDosesPerDay(protocol.schedule);
+    const doseObj = parseDoseAmount(protocol.dose);
+    if (doseObj) {
       try {
         const doseMg = convertDoseToMg(
           new Decimal(doseObj.amount),
@@ -218,6 +242,7 @@ export async function getSpendAnalytics(userId: string): Promise<SpendAnalytics>
         const costPerDose = doseMg.times(costPerMg);
         const dailyProjected = costPerDose.times(dosesPerDay);
         const dailyProjectedUSD = convertToUSD(dailyProjected, currency);
+        if (!dailyProjectedUSD) continue;
         totalProjectedDaily = totalProjectedDaily.plus(dailyProjectedUSD);
       } catch {
         // conversion error

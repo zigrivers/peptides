@@ -89,6 +89,8 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
       vialId: 'vial-1',
       isBatchLog: false,
       loggedByUserId: null,
+      loggedCost: null,
+      loggedCurrency: null,
     },
     {
       id: 'log-2',
@@ -104,6 +106,8 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
       vialId: 'vial-2',
       isBatchLog: false,
       loggedByUserId: null,
+      loggedCost: null,
+      loggedCurrency: null,
     },
   ];
 
@@ -356,6 +360,8 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
         vialId: 'vial-1',
         isBatchLog: false,
         loggedByUserId: null,
+        loggedCost: null,
+        loggedCurrency: null,
       },
     ];
 
@@ -468,6 +474,8 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
         vialId: 'vial-1',
         isBatchLog: false,
         loggedByUserId: null,
+        loggedCost: null,
+        loggedCurrency: null,
       },
     ];
 
@@ -599,4 +607,3 @@ describe('getWeekInfo Unit Tests', () => {
     expect(resOverflow?.percent).toBe(100);
   });
 });
-
