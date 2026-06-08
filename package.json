@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "rm -rf .next && NODE_ENV=production next build",
+    "start": "NODE_ENV=production next start",
+    "start:local": "AUTH_TRUST_HOST=true NODE_ENV=production next start",
     "lint": "next lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

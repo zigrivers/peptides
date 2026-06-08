@@ -21,6 +21,7 @@
 | Start Dev | `make dev` or `pnpm dev` |
 | Production Build | `pnpm build` |
 | Start Prod Server | `pnpm start` |
+| Start Local Prod Server | `pnpm start:local` |
 | Lint | `pnpm lint` |
 | Typecheck | `pnpm typecheck` |
 | Format | `pnpm format` |
