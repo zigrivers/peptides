@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useTransition, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { Compound } from '@/lib/reference/domain/types';
 import { addReconstitutedVialAction } from '@/app/actions/reconstitution/inventory-actions';
 import { X, AlertTriangle, Thermometer, Plus, Droplet } from 'lucide-react';
@@ -15,6 +16,8 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
   const [compoundId, setCompoundId] = useState('');
   const [totalMg, setTotalMg] = useState('');
   const [bacWaterMl, setBacWaterMl] = useState('');
+  const [cost, setCost] = useState('');
+  const [currency, setCurrency] = useState('USD');
   const [expiresAt, setExpiresAt] = useState('');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +31,17 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
   const profile = selectedCompound?.profile ?? null;
   const reconstitutedShelfLifeDays = profile?.reconstitutedShelfLifeDays ?? 14;
 
-  // Pre-calculate estimated refrigerated expiry
+  const isRoomTemp = useMemo(() => {
+    return profile?.fridgeShelfLifeMonths === null && profile?.freezerShelfLifeMonths === null;
+  }, [profile]);
+
+  useEffect(() => {
+    if (profile) {
+      setBacWaterMl(isRoomTemp ? '10.0' : '2.0');
+    }
+  }, [profile, isRoomTemp]);
+
+  // Pre-calculate estimated active stability expiry
   const estimatedExpiryDateStr = useMemo(() => {
     if (!isMounted || !compoundId) return '';
     const now = new Date();
@@ -51,6 +64,8 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
         compoundId,
         totalMg,
         bacWaterMl,
+        cost: cost || undefined,
+        currency: cost ? currency : undefined,
         expiresAt: expiresAt || undefined,
       });
 
@@ -58,14 +73,16 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
         onSuccess?.();
         onClose();
       } else {
-        setError(result.message || 'Failed to add reconstituted vial.');
+        setError(result.message || 'Failed to add vial.');
       }
     });
   };
 
   const isFormValid = compoundId && totalMg && parseFloat(totalMg) > 0 && bacWaterMl && parseFloat(bacWaterMl) > 0;
 
-  return (
+  if (!isMounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/20 dark:border-slate-800/40 bg-white/10 dark:bg-slate-950/20 backdrop-blur-xl shadow-2xl animate-scale-in">
         
@@ -76,7 +93,9 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
               <div>
                 <h2 className="text-base font-bold text-foreground">Add Reconstituted Vial</h2>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Directly record a pre-mixed vial stored in the refrigerator.
+                  {isRoomTemp
+                    ? 'Directly record an active pre-mixed vial stored at room temperature.'
+                    : 'Directly record a pre-mixed vial stored in the refrigerator.'}
                 </p>
               </div>
             </div>
@@ -140,7 +159,7 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
             <div>
               <label htmlFor="active-bacWater" className="block text-xs font-semibold text-foreground/80 mb-1 flex items-center gap-1">
                 <Droplet className="h-3.5 w-3.5 text-sky-400" />
-                BAC Water Volume (mL)
+                {isRoomTemp ? 'Vial Volume (mL)' : 'BAC Water Volume (mL)'}
               </label>
               <input
                 id="active-bacWater"
@@ -148,7 +167,7 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
                 step="any"
                 min="0"
                 required
-                placeholder="E.g., 2.0"
+                placeholder={isRoomTemp ? 'E.g., 10.0' : 'E.g., 2.0'}
                 value={bacWaterMl}
                 onChange={(e) => setBacWaterMl(e.target.value)}
                 className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -158,7 +177,7 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
             {/* Optional custom expiration date */}
             <div>
               <label htmlFor="active-expiresAt" className="block text-xs font-semibold text-foreground/80 mb-1">
-                Refrigerator Expiration Date <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
+                {isRoomTemp ? 'Expiration Date' : 'Refrigerator Expiration Date'} <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
               </label>
               <input
                 id="active-expiresAt"
@@ -172,6 +191,41 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
                   Auto-expires on: {estimatedExpiryDateStr} ({reconstitutedShelfLifeDays} days stability)
                 </p>
               )}
+            </div>
+
+            {/* Cost and Currency */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="active-cost" className="block text-xs font-semibold text-foreground/80 mb-1">
+                  Cost <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
+                </label>
+                <input
+                  id="active-cost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="E.g., 45.00"
+                  value={cost}
+                  onChange={(e) => setCost(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="active-currency" className="block text-xs font-semibold text-foreground/80 mb-1">
+                  Currency
+                </label>
+                <select
+                  id="active-currency"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="USD">USD ($)</option>
+                  <option value="USDT">USDT</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -194,6 +248,7 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

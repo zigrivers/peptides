@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { TrackerCalendar } from './TrackerCalendar';
+import { TrackerCalendar, getWeekInfo } from './TrackerCalendar';
 import type { Protocol, DoseLog } from '@/lib/tracker/domain/types';
 import { logDoseAction } from '@/app/actions/tracker/log-dose';
 
@@ -89,6 +89,8 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
       vialId: 'vial-1',
       isBatchLog: false,
       loggedByUserId: null,
+      loggedCost: null,
+      loggedCurrency: null,
     },
     {
       id: 'log-2',
@@ -104,6 +106,8 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
       vialId: 'vial-2',
       isBatchLog: false,
       loggedByUserId: null,
+      loggedCost: null,
+      loggedCurrency: null,
     },
   ];
 
@@ -220,6 +224,7 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     const cell24 = screen.getByLabelText(/May 24/);
     fireEvent.click(cell24);
 
+
     // The inline quick-log note input should be present for proto-1 (Tirzepatide)
     const noteInput = screen.getByPlaceholderText('e.g. slight fatigue, felt good') as HTMLInputElement;
     expect(noteInput).toBeDefined();
@@ -227,8 +232,8 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     // Type notes
     fireEvent.change(noteInput, { target: { value: 'felt excellent' } });
 
-    // Select the suggested site button "Left Abdomen"
-    const siteBtn = screen.getByText('Left Abdomen');
+    // Select the suggested site button "Use Site"
+    const siteBtn = screen.getByText('Use Site');
     fireEvent.click(siteBtn);
 
     // Click Log Dose button
@@ -240,7 +245,7 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
       protocolId: 'proto-1',
       amount: { amount: '2.5', unit: 'mg' },
       status: 'LOGGED',
-      injectionSite: { side: 'left', bodyPart: 'abdomen' },
+      injectionSite: { side: 'left', bodyPart: 'abdomen-lower' },
       note: 'felt excellent',
       scheduledDate: '2026-05-24',
     });
@@ -301,5 +306,304 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     );
 
     expect(screen.getByText('🔥 3 Day Streak')).toBeDefined();
+  });
+
+  it('collapses panels by default, expands on click, displays unitsText, and shows cycle progress', () => {
+    const customProtocols: Protocol[] = [
+      {
+        id: 'proto-cycled',
+        userId: 'user-1',
+        compoundId: 'compound-tirz',
+        cycleId: 'cycle-1',
+        dose: { amount: '2.5', unit: 'mg' as const },
+        schedule: { frequency: 'Daily' },
+        administrationRoute: 'SUBCUTANEOUS',
+        status: 'ACTIVE',
+        startDate: new Date('2026-05-01'),
+        endDate: null,
+        notes: null,
+      },
+    ];
+
+    const customCompounds = {
+      'compound-tirz': {
+        name: 'Tirzepatide',
+        slug: 'tirzepatide',
+        profile: {
+          cycleLengthWeeks: 8,
+          restPeriodWeeks: 4,
+          cycleRationale: null,
+          restPeriodRationale: null,
+        },
+      },
+    };
+
+    const customCycles = {
+      'cycle-1': {
+        startDate: '2026-05-01T00:00:00.000Z',
+        endDate: null,
+      },
+    };
+
+    const customDoseLogs = [
+      {
+        id: 'log-cycled',
+        protocolId: 'proto-cycled',
+        userId: 'user-1',
+        amount: { amount: '2.5', unit: 'mg' as const },
+        status: 'LOGGED' as const,
+        loggedAt: '2026-05-25T08:00:00Z',
+        scheduledDate: '2026-05-25T00:00:00Z',
+        injectionSite: { side: 'left' as const, bodyPart: 'abdomen-upper' },
+        note: 'Feeling good',
+        idempotencyKey: 'key-cycled',
+        vialId: 'vial-1',
+        isBatchLog: false,
+        loggedByUserId: null,
+        loggedCost: null,
+        loggedCurrency: null,
+      },
+    ];
+
+    const customDoseUnits = {
+      'compound-tirz': {
+        computable: true,
+        unitsText: '≈ 10.0 units · ~2.5 mg',
+      },
+    };
+
+    render(
+      <TrackerCalendar
+        protocols={customProtocols}
+        doseLogs={customDoseLogs}
+        compounds={customCompounds}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+        cycles={customCycles}
+        doseUnitsByCompoundId={customDoseUnits}
+      />
+    );
+
+    // Select May 24th cell (scheduled) to verify units text displays
+    const cell24 = screen.getByLabelText(/May 24/);
+    fireEvent.click(cell24);
+    expect(screen.getByText('Tirzepatide')).toBeDefined();
+    expect(screen.getAllByText(/2.5 mg/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/\(≈ 10.0 units · ~2.5 mg\)/)).toBeDefined();
+
+    // Select May 25th cell (logged)
+    const cell25 = screen.getByLabelText(/May 25/);
+    fireEvent.click(cell25);
+
+    // The header should be visible and display compound name and dose amount, but NOT unitsText (gated for processed)
+    expect(screen.getByText('Tirzepatide')).toBeDefined();
+    expect(screen.getAllByText(/2.5 mg/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/\(≈ 10.0 units · ~2.5 mg\)/)).toBeNull();
+
+    // The detail panel should NOT be visible by default (collapsed accordion)
+    expect(screen.queryByText('Cycle Progress')).toBeNull();
+    expect(screen.queryByText('Injection Site:')).toBeNull();
+
+    // Click on the header row to expand the accordion
+    const headerRow = screen.getByRole('button', { name: /Tirzepatide/i });
+    fireEvent.click(headerRow);
+
+    expect(screen.getByText('Injection Site:')).toBeDefined();
+    expect(screen.getAllByText(/Left Upper Abdomen/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Cycle Progress')).toBeDefined();
+    expect(screen.getByText(/Week 4 of 8 \(50%\) — rest period of 4 weeks starts ~Jun 26/)).toBeDefined();
+
+    // Click header row again to collapse
+    fireEvent.click(headerRow);
+    expect(screen.queryByText('Cycle Progress')).toBeNull();
+  });
+
+  it('renders expected benefits milestones (current, upcoming, and past) in the expanded logged card', () => {
+    const customProtocols: Protocol[] = [
+      {
+        id: 'proto-benefits',
+        userId: 'user-1',
+        compoundId: 'compound-tirz',
+        cycleId: 'cycle-1',
+        dose: { amount: '2.5', unit: 'mg' as const },
+        schedule: { frequency: 'Daily' },
+        administrationRoute: 'SUBCUTANEOUS',
+        status: 'ACTIVE',
+        startDate: new Date('2026-05-01'),
+        endDate: null,
+        notes: null,
+      },
+    ];
+
+    const customCompounds = {
+      'compound-tirz': {
+        name: 'Tirzepatide',
+        slug: 'tirzepatide',
+        profile: {
+          cycleLengthWeeks: 8,
+          restPeriodWeeks: 4,
+          cycleRationale: null,
+          restPeriodRationale: null,
+          benefitTimeline: [
+            { week: 2, benefits: ['Initial gut mucosal adaptation'] },
+            { week: 4, benefits: ['Reduction of localized inflammation'] },
+            { week: 5, benefits: ['Improved muscle repair'] },
+          ],
+        },
+      },
+    };
+
+    const customCycles = {
+      'cycle-1': {
+        startDate: '2026-05-01T00:00:00.000Z',
+        endDate: null,
+      },
+    };
+
+    const customDoseLogs = [
+      {
+        id: 'log-benefits',
+        protocolId: 'proto-benefits',
+        userId: 'user-1',
+        amount: { amount: '2.5', unit: 'mg' as const },
+        status: 'LOGGED' as const,
+        loggedAt: '2026-05-25T08:00:00Z',
+        scheduledDate: '2026-05-25T00:00:00Z',
+        injectionSite: { side: 'left' as const, bodyPart: 'abdomen-upper' },
+        note: 'Feeling good',
+        idempotencyKey: 'key-benefits',
+        vialId: 'vial-1',
+        isBatchLog: false,
+        loggedByUserId: null,
+        loggedCost: null,
+        loggedCurrency: null,
+      },
+    ];
+
+    render(
+      <TrackerCalendar
+        protocols={customProtocols}
+        doseLogs={customDoseLogs}
+        compounds={customCompounds}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+        cycles={customCycles}
+      />
+    );
+
+    // Select May 25th cell (Week 4 milestone day)
+    const cell25 = screen.getByLabelText(/May 25/);
+    fireEvent.click(cell25);
+
+    // Expand the card
+    const headerRow = screen.getByRole('button', { name: /Tirzepatide/i });
+    fireEvent.click(headerRow);
+
+    // Verify Injection Site is rendered
+    expect(screen.getAllByText(/Left Upper Abdomen/).length).toBeGreaterThan(0);
+
+    // Verify main block header shows up
+    expect(screen.getByText('Expected Benefits (Week 4)')).toBeDefined();
+
+    // Verify Current Milestone benefits
+    expect(screen.getByText('Current Milestone')).toBeDefined();
+    expect(screen.getByText('Reduction of localized inflammation')).toBeDefined();
+
+    // Verify Upcoming Milestones benefits and countdown
+    expect(screen.getByText('Upcoming Milestones')).toBeDefined();
+    expect(screen.getByText('Week 5:')).toBeDefined();
+    expect(screen.getByText(/Improved muscle repair/)).toBeDefined();
+    expect(screen.getByText(/(starts in ~4 days)/)).toBeDefined();
+
+    // Verify Past Milestones is rendered as collapsible details summary
+    expect(screen.getByText('Past Milestones')).toBeDefined();
+    expect(screen.getByText('Week 2:')).toBeDefined();
+    expect(screen.getByText('Initial gut mucosal adaptation')).toBeDefined();
+  });
+});
+
+describe('getWeekInfo Unit Tests', () => {
+  it('returns continuous info when cycleLengthWeeks is missing', () => {
+    const res = getWeekInfo(
+      { startDate: '2026-05-01', endDate: null, cycleId: null },
+      { cycleLengthWeeks: null },
+      '2026-05-15',
+      null
+    );
+    expect(res).toEqual({
+      isContinuous: true,
+      weekNumber: 1,
+      totalWeeks: 1,
+      percent: null,
+      restStartDate: null,
+      elapsedDays: 0,
+    });
+  });
+
+  it('returns null if proto is undefined', () => {
+    const res = getWeekInfo(
+      undefined,
+      { cycleLengthWeeks: 8 },
+      '2026-05-15',
+      null
+    );
+    expect(res).toBeNull();
+  });
+
+  it('calculates correct week number and elapsed days for cycled protocols', () => {
+    // Start date May 1, event date May 25 (24 days elapsed)
+    const res = getWeekInfo(
+      { startDate: '2026-05-01', endDate: null, cycleId: null },
+      { cycleLengthWeeks: 8, restPeriodWeeks: 4 },
+      '2026-05-25',
+      null
+    );
+    expect(res).toEqual({
+      isContinuous: false,
+      weekNumber: 4, // 24 / 7 = 3, so week 4
+      totalWeeks: 8,
+      percent: 50,
+      restStartDate: new Date('2026-06-26T00:00:00.000Z'), // 56 days after May 1
+      elapsedDays: 24,
+    });
+  });
+
+  it('correctly uses cycle database record for dates if cycleId matches', () => {
+    const cycles = {
+      'cycle-abc': {
+        startDate: '2026-05-10T00:00:00.000Z',
+        endDate: '2026-07-05T00:00:00.000Z',
+      },
+    };
+    const res = getWeekInfo(
+      { startDate: '2026-05-01', endDate: null, cycleId: 'cycle-abc' },
+      { cycleLengthWeeks: 8 },
+      '2026-05-15',
+      cycles
+    );
+    expect(res?.elapsedDays).toBe(5); // May 15 - May 10
+    expect(res?.weekNumber).toBe(1);
+    expect(res?.restStartDate).toEqual(new Date('2026-07-06T00:00:00.000Z')); // uses cycleEndDate + 1 day (since endDate is inclusive)
+  });
+
+  it('handles exact cycle boundary (last day and overflow day)', () => {
+    // Start date May 1, totalWeeks = 8
+    // Last day of cycle: 8 weeks * 7 = 56 days. Index 55 is the 56th day (June 25)
+    const resLast = getWeekInfo(
+      { startDate: '2026-05-01', endDate: null, cycleId: null },
+      { cycleLengthWeeks: 8 },
+      '2026-06-25',
+      null
+    );
+    expect(resLast?.weekNumber).toBe(8);
+    expect(resLast?.percent).toBe(100);
+
+    // Overflow/exact boundary day (June 26, 56 days elapsed)
+    const resOverflow = getWeekInfo(
+      { startDate: '2026-05-01', endDate: null, cycleId: null },
+      { cycleLengthWeeks: 8 },
+      '2026-06-26',
+      null
+    );
+    expect(resOverflow?.weekNumber).toBe(8);
+    expect(resOverflow?.percent).toBe(100);
   });
 });

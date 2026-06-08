@@ -4,6 +4,26 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { type Theme, type AccentColor, SUPPORTED_ACCENTS } from '@/lib/shared/personalization';
 
+function getEffectiveIsDark(theme: Theme): boolean {
+  if (theme === 'dark') return true;
+  if (theme === 'system') {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+  }
+  return false;
+}
+
+function syncThemeClass(theme: Theme) {
+  if (typeof document === 'undefined') return;
+  const isDark = getEffectiveIsDark(theme);
+  if (isDark) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+}
+
 export function ThemeSwitcher() {
   const [mounted, setMounted] = useState(false);
   const [activeTheme, setActiveTheme] = useState<Theme>('system');
@@ -69,6 +89,7 @@ export function ThemeSwitcher() {
           if (returnedTheme !== stateRef.current.theme) {
             setActiveTheme(returnedTheme);
             document.documentElement.setAttribute('data-theme', returnedTheme);
+            syncThemeClass(returnedTheme);
             setCookie('theme', returnedTheme);
           }
           if (returnedAccent !== stateRef.current.accent) {
@@ -106,6 +127,9 @@ export function ThemeSwitcher() {
     stateRef.current = { theme: domTheme, accent: domAccent };
     versionRef.current = domVersion;
 
+    // Double check class synchronization on mount
+    syncThemeClass(domTheme);
+
     // Cookie DOM synchronization (run once on mount to align cookie value to DB state without DB call)
     const currentThemeCookie = getCookie('theme');
     const currentAccentCookie = getCookie('accent');
@@ -117,10 +141,37 @@ export function ThemeSwitcher() {
       setCookie('accent', domAccent);
     }
 
+    // System theme change listener
+    let mediaQuery: MediaQueryList | null = null;
+    let handleSystemThemeChange: (() => void) | null = null;
+
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      handleSystemThemeChange = () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'system';
+        if (currentTheme === 'system') {
+          syncThemeClass('system');
+        }
+      };
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener('change', handleSystemThemeChange);
+      } else {
+        mediaQuery.addListener(handleSystemThemeChange);
+      }
+    }
+
     return () => {
       // Flush on unmount logic
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
+      }
+
+      if (mediaQuery && handleSystemThemeChange) {
+        if (mediaQuery.removeEventListener) {
+          mediaQuery.removeEventListener('change', handleSystemThemeChange);
+        } else {
+          mediaQuery.removeListener(handleSystemThemeChange);
+        }
       }
 
       if (!didFlushRef.current) {
@@ -136,6 +187,9 @@ export function ThemeSwitcher() {
     stateRef.current.theme = newTheme;
     setActiveTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
+    
+    syncThemeClass(newTheme);
+    
     setCookie('theme', newTheme);
     versionRef.current += 1;
     scheduleSync(newTheme, stateRef.current.accent);

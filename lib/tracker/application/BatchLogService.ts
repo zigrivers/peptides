@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/shared/prisma';
 import { toUTCDay } from '@/lib/shared/date';
 import Decimal from 'decimal.js';
-import { decrementVialInventory } from '@/lib/reconstitution/application/InventoryService';
+import { convertDoseToMg, decrementVialInventory } from '@/lib/reconstitution/application/InventoryService';
 import { resolveActiveVial } from '@/lib/reconstitution/application/VialService';
 import {
   buildDoseUnitsDisplay,
@@ -34,6 +34,34 @@ import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 
 function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date): string {
   return `${userId}:${protocolId}:${scheduledDate.toISOString().slice(0, 10)}`;
+}
+
+function calculateLoggedCost(
+  vial: {
+    cost: Prisma.Decimal | Decimal | number | string | null;
+    currency: string;
+    totalMg: Prisma.Decimal | Decimal | number | string;
+    bacWaterMl: Prisma.Decimal | Decimal | number | string | null;
+  },
+  amount: { amount: string; unit: string },
+  syringeStandard: string
+): { loggedCost: Decimal | null; loggedCurrency: string | null } {
+  if (!vial.cost) {
+    return { loggedCost: null, loggedCurrency: vial.currency };
+  }
+
+  try {
+    const doseMg = convertDoseToMg(
+      new Decimal(amount.amount),
+      amount.unit,
+      { totalMg: new Decimal(vial.totalMg.toString()), bacWaterMl: vial.bacWaterMl ? new Decimal(vial.bacWaterMl.toString()) : null },
+      syringeStandard
+    );
+    const costPerMg = new Decimal(vial.cost.toString()).dividedBy(new Decimal(vial.totalMg.toString()));
+    return { loggedCost: doseMg.times(costPerMg), loggedCurrency: vial.currency };
+  } catch {
+    return { loggedCost: null, loggedCurrency: vial.currency };
+  }
 }
 
 // Batch log is scoped to the actor's own protocols. Managed users' doses are logged
@@ -147,6 +175,7 @@ async function logOneInBatch(
 
       const doseAmountVal = new Decimal(amount.amount);
       const doseUnit = amount.unit;
+      const { loggedCost, loggedCurrency } = calculateLoggedCost(activeVial, amount, syringeStandard);
 
       await decrementVialInventory(tx, subjectUserId, activeVial.id, doseAmountVal, doseUnit, syringeStandard);
 
@@ -155,6 +184,8 @@ async function logOneInBatch(
         isBatchLog: true,
         vialId: activeVial.id,
         loggedByUserId: actorUserId,
+        loggedCost,
+        loggedCurrency,
       });
       await tx.auditEvent.create({
         data: {
@@ -194,6 +225,7 @@ async function logOneInBatch(
 
       const doseAmountVal = new Decimal(amount.amount);
       const doseUnit = amount.unit;
+      const { loggedCost, loggedCurrency } = calculateLoggedCost(activeVial, amount, syringeStandard);
 
       await decrementVialInventory(tx, subjectUserId, activeVial.id, doseAmountVal, doseUnit, syringeStandard);
 
@@ -207,6 +239,8 @@ async function logOneInBatch(
         vialId: activeVial.id,
         isBatchLog: true,
         loggedByUserId: actorUserId,
+        loggedCost,
+        loggedCurrency,
       });
 
       await tx.auditEvent.create({
@@ -254,6 +288,7 @@ async function logOneInBatch(
 
           const doseAmountVal = new Decimal(amount.amount);
           const doseUnit = amount.unit;
+          const { loggedCost, loggedCurrency } = calculateLoggedCost(activeVial, amount, syringeStandard);
 
           await decrementVialInventory(tx, subjectUserId, activeVial.id, doseAmountVal, doseUnit, syringeStandard);
 
@@ -262,6 +297,8 @@ async function logOneInBatch(
             isBatchLog: true,
             vialId: activeVial.id,
             loggedByUserId: actorUserId,
+            loggedCost,
+            loggedCurrency,
           });
           await tx.auditEvent.create({
             data: {

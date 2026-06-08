@@ -17,9 +17,9 @@ interface Props {
   compoundId: string;
   compoundName: string;
   vials: SerializedVialData[];
-  fridgeShelfLifeMonths?: number;
-  freezerShelfLifeMonths?: number;
-  reconstitutedShelfLifeDays?: number;
+  fridgeShelfLifeMonths?: number | null;
+  freezerShelfLifeMonths?: number | null;
+  reconstitutedShelfLifeDays?: number | null;
 }
 
 export function CompoundInventoryManager({
@@ -30,6 +30,8 @@ export function CompoundInventoryManager({
   freezerShelfLifeMonths = 24,
   reconstitutedShelfLifeDays = 14,
 }: Props) {
+  const isRoomTempOnly = fridgeShelfLifeMonths === null && freezerShelfLifeMonths === null;
+
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -51,6 +53,8 @@ export function CompoundInventoryManager({
   const [totalMg, setTotalMg] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [addBacWaterMl, setAddBacWaterMl] = useState('2.0');
+  const [cost, setCost] = useState('');
+  const [currency, setCurrency] = useState('USD');
   const [expiresAt, setExpiresAt] = useState('');
 
   // Expiration calculation fields
@@ -66,8 +70,8 @@ export function CompoundInventoryManager({
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const calculateExpirationDate = (receivedDateStr: string, shelfLifeMonths: number): string => {
-    if (!receivedDateStr) return '';
+  const calculateExpirationDate = (receivedDateStr: string, shelfLifeMonths: number | null): string => {
+    if (!receivedDateStr || shelfLifeMonths === null) return '';
     const date = new Date(receivedDateStr + 'T12:00:00');
     if (isNaN(date.getTime())) return '';
     date.setMonth(date.getMonth() + shelfLifeMonths);
@@ -77,8 +81,8 @@ export function CompoundInventoryManager({
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const calculateExpiryDays = (startDateStr: string, days: number): string => {
-    if (!startDateStr) return '';
+  const calculateExpiryDays = (startDateStr: string, days: number | null): string => {
+    if (!startDateStr || days === null) return '';
     const date = new Date(startDateStr + 'T12:00:00');
     if (isNaN(date.getTime())) return '';
     date.setDate(date.getDate() + days);
@@ -105,7 +109,7 @@ export function CompoundInventoryManager({
 
   const handleReceivedDateChange = (val: string) => {
     setReceivedDate(val);
-    const months = storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
+    const months = isRoomTempOnly ? null : (storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths);
     setExpiresAt(calculateExpirationDate(val, months));
   };
 
@@ -121,7 +125,7 @@ export function CompoundInventoryManager({
 
   const handleStorageMethodChange = (val: 'fridge' | 'freezer') => {
     setStorageMethod(val);
-    const months = val === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
+    const months = isRoomTempOnly ? null : (val === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths);
     setExpiresAt(calculateExpirationDate(receivedDate, months));
   };
 
@@ -129,7 +133,7 @@ export function CompoundInventoryManager({
     setAddFormType(type);
     const today = getTodayLocalDateStr();
     if (type === 'dry') {
-      const months = storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
+      const months = isRoomTempOnly ? null : (storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths);
       setExpiresAt(calculateExpirationDate(receivedDate || today, months));
     } else {
       setExpiresAt(calculateExpiryDays(reconstitutionDate || today, reconstitutedShelfLifeDays));
@@ -140,9 +144,9 @@ export function CompoundInventoryManager({
     const today = getTodayLocalDateStr();
     setReceivedDate(today);
     setReconstitutionDate(today);
-    const months = storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
+    const months = isRoomTempOnly ? null : (storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths);
     setExpiresAt(calculateExpirationDate(today, months));
-  }, [fridgeShelfLifeMonths, freezerShelfLifeMonths]);
+  }, [fridgeShelfLifeMonths, freezerShelfLifeMonths, isRoomTempOnly]);
 
   // Segregate dry and active vials
   const dryVials = vials.filter((v) => v.status === 'DRY');
@@ -161,6 +165,8 @@ export function CompoundInventoryManager({
         compoundId,
         totalMg,
         quantity: parseInt(quantity, 10),
+        cost: cost || undefined,
+        currency: cost ? currency : undefined,
         expiresAt: expiresAt || undefined,
       });
 
@@ -168,9 +174,10 @@ export function CompoundInventoryManager({
         setSuccess(`Successfully added ${quantity} dry vial(s).`);
         setTotalMg('');
         setQuantity('1');
+        setCost('');
         const today = getTodayLocalDateStr();
         setReceivedDate(today);
-        const months = storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths;
+        const months = isRoomTempOnly ? null : (storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths);
         setExpiresAt(calculateExpirationDate(today, months));
         setShowAddForm(false);
       } else {
@@ -187,6 +194,8 @@ export function CompoundInventoryManager({
         compoundId,
         totalMg,
         bacWaterMl: addBacWaterMl,
+        cost: cost || undefined,
+        currency: cost ? currency : undefined,
         expiresAt: expiresAt || undefined,
       });
 
@@ -194,6 +203,7 @@ export function CompoundInventoryManager({
         setSuccess('Successfully added reconstituted vial.');
         setTotalMg('');
         setAddBacWaterMl('2.0');
+        setCost('');
         const today = getTodayLocalDateStr();
         setReconstitutionDate(today);
         setExpiresAt(calculateExpiryDays(today, reconstitutedShelfLifeDays));
@@ -294,7 +304,7 @@ export function CompoundInventoryManager({
                 addFormType === 'dry' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
               }`}
             >
-              Dry Vials (Powder)
+              {isRoomTempOnly ? 'Unopened Vial' : 'Dry Vials (Powder)'}
             </button>
             <button
               onClick={() => handleFormTypeChange('reconstituted')}
@@ -302,7 +312,7 @@ export function CompoundInventoryManager({
                 addFormType === 'reconstituted' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
               }`}
             >
-              Reconstituted Vial (Liquid)
+              {isRoomTempOnly ? 'Opened Vial (In Use)' : 'Reconstituted Vial (Liquid)'}
             </button>
           </div>
 
@@ -336,12 +346,12 @@ export function CompoundInventoryManager({
                 </div>
               ) : (
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">BAC Water (ml)</label>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">{isRoomTempOnly ? 'Vial Volume (mL)' : 'BAC Water (ml)'}</label>
                   <input
                     type="number"
                     step="any"
                     required
-                    placeholder="e.g. 2.0"
+                    placeholder={isRoomTempOnly ? 'e.g. 10.0' : 'e.g. 2.0'}
                     value={addBacWaterMl}
                     onChange={(e) => setAddBacWaterMl(e.target.value)}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
@@ -352,7 +362,7 @@ export function CompoundInventoryManager({
 
             {addFormType === 'reconstituted' && totalMg && addBacWaterMl && (
               <div className="text-xs text-gray-500 dark:text-gray-400 font-medium bg-muted/30 p-2.5 rounded-lg border border-border/30 flex justify-between items-center" id="recon-concentration-display">
-                <span>Reconstitution Concentration:</span>
+                <span>{isRoomTempOnly ? 'Vial Concentration:' : 'Reconstitution Concentration:'}</span>
                 <span className="font-bold font-mono text-gray-700 dark:text-gray-300">
                   {getConcentrationDisplay(totalMg, addBacWaterMl)}
                 </span>
@@ -378,14 +388,24 @@ export function CompoundInventoryManager({
                   <label className="block text-xs font-semibold text-muted-foreground mb-1">
                     Storage Method
                   </label>
-                  <select
-                    value={storageMethod}
-                    onChange={(e) => handleStorageMethodChange(e.target.value as 'fridge' | 'freezer')}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="freezer">Freezer (-20°C) — {freezerShelfLifeMonths}m</option>
-                    <option value="fridge">Fridge (2-8°C) — {fridgeShelfLifeMonths}m</option>
-                  </select>
+                  {isRoomTempOnly ? (
+                    <select
+                      value="room"
+                      disabled
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent opacity-75"
+                    >
+                      <option value="room">Room Temp (20-25°C)</option>
+                    </select>
+                  ) : (
+                    <select
+                      value={storageMethod}
+                      onChange={(e) => handleStorageMethodChange(e.target.value as 'fridge' | 'freezer')}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
+                    >
+                      <option value="freezer">Freezer (-20°C) — {freezerShelfLifeMonths}m</option>
+                      <option value="fridge">Fridge (2-8°C) — {fridgeShelfLifeMonths}m</option>
+                    </select>
+                  )}
                 </div>
               </div>
             )}
@@ -394,7 +414,7 @@ export function CompoundInventoryManager({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                    Reconstitution Date
+                    {isRoomTempOnly ? 'Puncture / Open Date' : 'Reconstitution Date'}
                   </label>
                   <input
                     type="date"
@@ -419,18 +439,56 @@ export function CompoundInventoryManager({
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
               />
               {addFormType === 'dry' ? (
-                receivedDate && (
+                isRoomTempOnly ? (
                   <p className="mt-1 text-[11px] text-muted-foreground italic">
-                    * Calculated as {storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths} months from received date based on {storageMethod} storage.
+                    * Check the manufacturer expiration date printed on the vial.
                   </p>
+                ) : (
+                  receivedDate && (
+                    <p className="mt-1 text-[11px] text-muted-foreground italic">
+                      * Calculated as {storageMethod === 'fridge' ? fridgeShelfLifeMonths : freezerShelfLifeMonths} months from received date based on {storageMethod} storage.
+                    </p>
+                  )
                 )
               ) : (
                 reconstitutionDate && (
                   <p className="mt-1 text-[11px] text-muted-foreground italic">
-                    * Calculated as {reconstitutedShelfLifeDays} days stability from reconstitution date based on refrigerated storage.
+                    * Calculated as {reconstitutedShelfLifeDays} days stability from {isRoomTempOnly ? 'puncture' : 'reconstitution'} date based on {isRoomTempOnly ? 'room temp' : 'refrigerated'} storage.
                   </p>
                 )
               )}
+            </div>
+
+            {/* Cost and Currency */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                  {addFormType === 'dry' ? 'Cost per Vial (Optional)' : 'Cost (Optional)'}
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="e.g. 45.00"
+                  value={cost}
+                  onChange={(e) => setCost(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1">Currency</label>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
+                >
+                  <option value="USD">USD ($)</option>
+                  <option value="USDT">USDT</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                </select>
+              </div>
             </div>
 
             <button
@@ -438,7 +496,7 @@ export function CompoundInventoryManager({
               disabled={isPending}
               className="w-full py-2 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-lg transition-all active:scale-[0.98] disabled:opacity-50"
             >
-              {isPending ? 'Processing...' : addFormType === 'dry' ? 'Add Dry Vials' : 'Add Reconstituted Vial'}
+              {isPending ? 'Processing...' : addFormType === 'dry' ? (isRoomTempOnly ? 'Add Unopened Vial' : 'Add Dry Vials') : (isRoomTempOnly ? 'Add Opened Vial' : 'Add Reconstituted Vial')}
             </button>
           </form>
         </div>
@@ -463,10 +521,10 @@ export function CompoundInventoryManager({
         {/* Dry Vials Section */}
         <div>
           <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-            Dry Vials ({dryVials.length})
+            {isRoomTempOnly ? 'Unopened Vials' : 'Dry Vials (Powder)'} ({dryVials.length})
           </h3>
           {dryVials.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic mb-2">No dry vials of this compound in stock.</p>
+            <p className="text-xs text-muted-foreground italic mb-2">No {isRoomTempOnly ? 'unopened' : 'dry'} vials of this compound in stock.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {dryVials.map((vial) => (
@@ -510,18 +568,18 @@ export function CompoundInventoryManager({
                         <div className="space-y-2 mt-1 border-t border-border pt-2">
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="block text-[10px] font-bold text-muted-foreground mb-0.5">BAC Water (ml)</label>
+                              <label className="block text-[10px] font-bold text-muted-foreground mb-0.5">{isRoomTempOnly ? 'Vial Volume (mL)' : 'BAC Water (ml)'}</label>
                               <input
                                 type="number"
                                 step="any"
-                                placeholder="e.g. 2.0"
+                                placeholder={isRoomTempOnly ? 'e.g. 10.0' : 'e.g. 2.0'}
                                 value={bacWaterMl}
                                 onChange={(e) => setBacWaterMl(e.target.value)}
                                 className="w-full rounded px-2 py-1 bg-background border border-input text-xs"
                               />
                             </div>
                             <div>
-                              <label className="block text-[10px] font-bold text-muted-foreground mb-0.5">Reconstituted On</label>
+                              <label className="block text-[10px] font-bold text-muted-foreground mb-0.5">{isRoomTempOnly ? 'Opened On' : 'Reconstituted On'}</label>
                               <input
                                 type="date"
                                 value={mixingReconstitutionDate}
@@ -532,7 +590,7 @@ export function CompoundInventoryManager({
                           </div>
                           {bacWaterMl && (
                             <div className="text-[10px] text-gray-500 dark:text-gray-400 font-medium bg-muted/30 p-2 rounded-lg border border-border/30 flex justify-between items-center" id={`vial-concentration-display-${vial.id}`}>
-                              <span>Concentration:</span>
+                              <span>{isRoomTempOnly ? 'Vial Concentration:' : 'Concentration:'}</span>
                               <span className="font-bold font-mono text-gray-700 dark:text-gray-300">
                                 {getConcentrationDisplay(vial.totalMg, bacWaterMl)}
                               </span>
@@ -549,7 +607,7 @@ export function CompoundInventoryManager({
                               className="w-full rounded px-2 py-1 bg-background border border-input text-xs"
                             />
                             <p className="text-[9px] text-muted-foreground italic mt-0.5">
-                              * Calculated as {reconstitutedShelfLifeDays} days stability.
+                              * Calculated as {reconstitutedShelfLifeDays} days stability from {isRoomTempOnly ? 'puncture' : 'reconstitution'}.
                             </p>
                           </div>
                           <div className="flex gap-1.5 pt-1">
@@ -558,7 +616,7 @@ export function CompoundInventoryManager({
                               onClick={() => handleReconstitute(vial.id)}
                               className="flex-1 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold"
                             >
-                              Mix
+                              {isRoomTempOnly ? 'Confirm Open' : 'Mix'}
                             </button>
                             <button
                               type="button"
@@ -574,14 +632,14 @@ export function CompoundInventoryManager({
                           onClick={() => {
                             clearMessages();
                             setMixingVialId(vial.id);
-                            setBacWaterMl('2.0');
+                            setBacWaterMl(isRoomTempOnly ? '10.0' : '2.0');
                             const today = getTodayLocalDateStr();
                             setMixingReconstitutionDate(today);
                             setMixingExpiry(calculateExpiryDays(today, reconstitutedShelfLifeDays));
                           }}
                           className="w-full py-1 bg-secondary hover:bg-secondary-foreground/10 text-foreground border border-border rounded flex items-center justify-center gap-1 font-bold text-[10px]"
                         >
-                          <Droplet className="h-3 w-3 text-sky-500" /> Reconstitute
+                          <Droplet className="h-3 w-3 text-sky-500" /> {isRoomTempOnly ? 'Open / Puncture' : 'Reconstitute'}
                         </button>
                       )}
                     </div>
@@ -595,10 +653,10 @@ export function CompoundInventoryManager({
         {/* Reconstituted Vials Section */}
         <div>
           <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-            Active Vials ({activeVials.length})
+            {isRoomTempOnly ? 'Opened / Active Vials' : 'Active Vials (Reconstituted)'} ({activeVials.length})
           </h3>
           {activeVials.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No active vials of this compound in use.</p>
+            <p className="text-xs text-muted-foreground italic">No active {isRoomTempOnly ? 'opened' : 'reconstituted'} vials of this compound in use.</p>
           ) : (
             <div className="space-y-2">
               {activeVials.map((vial) => {
@@ -641,7 +699,7 @@ export function CompoundInventoryManager({
                       </div>
 
                       <div className="flex flex-wrap gap-x-3 text-[10px] text-muted-foreground">
-                        <span>Dilution: {vial.bacWaterMl} ml BAC water</span>
+                        <span>{isRoomTempOnly ? `Volume: ${vial.bacWaterMl} mL` : `Dilution: ${vial.bacWaterMl} ml BAC water`}</span>
                         <span>•</span>
                         <span>Exp: {vial.expiresAt ? new Date(vial.expiresAt).toLocaleDateString() : '—'}</span>
                       </div>

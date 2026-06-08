@@ -6,7 +6,7 @@
 - **Autonomous & Verified**: Prove every change with `pnpm check`.
 - **Identity Scoping**: Every DB query must include `where: { userId: session.user.id }`.
   - **Exception**: `AuthRepository.findByEmailForAuth` in `lib/auth/infrastructure/AuthRepository.ts` is explicitly exempt — it queries the User table by email to establish identity and cannot be userId-scoped because userId is what is being established. It selects only authentication-required fields and never returns user-authored content.
-  - **Exception**: All queries in `lib/reference/infrastructure/CompoundRepo.ts` are explicitly exempt — `Compound`, `CompoundProfile`, and `Citation` are admin-curated global reference data with no `userId` column. All authenticated users have read access to the full compound catalog. These are not user-authored resources.
+  - **Exception**: All queries in `lib/reference/infrastructure/CompoundRepo.ts` are explicitly exempt — `CatalogItem`, `CompoundProfile`, `SupplementProfile`, `CatalogItemRevision`, and `Citation` are admin-curated global reference data with no `userId` column. All authenticated users have read access to the full reference catalog. These are not user-authored resources.
   - **Exception**: Write mutations on `VendorProduct` in `lib/ordering/application/VendorProductService.ts` use `update({ where: { id: existing.id } })` after a scoped `findFirst({ where: { id, vendor: { userId } } })` within the **same Prisma transaction**. `VendorProduct` has no direct `userId` column; ownership is verified through its `vendor` relation. `updateMany` with relation filters does not reliably work in Prisma for write operations. The intra-transaction `findFirst` + `update` pattern is the approved equivalent.
   - **Exception**: `processPendingDeletions` in `lib/admin/application/AdminService.ts` is explicitly exempt — it is a system-level cron operation with no session context. It queries `AccountDeletionRequest` globally (all rows with `status: PENDING, scheduledFor: { lte: now }`) to process scheduled user deletions. Ownership was verified at request-creation time; the cron only acts on previously authorized deletion records.
   - **Exception**: `markVialsExpired` in `lib/reconstitution/application/VialExpiryService.ts` is explicitly exempt — system-level cron operation (ADR-012, `POST /api/cron/vial-expiry`, daily). The initial `findMany` is intentionally global (scans every user's RECONSTITUTED vials past their `expiresAt`). Endpoint secured with `CRON_SECRET`. Per-vial `updateMany` includes both `id` and `userId` predicates; audit events emitted only on `count === 1`. `actorUserId: 'SYSTEM'`. Same pattern as `markOrdersStale`.
@@ -21,6 +21,7 @@
 | Start Dev | `make dev` or `pnpm dev` |
 | Production Build | `pnpm build` |
 | Start Prod Server | `pnpm start` |
+| Start Local Prod Server | `pnpm start:local` |
 | Lint | `pnpm lint` |
 | Typecheck | `pnpm typecheck` |
 | Format | `pnpm format` |

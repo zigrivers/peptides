@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { DosingReconstitutionPlanner } from './DosingReconstitutionPlanner';
 
 afterEach(() => {
@@ -212,5 +212,18 @@ describe('DosingReconstitutionPlanner Client Component', () => {
     // Units text should fallback to 0.0 Units
     const unitsText = container.querySelector('#draw-units-text');
     expect(unitsText?.textContent?.trim()).toBe('0.0 Units');
+  });
+
+  it('handles combination blend doses and disables automated calculations without crashing', () => {
+    const comboProps = {
+      dosingLow: { amount: '100/100', unit: 'mcg' as const },
+      dosingTypical: { amount: '250/250', unit: 'mcg' as const },
+      dosingHigh: { amount: '500/500', unit: 'mcg' as const },
+      isFdaApproved: false,
+    };
+    render(<DosingReconstitutionPlanner {...comboProps} />);
+    expect(screen.getByText('Combination Blend Detected')).toBeDefined();
+    expect(screen.getByText(/automated calculations are disabled/i)).toBeDefined();
+    expect(screen.queryByLabelText(/Vial Size/i)).toBeNull();
   });
 });

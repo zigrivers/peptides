@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import type { Protocol, DoseLog, SafetyWarning } from '@/lib/tracker/domain/types';
 import type { DoseUnitsDisplay } from '@/lib/reconstitution/domain/doseUnits';
 import { batchLogDosesAction } from '@/app/actions/tracker/batch-log-doses';
@@ -51,8 +51,36 @@ export function BatchLogReview({ items, compoundNames }: Props) {
     return s;
   });
   const [warnings, setWarnings] = useState<Record<string, SafetyWarning[]>>({});
-  const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setItemStates((prevStates) => {
+      const nextStates: Record<string, ItemState> = {};
+      items.forEach((i) => {
+        if (prevStates[i.protocol.id] === 'failed' && !i.existingLog) {
+          nextStates[i.protocol.id] = 'failed';
+        } else {
+          nextStates[i.protocol.id] = !i.existingLog
+            ? 'pending'
+            : i.existingLog.status === 'LOGGED'
+              ? 'logged'
+              : 'skipped';
+        }
+      });
+      return nextStates;
+    });
+
+    setSelected((prev) => {
+      const next = new Set<string>();
+      items.forEach((i) => {
+        if (i.isAvailable && !i.existingLog && prev.has(i.protocol.id)) {
+          next.add(i.protocol.id);
+        }
+      });
+      return next;
+    });
+  }, [items]);
 
   function toggleProtocol(protocolId: string) {
     setSelected((prev) => {

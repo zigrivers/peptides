@@ -7,7 +7,7 @@ const config: Config = {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
-  darkMode: ["class", '[data-theme="dark"]'],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -76,13 +76,6 @@ const config: Config = {
   },
   plugins: [
     require("tailwindcss-animate"),
-    plugin(function({ addVariant }) {
-      addVariant('dark', [
-        '.dark &',
-        '[data-theme="dark"] &',
-        '@media (prefers-color-scheme: dark) { :root[data-theme="system"] & }'
-      ]);
-    })
   ],
 };
 

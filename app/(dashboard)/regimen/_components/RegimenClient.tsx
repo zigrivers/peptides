@@ -720,17 +720,17 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
                       <div>
                         <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">Side Effects to Watch Out For</h4>
                         <p className="text-sm text-yellow-800 dark:text-yellow-300 mt-1 leading-relaxed">
-                          {p.compound.profile.sideEffects}
+                          {p.compound.profile?.sideEffects}
                         </p>
                       </div>
                     )}
 
                     {/* Citations */}
-                    {p.compound.profile?.citations && p.compound.profile.citations.length > 0 && (
+                    {p.compound.profile?.citations && p.compound.profile?.citations.length > 0 && (
                       <div className="pt-2">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">Citations</h4>
                         <ul className="mt-1 space-y-1">
-                          {p.compound.profile.citations.map((c) => (
+                          {p.compound.profile?.citations?.map((c) => (
                             <li key={c.id} className="text-xs">
                               {c.url ? (
                                 <a
@@ -775,13 +775,21 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
                       </button>
                     )}
                     {p.status !== 'DEACTIVATED' && (
-                      <button
-                        onClick={() => handleDeactivate(p.id)}
-                        disabled={isPending}
-                        className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-400 px-3 py-1.5 text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-950/50 disabled:opacity-50 transition-colors"
-                      >
-                        Deactivate
-                      </button>
+                      <>
+                        <Link
+                          href={`/tracker/protocols/${p.id}/edit`}
+                          className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 px-3 py-1.5 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors flex items-center"
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          onClick={() => handleDeactivate(p.id)}
+                          disabled={isPending}
+                          className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-400 px-3 py-1.5 text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-950/50 disabled:opacity-50 transition-colors"
+                        >
+                          Deactivate
+                        </button>
+                      </>
                     )}
                   </div>
 

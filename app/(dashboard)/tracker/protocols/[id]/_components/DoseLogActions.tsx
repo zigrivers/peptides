@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition } from 'react';
 import type { DoseAmount, InjectionSite, SafetyWarning } from '@/lib/tracker/domain/types';
-import { sitesEqual } from '@/lib/tracker/domain/SiteRotation';
+import { sitesEqualLegacy } from '@/lib/tracker/domain/SiteRotation';
 import { logDoseAction } from '@/app/actions/tracker/log-dose';
 
 import { SitePicker } from '../../../_components/SitePicker';
@@ -23,9 +23,13 @@ export function DoseLogActions({ protocolId, amount, existingStatus, existingInj
     status,
     (_, newStatus: 'LOGGED' | 'SKIPPED' | null) => newStatus
   );
-  const [selectedSite, setSelectedSite] = useState<InjectionSite | null>(
-    existingInjectionSite ?? siteData?.suggestion ?? null
-  );
+  const [selectedSite, setSelectedSite] = useState<InjectionSite | null>(() => {
+    const site = existingInjectionSite ?? siteData?.suggestion ?? null;
+    if (site && site.bodyPart === 'abdomen') {
+      return { ...site, bodyPart: 'abdomen-lower' };
+    }
+    return site;
+  });
   const [warnings, setWarnings] = useState<SafetyWarning[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showChangeOptions, setShowChangeOptions] = useState(false);
@@ -34,7 +38,7 @@ export function DoseLogActions({ protocolId, amount, existingStatus, existingInj
   const requiresSite = (siteData?.validSites.length ?? 0) > 0;
   const siteRequired = requiresSite && selectedSite === null;
   const lastUsedSite = siteData?.recentSites?.[0] ?? null;
-  const isConflict = selectedSite !== null && lastUsedSite !== null && sitesEqual(selectedSite, lastUsedSite);
+  const isConflict = selectedSite !== null && lastUsedSite !== null && sitesEqualLegacy(selectedSite, lastUsedSite);
 
   function handleLog(logStatus: 'LOGGED' | 'SKIPPED') {
     setError(null);

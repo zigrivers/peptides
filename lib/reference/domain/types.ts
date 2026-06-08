@@ -5,9 +5,12 @@ export type DoseAmount = {
   recommendedFrequency?: string;
 };
 
+export type CatalogItemKind = 'PEPTIDE' | 'SUPPLEMENT';
+export type RevisionStatus = 'PUBLISHED' | 'PENDING_REVIEW';
+
 export type Citation = {
   id: string;
-  profileId: string;
+  catalogItemId: string;
   title: string;
   url: string | null;
   doi: string | null;
@@ -124,7 +127,7 @@ export type PreferredTime =
 
 export type CompoundProfile = {
   id: string;
-  compoundId: string;
+  catalogItemId: string;
   dosingLow: DoseAmount;
   dosingTypical: DoseAmount;
   dosingHigh: DoseAmount;
@@ -133,10 +136,11 @@ export type CompoundProfile = {
   reconstitutedShelfLifeDays: number | null;
   fridgeShelfLifeMonths: number | null;
   freezerShelfLifeMonths: number | null;
-  citations: Citation[];
   benefitTimeline: BenefitTimelineItem[] | null;
   cycleLengthWeeks: number | null;
+  cycleRationale: string | null;
   restPeriodWeeks: number | null;
+  restPeriodRationale: string | null;
   dosingFrequency: DosingFrequency | null;
   dosesPerDay: number | null;
   customFrequencyDescription: string | null;
@@ -149,20 +153,57 @@ export type CompoundProfile = {
   adjuncts: CompoundAdjunctRecommendation[];
 };
 
-export type Compound = {
+export type SupplementProfile = {
   id: string;
+  catalogItemId: string;
+  form: string;
+  servingSize: string;
+  servingUnit: string;
+  dosingLow: DoseAmount;
+  dosingTypical: DoseAmount;
+  dosingHigh: DoseAmount;
+  benefitTimeline: BenefitTimelineItem[] | null;
+  dosingFrequency: DosingFrequency | null;
+  dosesPerDay: number | null;
+  preferredTime: PreferredTime | null;
+  timingNotes: string | null;
+};
+
+export type CatalogItemRevision = {
+  id: string;
+  catalogItemId: string;
+  version: number;
+  kind: CatalogItemKind;
+  snapshot: unknown;
+  source: string;
+  createdAt: Date;
+  publishedAt: Date | null;
+};
+
+export type CatalogItem = {
+  id: string;
+  catalogKey: string;
+  kind: CatalogItemKind;
   name: string;
   slug: string;
   iupacName: string | null;
   synonyms: string[];
   mechanismOfAction: string | null;
   administrationRoutes: string[];
+  sourceVersion: number;
+  lastReviewedAt: Date | null;
+  revisionStatus: RevisionStatus;
   status: string;
   tags: string[];
   archivedAt: Date | null;
   profile: CompoundProfile | null;
+  supplementProfile: SupplementProfile | null;
+  citations: Citation[];
+  revisions: CatalogItemRevision[];
 };
 
 export type ListCompoundsOptions = {
   includeArchived?: boolean;
 };
+
+export type Compound = CatalogItem;

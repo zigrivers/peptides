@@ -11,7 +11,9 @@
       "daysOff": null,
       "preferredTime": "MORNING_AND_NIGHT",
       "timingNotes": "Take on an empty stomach. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Preclinical models demonstrate that tissue repair and angiogenic stimulation (VEGFR2 upregulation) peak within 8 weeks. Extending cycles beyond this duration shows diminishing returns for acute soft tissue healing.",
+      "restPeriodRationale": "A 4-week washout period is recommended to prevent receptor habituation, clear active peptide residues, and assess baseline tissue healing progress."
     },
     "citations": [
       {
@@ -33,7 +35,9 @@
       "daysOff": null,
       "preferredTime": "ANYTIME",
       "timingNotes": "Subcutaneous injection, can be taken anytime. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A 6-week cycle is sufficient to promote cellular migration (fibroblasts and keratinocytes via G-actin binding) during active healing phases. Avoids prolonged exposure to angiogenic stimulants.",
+      "restPeriodRationale": "A 4-week washout allows cell motility pathways to return to baseline and prevents downregulation of angiogenesis response signaling."
     },
     "citations": [
       {
@@ -55,7 +59,9 @@
       "daysOff": null,
       "preferredTime": "ANYTIME",
       "timingNotes": "Inject once weekly on the same day each week, with or without food.",
-      "isFdaApproved": true
+      "isFdaApproved": true,
+      "cycleRationale": "Intended for continuous, chronic administration to achieve sustained glycemic control and appetite suppression. Discontinuation leads to rebound hunger and weight regain.",
+      "restPeriodRationale": "No planned washout period; continuous GLP-1 receptor activation is required to maintain metabolic improvements, with clinical trials supporting long-term safety."
     },
     "citations": [
       {
@@ -77,7 +83,9 @@
       "daysOff": null,
       "preferredTime": "ANYTIME",
       "timingNotes": "Inject once weekly on the same day each week, with or without food.",
-      "isFdaApproved": true
+      "isFdaApproved": true,
+      "cycleRationale": "Intended for chronic, long-term administration. Dual activation of GIP and GLP-1 receptors requires sustained presence to reset metabolic setpoints and maintain weight loss.",
+      "restPeriodRationale": "No planned washout period is indicated. Continuous therapy is necessary for long-term weight management and glycemic stability, backed by clinical trial safety data."
     },
     "citations": [
       {
@@ -99,7 +107,9 @@
       "daysOff": null,
       "preferredTime": "NIGHT",
       "timingNotes": "Subcutaneous injection, can cause local injection site pain. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A 6-week cycle is standard for collagen synthesis and tissue remodeling. Limits cumulative systemic copper accumulation and local injection site irritation.",
+      "restPeriodRationale": "A 4-week rest period allows systemic copper levels to normalize and prevents intracellular copper transport saturation."
     },
     "citations": [
       {
@@ -121,7 +131,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Inject subcutaneously once daily into the abdomen; rotate injection sites.",
-      "isFdaApproved": true
+      "isFdaApproved": true,
+      "cycleRationale": "Usually administered continuously for the treatment of HIV-associated lipodystrophy, as discontinuation leads to a rapid reversion of visceral adipose tissue reduction.",
+      "restPeriodRationale": "Continuous administration is required to maintain growth hormone release and reduce abdominal fat; clinical studies show no rebound tachyphylaxis but immediate loss of efficacy upon cessation."
     },
     "citations": [
       {
@@ -143,7 +155,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Inject in the morning to align with pineal rhythms. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Short, intensive 10-14 day (2-week) courses are sufficient to stimulate telomerase activity and restore pineal melatonin secretion, as observed in clinical trials.",
+      "restPeriodRationale": "A long 6-month (24-week) rest period is recommended as the telomere elongation and anti-aging benefits persist long-term, and frequent cycles are unnecessary and lack long-term safety data."
     },
     "citations": [
       {
@@ -165,7 +179,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Inject in the morning, prior to physical activity. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A 4-week cycle is typically used to restore mitochondrial function and AMPK pathway activation, which regulate cellular energy homeostasis and insulin sensitivity.",
+      "restPeriodRationale": "An 8-week rest period prevents cellular adaptation to exogenous mitochondrial-derived peptides and allows tracking of endogenous metabolic adaptation."
     },
     "citations": [
       {
@@ -187,7 +203,9 @@
       "daysOff": null,
       "preferredTime": "ANYTIME",
       "timingNotes": "Subcutaneous or oral administration for anti-inflammatory action. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Used for a 4-week cycle to address acute inflammatory flares (especially GI or dermatological) via MC3/4 receptor signaling.",
+      "restPeriodRationale": "A 4-week washout allows evaluation of immune system homeostasis and prevents potential desensitization of melanocortin receptor pathways."
     },
     "citations": [
       {
@@ -209,7 +227,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "For neuropathy pain reduction and tissue repair. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A 4-week cycle is structured to target the innate repair receptor (IRR) to reduce neuropathic pain and inflammatory neuropathies.",
+      "restPeriodRationale": "An 8-week washout period is recommended to assess persistent neuroprotective benefits and avoid desensitizing cell survival pathways."
     },
     "citations": [
       {
@@ -231,7 +251,9 @@
       "daysOff": null,
       "preferredTime": "ANYTIME",
       "timingNotes": "Once weekly injection. Based on phase 2 trial data. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Used continuously for chronic obesity management. Combining amylin and GLP-1 receptor agonists requires long-term administration to prevent weight regain.",
+      "restPeriodRationale": "No washout period is scheduled; chronic treatment is required to sustain metabolic setpoint modifications and satiety signals."
     },
     "citations": [
       {
@@ -253,7 +275,9 @@
       "daysOff": null,
       "preferredTime": "ANYTIME",
       "timingNotes": "Once weekly injection; triple agonist (GLP-1/GIP/glucagon). Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Designed for chronic, continuous administration as a triple agonist (GLP-1/GIP/Glucagon). Continuous therapy is necessary to maintain appetite suppression and energy expenditure enhancements.",
+      "restPeriodRationale": "No washout period; continuous agonist presence is essential to avoid metabolic reversion and rapid weight rebound."
     },
     "citations": [
       {
@@ -275,7 +299,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Subcutaneous injection for immune system modulation. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A 4-week cycle is standard to modulate immune function (T-cell differentiation and maturation) without overstimulating the immune system.",
+      "restPeriodRationale": "A 4-week washout prevents immune adaptation and allows the host immune system to function autonomously under its newly modulated baseline."
     },
     "citations": [
       {
@@ -297,7 +323,9 @@
       "daysOff": null,
       "preferredTime": "MORNING_AND_NIGHT",
       "timingNotes": "Apply to target areas on clean and dry skin. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Cosmetic formulations for skin and hair health are designed for continuous daily application to maintain local extracellular matrix support.",
+      "restPeriodRationale": "No washout is required as topical peptides have low systemic absorption and require continuous presence to maintain aesthetic improvements."
     },
     "citations": [
       {
@@ -319,7 +347,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Inject every other day for 3 doses. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Intense 2-week senolytic therapy targets and clears senescent cells by disrupting the FOXO4-p53 interaction. Continuous administration is avoided to prevent depletion of healthy stem cells.",
+      "restPeriodRationale": "A 24-week (6-month) washout is required because senescent cell clearance is a durable, long-term cellular reset, and frequent clearing is unnecessary and toxic to normal tissue regeneration."
     },
     "citations": [
       {
@@ -341,7 +371,9 @@
       "daysOff": null,
       "preferredTime": "NIGHT",
       "timingNotes": "Inject 30-60 minutes before bedtime. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A short 2-week cycle is used to normalize sleep architecture and modulate the LH/ACTH axis in chronic insomnia.",
+      "restPeriodRationale": "A 4-week washout is essential to prevent endocrine adaptations and ensure the central nervous system does not develop tolerance to delta sleep-inducing signals."
     },
     "citations": [
       {
@@ -363,7 +395,9 @@
       "daysOff": null,
       "preferredTime": "PRE_WORKOUT",
       "timingNotes": "Inject on an empty stomach before workouts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A 4-week cycle is capped to prevent severe growth hormone receptor desensitization and tachyphylaxis, which are highly pronounced with Hexarelin compared to other GHRPs.",
+      "restPeriodRationale": "A 4-week washout is required to restore pituitary sensitivity to growth hormone-releasing signals and allow prolactin/cortisol levels to return to baseline."
     },
     "citations": [
       {
@@ -385,7 +419,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Inject in the morning; monitor kidney health indicators. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A 4-week cycle targets apoptosis in white adipose tissue vasculature. Restricting cycle length prevents progressive renal toxicity associated with prohibitin targeting.",
+      "restPeriodRationale": "An 8-week washout period is vital to monitor renal function parameters and allow recovery of endothelial tissues."
     },
     "citations": [
       {
@@ -407,7 +443,9 @@
       "daysOff": null,
       "preferredTime": "ANYTIME",
       "timingNotes": "Intramuscular or subcutaneous injection for TRT.",
-      "isFdaApproved": true
+      "isFdaApproved": true,
+      "cycleRationale": "Testosterone Replacement Therapy (TRT) is a chronic treatment for hypogonadism, substituting deficient endogenous production with exogenous supply.",
+      "restPeriodRationale": "No washout is indicated for therapeutic TRT, as cessation will cause immediate HPTA suppression symptoms and return to hypogonadal baselines."
     },
     "citations": [
       {
@@ -429,7 +467,9 @@
       "daysOff": null,
       "preferredTime": "ANYTIME",
       "timingNotes": "Take daily at approximately the same time.",
-      "isFdaApproved": true
+      "isFdaApproved": true,
+      "cycleRationale": "Used continuously (daily low-dose) or as-needed for erectile dysfunction and benign prostatic hyperplasia (BPH) to maintain steady PDE5 inhibition.",
+      "restPeriodRationale": "No washout is required; low-dose daily therapy maintains stable therapeutic plasma concentrations and has a well-established long-term safety profile."
     },
     "citations": [
       {
@@ -451,7 +491,9 @@
       "daysOff": null,
       "preferredTime": "AS_NEEDED",
       "timingNotes": "Take 60 minutes before activity.",
-      "isFdaApproved": true
+      "isFdaApproved": true,
+      "cycleRationale": "PDE5 inhibitor administered as-needed. No chronic accumulation occurs with on-demand use, allowing continuous long-term utility.",
+      "restPeriodRationale": "No structured cycle/washout is needed; clearance occurs rapidly (half-life of ~4-5 hours), preventing chronic receptor adaptation."
     },
     "citations": [
       {
@@ -473,7 +515,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Inject in the morning; standard peptide bioregulator. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Administered in a brief 10-14 day (2-week) course to stimulate thymus gland restoration and immune system peptide production, mirroring clinical protocols.",
+      "restPeriodRationale": "A 24-week (6-month) washout is standard as thymus rejuvenation effects are long-lasting, and excessive dosing can cause immune overstimulation."
     },
     "citations": [
       {
@@ -495,7 +539,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Oral administration; take with water. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Oral anabolic steroid cycle is capped at 8 weeks to mitigate progressive liver enzyme elevation, lipid profile disruption (HDL reduction), and suppression of endogenous testosterone.",
+      "restPeriodRationale": "An 8-week rest period is required to normalize liver enzymes, restore lipid balance, and allow recovery of the HPTA axis."
     },
     "citations": [
       {
@@ -517,7 +563,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Oral administration; liver support recommended. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Capped at 6 weeks due to rapid and pronounced hepatotoxicity (17a-alkylation), severe water retention, estrogenic side effects, and rapid HPTA suppression.",
+      "restPeriodRationale": "A 6-week washout (equal to cycle length) is the minimum required to allow hepatic recovery, normalize blood pressure, and begin endocrine recovery."
     },
     "citations": [
       {
@@ -539,7 +587,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Nasal spray administration. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A 4-week cycle is used to modulate GABAergic transmission and BDNF expression for anxiety and cognitive enhancement without causing habituation.",
+      "restPeriodRationale": "A 4-week washout allows central neurotransmitter systems to re-equilibrate and ensures long-term efficacy remains high."
     },
     "citations": [
       {
@@ -561,7 +611,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Inject in the morning. FDA-approved for hypogonadotropic hypogonadism and cryptorchidism; use as a TRT-adjunct to maintain testicular function is off-label. This specific off-label regimen is not FDA-approved.",
-      "isFdaApproved": true
+      "isFdaApproved": true,
+      "cycleRationale": "Commonly used continuously alongside TRT to preserve testicular volume and intratesticular testosterone by mimicking LH, or used in short fertility cycles.",
+      "restPeriodRationale": "When used as a continuous adjunct to TRT, no washout is scheduled to maintain constant Leydig cell stimulation; clinical indicators guide adjustments."
     },
     "citations": [
       {
@@ -583,7 +635,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Inject in the morning. FDA-approved menotropins are labeled for female ovulation induction and assisted reproductive technology (ART); use for male spermatogenesis induction is off-label. This specific off-label regimen is not FDA-approved.",
-      "isFdaApproved": true
+      "isFdaApproved": true,
+      "cycleRationale": "A 12-week cycle of Human Menopausal Gonadotropin (supplying FSH and LH) aligns with the ~74-day spermatogenesis cycle required to restore fertility.",
+      "restPeriodRationale": "A 4-week washout allows endocrine parameters to be reassessed and prevents down-regulation of gonadal receptors from sustained stimulation."
     },
     "citations": [
       {
@@ -605,7 +659,9 @@
       "daysOff": null,
       "preferredTime": "ANYTIME",
       "timingNotes": "Anti-microbial and wound healing peptide; monitor for irritation. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A short 3-week cycle is standard to address localized microbial or biofilm infections. Capped to prevent pro-inflammatory adaptation and tissue irritation.",
+      "restPeriodRationale": "A 4-week washout avoids systemic immune activation and allows the microbiome and tissue cells to return to baseline homeostasis."
     },
     "citations": [
       {
@@ -627,7 +683,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Inject or administer nasally in the morning. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Anxiolytic peptide cycled for 4 weeks to stabilize enkephalin-degrading enzymes and modulate immune cytokines without benzodiazepine-like withdrawal symptoms.",
+      "restPeriodRationale": "A 4-week washout period ensures receptor sensitivity is maintained and lets the user evaluate baseline anxiety levels."
     },
     "citations": [
       {
@@ -649,7 +707,9 @@
       "daysOff": 2,
       "preferredTime": "NIGHT",
       "timingNotes": "Inject at night on an empty stomach to mimic nocturnal GH pulse. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A 12-week cycle of this GHRH analog mimics physiological pulsatile growth hormone secretion, allowing substantial improvements in body composition and recovery.",
+      "restPeriodRationale": "A 4-week washout period prevents hypothalamic GHRH receptor downregulation and maintains the pituitary gland's responsive pulsatility."
     },
     "citations": [
       {
@@ -671,7 +731,9 @@
       "daysOff": null,
       "preferredTime": "ANYTIME",
       "timingNotes": "Cosmetic SNARE complex inhibitor peptide. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "An octapeptide that reduces muscle contractions to minimize wrinkles. An 8-week cycle is used to achieve facial smoothing benefits before a maintenance pause.",
+      "restPeriodRationale": "A 4-week rest period allows normal neuromuscular junction signaling to recover fully and prevents receptor desensitization."
     },
     "citations": [
       {
@@ -693,7 +755,9 @@
       "daysOff": null,
       "preferredTime": "NIGHT",
       "timingNotes": "Inject at night on an empty stomach to match physiological secretion.",
-      "isFdaApproved": true
+      "isFdaApproved": true,
+      "cycleRationale": "Therapeutic human growth hormone replacement is administered continuously to address adult GHD, maintaining body composition and metabolic benefits.",
+      "restPeriodRationale": "No washout is scheduled in medical GHD replacement protocols, as continuous low-dose administration avoids receptor down-regulation while preventing metabolic relapse."
     },
     "citations": [
       {
@@ -715,7 +779,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Cognitive enhancer nasal spray. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A 4-week cycle is standard to enhance BDNF expression, attention, and neuroprotection during high-stress periods without stimulant-like crashes.",
+      "restPeriodRationale": "A 4-week washout prevents neurological adaptation to elevated BDNF levels and allows the central nervous system to re-establish baseline cognitive processing."
     },
     "citations": [
       {
@@ -737,7 +803,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Potent Semax variant, nasal administration. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "An acetylated, amidated version of Semax for enhanced blood-brain barrier penetration. A 4-week cycle is capped to prevent neurotransmitter accommodation.",
+      "restPeriodRationale": "A 4-week washout ensures the neuro-restorative BDNF pathways do not become habituated to exogenous peptidergic stimulation."
     },
     "citations": [
       {
@@ -759,7 +827,9 @@
       "daysOff": null,
       "preferredTime": "MORNING",
       "timingNotes": "Inject in the morning; can cause transient chest pressure/nausea. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Intended for continuous or as-needed replenishment of the intracellular NAD+ pool to support mitochondrial ATP production and sirtuin activity.",
+      "restPeriodRationale": "No washout is required; NAD+ is an endogenous coenzyme that depletes naturally with age, making continuous supplementation safe and beneficial."
     },
     "citations": [
       {
@@ -781,7 +851,9 @@
       "daysOff": null,
       "preferredTime": "AS_NEEDED",
       "timingNotes": "Nasal spray administration. FDA-approved oxytocin is limited to obstetric injectable indications; intranasal use for social bonding is experimental/off-label. This specific intranasal regimen is not FDA-approved.",
-      "isFdaApproved": true
+      "isFdaApproved": true,
+      "cycleRationale": "Administered as-needed or continuously for social bonding, stress reduction, or mood stabilization. No accumulation or severe receptor downregulation is observed at low physiological doses.",
+      "restPeriodRationale": "No structured washout is needed for low-dose, intermittent, or continuous administration; rapid clearance prevents receptor habituation."
     },
     "citations": [
       {
@@ -803,7 +875,9 @@
       "daysOff": null,
       "preferredTime": "MORNING_AFTERNOON_NIGHT",
       "timingNotes": "Inject on an empty stomach (at least 2 hours post-meal) thrice daily. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A 12-week cycle stimulates pulsatile growth hormone release. Capped at 12 weeks to mitigate mild prolactin and cortisol elevations and avoid pituitary fatigue.",
+      "restPeriodRationale": "A 4-week washout allows the ghrelin/growth hormone secretagogue receptor (GHS-R1a) to resensitize and endocrine markers to return to baseline."
     },
     "citations": [
       {
@@ -825,7 +899,9 @@
       "daysOff": null,
       "preferredTime": "MORNING_AFTERNOON_NIGHT",
       "timingNotes": "Inject on an empty stomach thrice daily. Stimulates intense hunger. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A 12-week cycle increases GH release and stimulates appetite via ghrelin mimetic pathways. Capped to prevent pituitary desensitization and elevated hunger cues.",
+      "restPeriodRationale": "A 4-week washout period is required to restore ghrelin receptor sensitivity and normalize metabolic appetite signaling."
     },
     "citations": [
       {
@@ -847,7 +923,9 @@
       "daysOff": null,
       "preferredTime": "MORNING_AND_NIGHT",
       "timingNotes": "Inject on an empty stomach twice daily. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Highly selective GHRP cycled for 12 weeks. Unlike GHRP-2/6, it does not elevate cortisol or prolactin, but a 12-week cap is maintained to prevent secretagogue receptor desensitization.",
+      "restPeriodRationale": "A 4-week washout allows pituitary secretagogue receptors to resensitize, maintaining the efficacy of subsequent cycles."
     },
     "citations": [
       {
@@ -869,7 +947,9 @@
       "daysOff": null,
       "preferredTime": "ANYTIME",
       "timingNotes": "Once weekly injection, long-acting amylin receptor agonist. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "Amylin receptor agonist used continuously for chronic weight management. Interruption of therapy is associated with loss of satiety signals and weight rebound.",
+      "restPeriodRationale": "No scheduled washout period is indicated. Long-term continuous therapy is required for sustained weight loss, with clinical safety trials supporting ongoing administration."
     },
     "citations": [
       {
@@ -891,13 +971,112 @@
       "daysOff": null,
       "preferredTime": "NIGHT",
       "timingNotes": "Apply to face at night before sleep. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
-      "isFdaApproved": false
+      "isFdaApproved": false,
+      "cycleRationale": "A topical anti-aging formulation designed for continuous daily application to maintain skin elasticity and stimulate local collagen remodeling.",
+      "restPeriodRationale": "No washout period is necessary due to localized topical action and lack of systemic cumulative exposure."
     },
     "citations": [
       {
         "title": "Role of topical peptides in preventing or treating aged skin",
         "doi": "10.1111/j.1468-2494.2009.00490.x",
         "pmid": "19570099"
+      }
+    ]
+  },
+  {
+    "name": "CJC-1295 No DAC",
+    "profile": {
+      "cycleLengthWeeks": 12,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 2,
+      "customFrequencyDescription": null,
+      "daysOn": 5,
+      "daysOff": 2,
+      "preferredTime": "MORNING_AND_NIGHT",
+      "timingNotes": "Inject subcutaneous on an empty stomach. Must be fasted at least 2 hours prior and 30 minutes after injection to avoid insulin blunting the growth hormone pulse. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false,
+      "cycleRationale": "A 12-week cycle of this GHRH analog mimics the natural physiological secretion of growth hormone, promoting improvements in cellular repair, sleep quality, and body composition.",
+      "restPeriodRationale": "A 4-week washout period is recommended to prevent receptor habituation on pituitary somatotropes and maintain healthy baseline responsiveness."
+    },
+    "citations": [
+      {
+        "title": "Pulsatile Secretion of Growth Hormone (GH) Persists during Continuous Stimulation by CJC-1295, a Long-Acting GH-Releasing Hormone Analog",
+        "doi": "10.1210/jc.2006-1702",
+        "pmid": "17018654"
+      },
+      {
+        "title": "Human growth hormone-releasing factor (hGRF)1-29-albumin bioconjugates activate the GRF receptor on the anterior pituitary in rats: identification of CJC-1295 as a long-lasting GRF analog",
+        "doi": "10.1210/en.2004-1286",
+        "pmid": "15817669"
+      }
+    ]
+  },
+  {
+    "name": "CJC-1295 No DAC / Ipamorelin",
+    "profile": {
+      "cycleLengthWeeks": 12,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 2,
+      "customFrequencyDescription": null,
+      "daysOn": 5,
+      "daysOff": 2,
+      "preferredTime": "MORNING_AND_NIGHT",
+      "timingNotes": "Inject subcutaneous on an empty stomach. Must be fasted for at least 2 hours prior and 30 minutes after injection to prevent dietary insulin from blunting the growth hormone release pulse. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false,
+      "cycleRationale": "Cycled for 12 weeks to optimize GHRH/GHRP synergism for muscle preservation and body composition. Capped at 12 weeks to prevent somatotroph receptor downregulation and maintain endocrine homeostasis.",
+      "restPeriodRationale": "A 4-week washout period is recommended to allow GHRH and GHS receptors to fully resensitize, ensuring the efficacy of subsequent cycles."
+    },
+    "citations": [
+      {
+        "title": "Pulsatile Secretion of Growth Hormone (GH) Persists during Continuous Stimulation by CJC-1295, a Long-Acting GH-Releasing Hormone Analog",
+        "doi": "10.1210/jc.2006-1702",
+        "pmid": "17018654"
+      },
+      {
+        "title": "Ipamorelin, the first selective growth hormone secretagogue",
+        "doi": "10.1530/eje.0.1390552",
+        "pmid": "9849822"
+      },
+      {
+        "title": "Pharmacokinetic-pharmacodynamic modeling of ipamorelin, a growth hormone releasing peptide, in human volunteers",
+        "doi": "10.1023/A:1018955126402",
+        "pmid": "10496658"
+      }
+    ]
+  },
+  {
+    "name": "BPC-157 / TB-500",
+    "profile": {
+      "cycleLengthWeeks": 8,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 2,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING_AND_NIGHT",
+      "timingNotes": "Inject subcutaneous near the injury site (for BPC-157) or systemically. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false,
+      "cycleRationale": "Cycled for 8 weeks during active musculoskeletal injury rehabilitation to optimize localized angiogenesis and cell migration, avoiding prolonged activation of tissue growth factors.",
+      "restPeriodRationale": "A 4-week washout period is recommended to prevent receptor downregulation, allow cellular motility pathways to return to homeostatic baseline, and assess tissue healing."
+    },
+    "citations": [
+      {
+        "title": "Stable Gastric Pentadecapeptide BPC 157 and Wound Healing",
+        "doi": "10.3389/fphar.2021.627533",
+        "pmid": "34267654"
+      },
+      {
+        "title": "Thymosin beta-4: a multi-functional regenerative peptide. Basic properties and clinical applications",
+        "doi": "10.1517/14712598.2012.634793",
+        "pmid": "22074294"
+      },
+      {
+        "title": "Thymosin beta-4 accelerates wound healing",
+        "doi": "10.1096/fj.09-140046",
+        "pmid": "20103959"
       }
     ]
   }

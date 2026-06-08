@@ -180,19 +180,37 @@ model EmailChangeRequest {
 
 // --- Reference Domain ---
 
-model Compound {
+enum CatalogItemKind {
+  PEPTIDE
+  SUPPLEMENT
+}
+
+enum RevisionStatus {
+  PUBLISHED
+  PENDING_REVIEW
+}
+
+model CatalogItem {
   id                  String    @id @default(uuid())
+  catalogKey          String    @unique // stable, code-assigned sync key
+  kind                CatalogItemKind @default(PEPTIDE)
   name                String    @unique
   slug                String    @unique
   iupacName           String?
   synonyms            String[]
   mechanismOfAction   String?
   administrationRoutes String[]
+  sourceVersion       Int       @default(1)
+  lastReviewedAt      DateTime?
+  revisionStatus      RevisionStatus @default(PUBLISHED)
   status              String    @default("PUBLISHED")
   tags                String[]  @default([]) // e.g. ["healing","weight-loss","longevity"]
   archivedAt          DateTime?
 
   profile             CompoundProfile?
+  supplementProfile   SupplementProfile?
+  citations           Citation[]
+  revisions           CatalogItemRevision[]
   products            VendorProduct[]
   protocols           Protocol[]
   vials               Vial[]
@@ -202,12 +220,13 @@ model Compound {
   sourceAdjunctRecommendations CompoundAdjunctRecommendation[]
 
   @@index([status])
+  @@map("Compound")
 }
 
 model CompoundProfile {
   id                         String           @id @default(uuid())
-  compoundId                 String           @unique
-  compound                   Compound         @relation(fields: [compoundId], references: [id], onDelete: Cascade)
+  catalogItemId              String           @unique
+  catalogItem                CatalogItem      @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
   dosingLow                  Json             // DoseAmount object
   dosingTypical              Json             // DoseAmount object
   dosingHigh                 Json             // DoseAmount object
@@ -216,10 +235,11 @@ model CompoundProfile {
   reconstitutedShelfLifeDays Int?
   fridgeShelfLifeMonths      Int?             @default(12)
   freezerShelfLifeMonths     Int?             @default(24)
-  citations                  Citation[]
   benefitTimeline            Json?
   cycleLengthWeeks           Int?
+  cycleRationale             String?
   restPeriodWeeks            Int?
+  restPeriodRationale        String?
   dosingFrequency            DosingFrequency?
   dosesPerDay                Int?
   customFrequencyDescription String?
@@ -230,10 +250,27 @@ model CompoundProfile {
   isFdaApproved              Boolean          @default(false)
 }
 
+model SupplementProfile {
+  id              String        @id @default(uuid())
+  catalogItemId   String        @unique
+  catalogItem     CatalogItem   @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  form            String
+  servingSize     Decimal       @db.Decimal(10, 3)
+  servingUnit     String
+  dosingLow       Json
+  dosingTypical   Json
+  dosingHigh      Json
+  benefitTimeline Json?
+  dosingFrequency DosingFrequency?
+  dosesPerDay     Int?
+  preferredTime   PreferredTime?
+  timingNotes     String?
+}
+
 model Citation {
   id                String    @id @default(uuid())
-  profileId         String
-  profile           CompoundProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  catalogItemId     String
+  catalogItem       CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
   title             String
   url               String?
   doi               String?
@@ -244,9 +281,9 @@ model Citation {
 model CompoundPairing {
   id                      String    @id @default(uuid())
   sourceCompoundId        String
-  sourceCompound          Compound  @relation("CompoundPairingSource", fields: [sourceCompoundId], references: [id], onDelete: Cascade)
+  sourceCompound          CatalogItem @relation("CompoundPairingSource", fields: [sourceCompoundId], references: [id], onDelete: Cascade)
   pairedCompoundId        String?
-  pairedCompound          Compound? @relation("CompoundPairingPartner", fields: [pairedCompoundId], references: [id], onDelete: SetNull)
+  pairedCompound          CatalogItem? @relation("CompoundPairingPartner", fields: [pairedCompoundId], references: [id], onDelete: SetNull)
   pairedCompoundName      String
   benefitGoal             String
   rationale               String
@@ -309,7 +346,7 @@ model CatalogAdjunctCitation {
 model CompoundAdjunctRecommendation {
   id                  String    @id @default(uuid())
   sourceCompoundId    String
-  sourceCompound      Compound  @relation(fields: [sourceCompoundId], references: [id], onDelete: Cascade)
+  sourceCompound      CatalogItem @relation(fields: [sourceCompoundId], references: [id], onDelete: Cascade)
   adjunctId           String
   adjunct             CatalogAdjunct @relation(fields: [adjunctId], references: [id], onDelete: Cascade)
   benefitGoal         String
@@ -339,20 +376,32 @@ model CompoundAdjunctRecommendationCitation {
   @@index([citationId])
 }
 
+model CatalogItemRevision {
+  id            String          @id @default(uuid())
+  catalogItemId String
+  catalogItem   CatalogItem     @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  version       Int
+  kind          CatalogItemKind
+  snapshot      Json
+  source        String
+  createdAt     DateTime        @default(now())
+  publishedAt   DateTime?
+}
+
 // --- Tracker Domain ---
 
 model Protocol {
-  id                  String    @id @default(uuid())
+  id                  String      @id @default(uuid())
   userId              String
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  compoundId          String
-  compound            Compound  @relation(fields: [compoundId], references: [id])
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  compoundId          String      // naming debt: refers to CatalogItem.id
+  compound            CatalogItem @relation(fields: [compoundId], references: [id])
   cycleId             String?
-  cycle               Cycle?    @relation(fields: [cycleId], references: [id], onDelete: SetNull)
-  dose                Json      // DoseAmount object
-  schedule            Json      // Schedule object
+  cycle               Cycle?      @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  dose                Json        // DoseAmount object
+  schedule            Json        // Schedule object
   administrationRoute String
-  status              String    @default("ACTIVE")
+  status              String      @default("ACTIVE")
   startDate           DateTime
   endDate             DateTime?
   notes               String?
@@ -366,7 +415,7 @@ model Protocol {
 model Cycle {
   id          String    @id @default(uuid())
   userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
   startDate   DateTime
   endDate     DateTime?
@@ -378,22 +427,24 @@ model Cycle {
 }
 
 model DoseLog {
-  id              String    @id @default(uuid())
+  id              String      @id @default(uuid())
   protocolId      String
-  protocol        Protocol  @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  protocol        Protocol    @relation(fields: [protocolId], references: [id], onDelete: Cascade)
   userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   vialId          String?
-  vial            Vial?     @relation(fields: [vialId], references: [id], onDelete: SetNull)
-  idempotencyKey  String    @unique
-  loggedAt        DateTime  @default(now())
+  vial            Vial?       @relation(fields: [vialId], references: [id], onDelete: SetNull)
+  idempotencyKey  String      @unique
+  loggedAt        DateTime    @default(now())
   scheduledDate   DateTime
-  amount          Json      // DoseAmount object
-  status          String    @default("LOGGED")
-  injectionSite   Json?     // InjectionSite object
-  isBatchLog      Boolean   @default(false)
+  amount          Json        // DoseAmount object
+  status          String      @default("LOGGED")
+  injectionSite   Json?       // InjectionSite object
+  isBatchLog      Boolean     @default(false)
   note            String?
   loggedByUserId  String?
+  loggedCost      Decimal?    @db.Decimal(10, 2)
+  loggedCurrency  String?
 
   @@index([userId, scheduledDate])
   @@unique([userId, protocolId, scheduledDate])
@@ -430,21 +481,23 @@ model ProtocolRating {
 // --- Reconstitution Domain ---
 
 model Vial {
-  id                    String    @id @default(uuid())
+  id                    String      @id @default(uuid())
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  compoundId            String
-  compound              Compound  @relation(fields: [compoundId], references: [id])
+  user                  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  compoundId            String      // naming debt: refers to CatalogItem.id
+  compound              CatalogItem @relation(fields: [compoundId], references: [id])
   orderItemId           String?
-  orderItem             OrderItem? @relation(fields: [orderItemId], references: [id])
-  totalMg               Decimal   @db.Decimal(10, 3)
-  bacWaterMl            Decimal?  @db.Decimal(10, 3)
-  remainingMg           Decimal   @db.Decimal(10, 3)
-  status                String    @default("DRY")
+  orderItem             OrderItem?  @relation(fields: [orderItemId], references: [id])
+  totalMg               Decimal     @db.Decimal(10, 3)
+  bacWaterMl            Decimal?    @db.Decimal(10, 3)
+  remainingMg           Decimal     @db.Decimal(10, 3)
+  status                String      @default("DRY")
   reconstitutedAt       DateTime?
   expiresAt             DateTime?
-  shelfOrder            Int       @default(0)
-  isActiveForCompound   Boolean   @default(false)
+  shelfOrder            Int         @default(0)
+  isActiveForCompound   Boolean     @default(false)
+  cost                  Decimal?    @db.Decimal(10, 2)
+  currency              String      @default("USD")
 
   doseLogs              DoseLog[]
 
@@ -473,16 +526,16 @@ model Vendor {
 }
 
 model VendorProduct {
-  id          String    @id @default(uuid())
+  id          String      @id @default(uuid())
   vendorId    String
-  vendor      Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  compoundId  String
-  compound    Compound  @relation(fields: [compoundId], references: [id])
+  vendor      Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  compoundId  String      // naming debt: refers to CatalogItem.id
+  compound    CatalogItem @relation(fields: [compoundId], references: [id])
   name        String
-  priceUsd    Decimal   @db.Decimal(10, 2)
-  inStock     Boolean   @default(true)
-  form        String?   // "LYOPHILIZED_POWDER" | "SOLUTION" — if set, line items must match
-  vialSizeMg  Decimal?  @db.Decimal(10, 3) // if set, line items must match
+  priceUsd    Decimal     @db.Decimal(10, 2)
+  inStock     Boolean     @default(true)
+  form        String?     // "LYOPHILIZED_POWDER" | "SOLUTION" — if set, line items must match
+  vialSizeMg  Decimal?    @db.Decimal(10, 3) // if set, line items must match
 
   orderItems  OrderItem[]
 
@@ -518,17 +571,17 @@ model Order {
 }
 
 model OrderItem {
-  id            String    @id @default(uuid())
+  id            String      @id @default(uuid())
   orderId       String
-  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId     String?   // nullable: catalog product may be archived later
+  order         Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId     String?     // nullable: catalog product may be archived later
   product       VendorProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  compoundId    String
-  compound      Compound  @relation(fields: [compoundId], references: [id])
-  form          String    // "LYOPHILIZED_POWDER" | "SOLUTION"
-  vialSizeMg    Decimal   @db.Decimal(10, 3)
+  compoundId    String      // naming debt: refers to CatalogItem.id
+  compound      CatalogItem @relation(fields: [compoundId], references: [id])
+  form          String      // "LYOPHILIZED_POWDER" | "SOLUTION"
+  vialSizeMg    Decimal     @db.Decimal(10, 3)
   quantity      Int
-  unitPrice     Decimal?  @db.Decimal(10, 2)
+  unitPrice     Decimal?    @db.Decimal(10, 2)
   unitCurrency  String?
 
   vials         Vial[]

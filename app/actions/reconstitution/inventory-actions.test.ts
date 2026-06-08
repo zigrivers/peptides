@@ -69,6 +69,25 @@ describe('Inventory Server Actions', () => {
       });
     });
 
+    it('should reject unsupported cost currency values', async () => {
+      mockAuth.mockResolvedValue({ user: { id: 'user-123' } });
+
+      const result = await addDryVialsAction({
+        compoundId: '45a13798-41d4-46e8-9fdd-3812e6f0982a',
+        totalMg: '10',
+        quantity: 1,
+        cost: '50.00',
+        currency: 'BTC',
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: 'validation_error',
+        message: expect.any(String),
+      });
+      expect(saveDryVials).not.toHaveBeenCalled();
+    });
+
     it('should call saveDryVials and revalidate paths on success', async () => {
       mockAuth.mockResolvedValue({ user: { id: 'user-123' } });
       vi.mocked(saveDryVials).mockResolvedValue(undefined as never);
@@ -176,6 +195,25 @@ describe('Inventory Server Actions', () => {
       });
 
       expect(result).toEqual({ ok: false, error: 'unauthorized' });
+    });
+
+    it('should reject unsupported cost currency values', async () => {
+      mockAuth.mockResolvedValue({ user: { id: 'user-123' } });
+
+      const result = await addReconstitutedVialAction({
+        compoundId: '45a13798-41d4-46e8-9fdd-3812e6f0982a',
+        totalMg: '10',
+        bacWaterMl: '2.0',
+        cost: '50.00',
+        currency: 'BTC',
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: 'validation_error',
+        message: expect.any(String),
+      });
+      expect(saveVial).not.toHaveBeenCalled();
     });
 
     it('should call saveVial and revalidate on success', async () => {

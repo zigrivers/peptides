@@ -3,7 +3,12 @@
 import React from 'react';
 import type { InjectionSite } from '@/lib/tracker/domain/types';
 import type { SiteWithMeta } from '@/lib/tracker/domain/SiteRotation';
-import { sitesEqual } from '@/lib/tracker/domain/SiteRotation';
+import { sitesEqual, sitesEqualLegacy } from '@/lib/tracker/domain/SiteRotation';
+
+function strictSitesEqual(a: InjectionSite | null, b: InjectionSite | null): boolean {
+  if (!a || !b) return false;
+  return sitesEqual(a, b);
+}
 
 export type SiteData = {
   suggestion: InjectionSite | null;
@@ -20,6 +25,15 @@ interface SitePickerProps {
 
 export function formatSiteLabel(site: InjectionSite): string {
   const side = site.side.charAt(0).toUpperCase() + site.side.slice(1);
+  if (site.bodyPart === 'abdomen-upper') {
+    return `${side} Upper Abdomen`;
+  }
+  if (site.bodyPart === 'abdomen-lower') {
+    return `${side} Lower Abdomen`;
+  }
+  if (site.bodyPart === 'abdomen') {
+    return `${side} Abdomen`;
+  }
   const part = site.bodyPart.charAt(0).toUpperCase() + site.bodyPart.slice(1);
   return `${side} ${part}`;
 }
@@ -28,7 +42,11 @@ export function getSiteCoordinates(bodyPart: string, side: 'left' | 'right'): { 
   switch (bodyPart) {
     case 'deltoid':
       return side === 'left' ? { cx: 142, cy: 78 } : { cx: 58, cy: 78 };
-    case 'abdomen':
+    case 'abdomen-upper':
+      return side === 'left' ? { cx: 120, cy: 120 } : { cx: 80, cy: 120 };
+    case 'abdomen-lower':
+      return side === 'left' ? { cx: 120, cy: 145 } : { cx: 80, cy: 145 };
+    case 'abdomen': // legacy fallback
       return side === 'left' ? { cx: 120, cy: 135 } : { cx: 80, cy: 135 };
     case 'ventrogluteal':
       return side === 'left' ? { cx: 130, cy: 175 } : { cx: 70, cy: 175 };
@@ -42,8 +60,10 @@ export function getSiteCoordinates(bodyPart: string, side: 'left' | 'right'): { 
 const ALL_POSSIBLE_SITES: InjectionSite[] = [
   { bodyPart: 'deltoid', side: 'right' },
   { bodyPart: 'deltoid', side: 'left' },
-  { bodyPart: 'abdomen', side: 'right' },
-  { bodyPart: 'abdomen', side: 'left' },
+  { bodyPart: 'abdomen-upper', side: 'right' },
+  { bodyPart: 'abdomen-upper', side: 'left' },
+  { bodyPart: 'abdomen-lower', side: 'right' },
+  { bodyPart: 'abdomen-lower', side: 'left' },
   { bodyPart: 'ventrogluteal', side: 'right' },
   { bodyPart: 'ventrogluteal', side: 'left' },
   { bodyPart: 'thigh', side: 'right' },
@@ -52,6 +72,16 @@ const ALL_POSSIBLE_SITES: InjectionSite[] = [
 
 export function SitePicker({ siteData, selectedSite, onSelect }: SitePickerProps) {
   if (siteData.validSites.length === 0) return null;
+
+  const canonicalSelected = selectedSite
+    ? {
+        ...selectedSite,
+        bodyPart: selectedSite.bodyPart === 'abdomen' ? 'abdomen-lower' : selectedSite.bodyPart,
+      }
+    : null;
+
+  const lastUsedSite = siteData.recentSites[0] ?? null;
+  const isConflict = canonicalSelected !== null && lastUsedSite !== null && sitesEqualLegacy(canonicalSelected, lastUsedSite);
 
   const recentHistory = siteData.recentSites.slice(0, 7);
   const recentDosesForPath = siteData.recentSites.slice(0, 4);
@@ -130,10 +160,10 @@ export function SitePicker({ siteData, selectedSite, onSelect }: SitePickerProps
             {/* Hotspots */}
             {ALL_POSSIBLE_SITES.map((site) => {
               const { cx, cy } = getSiteCoordinates(site.bodyPart, site.side);
-              const isValid = siteData.validSites.some((v) => sitesEqual(v, site));
-              const isSelected = selectedSite !== null && sitesEqual(selectedSite, site);
-              const isSuggested = siteData.suggestion !== null && sitesEqual(siteData.suggestion, site);
-              const meta = siteData.siteMeta.find((m) => sitesEqual(m.site, site));
+              const isValid = siteData.validSites.some((v) => sitesEqualLegacy(v, site));
+              const isSelected = strictSitesEqual(canonicalSelected, site);
+              const isSuggested = siteData.suggestion !== null && sitesEqualLegacy(siteData.suggestion, site);
+              const meta = siteData.siteMeta.find((m) => sitesEqualLegacy(m.site, site));
               const isRested = meta?.isRested ?? true;
 
               if (!isValid) {
@@ -151,9 +181,7 @@ export function SitePicker({ siteData, selectedSite, onSelect }: SitePickerProps
                 );
               }
 
-              const lastUsedSite = siteData.recentSites[0] ?? null;
-              const isConflict = selectedSite !== null && lastUsedSite !== null && sitesEqual(selectedSite, lastUsedSite);
-              const isThisSiteConflict = isSelected && isConflict && sitesEqual(selectedSite, site);
+              const isThisSiteConflict = isSelected && isConflict;
 
               // Heatmap color interpolation
               const days = meta?.daysSinceLastUse !== null && meta?.daysSinceLastUse !== undefined
@@ -276,9 +304,10 @@ export function SitePicker({ siteData, selectedSite, onSelect }: SitePickerProps
           </p>
           <div className="grid grid-cols-2 gap-1.5">
             {siteData.validSites.map((site) => {
-              const meta = siteData.siteMeta.find((m) => sitesEqual(m.site, site));
-              const isSelected = selectedSite !== null && sitesEqual(selectedSite, site);
-              const isSuggested = siteData.suggestion !== null && sitesEqual(siteData.suggestion, site);
+              const meta = siteData.siteMeta.find((m) => sitesEqualLegacy(m.site, site));
+              const isSelected = strictSitesEqual(canonicalSelected, site);
+              const isSuggested = siteData.suggestion !== null && sitesEqualLegacy(siteData.suggestion, site);
+              const isThisSiteConflict = isSelected && isConflict;
 
               let daysLabel = 'Never';
               if (meta?.daysSinceLastUse === 0) daysLabel = 'Today';
@@ -292,7 +321,9 @@ export function SitePicker({ siteData, selectedSite, onSelect }: SitePickerProps
                   onClick={() => onSelect(site)}
                   aria-pressed={isSelected}
                   className={`flex flex-col items-start px-2 py-1.5 rounded border text-left text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 outline-none ${
-                    isSelected
+                    isThisSiteConflict
+                      ? 'border-destructive bg-destructive/10 text-destructive font-semibold'
+                      : isSelected
                       ? 'border-primary bg-primary/10 text-primary font-semibold'
                       : 'border-border bg-card text-foreground hover:bg-accent hover:text-accent-foreground'
                   }`}
@@ -301,6 +332,9 @@ export function SitePicker({ siteData, selectedSite, onSelect }: SitePickerProps
                     {formatSiteLabel(site)}
                     {isSuggested && !isSelected && (
                       <span className="ml-1 text-primary">★</span>
+                    )}
+                    {isThisSiteConflict && (
+                      <span className="ml-1 text-destructive font-bold">&#9888;</span>
                     )}
                   </span>
                   <span className="text-muted-foreground mt-0.5">{daysLabel}</span>

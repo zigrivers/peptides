@@ -12,6 +12,8 @@ import {
   updateVialRemainingMg,
 } from '@/lib/reconstitution/application/VialService';
 
+const SupportedInventoryCurrencySchema = z.enum(['USD', 'USDT', 'EUR', 'GBP']);
+
 const AddDryVialsSchema = z.object({
   compoundId: z.string().uuid(),
   totalMg: z.string().refine((val) => {
@@ -23,6 +25,16 @@ const AddDryVialsSchema = z.object({
     }
   }, 'Must be a positive decimal'),
   quantity: z.number().int().positive().max(100),
+  cost: z.string().optional().refine((val) => {
+    if (!val) return true;
+    try {
+      const d = new Decimal(val);
+      return d.gte(0);
+    } catch {
+      return false;
+    }
+  }, 'Must be a non-negative decimal'),
+  currency: SupportedInventoryCurrencySchema.optional(),
   expiresAt: z.string().optional().refine((val) => {
     if (!val) return true;
     const date = new Date(val);
@@ -65,6 +77,16 @@ const AddReconstitutedVialSchema = z.object({
       return false;
     }
   }, 'Must be a positive decimal'),
+  cost: z.string().optional().refine((val) => {
+    if (!val) return true;
+    try {
+      const d = new Decimal(val);
+      return d.gte(0);
+    } catch {
+      return false;
+    }
+  }, 'Must be a non-negative decimal'),
+  currency: SupportedInventoryCurrencySchema.optional(),
   expiresAt: z.string().optional().refine((val) => {
     if (!val) return true;
     const date = new Date(val);
@@ -91,6 +113,8 @@ export async function addDryVialsAction(rawInput: unknown): Promise<InventoryRes
       compoundId: parsed.data.compoundId,
       totalMg: new Decimal(parsed.data.totalMg),
       quantity: parsed.data.quantity,
+      cost: parsed.data.cost ? new Decimal(parsed.data.cost) : undefined,
+      currency: parsed.data.currency || undefined,
       expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : undefined,
     });
 
@@ -170,6 +194,8 @@ export async function addReconstitutedVialAction(rawInput: unknown): Promise<Inv
       compoundId: parsed.data.compoundId,
       totalMg: new Decimal(parsed.data.totalMg),
       bacWaterMl: new Decimal(parsed.data.bacWaterMl),
+      cost: parsed.data.cost ? new Decimal(parsed.data.cost) : undefined,
+      currency: parsed.data.currency || undefined,
       expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : undefined,
     });
 

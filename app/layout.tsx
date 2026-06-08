@@ -53,6 +53,22 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         <meta name="theme-color" content="#4f46e5" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const html = document.documentElement;
+                const theme = html.getAttribute('data-theme') || 'system';
+                const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
+                  html.classList.add('dark');
+                } else {
+                  html.classList.remove('dark');
+                }
+              } catch (_) {}
+            `
+          }}
+        />
         {process.env.NODE_ENV === 'development' && (
           <script
             dangerouslySetInnerHTML={{

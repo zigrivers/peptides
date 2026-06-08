@@ -12,6 +12,7 @@ export type SerializedVial = SerializedVialData;
 
 interface Props {
   vials: SerializedVial[];
+  isRoomTemp?: boolean;
 }
 
 const BADGE_STYLES: Record<VialBadge, string> = {
@@ -38,7 +39,7 @@ function formatDate(isoStr: string | null): string {
 
 
 
-export function VialInventory({ vials }: Props) {
+export function VialInventory({ vials, isRoomTemp = false }: Props) {
   const [localVials, setLocalVials] = useState<SerializedVial[]>(vials);
   const [deletingVialId, setDeletingVialId] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -63,7 +64,7 @@ export function VialInventory({ vials }: Props) {
   if (vials.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-4">
-        No active vials. Use the calculator above to reconstitute your first vial.
+        {isRoomTemp ? 'No active room temperature vials in use.' : 'No active vials. Use the calculator above to reconstitute your first vial.'}
       </p>
     );
   }
@@ -310,7 +311,7 @@ export function VialInventory({ vials }: Props) {
                   </p>
                   {vial.bacWaterMl && (
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {Number(vial.bacWaterMl).toFixed(1)} mL BAC water
+                      {Number(vial.bacWaterMl).toFixed(1)} mL {isRoomTemp ? 'volume' : 'BAC water'}
                     </p>
                   )}
                   <p className="text-[10px] text-muted-foreground mt-1">

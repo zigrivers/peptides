@@ -1,4 +1,5 @@
 import type { DoseUnitsDisplay } from '@/lib/reconstitution/domain/doseUnits';
+import Decimal from 'decimal.js';
 
 export type DoseUnit = 'mcg' | 'mg' | 'IU' | 'mL';
 
@@ -83,6 +84,8 @@ export type DoseLog = {
   isBatchLog: boolean;
   note: string | null;
   loggedByUserId: string | null;
+  loggedCost: Decimal | null;
+  loggedCurrency: string | null;
 };
 
 export type SafetyWarning = {

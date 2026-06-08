@@ -14,6 +14,7 @@ const mockDoseLogUpdateMany = vi.fn();
 const mockDoseLogDeleteMany = vi.fn();
 const mockVialCount = vi.fn();
 const mockVialFindFirst = vi.fn();
+const mockVialFindMany = vi.fn();
 const mockVialUpdateMany = vi.fn();
 const mockVialFindUnique = vi.fn();
 const mockVialCreate = vi.fn();
@@ -49,6 +50,7 @@ vi.mock('@/lib/shared/prisma', () => ({
     vial: {
       count: mockVialCount,
       findFirst: mockVialFindFirst,
+      findMany: mockVialFindMany,
       updateMany: mockVialUpdateMany,
       findUnique: mockVialFindUnique,
       create: mockVialCreate,
@@ -78,6 +80,7 @@ vi.mock('@/lib/shared/prisma', () => ({
         },
         vial: {
           findFirst: mockVialFindFirst,
+          findMany: mockVialFindMany,
           updateMany: mockVialUpdateMany,
           findUnique: mockVialFindUnique,
           create: mockVialCreate,
@@ -96,6 +99,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Default: actor has no managed users
   mockUserFindMany.mockResolvedValue([]);
+  mockVialFindMany.mockResolvedValue([]);
   mockUserFindUnique.mockResolvedValue({ id: 'user-1', syringeStandard: 'U100' });
   mockVialFindFirst.mockResolvedValue({
     id: 'vial-1',
@@ -1319,6 +1323,8 @@ describe('US-TRK-05: Batch Log', () => {
     isBatchLog: true,
     note: null,
     loggedByUserId: batchActorUserId,
+    loggedCost: null,
+    loggedCurrency: null,
   });
 
   it('AC-1: logs all selected ACTIVE protocols as LOGGED with isBatchLog=true', async () => {
@@ -1345,6 +1351,46 @@ describe('US-TRK-05: Batch Log', () => {
     expect(result.results.every((r) => r.ok)).toBe(true);
     const succeeded = result.results.filter((r) => r.ok) as Array<{ ok: true; doseLog: { isBatchLog: boolean } }>;
     expect(succeeded.every((r) => r.doseLog.isBatchLog)).toBe(true);
+  });
+
+  it('records logged cost and currency for batch-logged doses when the active vial has cost data', async () => {
+    mockProtocolFindFirst.mockResolvedValue(makeProtocolRow(proto1Id));
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    mockVialCount.mockResolvedValue(1);
+    mockVialFindFirst.mockResolvedValue({
+      id: 'vial-batch-cost',
+      userId: batchActorUserId,
+      compoundId: batchCompoundId,
+      totalMg: 5,
+      bacWaterMl: 2,
+      remainingMg: 5,
+      status: 'RECONSTITUTED',
+      cost: 100,
+      currency: 'USD',
+    });
+    mockDoseLogCreate.mockResolvedValue({
+      ...makeLogRow(proto1Id, 'log-batch-cost'),
+      vialId: 'vial-batch-cost',
+      loggedCost: 5,
+      loggedCurrency: 'USD',
+    });
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results[0].ok).toBe(true);
+    expect(mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          loggedCost: expect.any(Object),
+          loggedCurrency: 'USD',
+        }),
+      })
+    );
   });
 
   it('AC-2 (partial): already-logged protocols are returned as ok=true with existing log (idempotent)', async () => {
@@ -1486,8 +1532,12 @@ describe('US-TRK-05: Batch Log', () => {
  * Pure domain functions — no mocking required.
  */
 describe('US-TRK-04: Injection Site Rotation', () => {
-  const leftAbdomen = { bodyPart: 'abdomen', side: 'left' as const };
-  const rightAbdomen = { bodyPart: 'abdomen', side: 'right' as const };
+  const leftAbdomenUpper = { bodyPart: 'abdomen-upper', side: 'left' as const };
+  const rightAbdomenUpper = { bodyPart: 'abdomen-upper', side: 'right' as const };
+  const leftAbdomenLower = { bodyPart: 'abdomen-lower', side: 'left' as const };
+  const rightAbdomenLower = { bodyPart: 'abdomen-lower', side: 'right' as const };
+  const leftAbdomenLegacy = { bodyPart: 'abdomen', side: 'left' as const };
+  const rightAbdomenLegacy = { bodyPart: 'abdomen', side: 'right' as const };
   const leftThigh = { bodyPart: 'thigh', side: 'left' as const };
   const rightThigh = { bodyPart: 'thigh', side: 'right' as const };
   const leftDeltoid = { bodyPart: 'deltoid', side: 'left' as const };
@@ -1496,9 +1546,10 @@ describe('US-TRK-04: Injection Site Rotation', () => {
   const rightVG = { bodyPart: 'ventrogluteal', side: 'right' as const };
 
   describe('getSitesForRoute', () => {
-    it('AC-4: SubQ route returns abdomen + thigh sites', () => {
+    it('AC-4: SubQ route returns abdomen quadrants + thigh sites', () => {
       const sites = getSitesForRoute('SubQ');
-      expect(sites.some((s) => s.bodyPart === 'abdomen')).toBe(true);
+      expect(sites.some((s) => s.bodyPart === 'abdomen-upper')).toBe(true);
+      expect(sites.some((s) => s.bodyPart === 'abdomen-lower')).toBe(true);
       expect(sites.some((s) => s.bodyPart === 'thigh')).toBe(true);
       expect(sites.every((s) => s.bodyPart !== 'deltoid')).toBe(true);
     });
@@ -1515,8 +1566,8 @@ describe('US-TRK-04: Injection Site Rotation', () => {
       expect(getSitesForRoute('Nasal')).toHaveLength(0);
     });
 
-    it('AC-3: SubQ returns exactly 4 sites (left/right abdomen + left/right thigh)', () => {
-      expect(getSitesForRoute('SubQ')).toHaveLength(4);
+    it('AC-3: SubQ returns exactly 6 sites (upper/lower left/right abdomen + left/right thigh)', () => {
+      expect(getSitesForRoute('SubQ')).toHaveLength(6);
     });
 
     it('AC-3: IM returns exactly 6 sites', () => {
@@ -1526,32 +1577,32 @@ describe('US-TRK-04: Injection Site Rotation', () => {
 
   describe('suggestNextSite', () => {
     it('AC-1: suggests the site after the last used site in round-robin order', () => {
-      const validSites = [leftAbdomen, rightAbdomen, leftThigh, rightThigh];
-      const suggestion = suggestNextSite([leftAbdomen], validSites);
-      expect(suggestion).toEqual(rightAbdomen);
+      const validSites = [leftAbdomenUpper, rightAbdomenUpper, leftAbdomenLower, rightAbdomenLower, leftThigh, rightThigh];
+      const suggestion = suggestNextSite([leftAbdomenUpper], validSites);
+      expect(suggestion).toEqual(rightAbdomenUpper);
     });
 
     it('AC-1: wraps around to the first site after the last in the list', () => {
-      const validSites = [leftAbdomen, rightAbdomen, leftThigh, rightThigh];
+      const validSites = [leftAbdomenUpper, rightAbdomenUpper, leftAbdomenLower, rightAbdomenLower, leftThigh, rightThigh];
       const suggestion = suggestNextSite([rightThigh], validSites);
-      expect(suggestion).toEqual(leftAbdomen);
+      expect(suggestion).toEqual(leftAbdomenUpper);
     });
 
     it('AC-5: returns null when there is no history (first dose)', () => {
-      const validSites = [leftAbdomen, rightAbdomen, leftThigh, rightThigh];
+      const validSites = [leftAbdomenUpper, rightAbdomenUpper, leftAbdomenLower, rightAbdomenLower, leftThigh, rightThigh];
       expect(suggestNextSite([], validSites)).toBeNull();
     });
 
     it('AC-5: returns null when validSites is empty', () => {
-      expect(suggestNextSite([leftAbdomen], [])).toBeNull();
+      expect(suggestNextSite([leftAbdomenUpper], [])).toBeNull();
     });
 
     it('AC-4: skips out-of-route history and uses the most-recent valid site', () => {
-      // History: leftDeltoid (IM only), then leftAbdomen (SubQ)
-      const history = [leftDeltoid, leftAbdomen];
-      const subqSites = [leftAbdomen, rightAbdomen, leftThigh, rightThigh];
-      // Last valid SubQ site is leftAbdomen → next is rightAbdomen
-      expect(suggestNextSite(history, subqSites)).toEqual(rightAbdomen);
+      // History: leftDeltoid (IM only), then leftAbdomenUpper (SubQ)
+      const history = [leftDeltoid, leftAbdomenUpper];
+      const subqSites = [leftAbdomenUpper, rightAbdomenUpper, leftAbdomenLower, rightAbdomenLower, leftThigh, rightThigh];
+      // Last valid SubQ site is leftAbdomenUpper → next is rightAbdomenUpper
+      expect(suggestNextSite(history, subqSites)).toEqual(rightAbdomenUpper);
     });
   });
 
@@ -1559,38 +1610,49 @@ describe('US-TRK-04: Injection Site Rotation', () => {
     const now = new Date(Date.UTC(2026, 4, 21)); // 2026-05-21
 
     it('AC-6: never-used sites have null lastUsed and isRested=true', () => {
-      const meta = getSitesMeta([], [leftAbdomen], now);
+      const meta = getSitesMeta([], [leftAbdomenUpper], now);
       expect(meta[0].lastUsed).toBeNull();
       expect(meta[0].daysSinceLastUse).toBeNull();
       expect(meta[0].isRested).toBe(true);
     });
 
     it('AC-6: site used today has daysSinceLastUse=0 and isRested=false', () => {
-      const logs = [{ injectionSite: leftAbdomen, loggedAt: now }];
-      const meta = getSitesMeta(logs, [leftAbdomen], now);
+      const logs = [{ injectionSite: leftAbdomenUpper, loggedAt: now }];
+      const meta = getSitesMeta(logs, [leftAbdomenUpper], now);
       expect(meta[0].daysSinceLastUse).toBe(0);
       expect(meta[0].isRested).toBe(false);
     });
 
+    it('AC-7 (Quadrant Mapping): matches legacy abdomen to both upper and lower quadrants of that side', () => {
+      const logs = [{ injectionSite: leftAbdomenLegacy, loggedAt: now }];
+      const meta = getSitesMeta(logs, [leftAbdomenUpper, leftAbdomenLower], now);
+      
+      expect(meta[0].daysSinceLastUse).toBe(0);
+      expect(meta[0].isRested).toBe(false);
+      
+      expect(meta[1].daysSinceLastUse).toBe(0);
+      expect(meta[1].isRested).toBe(false);
+    });
+
     it('AC-6: site used 6 days ago is NOT rested (< 7 days)', () => {
       const sixDaysAgo = new Date(Date.UTC(2026, 4, 15));
-      const logs = [{ injectionSite: leftAbdomen, loggedAt: sixDaysAgo }];
-      const meta = getSitesMeta(logs, [leftAbdomen], now);
+      const logs = [{ injectionSite: leftAbdomenUpper, loggedAt: sixDaysAgo }];
+      const meta = getSitesMeta(logs, [leftAbdomenUpper], now);
       expect(meta[0].daysSinceLastUse).toBe(6);
       expect(meta[0].isRested).toBe(false);
     });
 
     it('AC-6: site used 7 days ago is tagged rested', () => {
       const sevenDaysAgo = new Date(Date.UTC(2026, 4, 14));
-      const logs = [{ injectionSite: leftAbdomen, loggedAt: sevenDaysAgo }];
-      const meta = getSitesMeta(logs, [leftAbdomen], now);
+      const logs = [{ injectionSite: leftAbdomenUpper, loggedAt: sevenDaysAgo }];
+      const meta = getSitesMeta(logs, [leftAbdomenUpper], now);
       expect(meta[0].daysSinceLastUse).toBe(7);
       expect(meta[0].isRested).toBe(true);
     });
 
     it('AC-2: returns meta for all valid sites including unused ones', () => {
-      const logs = [{ injectionSite: leftAbdomen, loggedAt: now }];
-      const validSites = [leftAbdomen, rightAbdomen];
+      const logs = [{ injectionSite: leftAbdomenUpper, loggedAt: now }];
+      const validSites = [leftAbdomenUpper, rightAbdomenUpper];
       const meta = getSitesMeta(logs, validSites, now);
       expect(meta).toHaveLength(2);
       const rightMeta = meta.find((m) => m.site.side === 'right')!;
@@ -1633,7 +1695,7 @@ describe('US-TRK-04: Injection Site Rotation', () => {
           id: 'log-1',
           protocolId: siteProtocolId,
           userId: siteActorUserId,
-          injectionSite: leftAbdomen,
+          injectionSite: leftAbdomenUpper,
           loggedAt: new Date(Date.UTC(2026, 4, 20)),
           scheduledDate: new Date(Date.UTC(2026, 4, 20)),
           status: 'LOGGED',
@@ -1648,7 +1710,7 @@ describe('US-TRK-04: Injection Site Rotation', () => {
 
       const result = await getSiteSuggestion(siteActorUserId, siteProtocolId);
 
-      expect(result.suggestion).toEqual(rightAbdomen); // next after leftAbdomen in SubQ rotation
+      expect(result.suggestion).toEqual(rightAbdomenUpper); // next after leftAbdomenUpper in SubQ rotation
     });
 
     it('AC-4: returns empty validSites for non-injection routes', async () => {
@@ -1745,5 +1807,118 @@ describe('US-TRK-08: Manage Cycles', () => {
       const info = await getCurrentWeekInfo(cycleActorUserId);
       expect(info!.totalWeeks).toBe(14);
     });
+  });
+});
+
+/**
+ * Story: US-TRK-10 — Cost Tracking and Resolution
+ */
+describe('US-TRK-10: Cost Tracking and Resolution', () => {
+  const costActorUserId = 'user-cost';
+  const costProtocolId = 'protocol-cost';
+  const cid = 'compound-cost';
+  const scheduledDate = new Date(Date.UTC(2026, 5, 5));
+
+  const costProtocolRow = {
+    id: costProtocolId,
+    userId: costActorUserId,
+    compoundId: cid,
+    status: 'ACTIVE',
+    administrationRoute: 'Subcutaneous',
+    schedule: { frequency: 'Daily' },
+    startDate: new Date(Date.UTC(2026, 5, 1)),
+    dose: { amount: '2.5', unit: 'mg' },
+  };
+
+  beforeEach(() => {
+    mockProtocolFindFirst.mockResolvedValue(costProtocolRow);
+  });
+
+  it('calculates and stores dose cost from active vial when vialId is supplied', async () => {
+    const { logDose } = await import('@/lib/tracker/application/DoseLogService');
+
+    // Mock vial with cost of 100 USD for 10 mg total
+    mockVialFindFirst.mockResolvedValue({
+      id: 'vial-cost-1',
+      userId: costActorUserId,
+      compoundId: cid,
+      totalMg: 10,
+      cost: 100,
+      currency: 'USD',
+      bacWaterMl: 2,
+    });
+
+    mockDoseLogCreate.mockResolvedValue({
+      id: 'dose-log-cost-1',
+      protocolId: costProtocolId,
+      userId: costActorUserId,
+      status: 'LOGGED',
+      amount: { amount: '2.5', unit: 'mg' },
+      loggedCost: 25,
+      loggedCurrency: 'USD',
+      scheduledDate,
+    });
+
+    const result = await logDose({
+      actorUserId: costActorUserId,
+      protocolId: costProtocolId,
+      scheduledDate,
+      status: 'LOGGED',
+      amount: { amount: '2.5', unit: 'mg' },
+      vialId: 'vial-cost-1',
+    });
+
+    expect(result.doseLog).toBeDefined();
+    expect(mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          loggedCost: expect.any(Object), // Decimal object
+          loggedCurrency: 'USD',
+        }),
+      })
+    );
+  });
+
+  it('calculates average cost per mg using dominant currency when no vialId is provided', async () => {
+    const { logDose } = await import('@/lib/tracker/application/DoseLogService');
+
+    // No active vial
+    mockVialFindFirst.mockResolvedValue(null);
+
+    // Mock historical vials: 2 in USD, 1 in EUR
+    mockVialFindMany.mockResolvedValue([
+      { totalMg: 10, cost: 100, currency: 'USD', bacWaterMl: 2 },
+      { totalMg: 5, cost: 50, currency: 'USD', bacWaterMl: 1 },
+      { totalMg: 10, cost: 100, currency: 'EUR', bacWaterMl: 2 }, // dominant is USD (2 vs 1)
+    ]);
+
+    mockDoseLogCreate.mockResolvedValue({
+      id: 'dose-log-cost-2',
+      protocolId: costProtocolId,
+      userId: costActorUserId,
+      status: 'LOGGED',
+      amount: { amount: '2.5', unit: 'mg' },
+      loggedCost: 25, // 150 total cost / 15 total Mg = 10 USD per mg * 2.5 mg = 25 USD
+      loggedCurrency: 'USD',
+      scheduledDate,
+    });
+
+    const result = await logDose({
+      actorUserId: costActorUserId,
+      protocolId: costProtocolId,
+      scheduledDate,
+      status: 'LOGGED',
+      amount: { amount: '2.5', unit: 'mg' },
+    });
+
+    expect(result.doseLog).toBeDefined();
+    expect(mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          loggedCost: expect.any(Object),
+          loggedCurrency: 'USD',
+        }),
+      })
+    );
   });
 });
