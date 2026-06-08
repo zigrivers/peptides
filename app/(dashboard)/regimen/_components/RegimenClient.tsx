@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { utcMidnightToday } from '@/lib/shared/date';
+import { utcMidnightOf, utcMidnightToday } from '@/lib/shared/date';
 import Decimal from 'decimal.js';
 import {
   pauseProtocolAction,
@@ -10,9 +10,10 @@ import {
   deactivateProtocolAction,
 } from '@/app/actions/tracker/protocol-lifecycle';
 import { convertDoseToMg } from '@/lib/reconstitution/application/InventoryService';
-import { Calendar, AlertTriangle, Snowflake } from 'lucide-react';
+import { Calendar, AlertTriangle, Snowflake, LayoutGrid, List } from 'lucide-react';
 import { getCapColor } from '@/lib/reconstitution/domain/syringe';
 import { isScheduledOn } from '@/lib/tracker/domain/ScheduleGenerator';
+import { CATALOG_TAGS } from '@/lib/reference/domain/tags';
 
 interface Citation {
   id: string;
@@ -95,6 +96,10 @@ interface RegimenClientProps {
   actorUserId: string;
 }
 
+const CATALOG_TAG_LABELS: ReadonlyMap<string, string> = new Map(
+  CATALOG_TAGS.map(({ value, label }) => [value, label])
+);
+
 function formatScheduleText(schedule: Schedule): string {
   if (schedule.frequency === 'Daily') return 'Every day';
   if (schedule.frequency === 'EOD') return 'Every other day';
@@ -103,6 +108,49 @@ function formatScheduleText(schedule: Schedule): string {
     return `On ${(schedule.daysOfWeek || []).join(', ')}`;
   }
   return 'Custom schedule';
+}
+
+function formatUTCDate(date: Date): string {
+  return date.toLocaleDateString(undefined, {
+    timeZone: 'UTC',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatCategoryLabel(tag: string): string {
+  return CATALOG_TAG_LABELS.get(tag) ?? tag;
+}
+
+function isEffectiveActiveProtocol(protocol: Protocol, todayUTC: Date): boolean {
+  if (protocol.status !== 'ACTIVE') return false;
+  const startDate = utcMidnightOf(protocol.startDate);
+  const endDate = protocol.endDate ? utcMidnightOf(protocol.endDate) : null;
+  return startDate <= todayUTC && (!endDate || endDate >= todayUTC);
+}
+
+function getRunoutPriority(runout: { status: 'ok' | 'warning' | 'empty'; daysLeft: number | null }): number {
+  if (runout.status === 'empty') return 0;
+  if (runout.status === 'warning') return 1;
+  return 2;
+}
+
+function compareSummaryProtocols(
+  a: Protocol,
+  b: Protocol,
+  runoutByProtocolId: Record<string, { status: 'ok' | 'warning' | 'empty'; daysLeft: number | null }>
+): number {
+  const runoutA = runoutByProtocolId[a.id];
+  const runoutB = runoutByProtocolId[b.id];
+  const priorityDiff = getRunoutPriority(runoutA) - getRunoutPriority(runoutB);
+  if (priorityDiff !== 0) return priorityDiff;
+
+  const daysA = runoutA.daysLeft ?? Infinity;
+  const daysB = runoutB.daysLeft ?? Infinity;
+  if (daysA !== daysB) return daysA - daysB;
+
+  return a.compound.name.localeCompare(b.compound.name);
 }
 
 function calculateDailyEquivalentMg(
@@ -300,6 +348,126 @@ function calculateCompoundRunout(
   };
 }
 
+type RunoutInfo = ReturnType<typeof calculateCompoundRunout>;
+
+function getRunoutBadgeStyle(runout: RunoutInfo): string {
+  if (runout.status === 'empty') {
+    return 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300';
+  }
+  if (runout.status === 'warning') {
+    return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300';
+  }
+  return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300';
+}
+
+function getRunoutBadgeLabel(runout: RunoutInfo): string {
+  if (runout.status === 'empty') return 'Needs inventory';
+  if (runout.status === 'warning') return 'Low';
+  return 'OK';
+}
+
+function RegimenSummaryView({
+  protocols,
+  runoutByProtocolId,
+}: {
+  protocols: Protocol[];
+  runoutByProtocolId: Record<string, RunoutInfo>;
+}) {
+  if (protocols.length === 0) {
+    return (
+      <div className="text-center py-12 bg-white dark:bg-gray-950 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
+        <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">No active regimens for this subject.</p>
+        <Link href="/tracker/protocols/new" className="text-primary text-sm font-semibold hover:underline">
+          Create Protocol
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-sm overflow-hidden">
+      <table aria-label="Active regimen summary" className="w-full border-separate border-spacing-0 text-sm">
+        <thead className="hidden md:table-header-group bg-gray-50 dark:bg-gray-900/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          <tr>
+            <th scope="col" className="text-left font-semibold px-4 py-3">Compound</th>
+            <th scope="col" className="text-left font-semibold px-4 py-3">Dose / Frequency</th>
+            <th scope="col" className="text-left font-semibold px-4 py-3">Start</th>
+            <th scope="col" className="text-left font-semibold px-4 py-3">Runout</th>
+            <th scope="col" className="text-left font-semibold px-4 py-3">Categories</th>
+          </tr>
+        </thead>
+        <tbody className="block md:table-row-group p-3 md:p-0">
+          {protocols.map((p) => {
+            const runout = runoutByProtocolId[p.id];
+            return (
+              <tr
+                key={p.id}
+                className="block md:table-row rounded-lg md:rounded-none border border-gray-100 dark:border-gray-800 md:border-0 bg-white dark:bg-gray-950 mb-3 md:mb-0 last:mb-0"
+              >
+                <td className="block md:table-cell px-4 py-3 align-middle">
+                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Compound</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/tracker/protocols/${p.id}/edit`} className="font-semibold text-gray-950 dark:text-gray-100 hover:text-primary">
+                      {p.compound.name}
+                    </Link>
+                    <span className="rounded-md bg-primary/10 dark:bg-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                      {p.administrationRoute}
+                    </span>
+                  </div>
+                </td>
+                <td className="block md:table-cell px-4 py-3 align-middle text-gray-700 dark:text-gray-300">
+                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Dose / Frequency</span>
+                  <span>{p.dose.amount} {p.dose.unit} · {formatScheduleText(p.schedule)}</span>
+                </td>
+                <td className="block md:table-cell px-4 py-3 align-middle text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Start</span>
+                  <span>{formatUTCDate(p.startDate)}</span>
+                </td>
+                <td className="block md:table-cell px-4 py-3 align-middle">
+                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Runout</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${getRunoutBadgeStyle(runout)}`}>
+                      {getRunoutBadgeLabel(runout)}
+                    </span>
+                    <span
+                      className={`text-xs font-semibold ${
+                        runout.status === 'empty'
+                          ? 'text-red-600 dark:text-red-400'
+                          : runout.status === 'warning'
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-emerald-600 dark:text-emerald-400'
+                      }`}
+                    >
+                      {runout.display}
+                    </span>
+                  </div>
+                </td>
+                <td className="block md:table-cell px-4 py-3 align-middle">
+                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Categories</span>
+                  {p.compound.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {p.compound.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-primary/5 text-primary px-2 py-0.5 text-[10px] font-semibold"
+                        >
+                          {formatCategoryLabel(tag)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400 dark:text-gray-500">None</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 
 export function RegimenClient({ initialProtocols, vials, users, actorUserId }: RegimenClientProps) {
   const parsedProtocols = React.useMemo(() => {
@@ -312,6 +480,7 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
 
   const [selectedUserId, setSelectedUserId] = useState<string>(actorUserId);
   const [showDeactivated, setShowDeactivated] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'summary'>('cards');
   const [protocols, setProtocols] = useState<Protocol[]>(parsedProtocols);
 
   useEffect(() => {
@@ -353,6 +522,13 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
     });
     return map;
   }, [protocols, vials, syringeStandard]);
+
+  const summaryProtocols = useMemo(() => {
+    const todayUTC = utcMidnightToday();
+    return protocols
+      .filter((p) => p.userId === selectedUserId && isEffectiveActiveProtocol(p, todayUTC))
+      .sort((a, b) => compareSummaryProtocols(a, b, runoutByProtocolId));
+  }, [protocols, selectedUserId, runoutByProtocolId]);
 
   const handlePause = async (id: string) => {
     startTransition(async () => {
@@ -476,40 +652,73 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
 
       {/* Filters Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50 dark:bg-gray-900/40 p-4 rounded-xl border border-gray-100 dark:border-gray-800/80">
-        <div className="flex items-center gap-3">
-          <label htmlFor="user-select" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Subject:
-          </label>
-          <select
-            id="user-select"
-            value={selectedUserId}
-            onChange={(e) => setSelectedUserId(e.target.value)}
-            className="rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:border-primary focus:ring-primary py-1.5 px-3"
-          >
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.id === actorUserId ? `${u.name || 'Me'} (Self)` : u.name || 'Managed User'}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <label htmlFor="user-select" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Subject:
+            </label>
+            <select
+              id="user-select"
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              className="rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:border-primary focus:ring-primary py-1.5 px-3"
+            >
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.id === actorUserId ? `${u.name || 'Me'} (Self)` : u.name || 'Managed User'}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-0.5 text-xs font-semibold self-start sm:self-auto">
+            <button
+              type="button"
+              aria-pressed={viewMode === 'cards'}
+              onClick={() => setViewMode('cards')}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors ${
+                viewMode === 'cards'
+                  ? 'bg-primary/10 text-primary shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Cards
+            </button>
+            <button
+              type="button"
+              aria-pressed={viewMode === 'summary'}
+              onClick={() => setViewMode('summary')}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors ${
+                viewMode === 'summary'
+                  ? 'bg-primary/10 text-primary shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+              }`}
+            >
+              <List className="h-3.5 w-3.5" />
+              Summary
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <input
-            id="show-deactivated"
-            type="checkbox"
-            checked={showDeactivated}
-            onChange={(e) => setShowDeactivated(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 dark:border-gray-800 text-primary focus:ring-primary"
-          />
-          <label htmlFor="show-deactivated" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-            Show deactivated protocols
-          </label>
-        </div>
+        {viewMode === 'cards' && (
+          <div className="flex items-center gap-2">
+            <input
+              id="show-deactivated"
+              type="checkbox"
+              checked={showDeactivated}
+              onChange={(e) => setShowDeactivated(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 dark:border-gray-800 text-primary focus:ring-primary"
+            />
+            <label htmlFor="show-deactivated" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+              Show deactivated protocols
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Refill Planner & Timeline Widget */}
-      {refillProjections.length > 0 && (
+      {viewMode === 'cards' && refillProjections.length > 0 && (
         <div className="rounded-2xl border border-sky-100/25 bg-sky-500/[0.03] dark:bg-sky-950/10 p-5 backdrop-blur-md space-y-4">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-sky-400" />
@@ -599,8 +808,10 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
         </div>
       )}
 
-      {/* Protocols Grid */}
-      {filteredProtocols.length === 0 ? (
+      {/* Protocols Grid / Summary */}
+      {viewMode === 'summary' ? (
+        <RegimenSummaryView protocols={summaryProtocols} runoutByProtocolId={runoutByProtocolId} />
+      ) : filteredProtocols.length === 0 ? (
         <div className="text-center py-20 bg-white dark:bg-gray-950 border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
           <p className="text-gray-400 text-sm mb-4">No protocols configured for this selection.</p>
           {!showDeactivated && (
@@ -807,7 +1018,7 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
       )}
 
       {/* PubMed Research Updates Card */}
-      {activeCompounds.length > 0 && (
+      {viewMode === 'cards' && activeCompounds.length > 0 && (
         <section className="bg-white dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-900 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <div className="h-8 w-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold">
