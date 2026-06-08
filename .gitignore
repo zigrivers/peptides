@@ -29,6 +29,15 @@ coverage/
 playwright-report/
 test-results/
 
+# Local agent/tooling artifacts
+.codex/
+.mmr/acks/
+
+# Local backup/restore artifacts
+backups/
+scripts/backup_user.ts
+scripts/restore_user.ts
+
 # >>> scaffold managed
 .scaffold/generated/
 .scaffold/lock.json
