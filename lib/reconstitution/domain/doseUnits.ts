@@ -150,3 +150,57 @@ export function buildDoseUnitsDisplay(
 
   return { computable: true, unitsText };
 }
+
+function formatDecimalForDoseDisplay(value: Decimal, decimalPlaces: number): string {
+  return value.toDecimalPlaces(decimalPlaces, Decimal.ROUND_HALF_UP).toString();
+}
+
+function loggedDoseMcg(
+  dose: DoseAmount,
+  injectionVolMl: Decimal,
+  vialConcentration: { totalMg: string; bacWaterMl: string | null } | null
+): Decimal | null {
+  const amount = parsePositive(dose.amount);
+  if (amount === null) return null;
+
+  switch (dose.unit) {
+    case 'mcg':
+      return amount;
+    case 'mg':
+      return amount.times(1000);
+    case 'mL':
+    case 'IU': {
+      if (!vialConcentration || vialConcentration.bacWaterMl === null) return null;
+      const totalMg = parsePositive(vialConcentration.totalMg);
+      const bacWaterMl = parsePositive(vialConcentration.bacWaterMl);
+      if (totalMg === null || bacWaterMl === null) return null;
+      return injectionVolMl.times(totalMg).dividedBy(bacWaterMl).times(1000);
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Formats completed dose logs as the user-facing amount actually drawn:
+ * `{mcg} mcg ({syringe units} units)`.
+ *
+ * Returns null when either half cannot be reconstructed. This keeps logged rows
+ * from presenting a misleading "exact" value when the logged vial concentration
+ * is unavailable.
+ */
+export function buildLoggedDoseDisplay(
+  dose: DoseAmount,
+  vialConcentration: { totalMg: string; bacWaterMl: string | null } | null,
+  syringeStandard: SyringeStandard
+): string | null {
+  const unitsResult = doseToSyringeUnits(dose, vialConcentration, syringeStandard);
+  if (!unitsResult.computable) return null;
+
+  const doseMcg = loggedDoseMcg(dose, unitsResult.injectionVolMl, vialConcentration);
+  if (doseMcg === null) return null;
+
+  const doseText = formatDecimalForDoseDisplay(doseMcg, 2);
+  const unitsText = formatDecimalForDoseDisplay(unitsResult.units, 1);
+  return `${doseText} mcg (${unitsText} units)`;
+}

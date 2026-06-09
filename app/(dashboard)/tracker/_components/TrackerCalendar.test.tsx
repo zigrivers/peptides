@@ -159,6 +159,27 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     expect(screen.getByText('SKIPPED')).toBeDefined();
   });
 
+  it('shows logged dose amount as mcg plus syringe units when available', () => {
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={[
+          {
+            ...mockDoseLogs[0],
+            loggedDoseDisplay: '2500 mcg (10 units)',
+          },
+        ]}
+        compounds={mockCompounds}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/May 25/));
+
+    expect(screen.getByText('2500 mcg (10 units)')).toBeDefined();
+    expect(screen.queryByText('2.5 mg')).toBeNull();
+  });
+
   it('navigates to next and previous weeks when pagination buttons are clicked', () => {
     render(
       <TrackerCalendar

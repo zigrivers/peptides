@@ -9,6 +9,7 @@ import { findCompoundsByIds, listCompounds } from '@/lib/reference/infrastructur
 import { getRecentDoseLogsForUser, getDoseLogsRange } from '@/lib/tracker/application/DoseLogService';
 import { resolveActiveVial } from '@/lib/reconstitution/application/VialService';
 import {
+  buildLoggedDoseDisplay,
   buildDoseUnitsDisplay,
   type DoseUnitsDisplay,
   type SyringeStandard,
@@ -90,15 +91,6 @@ export default async function TrackerPage() {
       : null,
   }));
 
-  const serializedDoseLogs = doseLogs.map((log) => ({
-    ...log,
-    loggedAt: log.loggedAt.toISOString(),
-    scheduledDate: log.scheduledDate.toISOString(),
-    amount: log.amount,
-    injectionSite: log.injectionSite,
-    status: log.status,
-  }));
-
   // Resolve compound names for batch review display — single bulk query
   const compoundIds = [...new Set(dueToday.map((i) => i.protocol.compoundId))];
   const compoundNamesRaw = await findCompoundsByIds(compoundIds);
@@ -163,6 +155,46 @@ export default async function TrackerPage() {
   });
   const syringeStandard = (user?.syringeStandard ?? 'U100') as SyringeStandard;
   const syringeSize = (user?.syringeSize ?? '1.0') as SyringeSize;
+
+  const loggedVialIds = [
+    ...new Set(doseLogs.filter((log) => log.status === 'LOGGED' && log.vialId).map((log) => log.vialId as string)),
+  ];
+  const loggedSubjectUserIds = [...new Set(doseLogs.map((log) => log.userId))];
+  const loggedVials = loggedVialIds.length > 0
+    ? await prisma.vial.findMany({
+        where: {
+          id: { in: loggedVialIds },
+          userId: { in: loggedSubjectUserIds },
+        },
+        select: { id: true, totalMg: true, bacWaterMl: true },
+      })
+    : [];
+  const loggedVialConcentrationById = new Map(
+    loggedVials.map((vial) => [
+      vial.id,
+      {
+        totalMg: vial.totalMg.toString(),
+        bacWaterMl: vial.bacWaterMl ? vial.bacWaterMl.toString() : null,
+      },
+    ])
+  );
+
+  const serializedDoseLogs = doseLogs.map((log) => ({
+    ...log,
+    loggedAt: log.loggedAt.toISOString(),
+    scheduledDate: log.scheduledDate.toISOString(),
+    amount: log.amount,
+    injectionSite: log.injectionSite,
+    status: log.status,
+    loggedDoseDisplay:
+      log.status === 'LOGGED'
+        ? buildLoggedDoseDisplay(
+            log.amount,
+            log.vialId ? (loggedVialConcentrationById.get(log.vialId) ?? null) : null,
+            syringeStandard
+          )
+        : null,
+  }));
 
   // One representative dose per compound (active protocols + due-today). Keyed by compoundId
   // to match how the calendar renders units next to a SCHEDULED event.
@@ -294,5 +326,4 @@ export default async function TrackerPage() {
     </main>
   );
 }
-
 

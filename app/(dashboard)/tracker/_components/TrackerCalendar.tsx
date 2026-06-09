@@ -30,6 +30,7 @@ type CalendarEvent = {
   loggedAt?: Date;
   injectionSite?: InjectionSite;
   note?: string;
+  loggedDoseDisplay?: string | null;
   isOffline?: boolean;
   scheduledDateStr?: string;
   administrationRoute?: string;
@@ -42,7 +43,11 @@ interface SerializedProtocol extends Omit<Protocol, 'startDate' | 'endDate'> {
 
 interface Props {
   protocols: SerializedProtocol[];
-  doseLogs: (Omit<DoseLog, 'loggedAt' | 'scheduledDate'> & { loggedAt: string; scheduledDate: string })[];
+  doseLogs: (Omit<DoseLog, 'loggedAt' | 'scheduledDate'> & {
+    loggedAt: string;
+    scheduledDate: string;
+    loggedDoseDisplay?: string | null;
+  })[];
   compounds: Record<string, { name: string; slug: string; profile?: Partial<CompoundProfile> | null }>;
   siteSuggestions?: Record<string, SiteData>;
   initialDateISO: string;
@@ -411,6 +416,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
       loggedAt: new Date(log.loggedAt),
       injectionSite: log.injectionSite ? (log.injectionSite as InjectionSite) : undefined,
       note: log.note || undefined,
+      loggedDoseDisplay: log.loggedDoseDisplay ?? null,
       isOffline: 'isOffline' in log ? (log as { isOffline?: boolean }).isOffline : undefined,
       scheduledDateStr: dateStr,
       administrationRoute: proto?.administrationRoute,
@@ -955,6 +961,10 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                     const abbrev = getCompoundAbbreviation(e.compoundName);
                     const isEvLogged = e.type === 'LOGGED';
                     const isEvSkipped = e.type === 'SKIPPED';
+                    const eventDoseLabel =
+                      isEvLogged && e.loggedDoseDisplay
+                        ? e.loggedDoseDisplay
+                        : `${e.doseAmount} ${e.doseUnit}`;
 
                     let badgeClasses = '';
                     if (isEvLogged) {
@@ -974,7 +984,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                       <span
                         key={e.id}
                         className={`text-[8px] md:text-[9px] font-bold px-1 py-0.5 rounded border leading-none select-none truncate w-[20px] md:w-full text-center transition-all ${badgeClasses}`}
-                        title={`${e.compoundName} (${e.doseAmount} ${e.doseUnit}${scheduledUnits ? ` ${scheduledUnits}` : ''}) - ${e.type}`}
+                        title={`${e.compoundName} (${eventDoseLabel}${scheduledUnits ? ` ${scheduledUnits}` : ''}) - ${e.type}`}
                       >
                         <span className="md:hidden block truncate max-w-full">
                           {abbrev.slice(0, 2)}
@@ -1019,6 +1029,10 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                 const isSkipped = e.type === 'SKIPPED';
                 const isProcessed = isLogged || isSkipped;
                 const isEditing = editingEventId === e.id;
+                const doseDisplay =
+                  isLogged && e.loggedDoseDisplay
+                    ? e.loggedDoseDisplay
+                    : `${e.doseAmount} ${e.doseUnit}`;
                 const targetDateStr = e.scheduledDateStr ?? selectedDateStr;
                 const siteData = buildSiteDataForCalendarEvent(
                   e,
@@ -1063,7 +1077,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                         <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200 flex items-center gap-2 flex-wrap">
                           <span>{e.compoundName}</span>
                           <span className="text-xs font-normal text-gray-500">
-                            {e.doseAmount} {e.doseUnit}
+                            {doseDisplay}
                             {!isProcessed && doseUnitsByCompoundId[e.compoundId]?.unitsText && (
                               <span className="text-gray-400"> ({doseUnitsByCompoundId[e.compoundId].unitsText})</span>
                             )}
