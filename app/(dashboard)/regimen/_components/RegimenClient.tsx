@@ -123,11 +123,16 @@ function formatCategoryLabel(tag: string): string {
   return CATALOG_TAG_LABELS.get(tag) ?? tag;
 }
 
-function isEffectiveActiveProtocol(protocol: Protocol, todayUTC: Date): boolean {
+function isSummaryActiveProtocol(protocol: Protocol, todayUTC: Date): boolean {
   if (protocol.status !== 'ACTIVE') return false;
-  const startDate = utcMidnightOf(protocol.startDate);
   const endDate = protocol.endDate ? utcMidnightOf(protocol.endDate) : null;
-  return startDate <= todayUTC && (!endDate || endDate >= todayUTC);
+  return !endDate || endDate >= todayUTC;
+}
+
+function getSummaryTimingLabel(protocol: Protocol, todayUTC: Date): string | null {
+  const startDate = utcMidnightOf(protocol.startDate);
+  if (startDate > todayUTC) return `Starts ${formatUTCDate(protocol.startDate)}`;
+  return null;
 }
 
 function getRunoutPriority(runout: { status: 'ok' | 'warning' | 'empty'; daysLeft: number | null }): number {
@@ -373,6 +378,8 @@ function RegimenSummaryView({
   protocols: Protocol[];
   runoutByProtocolId: Record<string, RunoutInfo>;
 }) {
+  const todayUTC = utcMidnightToday();
+
   if (protocols.length === 0) {
     return (
       <div className="text-center py-12 bg-white dark:bg-gray-950 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
@@ -399,6 +406,7 @@ function RegimenSummaryView({
         <tbody className="block md:table-row-group p-3 md:p-0">
           {protocols.map((p) => {
             const runout = runoutByProtocolId[p.id];
+            const timingLabel = getSummaryTimingLabel(p, todayUTC);
             return (
               <tr
                 key={p.id}
@@ -413,6 +421,11 @@ function RegimenSummaryView({
                     <span className="rounded-md bg-primary/10 dark:bg-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary">
                       {p.administrationRoute}
                     </span>
+                    {timingLabel && (
+                      <span className="rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-300">
+                        {timingLabel}
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="block md:table-cell px-4 py-3 align-middle text-gray-700 dark:text-gray-300">
@@ -526,7 +539,7 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
   const summaryProtocols = useMemo(() => {
     const todayUTC = utcMidnightToday();
     return protocols
-      .filter((p) => p.userId === selectedUserId && isEffectiveActiveProtocol(p, todayUTC))
+      .filter((p) => p.userId === selectedUserId && isSummaryActiveProtocol(p, todayUTC))
       .sort((a, b) => compareSummaryProtocols(a, b, runoutByProtocolId));
   }, [protocols, selectedUserId, runoutByProtocolId]);
 
