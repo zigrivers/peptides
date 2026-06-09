@@ -38,6 +38,21 @@ export function formatSiteLabel(site: InjectionSite): string {
   return `${side} ${part}`;
 }
 
+export function formatSiteUseAge(daysSinceLastUse: number | null | undefined): string {
+  if (daysSinceLastUse === null || daysSinceLastUse === undefined) return 'Never';
+  if (daysSinceLastUse === 0) return 'Today';
+  if (daysSinceLastUse === 1) return 'Yesterday';
+  return `${daysSinceLastUse} days ago`;
+}
+
+export function formatSiteUseAgeForSentence(daysSinceLastUse: number | null | undefined): string {
+  const label = formatSiteUseAge(daysSinceLastUse);
+  if (label === 'Today') return 'today';
+  if (label === 'Yesterday') return 'yesterday';
+  if (label === 'Never') return 'recently';
+  return label;
+}
+
 export function getSiteCoordinates(bodyPart: string, side: 'left' | 'right'): { cx: number; cy: number } {
   switch (bodyPart) {
     case 'deltoid':
@@ -309,10 +324,7 @@ export function SitePicker({ siteData, selectedSite, onSelect }: SitePickerProps
               const isSuggested = siteData.suggestion !== null && sitesEqualLegacy(siteData.suggestion, site);
               const isThisSiteConflict = isSelected && isConflict;
 
-              let daysLabel = 'Never';
-              if (meta?.daysSinceLastUse === 0) daysLabel = 'Today';
-              else if (meta?.daysSinceLastUse === 1) daysLabel = '1 day ago';
-              else if (meta?.daysSinceLastUse != null) daysLabel = `${meta.daysSinceLastUse} days ago`;
+              const daysLabel = formatSiteUseAge(meta?.daysSinceLastUse);
 
               return (
                 <button

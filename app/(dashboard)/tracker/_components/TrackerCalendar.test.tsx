@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { TrackerCalendar, getWeekInfo } from './TrackerCalendar';
 import type { Protocol, DoseLog } from '@/lib/tracker/domain/types';
 import { logDoseAction } from '@/app/actions/tracker/log-dose';
@@ -232,9 +232,8 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     // Type notes
     fireEvent.change(noteInput, { target: { value: 'felt excellent' } });
 
-    // Select the suggested site button "Use Site"
-    const siteBtn = screen.getByText('Use Site');
-    fireEvent.click(siteBtn);
+    // Select an injection site manually.
+    fireEvent.click(screen.getByText('Left Lower Abdomen'));
 
     // Click Log Dose button
     const logBtn = screen.getByRole('button', { name: 'Log Dose' });
@@ -249,6 +248,215 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
       note: 'felt excellent',
       scheduledDate: '2026-05-24',
     });
+  });
+
+  it('labels site history relative to the selected calendar date, not loggedAt or stale server metadata', () => {
+    const testosteroneProtocol: Protocol = {
+      id: 'proto-test',
+      userId: 'user-1',
+      compoundId: 'compound-test',
+      cycleId: null,
+      dose: { amount: '15', unit: 'IU' },
+      schedule: { frequency: 'Daily' },
+      administrationRoute: 'SUBCUTANEOUS',
+      status: 'ACTIVE',
+      startDate: new Date('2026-06-01'),
+      endDate: null,
+      notes: null,
+    };
+
+    const staleSiteSuggestions = {
+      'proto-test': {
+        suggestion: { side: 'left' as const, bodyPart: 'abdomen-upper' },
+        validSites: [
+          { side: 'left' as const, bodyPart: 'abdomen-upper' },
+          { side: 'right' as const, bodyPart: 'abdomen-upper' },
+          { side: 'left' as const, bodyPart: 'abdomen-lower' },
+          { side: 'right' as const, bodyPart: 'abdomen-lower' },
+          { side: 'left' as const, bodyPart: 'thigh' },
+          { side: 'right' as const, bodyPart: 'thigh' },
+        ],
+        siteMeta: [
+          {
+            site: { side: 'right' as const, bodyPart: 'thigh' },
+            lastUsed: new Date('2026-06-09T08:00:00Z'),
+            daysSinceLastUse: 0,
+            isRested: false,
+          },
+        ],
+        recentSites: [{ side: 'right' as const, bodyPart: 'thigh' }],
+      },
+    };
+
+    render(
+      <TrackerCalendar
+        protocols={[testosteroneProtocol]}
+        doseLogs={[
+          {
+            id: 'log-test-mon',
+            protocolId: 'proto-test',
+            userId: 'user-1',
+            amount: { amount: '15', unit: 'IU' },
+            status: 'LOGGED',
+            loggedAt: '2026-06-09T08:00:00Z',
+            scheduledDate: '2026-06-08T00:00:00Z',
+            injectionSite: { side: 'right', bodyPart: 'thigh' },
+            note: null,
+            idempotencyKey: 'key-test-mon',
+            vialId: null,
+            isBatchLog: false,
+            loggedByUserId: null,
+            loggedCost: null,
+            loggedCurrency: null,
+          },
+        ]}
+        compounds={{ 'compound-test': { name: 'Testosterone', slug: 'testosterone' } }}
+        siteSuggestions={staleSiteSuggestions}
+        initialDateISO="2026-06-09T00:00:00.000Z"
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/June 9/));
+
+    const rightThighButton = screen.getByText('Right Thigh').closest('button');
+    expect(rightThighButton).not.toBeNull();
+    expect(within(rightThighButton!).getByText('Yesterday')).toBeDefined();
+    expect(within(rightThighButton!).queryByText('Today')).toBeNull();
+
+    fireEvent.click(rightThighButton!);
+    expect(screen.getByText(/Right Thigh was your last Testosterone site yesterday/i)).toBeDefined();
+    expect(screen.queryByText(/This site was used for your last dose/)).toBeNull();
+  });
+
+  it('does not use future logs when showing site guidance for an earlier selected date', () => {
+    const testosteroneProtocol: Protocol = {
+      id: 'proto-test',
+      userId: 'user-1',
+      compoundId: 'compound-test',
+      cycleId: null,
+      dose: { amount: '15', unit: 'IU' },
+      schedule: { frequency: 'Daily' },
+      administrationRoute: 'SUBCUTANEOUS',
+      status: 'ACTIVE',
+      startDate: new Date('2026-06-01'),
+      endDate: null,
+      notes: null,
+    };
+
+    render(
+      <TrackerCalendar
+        protocols={[testosteroneProtocol]}
+        doseLogs={[
+          {
+            id: 'log-test-mon',
+            protocolId: 'proto-test',
+            userId: 'user-1',
+            amount: { amount: '15', unit: 'IU' },
+            status: 'LOGGED',
+            loggedAt: '2026-06-08T08:00:00Z',
+            scheduledDate: '2026-06-08T00:00:00Z',
+            injectionSite: { side: 'right', bodyPart: 'thigh' },
+            note: null,
+            idempotencyKey: 'key-test-mon',
+            vialId: null,
+            isBatchLog: false,
+            loggedByUserId: null,
+            loggedCost: null,
+            loggedCurrency: null,
+          },
+        ]}
+        compounds={{ 'compound-test': { name: 'Testosterone', slug: 'testosterone' } }}
+        siteSuggestions={{
+          'proto-test': {
+            suggestion: { side: 'left', bodyPart: 'abdomen-upper' },
+            validSites: [{ side: 'right', bodyPart: 'thigh' }],
+            siteMeta: [
+              {
+                site: { side: 'right', bodyPart: 'thigh' },
+                lastUsed: new Date('2026-06-08T08:00:00Z'),
+                daysSinceLastUse: 0,
+                isRested: false,
+              },
+            ],
+            recentSites: [{ side: 'right', bodyPart: 'thigh' }],
+          },
+        }}
+        initialDateISO="2026-06-07T00:00:00.000Z"
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/June 7/));
+
+    const rightThighButton = screen.getByText('Right Thigh').closest('button');
+    expect(rightThighButton).not.toBeNull();
+    expect(within(rightThighButton!).getByText('Never')).toBeDefined();
+
+    fireEvent.click(rightThighButton!);
+    expect(screen.queryByText(/Rotation Alert/)).toBeNull();
+  });
+
+  it('does not count the current log as a rotation conflict while editing it', () => {
+    const testosteroneProtocol: Protocol = {
+      id: 'proto-test',
+      userId: 'user-1',
+      compoundId: 'compound-test',
+      cycleId: null,
+      dose: { amount: '15', unit: 'IU' },
+      schedule: { frequency: 'Daily' },
+      administrationRoute: 'SUBCUTANEOUS',
+      status: 'ACTIVE',
+      startDate: new Date('2026-06-01'),
+      endDate: null,
+      notes: null,
+    };
+
+    render(
+      <TrackerCalendar
+        protocols={[testosteroneProtocol]}
+        doseLogs={[
+          {
+            id: 'log-test-mon',
+            protocolId: 'proto-test',
+            userId: 'user-1',
+            amount: { amount: '15', unit: 'IU' },
+            status: 'LOGGED',
+            loggedAt: '2026-06-08T08:00:00Z',
+            scheduledDate: '2026-06-08T00:00:00Z',
+            injectionSite: { side: 'right', bodyPart: 'thigh' },
+            note: null,
+            idempotencyKey: 'key-test-mon',
+            vialId: null,
+            isBatchLog: false,
+            loggedByUserId: null,
+            loggedCost: null,
+            loggedCurrency: null,
+          },
+        ]}
+        compounds={{ 'compound-test': { name: 'Testosterone', slug: 'testosterone' } }}
+        siteSuggestions={{
+          'proto-test': {
+            suggestion: { side: 'left', bodyPart: 'abdomen-upper' },
+            validSites: [{ side: 'right', bodyPart: 'thigh' }],
+            siteMeta: [
+              {
+                site: { side: 'right', bodyPart: 'thigh' },
+                lastUsed: new Date('2026-06-08T08:00:00Z'),
+                daysSinceLastUse: 0,
+                isRested: false,
+              },
+            ],
+            recentSites: [{ side: 'right', bodyPart: 'thigh' }],
+          },
+        }}
+        initialDateISO="2026-06-08T00:00:00.000Z"
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/June 8/));
+    fireEvent.click(screen.getByRole('button', { name: /Testosterone/i }));
+    fireEvent.click(screen.getByText('Edit Log'));
+
+    expect(screen.queryByText(/Rotation Alert/)).toBeNull();
   });
 
   it('renders abbreviations correctly for 8 scheduled compounds on the same day', () => {

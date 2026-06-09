@@ -93,7 +93,7 @@ export type SiteWithMeta = {
 };
 
 export function getSitesMeta(
-  logs: Array<{ injectionSite: InjectionSite | null; loggedAt: Date }>,
+  logs: Array<{ injectionSite: InjectionSite | null; scheduledDate?: Date; loggedAt: Date }>,
   validSites: InjectionSite[],
   asOf: Date
 ): SiteWithMeta[] {
@@ -101,7 +101,7 @@ export function getSitesMeta(
     // logs is newest-first; find() gives the most recent matching site
     const lastLog = logs.find((l) => l.injectionSite !== null && sitesEqualLegacy(l.injectionSite!, site));
 
-    const lastUsed = lastLog?.loggedAt ?? null;
+    const lastUsed = lastLog ? (lastLog.scheduledDate ?? lastLog.loggedAt) : null;
     const daysSinceLastUse =
       lastUsed !== null
         ? Math.floor(

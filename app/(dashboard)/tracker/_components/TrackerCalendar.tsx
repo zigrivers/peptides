@@ -11,11 +11,11 @@ import { logDoseAction } from '@/app/actions/tracker/log-dose';
 import { rescheduleDoseAction } from '@/app/actions/tracker/reschedule-dose';
 import { batchLogDatesAction } from '@/app/actions/tracker/batch-log-dates';
 import { getCapColor } from '@/lib/reconstitution/domain/syringe';
-import { sitesEqualLegacy, getSitesForRoute } from '@/lib/tracker/domain/SiteRotation';
+import { sitesEqualLegacy, getSitesForRoute, suggestNextSite, getSitesMeta } from '@/lib/tracker/domain/SiteRotation';
 import type { DoseUnitsDisplay } from '@/lib/reconstitution/domain/doseUnits';
 import { calculateStreak, type StreakResult } from '@/lib/tracker/domain/streak';
 import { ConfettiCanvas } from '@/app/(dashboard)/dashboard/_components/ConfettiCanvas';
-import { SitePicker, type SiteData, formatSiteLabel } from './SitePicker';
+import { SitePicker, type SiteData, formatSiteLabel, formatSiteUseAgeForSentence } from './SitePicker';
 import { toUTCDay } from '@/lib/shared/date';
 
 type CalendarEvent = {
@@ -53,6 +53,8 @@ interface Props {
   cycles?: Record<string, { startDate: string; endDate: string | null }>;
 }
 
+type SerializedDoseLog = Props['doseLogs'][number];
+
 function getCompoundAbbreviation(name: string): string {
   if (!name) return '';
   const cleanName = name.trim();
@@ -78,6 +80,71 @@ function getCompoundAbbreviation(name: string): string {
   }
 
   return cleanName.slice(0, 4).toUpperCase();
+}
+
+function toUTCDateString(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  return date.toISOString().split('T')[0];
+}
+
+function toUTCDateFromString(dateStr: string): Date {
+  return new Date(`${dateStr}T00:00:00.000Z`);
+}
+
+function buildSiteDataForCalendarEvent(
+  event: CalendarEvent,
+  protocols: Protocol[],
+  logs: SerializedDoseLog[],
+  targetDateStr: string,
+  fallbackSiteData?: SiteData
+): SiteData | null {
+  const validSites = getSitesForRoute(event.administrationRoute ?? '');
+  if (validSites.length === 0) return null;
+
+  const currentProtocol = protocols.find((p) => p.id === event.protocolId);
+  if (!currentProtocol) {
+    return fallbackSiteData ?? {
+      suggestion: null,
+      validSites,
+      siteMeta: validSites.map((site) => ({ site, lastUsed: null, daysSinceLastUse: null, isRested: true })),
+      recentSites: [],
+    };
+  }
+
+  const targetDate = toUTCDateFromString(targetDateStr);
+  const protocolsById = new Map(protocols.map((protocol) => [protocol.id, protocol]));
+
+  const relevantLogs = logs
+    .filter((log) => {
+      if (log.id === event.id) return false;
+      if (log.status !== 'LOGGED' || !log.injectionSite) return false;
+
+      const logProtocol = protocolsById.get(log.protocolId);
+      if (!logProtocol) return false;
+      if (logProtocol.userId !== currentProtocol.userId) return false;
+      if (logProtocol.compoundId !== currentProtocol.compoundId) return false;
+
+      return toUTCDateString(log.scheduledDate) <= targetDateStr;
+    })
+    .map((log) => ({
+      injectionSite: log.injectionSite as InjectionSite,
+      scheduledDate: toUTCDateFromString(toUTCDateString(log.scheduledDate)),
+      loggedAt: new Date(log.loggedAt),
+    }))
+    .sort((a, b) => {
+      const scheduledDelta = b.scheduledDate.getTime() - a.scheduledDate.getTime();
+      if (scheduledDelta !== 0) return scheduledDelta;
+      return b.loggedAt.getTime() - a.loggedAt.getTime();
+    });
+
+  const recentSites = relevantLogs.map((log) => log.injectionSite);
+
+  return {
+    suggestion: suggestNextSite(recentSites, validSites),
+    validSites,
+    siteMeta: getSitesMeta(relevantLogs, validSites, targetDate),
+    recentSites,
+  };
 }
 
 export interface WeekInfo {
@@ -952,13 +1019,14 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                 const isSkipped = e.type === 'SKIPPED';
                 const isProcessed = isLogged || isSkipped;
                 const isEditing = editingEventId === e.id;
-                const routeSites = getSitesForRoute(e.administrationRoute ?? '');
-                const siteData = siteSuggestions[e.protocolId] || (routeSites.length > 0 ? {
-                  suggestion: routeSites[0] || null,
-                  validSites: routeSites,
-                  siteMeta: routeSites.map(site => ({ site, lastUsed: null, daysSinceLastUse: null, isRested: true })),
-                  recentSites: []
-                } : null);
+                const targetDateStr = e.scheduledDateStr ?? selectedDateStr;
+                const siteData = buildSiteDataForCalendarEvent(
+                  e,
+                  protocols,
+                  localLogs,
+                  targetDateStr,
+                  siteSuggestions[e.protocolId]
+                );
 
                 const isExpanded = !isProcessed || expandedEventId === e.id || isEditing;
 
@@ -966,14 +1034,14 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                 const proto = protocols.find((p) => p.id === e.protocolId);
                 const profile = compounds[e.compoundId]?.profile;
                 const weekInfo = isExpanded
-                  ? getWeekInfo(proto, profile ?? undefined, e.scheduledDateStr ?? selectedDateStr, cycles)
+                  ? getWeekInfo(proto, profile ?? undefined, targetDateStr, cycles)
                   : null;
 
                 return (
                   <div
                     key={e.id}
                     draggable={!isProcessed}
-                    onDragStart={(ev) => handleDragStart(ev, e, e.scheduledDateStr ?? selectedDateStr)}
+                    onDragStart={(ev) => handleDragStart(ev, e, targetDateStr)}
                     className="border border-gray-100 dark:border-gray-900 rounded-xl bg-card overflow-hidden flex flex-col transition-all shadow-sm"
                     style={{ borderLeftColor: color, borderLeftWidth: '4px' }}
                   >
@@ -1154,12 +1222,14 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                               const selectedSite = editSite[e.id] ?? null;
                               const lastUsedSite = siteData?.recentSites?.[0] ?? null;
                               const isConflict = selectedSite !== null && lastUsedSite !== null && sitesEqualLegacy(selectedSite, lastUsedSite);
-                              if (isConflict) {
+                              if (isConflict && selectedSite !== null) {
+                                const selectedSiteMeta = siteData.siteMeta.find((meta) => sitesEqualLegacy(meta.site, selectedSite));
+                                const relativeUseAge = formatSiteUseAgeForSentence(selectedSiteMeta?.daysSinceLastUse);
                                 return (
                                   <div role="alert" className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 flex items-start gap-1.5 animate-[fadeIn_0.2s_ease-out] mb-2 dark:bg-amber-950/20 dark:border-amber-900/50 dark:text-amber-400">
                                     <span className="shrink-0 font-bold">&#9888;</span>
                                     <span>
-                                      <strong>Rotation Alert:</strong> This site was used for your last dose. We highly recommend rotating to a rested site (marked in green/teal) to prevent scar tissue build-up.
+                                      <strong>Rotation Alert:</strong> {formatSiteLabel(selectedSite)} was your last {e.compoundName} site {relativeUseAge}. Choose a rested site (marked in green/teal) to prevent scar tissue build-up.
                                     </span>
                                   </div>
                                 );
