@@ -19,6 +19,7 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
   const [cost, setCost] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [expiresAt, setExpiresAt] = useState('');
+  const [hasEditedExpiresAt, setHasEditedExpiresAt] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -41,18 +42,36 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
     }
   }, [profile, isRoomTemp]);
 
-  // Pre-calculate estimated active stability expiry
-  const estimatedExpiryDateStr = useMemo(() => {
+  const estimatedExpiresAt = useMemo(() => {
     if (!isMounted || !compoundId) return '';
     const now = new Date();
     const expiry = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + reconstitutedShelfLifeDays));
+    return expiry.toISOString().slice(0, 10);
+  }, [isMounted, compoundId, reconstitutedShelfLifeDays]);
+
+  // Pre-calculate estimated active stability expiry
+  const estimatedExpiryDateStr = useMemo(() => {
+    if (!estimatedExpiresAt) return '';
+    const expiry = new Date(`${estimatedExpiresAt}T00:00:00.000Z`);
     return expiry.toLocaleDateString(undefined, {
       timeZone: 'UTC',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
-  }, [isMounted, compoundId, reconstitutedShelfLifeDays]);
+  }, [estimatedExpiresAt]);
+
+  useEffect(() => {
+    if (!compoundId) {
+      setExpiresAt('');
+      setHasEditedExpiresAt(false);
+      return;
+    }
+
+    if (!hasEditedExpiresAt) {
+      setExpiresAt(estimatedExpiresAt);
+    }
+  }, [compoundId, estimatedExpiresAt, hasEditedExpiresAt]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +144,10 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
                 id="active-compound"
                 required
                 value={compoundId}
-                onChange={(e) => setCompoundId(e.target.value)}
+                onChange={(e) => {
+                  setCompoundId(e.target.value);
+                  setHasEditedExpiresAt(false);
+                }}
                 className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
                 <option value="">Select a compound…</option>
@@ -183,12 +205,15 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
                 id="active-expiresAt"
                 type="date"
                 value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
+                onChange={(e) => {
+                  setExpiresAt(e.target.value);
+                  setHasEditedExpiresAt(true);
+                }}
                 className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
-              {isMounted && compoundId && !expiresAt && (
+              {isMounted && compoundId && estimatedExpiryDateStr && (
                 <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
-                  Auto-expires on: {estimatedExpiryDateStr} ({reconstitutedShelfLifeDays} days stability)
+                  {expiresAt === estimatedExpiresAt ? 'Auto-populated' : 'Suggested'}: {estimatedExpiryDateStr} ({reconstitutedShelfLifeDays} days stability)
                 </p>
               )}
             </div>
