@@ -6,6 +6,7 @@ import { reorderVialsAction } from '@/app/actions/reconstitution/reorder-vials';
 import { deleteVialAction } from '@/app/actions/reconstitution/inventory-actions';
 import { Trash2, AlertCircle } from 'lucide-react';
 import { getCapColor } from '@/lib/reconstitution/domain/syringe';
+import { VialCostEditor } from './VialCostEditor';
 
 // Re-exported as SerializedVial for backward compatibility with existing imports.
 export type SerializedVial = SerializedVialData;
@@ -317,6 +318,7 @@ export function VialInventory({ vials, isRoomTemp = false }: Props) {
                   <p className="text-[10px] text-muted-foreground mt-1">
                     Expires {formatDate(vial.expiresAt)}
                   </p>
+                  <VialCostEditor vial={vial} editLabel={`Edit cost for ${vial.compoundName}`} />
                 </div>
               </div>
 

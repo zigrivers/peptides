@@ -6,6 +6,7 @@ import { deleteVialAction } from '@/app/actions/reconstitution/inventory-actions
 import { Snowflake, Thermometer, Beaker, Trash2, ChevronDown, ChevronUp, Calendar, AlertCircle } from 'lucide-react';
 import type { Compound } from '@/lib/reference/domain/types';
 import { getAudioPlayer } from '@/lib/reconstitution/domain/audioSynth';
+import { VialCostEditor } from './VialCostEditor';
 
 interface Props {
   vials: SerializedVialData[];
@@ -250,6 +251,7 @@ export function DryInventoryList({
                               <Calendar className={`h-3 w-3 ${isRoomTemp ? 'text-amber-500' : 'text-sky-400'}`} />
                               Expires: <span className={vExpired ? 'text-destructive font-semibold' : 'text-foreground/80'}>{formatDate(v.expiresAt)}</span>
                             </p>
+                            <VialCostEditor vial={v} editLabel={`Edit cost for vial #${idx + 1}`} />
                           </div>
 
                           <div className="flex items-center gap-2">

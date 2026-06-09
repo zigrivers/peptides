@@ -225,6 +225,8 @@ export interface SerializedVialData {
   expiresAt: string | null;
   daysUntilExpiry: number | null;
   badges: VialBadge[];
+  cost?: string | null;
+  currency?: string;
   
   potentialDrawWaste?: boolean;
   insufficientMedication?: boolean;
@@ -305,6 +307,8 @@ export function serializeVial(
     expiresAt: v.expiresAt ? v.expiresAt.toISOString() : null,
     daysUntilExpiry: v.expiresAt ? Math.ceil((v.expiresAt.getTime() - nowUtcMidnight.getTime()) / 86400_000) : null,
     badges: v.badges,
+    cost: v.cost ? v.cost.toString() : null,
+    currency: v.currency ?? 'USD',
     potentialDrawWaste,
     insufficientMedication,
     maxDoseFormatted,
@@ -561,6 +565,73 @@ export async function updateVialRemainingMg(input: UpdateVialRemainingMgInput): 
       newValues: {
         remainingMg: input.remainingMg.toFixed(3),
         status: newStatus,
+      },
+    })
+  );
+
+  return toVialWithBadges(updatedVial);
+}
+
+export interface UpdateVialCostInput {
+  userId: string;
+  vialId: string;
+  cost: Decimal | null;
+  currency?: string;
+}
+
+export async function updateVialCost(input: UpdateVialCostInput): Promise<VialWithBadges> {
+  const existingVial = await prisma.vial.findFirst({
+    where: { id: input.vialId, userId: input.userId },
+  });
+  if (!existingVial) {
+    throw new Error('vial_not_found_or_not_owned');
+  }
+
+  const nextCurrency = input.currency ?? existingVial.currency ?? 'USD';
+
+  const updatedVial = await withAudit(
+    async (tx) => {
+      const vialToUpdate = await tx.vial.findFirst({
+        where: { id: input.vialId, userId: input.userId },
+      });
+      if (!vialToUpdate) {
+        throw new Error('vial_not_found_or_not_owned');
+      }
+
+      const updateResult = await tx.vial.updateMany({
+        where: { id: input.vialId, userId: input.userId },
+        data: {
+          cost: input.cost,
+          currency: nextCurrency,
+        },
+      });
+
+      if (updateResult.count === 0) {
+        throw new Error('vial_not_found_or_not_owned');
+      }
+
+      const result = await tx.vial.findFirst({
+        where: { id: input.vialId, userId: input.userId },
+        include: { compound: { select: { name: true, slug: true } } },
+      });
+      if (!result) {
+        throw new Error('vial_not_found_or_not_owned');
+      }
+      return result;
+    },
+    (vialRow) => ({
+      actorUserId: input.userId,
+      category: 'Reconstitution' as const,
+      action: 'VIAL_COST_UPDATED' as const,
+      resourceId: vialRow.id,
+      resourceType: 'Vial',
+      oldValues: {
+        cost: existingVial.cost ? existingVial.cost.toString() : null,
+        currency: existingVial.currency,
+      },
+      newValues: {
+        cost: input.cost ? input.cost.toString() : null,
+        currency: nextCurrency,
       },
     })
   );
