@@ -184,9 +184,9 @@ function parseAsUTCDay(s: string | Date | null | undefined): Date {
 
 /**
  * Computes week info for a given protocol and compound profile at a specific event date.
- * If the protocol is continuous, returns standard continuous info.
- * Otherwise, calculates week number, total weeks, completion percentage, rest start date,
- * and elapsed days since the start of the protocol or cycle.
+ * For continuous protocols, calculates elapsed milestone timing without cycle progress.
+ * For cycled protocols, calculates week number, total weeks, completion percentage,
+ * rest start date, and elapsed days since the start of the protocol or cycle.
  * 
  * @param proto - The protocol details.
  * @param profile - The compound profile details, including scheduling config.
@@ -207,19 +207,8 @@ export function getWeekInfo(
   const isContinuous = !profile || !profile.cycleLengthWeeks;
   const totalWeeks = profile?.cycleLengthWeeks ?? 1;
 
-  if (isContinuous) {
-    return {
-      isContinuous: true,
-      weekNumber: 1,
-      totalWeeks,
-      percent: null,
-      restStartDate: null,
-      elapsedDays: 0,
-    };
-  }
-
   const cycle = proto.cycleId && cycles ? cycles[proto.cycleId] : null;
-  const startUTC = parseAsUTCDay(cycle ? cycle.startDate : proto.startDate);
+  const startUTC = parseAsUTCDay(!isContinuous && cycle ? cycle.startDate : proto.startDate);
   const eventUTC = parseAsUTCDay(eventDateStr);
 
   if (isNaN(startUTC.getTime()) || isNaN(eventUTC.getTime())) {
@@ -235,8 +224,20 @@ export function getWeekInfo(
 
   const elapsedMs = eventUTC.getTime() - startUTC.getTime();
   const elapsedDays = Math.max(0, Math.floor(elapsedMs / (1000 * 60 * 60 * 24)));
-  const weekNumber = Math.min(totalWeeks, Math.floor(elapsedDays / 7) + 1);
+  const elapsedWeekNumber = Math.floor(elapsedDays / 7) + 1;
+  const weekNumber = isContinuous ? elapsedWeekNumber : Math.min(totalWeeks, elapsedWeekNumber);
   const percent = Math.min(100, Math.round((weekNumber / totalWeeks) * 100));
+
+  if (isContinuous) {
+    return {
+      isContinuous: true,
+      weekNumber,
+      totalWeeks,
+      percent: null,
+      restStartDate: null,
+      elapsedDays,
+    };
+  }
 
   let restStartDate: Date | null = null;
   const cycleEndDate = cycle ? cycle.endDate : proto.endDate;
@@ -599,7 +600,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
     const timeline = profile?.benefitTimeline;
     if (!timeline || timeline.length === 0) return null;
 
-    if (!info || info.isContinuous) return null;
+    if (!info) return null;
 
     const validTimeline = timeline.filter((item) => item && typeof item.week === 'number' && Array.isArray(item.benefits) && item.benefits.length > 0);
     const currentWeekItem = validTimeline.find((item) => item.week === info.weekNumber);
