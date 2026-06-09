@@ -449,11 +449,13 @@ export async function logDose(
 }
 
 export async function getRecentDoseLogsForUser(userId: string, limitDays = 60): Promise<DoseLog[]> {
+  const managedIds = await getManagedUserIds(userId);
+  const allowedUserIds = [userId, ...managedIds];
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - limitDays);
   
   const rows = await prisma.doseLog.findMany({
-    where: { userId, scheduledDate: { gte: since } },
+    where: { userId: { in: allowedUserIds }, scheduledDate: { gte: since } },
     orderBy: { scheduledDate: 'desc' },
   });
   

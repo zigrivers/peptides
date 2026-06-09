@@ -1623,6 +1623,19 @@ describe('US-TRK-04: Injection Site Rotation', () => {
       expect(meta[0].isRested).toBe(false);
     });
 
+    it('Regression: site age is based on scheduledDate when a prior dose is logged later', () => {
+      const logs = [
+        {
+          injectionSite: rightThigh,
+          scheduledDate: new Date(Date.UTC(2026, 4, 20)),
+          loggedAt: now,
+        },
+      ];
+      const meta = getSitesMeta(logs, [rightThigh], now);
+      expect(meta[0].daysSinceLastUse).toBe(1);
+      expect(meta[0].isRested).toBe(false);
+    });
+
     it('AC-7 (Quadrant Mapping): matches legacy abdomen to both upper and lower quadrants of that side', () => {
       const logs = [{ injectionSite: leftAbdomenLegacy, loggedAt: now }];
       const meta = getSitesMeta(logs, [leftAbdomenUpper, leftAbdomenLower], now);
