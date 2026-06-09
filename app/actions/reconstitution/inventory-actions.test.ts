@@ -4,6 +4,7 @@ import {
   reconstituteDryVialAction,
   deleteVialAction,
   addReconstitutedVialAction,
+  updateVialCostAction,
 } from './inventory-actions';
 import { auth } from '@/lib/auth';
 import {
@@ -11,6 +12,7 @@ import {
   reconstituteVial,
   deleteVial,
   saveVial,
+  updateVialCost,
 } from '@/lib/reconstitution/application/VialService';
 import { revalidatePath } from 'next/cache';
 
@@ -23,6 +25,7 @@ vi.mock('@/lib/reconstitution/application/VialService', () => ({
   reconstituteVial: vi.fn(),
   deleteVial: vi.fn(),
   saveVial: vi.fn(),
+  updateVialCost: vi.fn(),
 }));
 
 vi.mock('next/cache', () => ({
@@ -237,6 +240,74 @@ describe('Inventory Server Actions', () => {
       });
       expect(revalidatePath).toHaveBeenCalledWith('/reconstitution');
       expect(revalidatePath).toHaveBeenCalledWith('/tracker');
+    });
+  });
+
+  describe('updateVialCostAction', () => {
+    it('should return unauthorized when session is missing', async () => {
+      mockAuth.mockResolvedValue(null);
+
+      const result = await updateVialCostAction({
+        vialId: '45a13798-41d4-46e8-9fdd-3812e6f0982a',
+        cost: '50.00',
+        currency: 'USD',
+      });
+
+      expect(result).toEqual({ ok: false, error: 'unauthorized' });
+      expect(updateVialCost).not.toHaveBeenCalled();
+    });
+
+    it('should reject unsupported cost currency values', async () => {
+      mockAuth.mockResolvedValue({ user: { id: 'user-123' } });
+
+      const result = await updateVialCostAction({
+        vialId: '45a13798-41d4-46e8-9fdd-3812e6f0982a',
+        cost: '50.00',
+        currency: 'BTC',
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: 'validation_error',
+        message: expect.any(String),
+      });
+      expect(updateVialCost).not.toHaveBeenCalled();
+    });
+
+    it('should call updateVialCost and revalidate cost-sensitive paths on success', async () => {
+      mockAuth.mockResolvedValue({ user: { id: 'user-123' } });
+      vi.mocked(updateVialCost).mockResolvedValue(undefined as never);
+
+      const vialId = '45a13798-41d4-46e8-9fdd-3812e6f0982a';
+      const result = await updateVialCostAction({
+        vialId,
+        cost: '55.25',
+        currency: 'USDT',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(updateVialCost).toHaveBeenCalledWith({
+        userId: 'user-123',
+        vialId,
+        cost: expect.any(Object),
+        currency: 'USDT',
+      });
+      expect(revalidatePath).toHaveBeenCalledWith('/reconstitution');
+      expect(revalidatePath).toHaveBeenCalledWith('/dashboard');
+      expect(revalidatePath).toHaveBeenCalledWith('/tracker');
+    });
+
+    it('should return not_found when the vial is not owned by the user', async () => {
+      mockAuth.mockResolvedValue({ user: { id: 'user-123' } });
+      vi.mocked(updateVialCost).mockRejectedValue(new Error('vial_not_found_or_not_owned'));
+
+      const result = await updateVialCostAction({
+        vialId: '45a13798-41d4-46e8-9fdd-3812e6f0982a',
+        cost: '55.25',
+        currency: 'USD',
+      });
+
+      expect(result).toEqual({ ok: false, error: 'not_found' });
     });
   });
 });

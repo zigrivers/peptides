@@ -10,6 +10,7 @@ import {
   deleteVial,
   saveVial,
   updateVialRemainingMg,
+  updateVialCost,
 } from '@/lib/reconstitution/application/VialService';
 
 const SupportedInventoryCurrencySchema = z.enum(['USD', 'USDT', 'EUR', 'GBP']);
@@ -92,6 +93,20 @@ const AddReconstitutedVialSchema = z.object({
     const date = new Date(val);
     return !isNaN(date.getTime());
   }, 'Invalid date format'),
+});
+
+const UpdateVialCostSchema = z.object({
+  vialId: z.string().uuid(),
+  cost: z.string().optional().refine((val) => {
+    if (!val?.trim()) return true;
+    try {
+      const d = new Decimal(val);
+      return d.gte(0);
+    } catch {
+      return false;
+    }
+  }, 'Must be a non-negative decimal'),
+  currency: SupportedInventoryCurrencySchema.optional(),
 });
 
 export type InventoryResult =
@@ -246,6 +261,37 @@ export async function updateVialRemainingMgAction(rawInput: unknown): Promise<In
     const msg = err instanceof Error ? err.message : '';
     if (/not found/i.test(msg)) return { ok: false, error: 'not_found' };
     console.error('[updateVialRemainingMgAction] error:', err);
+    return { ok: false, error: 'system_error' };
+  }
+}
+
+export async function updateVialCostAction(rawInput: unknown): Promise<InventoryResult> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
+
+  const parsed = UpdateVialCostSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return { ok: false, error: 'validation_error', message: parsed.error.issues[0]?.message };
+  }
+
+  const costText = parsed.data.cost?.trim() ?? '';
+
+  try {
+    await updateVialCost({
+      userId: session.user.id,
+      vialId: parsed.data.vialId,
+      cost: costText ? new Decimal(costText) : null,
+      currency: parsed.data.currency ?? 'USD',
+    });
+
+    revalidatePath('/reconstitution');
+    revalidatePath('/dashboard');
+    revalidatePath('/tracker');
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (/not[_ ]found/i.test(msg)) return { ok: false, error: 'not_found' };
+    console.error('[updateVialCostAction] error:', err);
     return { ok: false, error: 'system_error' };
   }
 }

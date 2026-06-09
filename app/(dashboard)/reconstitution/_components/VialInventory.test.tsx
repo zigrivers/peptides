@@ -1,6 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+// @vitest-environment jsdom
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('@/app/actions/reconstitution/reorder-vials', () => ({
   reorderVialsAction: vi.fn(),
@@ -8,11 +10,17 @@ vi.mock('@/app/actions/reconstitution/reorder-vials', () => ({
 
 vi.mock('@/app/actions/reconstitution/inventory-actions', () => ({
   deleteVialAction: vi.fn(),
+  updateVialCostAction: vi.fn(),
   addDryVialsAction: vi.fn(),
   reconstituteDryVialAction: vi.fn(),
   addReconstitutedVialAction: vi.fn(),
 }));
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
+
+import { updateVialCostAction } from '@/app/actions/reconstitution/inventory-actions';
 import { VialInventory, type SerializedVial } from './VialInventory';
 
 describe('VialInventory Component UI/UX', () => {
@@ -30,6 +38,11 @@ describe('VialInventory Component UI/UX', () => {
     daysUntilExpiry: 9,
     badges: [],
   };
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    cleanup();
+  });
 
   it('renders standard active vial without blur or cloudiness when freshly reconstituted', () => {
     // freshly reconstituted (elapsed = 0)
@@ -86,5 +99,36 @@ describe('VialInventory Component UI/UX', () => {
 
     const html = renderToString(<VialInventory vials={[overrideVial]} />);
     expect(html).toContain('Expired (Override)');
+  });
+
+  it('lets the user edit cost and currency for an active vial card', async () => {
+    vi.mocked(updateVialCostAction).mockResolvedValue({ ok: true });
+    const costedVial = {
+      ...baseVial,
+      cost: '45.00',
+      currency: 'USD',
+    } as SerializedVial;
+
+    render(<VialInventory vials={[costedVial]} />);
+
+    expect(screen.getByText('45.00 USD')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /edit cost for BPC-157/i }));
+
+    const costInput = screen.getByLabelText(/cost/i) as HTMLInputElement;
+    const currencySelect = screen.getByLabelText(/currency/i) as HTMLSelectElement;
+    expect(costInput.value).toBe('45.00');
+    expect(currencySelect.value).toBe('USD');
+
+    fireEvent.change(costInput, { target: { value: '55.25' } });
+    fireEvent.change(currencySelect, { target: { value: 'USDT' } });
+    fireEvent.click(screen.getByRole('button', { name: /save cost/i }));
+
+    await waitFor(() => {
+      expect(updateVialCostAction).toHaveBeenCalledWith({
+        vialId: 'vial-1',
+        cost: '55.25',
+        currency: 'USDT',
+      });
+    });
   });
 });

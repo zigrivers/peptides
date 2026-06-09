@@ -3,6 +3,7 @@ import Decimal from 'decimal.js';
 import { prisma } from '@/lib/shared/prisma';
 import {
   updateVialRemainingMg,
+  updateVialCost,
   getSerializedVialsForCompound,
   VIAL_STATUS,
 } from '@/lib/reconstitution/application/VialService';
@@ -267,6 +268,90 @@ describe('Inventory Management from Catalog Detail Page', () => {
     });
   });
 
+  describe('updateVialCost', () => {
+    it('updates cost and currency with userId scoping and writes an audit event', async () => {
+      const existingVial = {
+        id: 'vial-1',
+        userId: 'user-1',
+        compoundId: 'comp-1',
+        totalMg: new Decimal('10'),
+        remainingMg: new Decimal('8'),
+        status: VIAL_STATUS.RECONSTITUTED,
+        bacWaterMl: new Decimal('2'),
+        expiresAt: new Date('2026-12-31'),
+        reconstitutedAt: new Date('2026-05-01'),
+        cost: new Decimal('40.00'),
+        currency: 'USD',
+        compound: { name: 'Compound A', slug: 'compound-a' },
+      } as any;
+
+      vi.mocked(prisma.vial.findFirst).mockResolvedValue(existingVial);
+      vi.mocked(prisma.vial.updateMany).mockResolvedValue({ count: 1 });
+
+      await updateVialCost({
+        userId: 'user-1',
+        vialId: 'vial-1',
+        cost: new Decimal('55.25'),
+        currency: 'USDT',
+      });
+
+      expect(prisma.vial.updateMany).toHaveBeenCalledWith({
+        where: { id: 'vial-1', userId: 'user-1' },
+        data: {
+          cost: new Decimal('55.25'),
+          currency: 'USDT',
+        },
+      });
+
+      expect(prisma.auditEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          actorUserId: 'user-1',
+          category: 'Reconstitution',
+          action: 'VIAL_COST_UPDATED',
+          resourceId: 'vial-1',
+          resourceType: 'Vial',
+          oldValues: { cost: '40', currency: 'USD' },
+          newValues: { cost: '55.25', currency: 'USDT' },
+        }),
+      });
+    });
+
+    it('clears vial cost while keeping the mutation userId-scoped', async () => {
+      const existingVial = {
+        id: 'vial-1',
+        userId: 'user-1',
+        compoundId: 'comp-1',
+        totalMg: new Decimal('10'),
+        remainingMg: new Decimal('8'),
+        status: VIAL_STATUS.DRY,
+        bacWaterMl: null,
+        expiresAt: new Date('2026-12-31'),
+        reconstitutedAt: null,
+        cost: new Decimal('40.00'),
+        currency: 'USD',
+        compound: { name: 'Compound A', slug: 'compound-a' },
+      } as any;
+
+      vi.mocked(prisma.vial.findFirst).mockResolvedValue(existingVial);
+      vi.mocked(prisma.vial.updateMany).mockResolvedValue({ count: 1 });
+
+      await updateVialCost({
+        userId: 'user-1',
+        vialId: 'vial-1',
+        cost: null,
+        currency: 'USD',
+      });
+
+      expect(prisma.vial.updateMany).toHaveBeenCalledWith({
+        where: { id: 'vial-1', userId: 'user-1' },
+        data: {
+          cost: null,
+          currency: 'USD',
+        },
+      });
+    });
+  });
+
   describe('getSerializedVialsForCompound', () => {
     it('correctly queries database with userId and compoundId, returns serialized data', async () => {
       const mockVials = [
@@ -280,6 +365,8 @@ describe('Inventory Management from Catalog Detail Page', () => {
           bacWaterMl: new Decimal('2'),
           expiresAt: new Date('2026-12-31'),
           reconstitutedAt: new Date('2026-05-01'),
+          cost: new Decimal('55.25'),
+          currency: 'USDT',
           compound: { name: 'Compound A', slug: 'compound-a' },
         },
       ] as any[];
@@ -305,6 +392,8 @@ describe('Inventory Management from Catalog Detail Page', () => {
       expect(result[0].totalMg).toBe('10.000');
       expect(result[0].remainingMg).toBe('8.000');
       expect(result[0].bacWaterMl).toBe('2.000');
+      expect(result[0].cost).toBe('55.25');
+      expect(result[0].currency).toBe('USDT');
     });
   });
 
