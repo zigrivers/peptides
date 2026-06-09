@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import Decimal from 'decimal.js';
-import { doseToSyringeUnits, buildDoseUnitsDisplay } from './doseUnits';
+import { doseToSyringeUnits, buildDoseUnitsDisplay, buildLoggedDoseDisplay } from './doseUnits';
 import { ReconstitutionCalculator } from './ReconstitutionCalculator';
 import type { DoseAmount, DoseUnit } from '@/lib/tracker/domain/types';
 
@@ -160,5 +160,27 @@ describe('buildDoseUnitsDisplay — formatting', () => {
   it('IU dose with invalid totalMg falls back to not appending mg', () => {
     const d = buildDoseUnitsDisplay({ amount: '15', unit: 'IU' }, { totalMg: 'invalid', bacWaterMl: '2' }, 'U100');
     expect(d).toEqual({ computable: true, unitsText: '≈ 15.0 units (U-100)' });
+  });
+});
+
+describe('buildLoggedDoseDisplay — logged dose amount + syringe units', () => {
+  it('formats mg logs as mcg plus syringe units', () => {
+    const display = buildLoggedDoseDisplay({ amount: '1', unit: 'mg' }, vial20mg2ml, 'U100');
+    expect(display).toBe('1000 mcg (10 units)');
+  });
+
+  it('formats mcg logs with fractional syringe units when needed', () => {
+    const display = buildLoggedDoseDisplay({ amount: '750', unit: 'mcg' }, vial20mg2ml, 'U100');
+    expect(display).toBe('750 mcg (7.5 units)');
+  });
+
+  it('derives mcg for IU logs from vial concentration and syringe standard', () => {
+    const display = buildLoggedDoseDisplay({ amount: '15', unit: 'IU' }, vial20mg2ml, 'U100');
+    expect(display).toBe('1500 mcg (15 units)');
+  });
+
+  it('returns null when the logged amount cannot be shown as both mcg and units', () => {
+    const display = buildLoggedDoseDisplay({ amount: '500', unit: 'mcg' }, null, 'U100');
+    expect(display).toBeNull();
   });
 });
