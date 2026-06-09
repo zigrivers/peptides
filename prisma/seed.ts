@@ -8,6 +8,7 @@ const prisma = new PrismaClient();
 
 type SeedCitationRef = {
   title: string;
+  url?: string | null;
   doi?: string | null;
   pmid?: string | null;
 };
@@ -72,9 +73,10 @@ function pairingRowKey(pairing: { pairedCompoundName: string; benefitGoal: strin
 }
 
 function citationMatchesRef(
-  citation: { title: string; doi: string | null; pmid: string | null },
+  citation: { title: string; url: string | null; doi: string | null; pmid: string | null },
   ref: SeedCitationRef
 ): boolean {
+  if (ref.url && citation.url === ref.url) return true;
   if (ref.doi && citation.doi === ref.doi) return true;
   if (ref.pmid && citation.pmid === ref.pmid) return true;
   return citation.title === ref.title;
@@ -138,7 +140,7 @@ async function syncCompoundPairings(pairingFixtures: SeedPairing[]) {
     compounds.map((compound) => [normalizeCompoundName(compound.name), compound])
   );
   const citations = await prisma.citation.findMany({
-    select: { id: true, title: true, doi: true, pmid: true },
+    select: { id: true, title: true, url: true, doi: true, pmid: true },
   });
 
   const pairingsBySource = new Map<string, SeedPairing[]>();
@@ -1178,29 +1180,47 @@ Adipotide is like a targeted supply blockade for fat cells. Fat deposits require
     },
     {
       name: 'Testosterone',
-      iupacName: null,
-      synonyms: ['Test', 'Enanthate', 'Cypionate', 'TRT'],
+      iupacName: '(8R,9S,10R,13S,14S,17S)-17-hydroxy-10,13-dimethyl-1,2,6,7,8,9,11,12,14,15,16,17-dodecahydrocyclopenta[a]phenanthren-3-one',
+      synonyms: [
+        'T',
+        'Test',
+        'TRT',
+        'Androgen replacement therapy',
+        '17 beta-hydroxyandrost-4-en-3-one',
+        'Testosterone cypionate',
+        'Testosterone enanthate',
+        'Testosterone undecanoate',
+        'Depo-Testosterone',
+        'Xyosted',
+        'AndroGel',
+        'Natesto',
+        'Jatenzo',
+        'Aveed',
+        'Testopel',
+      ],
+      sourceVersion: 2,
+      lastReviewedAt: new Date('2026-06-09T00:00:00.000Z'),
       mechanismOfAction:
         `### The Technical Mechanism (The Science)
-An endogenous androgen receptor agonist. It enters cells, binds to androgen receptors, and translocates to the nucleus to modify gene transcription, upregulating protein synthesis and nitrogen retention. It also stimulates erythropoietin in the kidneys to increase red blood cell production and promotes bone density.
+Testosterone is the primary endogenous androgen. After entering target tissues it binds androgen receptors directly and can also be converted to dihydrotestosterone (DHT) by 5-alpha reductase or to estradiol by aromatase. The androgen-receptor complex regulates gene transcription involved in male secondary sex characteristics, sexual function, erythropoiesis, skeletal muscle protein turnover, bone mineral maintenance, and fat distribution. Exogenous testosterone suppresses hypothalamic-pituitary-gonadal signaling by reducing LH and FSH, which can reduce intratesticular testosterone and spermatogenesis.
 
 ### The Analogy (The Layman Explanation)
-Testosterone is the primary blueprint for male cellular development. It acts like a builder's manual, telling muscles to absorb protein and build strength, telling bones to harden, and telling the brain to maintain drive and focus. It ensures the body's repair systems are running at maximum capacity.
+Testosterone replacement is like restoring a deficient control signal, not turning the signal above normal. When a man has confirmed hypogonadism, physiologic replacement helps tissues that depend on androgen signaling receive a steadier instruction set. More is not automatically better: pushing levels above the physiologic range raises the likelihood of hematocrit elevation, blood-pressure increases, acne, edema, infertility, and estrogen/DHT-mediated adverse effects.
 
 ### Clinical Expected Timeline
-* **Week 1 (Days 1–7)**: Increase in daily focus, drive, and morning energy levels; improved mood.
-* **Week 2 (Days 8–14)**: Enhanced workout recovery; initial water retention inside muscles (glycogen synthesis).
-* **Week 4 (Days 15–28)**: Significant increase in strength and physical stamina; libido improves noticeably.
-* **Week 8 (Days 29–56)**: Visually leaner body composition; muscle density increases; red blood cell volume rises.
-* **Week 12 (Days 57–84)**: Peak muscle mass gains and fat loss; stabilized physical baseline; long-term TRT parameters established.`,
-      administrationRoutes: ['IM', 'SubQ', 'Topical'],
-      tags: ['androgen', 'recovery', 'metabolic'],
+* **Week 1 (Days 1-7)**: Serum levels begin moving toward the replacement range; injection-site tolerability, blood pressure, edema, acne, and sleep-apnea symptoms should be watched early.
+* **Week 2 (Days 8-14)**: Split-dose injection schedules may reduce peak/trough swings; libido or morning-erection changes may start in responders, but generalized energy and mood are not reliable early endpoints.
+* **Week 4 (Days 15-28)**: Many measurable benefits begin around 3-6 weeks; sexual-function response is a stronger signal than nonspecific "vitality" claims.
+* **Week 8 (Days 29-56)**: Lean-mass and strength changes remain gradual and training-dependent; hematocrit/hemoglobin may begin rising and fertility suppression is expected.
+* **Week 12 (Days 57-84)**: Formal follow-up typically reassesses symptoms, adverse effects, testosterone concentration, hematocrit, blood pressure, and prostate-risk monitoring when indicated; longer-term bone-density endpoints take months to years.`,
+      administrationRoutes: ['IM', 'SubQ', 'Topical', 'Oral', 'Nasal', 'Buccal', 'Pellet'],
+      tags: ['androgen', 'recovery', 'metabolic', 'endocrine', 'fda-approved', 'fertility-impact', 'monitoring-required'],
       profile: {
-        dosingLow: { amount: '10', unit: 'mg', researchBenefits: 'Hormone replacement therapy, general wellness', recommendedFrequency: 'Daily (SubQ)' },
-        dosingTypical: { amount: '100', unit: 'mg', researchBenefits: 'TRT replacement protocol, lean mass maintenance', recommendedFrequency: 'Weekly (or split twice weekly)' },
-        dosingHigh: { amount: '200', unit: 'mg', researchBenefits: 'Maximum replacement dose, rapid tissue recovery', recommendedFrequency: 'Weekly' },
-        sideEffects: 'Erythrocytosis, hair loss, gynecomastia, suppression of endogenous testosterone. Safety Assessment: Shuts down endogenous testosterone (testicular atrophy; managed with HCG). Elevates hematocrit and blood viscosity. Risk of aromatization to estrogen.',
-        stackingNotes: 'Often stacked with HCG to maintain testicular function during administration. Storage: Testosterone Cypionate is a pre-dissolved oil-based solution and does NOT require reconstitution. Once punctured, multi-dose vials should be discarded after 28 days (per USP <797> safety guidelines). Store at room temperature (20°C–25°C / 68°F–77°F); do not refrigerate or freeze, as low temperatures can cause the hormone to crystallize out of solution.',
+        dosingLow: { amount: '50', unit: 'mg', researchBenefits: 'Conservative injectable TRT starting range for confirmed male hypogonadism; titrate to symptoms and serum troughs rather than supraphysiologic targets', recommendedFrequency: 'Once weekly or split twice weekly' },
+        dosingTypical: { amount: '100', unit: 'mg', researchBenefits: 'Common physiologic replacement target for testosterone cypionate/enanthate when labs and symptoms support TRT', recommendedFrequency: 'Weekly total dose, often split twice weekly' },
+        dosingHigh: { amount: '200', unit: 'mg', researchBenefits: 'Upper therapeutic injection range that should trigger close review of serum testosterone, hematocrit, blood pressure, estradiol symptoms, and adverse effects', recommendedFrequency: 'Weekly total dose or 100 mg twice weekly only with clinician-directed monitoring' },
+        sideEffects: 'Common and clinically important risks include acne/oily skin, injection-site pain, edema, gynecomastia or breast tenderness from aromatization, male-pattern hair loss in susceptible users, increased blood pressure, increased hematocrit/hemoglobin or erythrocytosis, worsening untreated sleep apnea, lower urinary tract symptom worsening, mood changes, infertility from LH/FSH suppression, and testicular atrophy. Avoid or defer TRT with active prostate or male breast cancer, uncontrolled erythrocytosis, severe untreated obstructive sleep apnea, uncontrolled heart failure, recent acute coronary syndrome/stroke/revascularization, thrombophilia or unprovoked VTE history, severe liver disease or renal failure, pregnancy exposure risk, desire for near-term fertility without specialist planning, or active anabolic-androgenic steroid misuse.',
+        stackingNotes: 'Pairing with hCG may be considered when testicular volume or fertility preservation is a goal, but hCG can raise testosterone and estradiol and still requires semen and hormone monitoring. Aromatase inhibitors should not be treated as routine add-ons; reserve them for clinician-directed management of documented estradiol-mediated symptoms or lab issues. Baseline and follow-up context should include two separate morning testosterone measurements before initiation, LH/FSH when etiology is unclear, hematocrit/hemoglobin, blood pressure, PSA/prostate-risk discussion when age/risk appropriate, lipid/metabolic risk, sleep apnea status, and symptom response. Storage: injectable testosterone cypionate/enanthate products are oil-based sterile solutions and do not require reconstitution. Store at controlled room temperature in the carton/protected from light per product labeling; do not refrigerate or freeze. If crystals appear after cold exposure, warm gently to room temperature and roll/shake as label-directed until dissolved before use. Once punctured, follow the product label, local sterile-use policy, or the 28-day multidose-vial puncture limit when no shorter standard applies.',
         reconstitutedShelfLifeDays: 28,
         
         fridgeShelfLifeMonths: null,
@@ -1209,9 +1229,46 @@ Testosterone is the primary blueprint for male cellular development. It acts lik
         
         citations: [
           {
+            title: 'Testosterone Cypionate Injection prescribing information',
+            url: 'https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=6909596e-4bf7-4e11-8029-b89740a30aec',
+          },
+          {
+            title: 'Testosterone Therapy in Men With Hypogonadism: An Endocrine Society Clinical Practice Guideline',
+            doi: '10.1210/jc.2018-00229',
+            pmid: '29562364',
+          },
+          {
+            title: 'Evaluation and Management of Testosterone Deficiency: AUA Guideline',
+            doi: '10.1016/j.juro.2018.03.115',
+            pmid: '29601923',
+          },
+          {
+            title: 'Evaluation for and Management of Males with Low Testosterone Recommendations for Use',
+            url: 'https://www.va.gov/formularyadvisor/DOC_PDF/CRE_Testosterone_Replacement_Therapy_Clinical_Recommendations_Jan_2026.pdf',
+          },
+          {
+            title: 'Cardiovascular Safety of Testosterone-Replacement Therapy',
+            doi: '10.1056/NEJMoa2215025',
+            pmid: '37326322',
+          },
+          {
+            title: 'FDA Updates Testosterone Labeling for Blood Pressure and Cardiovascular Risks',
+            doi: '10.1001/jama.2025.3240',
+            pmid: '40184062',
+          },
+          {
+            title: 'Male hypogonadism: pathogenesis, diagnosis, and management',
+            doi: '10.1016/S2213-8587(24)00199-2',
+            pmid: '39159641',
+          },
+          {
             title: 'Testosterone replacement therapy: a review of benefits and risks',
             doi: '10.2147/tcrm.s68932',
             pmid: '25484889',
+          },
+          {
+            title: 'Pharmacology of testosterone replacement therapy preparations',
+            doi: '10.21037/tau.2016.07.10',
           },
         ],
       },
@@ -2264,10 +2321,10 @@ Think of an injury as a collapsed bridge in a remote town. BPC-157 acts as the l
 
     if (profile) {
       const fixture = fixtures.find((f: any) => f.name === compound.name || f.name.toLowerCase() === compound.name.toLowerCase());
-      const { citations: seedCitations, ...profileData } = profile;
+      const { citations: rawSeedCitations, ...profileData } = profile;
 
       let mergedProfile = { ...profileData };
-      let citationsToUse = seedCitations;
+      let citationsToUse: SeedCitationRef[] = rawSeedCitations as SeedCitationRef[];
 
       if (fixture && fixture.profile) {
         mergedProfile = {
@@ -2275,7 +2332,7 @@ Think of an injury as a collapsed bridge in a remote town. BPC-157 acts as the l
           ...fixture.profile,
         };
         if (fixture.citations && fixture.citations.length > 0) {
-          citationsToUse = fixture.citations;
+          citationsToUse = fixture.citations as SeedCitationRef[];
         }
       }
 
@@ -2299,6 +2356,7 @@ Think of an injury as a collapsed bridge in a remote town. BPC-157 acts as the l
         return !citationsToUse.some(
           (incoming) =>
             incoming.title === existing.title &&
+            (incoming.url ?? null) === existing.url &&
             (incoming.doi ?? null) === existing.doi &&
             (incoming.pmid ?? null) === existing.pmid
         );
@@ -2316,6 +2374,7 @@ Think of an injury as a collapsed bridge in a remote town. BPC-157 acts as the l
         return !existingCitations.some(
           (existing) =>
             incoming.title === existing.title &&
+            (incoming.url ?? null) === existing.url &&
             (incoming.doi ?? null) === existing.doi &&
             (incoming.pmid ?? null) === existing.pmid
         );
@@ -2326,9 +2385,9 @@ Think of an injury as a collapsed bridge in a remote town. BPC-157 acts as the l
           data: {
             catalogItemId: compound.id,
             title: citation.title,
+            url: citation.url ?? null,
             doi: citation.doi ?? null,
             pmid: citation.pmid ?? null,
-            url: null,
           },
         });
       }
@@ -2527,41 +2586,41 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       {
         week: 1,
         benefits: [
-          'Energy & Mood Boost: Noticeable increase in mental focus, drive, and morning energy levels; helps lift mood and reduce daily irritability',
-          'CNS Recovery Support: Improves sleep quality and brain cell recovery, reducing brain fog and afternoon energy crashes',
-          'Endocrine Stabilization: Initial physical adaptation as the body responds to stable circulating hormone levels'
+          'Replacement Onset: Serum testosterone begins moving toward the prescribed replacement range; symptom response should not be judged from the first few doses alone',
+          'Early Tolerability Check: Watch for injection-site irritation, acne/oily skin, edema, blood-pressure increases, and worsening sleep-apnea symptoms',
+          'Monitoring Baseline: Confirm the plan for follow-up testosterone concentration, hematocrit/hemoglobin, blood pressure, and prostate-risk monitoring when age/risk appropriate'
         ]
       },
       {
         week: 2,
         benefits: [
-          'Improved Workout Recovery: Speeds up muscle recovery after physical exertion, reducing soreness and returning you to full capacity faster',
-          'Intracellular Water Retention: Enhances muscle cell hydration and glycogen storage, giving muscles a fuller appearance and better pump',
-          'Metabolic Kickstart: Begins increasing metabolic efficiency and the rate at which cells generate energy'
+          'Peak/Trough Smoothing: Weekly or twice-weekly injection schedules may reduce swings compared with larger injections every 2-4 weeks',
+          'Sexual-Symptom Signal: Libido or morning-erection changes may begin in responders, while energy, cognition, and mood changes are less predictable',
+          'Fluid and Skin Effects: Estradiol/DHT-mediated effects such as breast tenderness, acne, hair shedding, or water retention can start emerging'
         ]
       },
       {
         week: 4,
         benefits: [
-          'Libido & Vitality: Notable improvements in libido, morning erections, and overall sexual vitality',
-          'Strength and Stamina: Initial increases in physical strength, endurance, and workout stamina',
-          'Vascular Health Support: Supports healthy blood vessel dilation, improving oxygen and nutrient delivery to active tissues'
+          'Therapeutic Response Window: Many TRT effects begin around 3-6 weeks, with sexual-function changes generally better supported than nonspecific vitality claims',
+          'Dose-Adjustment Context: Do not chase supraphysiologic levels; titration should use symptoms, adverse effects, and correctly timed testosterone labs',
+          'Fertility Suppression: LH/FSH suppression is expected and can reduce intratesticular testosterone and sperm production'
         ]
       },
       {
         week: 8,
         benefits: [
-          'Muscle Density & Growth: Increases muscle protein synthesis, leading to visible changes in lean muscle density and mass',
-          'Fat Metabolism: Accelerates the breakdown of stored fat, particularly around the abdomen, and improves insulin sensitivity',
-          'Red Blood Cell Volume: Stimulates the bone marrow to produce more red blood cells, enhancing long-term cardiovascular stamina'
+          'Body-Composition Trend: Lean-mass and strength changes are gradual and depend heavily on training, nutrition, sleep, and staying in physiologic ranges',
+          'Erythropoiesis Signal: Hematocrit and hemoglobin can rise; erythrocytosis risk increases with higher exposure and injectable peaks',
+          'Risk Review: Reassess blood pressure, edema, sleep apnea, urinary symptoms, mood changes, gynecomastia, and thromboembolic warning symptoms'
         ]
       },
       {
         week: 12,
         benefits: [
-          'Peak Physical Adaptation: Achieves maximum cellular strength adaptation, resulting in peak muscle mass gains and physical performance',
-          'Bone Density Protection: Promotes calcium retention and bone mineral density support, reinforcing the skeletal system',
-          'Stable Endocrine Homeostasis: Re-establishes a stable physical and emotional baseline, maintaining sustained vigor, motivation, and recovery'
+          'Formal Follow-Up Window: Typical monitoring reassesses symptoms, adverse effects, testosterone concentration, hematocrit, blood pressure, and PSA/prostate-risk context when indicated',
+          'Dose Optimization: Aim for mid-normal physiologic serum testosterone rather than maximum tolerated dosing',
+          'Longer-Term Outcomes: Bone-density and durable body-composition endpoints require months to years, not a short 12-week performance-cycle interpretation'
         ]
       }
     ];
