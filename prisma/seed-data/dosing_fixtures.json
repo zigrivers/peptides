@@ -442,16 +442,58 @@
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "ANYTIME",
-      "timingNotes": "Intramuscular or subcutaneous injection for TRT.",
+      "timingNotes": "For injectable TRT, keep a consistent weekly total dose and draw follow-up testosterone labs at the route/formulation-appropriate interval. Smaller weekly or twice-weekly injections are commonly used to reduce peak/trough swings compared with large infrequent injections. Topical, nasal, oral undecanoate, pellet, and buccal products have different timing and monitoring rules.",
       "isFdaApproved": true,
-      "cycleRationale": "Testosterone Replacement Therapy (TRT) is a chronic treatment for hypogonadism, substituting deficient endogenous production with exogenous supply.",
-      "restPeriodRationale": "No washout is indicated for therapeutic TRT, as cessation will cause immediate HPTA suppression symptoms and return to hypogonadal baselines."
+      "cycleRationale": "Testosterone replacement therapy is not a finite performance cycle when used for confirmed male hypogonadism; it is a chronic replacement strategy intended to maintain physiologic serum testosterone while symptoms, hematocrit, blood pressure, fertility goals, and prostate-risk context remain acceptable.",
+      "restPeriodRationale": "No routine washout is indicated for therapeutic TRT. Stopping exogenous testosterone can allow a return toward the patient's hypogonadal baseline and may require clinician planning, especially when fertility recovery or adverse-effect management is the goal."
     },
     "citations": [
+      {
+        "title": "Testosterone Cypionate Injection prescribing information",
+        "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=6909596e-4bf7-4e11-8029-b89740a30aec"
+      },
       {
         "title": "Fundamental Concepts Regarding Testosterone Deficiency and Treatment: International Expert Consensus Resolutions",
         "doi": "10.1016/j.mayocp.2016.04.007",
         "pmid": "27313122"
+      },
+      {
+        "title": "Testosterone Therapy in Men With Hypogonadism: An Endocrine Society Clinical Practice Guideline",
+        "doi": "10.1210/jc.2018-00229",
+        "pmid": "29562364"
+      },
+      {
+        "title": "Evaluation and Management of Testosterone Deficiency: AUA Guideline",
+        "doi": "10.1016/j.juro.2018.03.115",
+        "pmid": "29601923"
+      },
+      {
+        "title": "Evaluation for and Management of Males with Low Testosterone Recommendations for Use",
+        "url": "https://www.va.gov/formularyadvisor/DOC_PDF/CRE_Testosterone_Replacement_Therapy_Clinical_Recommendations_Jan_2026.pdf"
+      },
+      {
+        "title": "Cardiovascular Safety of Testosterone-Replacement Therapy",
+        "doi": "10.1056/NEJMoa2215025",
+        "pmid": "37326322"
+      },
+      {
+        "title": "FDA Updates Testosterone Labeling for Blood Pressure and Cardiovascular Risks",
+        "doi": "10.1001/jama.2025.3240",
+        "pmid": "40184062"
+      },
+      {
+        "title": "Male hypogonadism: pathogenesis, diagnosis, and management",
+        "doi": "10.1016/S2213-8587(24)00199-2",
+        "pmid": "39159641"
+      },
+      {
+        "title": "Testosterone replacement therapy: a review of benefits and risks",
+        "doi": "10.2147/tcrm.s68932",
+        "pmid": "25484889"
+      },
+      {
+        "title": "Pharmacology of testosterone replacement therapy preparations",
+        "doi": "10.21037/tau.2016.07.10"
       }
     ]
   },
