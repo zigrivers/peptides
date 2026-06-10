@@ -97,7 +97,7 @@ describe('RegimenClient summary view', () => {
     expect(screen.queryByText('Regimen Refill Planner')).toBeNull();
   });
 
-  it('excludes inactive, future, and ended protocols from Summary', () => {
+  it('includes upcoming active protocols and excludes inactive and ended protocols from Summary', () => {
     renderRegimenClient({
       initialProtocols: [
         makeProtocol({ id: 'active-current', compound: { ...makeProtocol().compound, name: 'BPC-157' } }),
@@ -125,8 +125,9 @@ describe('RegimenClient summary view', () => {
     fireEvent.click(screen.getByRole('button', { name: /summary/i }));
 
     expect(screen.getByText('BPC-157')).toBeTruthy();
+    expect(screen.getByText('Tesamorelin')).toBeTruthy();
+    expect(screen.getByText('Starts Jun 20, 2026')).toBeTruthy();
     expect(screen.queryByText('TB-500')).toBeNull();
-    expect(screen.queryByText('Tesamorelin')).toBeNull();
     expect(screen.queryByText('GHK-Cu')).toBeNull();
   });
 
