@@ -95,7 +95,7 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
         <legend className="block text-sm font-medium text-foreground mb-2">Delivery channel</legend>
         <div className="space-y-2">
           {CHANNEL_OPTIONS.map((opt) => (
-            <label key={opt.value} className="flex items-start gap-2 cursor-pointer">
+            <label key={opt.value} className="flex min-h-9 items-start gap-2 rounded-md px-1 py-1 cursor-pointer hover:bg-muted/50">
               <input
                 type="radio"
                 name="channel"
@@ -112,7 +112,7 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
         </div>
       </fieldset>
 
-      <label className="flex items-center gap-2 cursor-pointer">
+      <label className="flex min-h-9 items-center gap-2 rounded-md px-1 cursor-pointer hover:bg-muted/50">
         <input
           type="checkbox"
           name="enabled"
@@ -122,7 +122,7 @@ export function RemindersForm({ action, initial, defaultTimezone, timezoneSugges
         <span className="text-sm text-foreground">Send daily reminders</span>
       </label>
 
-      <label className="flex items-center gap-2 cursor-pointer">
+      <label className="flex min-h-9 items-center gap-2 rounded-md px-1 cursor-pointer hover:bg-muted/50">
         <input
           type="checkbox"
           name="emailFallbackEnabled"

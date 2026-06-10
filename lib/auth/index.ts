@@ -8,23 +8,29 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/shared/prisma';
 import { authConfig } from './auth.config';
 import { PasswordHash } from './domain/PasswordHash';
+import { getGoogleOAuthCredentials } from './googleOAuth';
 import { AuthRepository } from './infrastructure/AuthRepository';
 
 // Pre-computed bcrypt hash (cost 12) used for constant-time response when no user is found.
 // Prevents timing-based user enumeration: bcryptjs short-circuits on an obviously invalid
 // hash, so using a real 60-char hash ensures comparable work to a real verify() call.
 const DUMMY_HASH = '$2b$12$uBubSQ6J8844KtMFcKvLsuIqchm3gaZe0Jt3VEbqY7KWYKvZWKvgG';
+const googleOAuthCredentials = getGoogleOAuthCredentials();
 
 export const authOptions: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),
   ...authConfig,
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      // Allow linking google login to email-created accounts (safe because we check verification)
-      allowDangerousEmailAccountLinking: true,
-    }),
+    ...(googleOAuthCredentials
+      ? [
+          Google({
+            clientId: googleOAuthCredentials.clientId,
+            clientSecret: googleOAuthCredentials.clientSecret,
+            // Allow linking google login to email-created accounts (safe because we check verification)
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
+      : []),
     Credentials({
       credentials: {
         email: { label: 'Email', type: 'email' },
@@ -225,6 +231,5 @@ export const authOptions: NextAuthConfig = {
 };
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
-
 
 

@@ -6,13 +6,13 @@ import { NextResponse } from 'next/server';
  * server to Web Push providers, but cannot be used to send messages without
  * the matching private key.
  *
- * Returns 503 when the env var is unset (dev or unconfigured CI) so the
- * client can fall back to email-only UX without throwing.
+ * Returns configured=false when the env var is unset (dev or unconfigured CI)
+ * so the client can fall back to email-only UX without browser console noise.
  */
 export async function GET() {
   const key = process.env.WEB_PUSH_PUBLIC_KEY;
   if (!key) {
-    return NextResponse.json({ error: 'web_push_not_configured' }, { status: 503 });
+    return NextResponse.json({ configured: false, publicKey: null });
   }
-  return NextResponse.json({ publicKey: key });
+  return NextResponse.json({ configured: true, publicKey: key });
 }

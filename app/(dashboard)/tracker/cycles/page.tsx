@@ -16,7 +16,10 @@ export default async function CyclesPage() {
   return (
     <main className="max-w-lg mx-auto px-4 py-8">
       <div className="flex items-center gap-2 mb-6">
-        <Link href="/tracker" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link
+          href="/tracker"
+          className="inline-flex min-h-9 items-center rounded-md px-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+        >
           ← Protocols
         </Link>
       </div>
@@ -25,7 +28,7 @@ export default async function CyclesPage() {
         <h1 className="text-xl font-semibold text-gray-900">Cycles</h1>
         <Link
           href="/tracker/cycles/new"
-          className="rounded-md bg-indigo-600 text-white px-3 py-1.5 text-sm font-semibold hover:bg-indigo-700 transition-colors"
+          className="inline-flex min-h-9 items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
         >
           + New Cycle
         </Link>
@@ -46,7 +49,10 @@ export default async function CyclesPage() {
       {cycles.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-gray-500 text-sm mb-4">No cycles yet.</p>
-          <Link href="/tracker/cycles/new" className="text-indigo-600 text-sm font-medium hover:underline">
+          <Link
+            href="/tracker/cycles/new"
+            className="inline-flex min-h-9 items-center rounded-md px-1 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+          >
             Create your first cycle →
           </Link>
         </div>

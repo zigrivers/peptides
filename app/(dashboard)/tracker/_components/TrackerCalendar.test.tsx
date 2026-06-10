@@ -207,6 +207,26 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     expect(screen.getByText('May 2026')).toBeDefined();
   });
 
+  it('renders calendar and inline dose actions as touch-sized controls', () => {
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Today' }).className).toContain('min-h-9');
+    expect(screen.getByLabelText('Previous Week').className).toContain('min-h-9');
+    expect(screen.getByLabelText('Next Week').className).toContain('min-h-9');
+
+    fireEvent.click(screen.getByLabelText(/May 24/));
+
+    expect(screen.getByRole('button', { name: 'Log Dose' }).className).toContain('min-h-9');
+    expect(screen.getByRole('button', { name: 'Skip' }).className).toContain('min-h-9');
+  });
+
   it('allows inline quick-logging of scheduled doses with site selection and notes', async () => {
     const mockLogDoseAction = vi.mocked(logDoseAction);
     mockLogDoseAction.mockResolvedValue({
@@ -747,10 +767,79 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     expect(screen.getByText('Week 2:')).toBeDefined();
     expect(screen.getByText('Initial gut mucosal adaptation')).toBeDefined();
   });
+
+  it('renders expected benefits milestones for logged continuous protocols', () => {
+    const testosteroneProtocol: Protocol = {
+      id: 'proto-testosterone',
+      userId: 'user-1',
+      compoundId: 'compound-testosterone',
+      cycleId: null,
+      dose: { amount: '30000', unit: 'mcg' },
+      schedule: { frequency: 'Daily' },
+      administrationRoute: 'INTRAMUSCULAR',
+      status: 'ACTIVE',
+      startDate: new Date('2026-05-01'),
+      endDate: null,
+      notes: null,
+    };
+
+    render(
+      <TrackerCalendar
+        protocols={[testosteroneProtocol]}
+        doseLogs={[
+          {
+            id: 'log-testosterone',
+            protocolId: 'proto-testosterone',
+            userId: 'user-1',
+            amount: { amount: '30000', unit: 'mcg' },
+            status: 'LOGGED',
+            loggedAt: '2026-05-25T08:00:00Z',
+            scheduledDate: '2026-05-25T00:00:00Z',
+            injectionSite: { side: 'right', bodyPart: 'thigh' },
+            note: null,
+            idempotencyKey: 'key-testosterone',
+            vialId: null,
+            isBatchLog: false,
+            loggedByUserId: null,
+            loggedCost: null,
+            loggedCurrency: null,
+          },
+        ]}
+        compounds={{
+          'compound-testosterone': {
+            name: 'Testosterone',
+            slug: 'testosterone',
+            profile: {
+              cycleLengthWeeks: null,
+              restPeriodWeeks: null,
+              benefitTimeline: [
+                { week: 1, benefits: ['Replacement onset'] },
+                { week: 4, benefits: ['Therapeutic response window'] },
+                { week: 8, benefits: ['Erythropoiesis signal'] },
+              ],
+            },
+          },
+        }}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/May 25/));
+    fireEvent.click(screen.getByRole('button', { name: /Testosterone/i }));
+
+    expect(screen.getByText('Continuous Protocol')).toBeDefined();
+    expect(screen.getByText('Expected Benefits (Week 4)')).toBeDefined();
+    expect(screen.getByText('Therapeutic response window')).toBeDefined();
+    expect(screen.getByText('Upcoming Milestones')).toBeDefined();
+    expect(screen.getByText('Week 8:')).toBeDefined();
+    expect(screen.getByText('Erythropoiesis signal')).toBeDefined();
+    expect(screen.getByText('Past Milestones')).toBeDefined();
+    expect(screen.getByText('Replacement onset')).toBeDefined();
+  });
 });
 
 describe('getWeekInfo Unit Tests', () => {
-  it('returns continuous info when cycleLengthWeeks is missing', () => {
+  it('returns continuous info with elapsed milestone timing when cycleLengthWeeks is missing', () => {
     const res = getWeekInfo(
       { startDate: '2026-05-01', endDate: null, cycleId: null },
       { cycleLengthWeeks: null },
@@ -759,11 +848,11 @@ describe('getWeekInfo Unit Tests', () => {
     );
     expect(res).toEqual({
       isContinuous: true,
-      weekNumber: 1,
+      weekNumber: 3,
       totalWeeks: 1,
       percent: null,
       restStartDate: null,
-      elapsedDays: 0,
+      elapsedDays: 14,
     });
   });
 

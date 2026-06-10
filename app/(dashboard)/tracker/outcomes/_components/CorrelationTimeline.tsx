@@ -99,7 +99,7 @@ export function CorrelationTimeline({ buckets }: Props) {
         ))}
       </svg>
       <details className="mt-3 text-xs">
-        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+        <summary className="inline-flex min-h-9 cursor-pointer items-center rounded-md px-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground">
           Show data table
         </summary>
         <table className="mt-2 w-full text-left text-xs">

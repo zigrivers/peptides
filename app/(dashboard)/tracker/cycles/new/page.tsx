@@ -10,7 +10,10 @@ export default async function NewCyclePage() {
   return (
     <main className="max-w-lg mx-auto px-4 py-8">
       <div className="flex items-center gap-2 mb-6">
-        <Link href="/tracker/cycles" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link
+          href="/tracker/cycles"
+          className="inline-flex min-h-9 items-center rounded-md px-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+        >
           ← Cycles
         </Link>
       </div>

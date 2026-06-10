@@ -283,7 +283,7 @@ export function DryInventoryList({
                                     e.stopPropagation();
                                     setDeletingVialId(null);
                                   }}
-                                  className="text-[9px] font-medium text-muted-foreground hover:bg-muted px-1 py-0.5 rounded transition-colors"
+                                  className="inline-flex min-h-8 min-w-8 items-center justify-center rounded text-[9px] font-medium text-muted-foreground transition-colors hover:bg-muted"
                                 >
                                   X
                                 </button>
@@ -292,7 +292,7 @@ export function DryInventoryList({
                               <button
                                 onClick={() => setDeletingVialId(v.id)}
                                 disabled={isPending}
-                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                                className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                                 title="Discard vial"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />

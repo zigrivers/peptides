@@ -178,6 +178,8 @@ export function DosingReconstitutionPlanner({
       return 0;
     }
   }, [drawUnitsDec, syringeUnits, isInvalidInput]);
+  const stopperX = 30 + 308 * plungerPositionPercent;
+  const plungerEndX = Math.min(438, Math.max(340, 336 + (340 - stopperX)));
 
   // Generate tick marks based on syringe sizes
   const ticks = useMemo(() => {
@@ -268,7 +270,7 @@ export function DosingReconstitutionPlanner({
                     value={customVial}
                     onChange={(e) => setCustomVial(e.target.value)}
                     placeholder="e.g. 5"
-                    className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-mono text-gray-800 dark:text-gray-200"
+                    className="w-full min-h-9 text-sm rounded-lg border border-border bg-card px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-mono text-gray-800 dark:text-gray-200"
                     min="0.1"
                     step="0.1"
                     id="custom-vial-input"
@@ -283,7 +285,7 @@ export function DosingReconstitutionPlanner({
                         setVialSizeMg(Number(e.target.value));
                       }
                     }}
-                    className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
+                    className="w-full min-h-9 text-sm rounded-lg border border-border bg-card px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
                     id="vial-size-select"
                   >
                     {isRoomTemp ? (
@@ -337,7 +339,7 @@ export function DosingReconstitutionPlanner({
                     value={customBac}
                     onChange={(e) => setCustomBac(e.target.value)}
                     placeholder="e.g. 2.0"
-                    className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-mono text-gray-800 dark:text-gray-200"
+                    className="w-full min-h-9 text-sm rounded-lg border border-border bg-card px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-mono text-gray-800 dark:text-gray-200"
                     min="0.1"
                     step="0.1"
                     id="custom-bac-input"
@@ -352,7 +354,7 @@ export function DosingReconstitutionPlanner({
                         setBacWaterMl(Number(e.target.value));
                       }
                     }}
-                    className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
+                    className="w-full min-h-9 text-sm rounded-lg border border-border bg-card px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
                     id="bac-water-select"
                   >
                     {isRoomTemp ? (
@@ -385,7 +387,7 @@ export function DosingReconstitutionPlanner({
                 <select
                   value={syringeUnits}
                   onChange={(e) => setSyringeUnits(Number(e.target.value))}
-                  className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
+                  className="w-full min-h-9 text-sm rounded-lg border border-border bg-card px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
                   id="syringe-size-select"
                 >
                   {[30, 50, 100].map((u) => (
@@ -410,7 +412,7 @@ export function DosingReconstitutionPlanner({
               <select
                 value={syringeStandard}
                 onChange={(e) => setSyringeStandard(e.target.value as 'U100' | 'U40')}
-                className="text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
+                className="min-h-9 text-sm rounded-lg border border-border bg-card px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
                 id="syringe-standard-select"
               >
                 <option value="U100">U-100 Insulin Syringe</option>
@@ -523,9 +525,9 @@ export function DosingReconstitutionPlanner({
                 {/* Plunger Shaft & Rubber Stopper tip */}
                 {/* Shaft */}
                 <rect
-                  x={30 + 308 * plungerPositionPercent}
+                  x={stopperX}
                   y="36"
-                  width={340 - (30 + 308 * plungerPositionPercent)}
+                  width={plungerEndX - stopperX}
                   height="8"
                   fill="url(#plungerGrad)"
                   style={{ transition: 'x 0.3s ease-in-out, width 0.3s ease-in-out' }}
@@ -533,7 +535,7 @@ export function DosingReconstitutionPlanner({
                 
                 {/* Rubber Stopper black tip */}
                 <rect
-                  x={24 + 308 * plungerPositionPercent}
+                  x={stopperX - 6}
                   y="21"
                   width="8"
                   height="38"
@@ -544,7 +546,7 @@ export function DosingReconstitutionPlanner({
 
                 {/* Plunger thumb rest/handle on the right */}
                 <rect
-                  x={336 + (340 - (30 + 308 * plungerPositionPercent))}
+                  x={plungerEndX}
                   y="15"
                   width="6"
                   height="50"

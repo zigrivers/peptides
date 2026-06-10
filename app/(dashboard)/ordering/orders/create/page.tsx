@@ -172,7 +172,10 @@ export default async function CreateOrderPage() {
   return (
     <main className="max-w-4xl mx-auto px-4 py-8 animate-page-enter">
       <div className="mb-6">
-        <Link href="/ordering" className="text-sm text-primary hover:underline">
+        <Link
+          href="/ordering"
+          className="inline-flex min-h-9 items-center rounded-md px-1 text-sm text-primary hover:bg-primary/10"
+        >
           ← Back to Vendors
         </Link>
         <h1 className="text-2xl font-semibold text-foreground mt-2">Create Order</h1>

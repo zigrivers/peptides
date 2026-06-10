@@ -82,15 +82,15 @@ export default async function OutcomesPage({ searchParams }: PageProps) {
           <h2 id="correlation-heading" className="text-sm font-semibold text-gray-900">
             Dose × outcome correlation
           </h2>
-          <nav className="text-xs">
+          <nav className="flex items-center gap-1 text-xs">
             <Link
-              className={`mr-3 ${windowDays === 30 ? 'font-semibold text-indigo-600' : 'text-gray-600 hover:text-gray-900'}`}
+              className={`inline-flex min-h-9 items-center rounded-md px-2 ${windowDays === 30 ? 'font-semibold text-indigo-600 bg-indigo-50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}`}
               href="/tracker/outcomes?window=30"
             >
               30 days
             </Link>
             <Link
-              className={windowDays === 90 ? 'font-semibold text-indigo-600' : 'text-gray-600 hover:text-gray-900'}
+              className={`inline-flex min-h-9 items-center rounded-md px-2 ${windowDays === 90 ? 'font-semibold text-indigo-600 bg-indigo-50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}`}
               href="/tracker/outcomes?window=90"
             >
               90 days

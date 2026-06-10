@@ -231,7 +231,7 @@ export function VialInventory({ vials, isRoomTemp = false }: Props) {
                         setDeletingVialId(vial.id);
                       }}
                       disabled={isPending}
-                      className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                       title="Discard vial"
                     >
                       <Trash2 className="h-3.5 w-3.5" />

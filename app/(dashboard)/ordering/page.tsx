@@ -12,12 +12,12 @@ export default async function OrderingPage() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-8 animate-page-enter">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold text-foreground">Vendors</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Link
             href="/ordering/orders"
-            className="text-sm font-medium text-primary hover:underline mr-1"
+            className="mr-1 inline-flex min-h-9 items-center rounded-md px-1 text-sm font-medium text-primary hover:bg-primary/10"
           >
             Order History
           </Link>
@@ -39,7 +39,10 @@ export default async function OrderingPage() {
       {vendors.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-muted-foreground text-sm mb-4">No vendors configured yet.</p>
-          <Link href="/ordering/new" className="text-primary text-sm font-medium hover:underline">
+          <Link
+            href="/ordering/new"
+            className="inline-flex min-h-9 items-center rounded-md px-1 text-sm font-medium text-primary hover:bg-primary/10"
+          >
             Add your first vendor →
           </Link>
         </div>

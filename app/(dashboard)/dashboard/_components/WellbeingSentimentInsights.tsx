@@ -51,45 +51,49 @@ export function WellbeingSentimentInsights({ insights }: Props) {
         </div>
 
         {/* Tab Controls */}
-        <div className="flex bg-muted/60 p-0.5 rounded-lg border border-border/50 self-start sm:self-auto">
+        <div className="flex bg-muted/60 p-1 rounded-xl border border-border/50 self-start sm:self-auto">
           <button
+            type="button"
             onClick={() => setActiveTab('overview')}
-            className={`p-1.5 text-xs font-semibold rounded-md transition-all duration-150 flex items-center gap-1 ${
+            className={`min-h-9 min-w-9 px-2 text-xs font-semibold rounded-lg transition-all duration-150 flex items-center justify-center gap-1 ${
               activeTab === 'overview' ? 'bg-white dark:bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'
             }`}
             aria-label="Overview"
           >
-            <Smile className="w-3.5 h-3.5" />
+            <Smile className="w-4 h-4" />
             <span className="hidden md:inline">Overview</span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('compounds')}
-            className={`p-1.5 text-xs font-semibold rounded-md transition-all duration-150 flex items-center gap-1 ${
+            className={`min-h-9 min-w-9 px-2 text-xs font-semibold rounded-lg transition-all duration-150 flex items-center justify-center gap-1 ${
               activeTab === 'compounds' ? 'bg-white dark:bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'
             }`}
             aria-label="Compound Correlations"
           >
-            <BarChart2 className="w-3.5 h-3.5" />
+            <BarChart2 className="w-4 h-4" />
             <span className="hidden md:inline">Compounds</span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('tags')}
-            className={`p-1.5 text-xs font-semibold rounded-md transition-all duration-150 flex items-center gap-1 ${
+            className={`min-h-9 min-w-9 px-2 text-xs font-semibold rounded-lg transition-all duration-150 flex items-center justify-center gap-1 ${
               activeTab === 'tags' ? 'bg-white dark:bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'
             }`}
             aria-label="Tag Frequencies"
           >
-            <Tag className="w-3.5 h-3.5" />
+            <Tag className="w-4 h-4" />
             <span className="hidden md:inline">Tags</span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('notes')}
-            className={`p-1.5 text-xs font-semibold rounded-md transition-all duration-150 flex items-center gap-1 ${
+            className={`min-h-9 min-w-9 px-2 text-xs font-semibold rounded-lg transition-all duration-150 flex items-center justify-center gap-1 ${
               activeTab === 'notes' ? 'bg-white dark:bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'
             }`}
             aria-label="Recent Notes"
           >
-            <FileText className="w-3.5 h-3.5" />
+            <FileText className="w-4 h-4" />
             <span className="hidden md:inline">Notes</span>
           </button>
         </div>

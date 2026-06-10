@@ -100,7 +100,10 @@ function InvalidInvite({
           Ask your administrator to send a new invitation.
         </p>
       )}
-      <Link href="/login" className="text-sm text-primary hover:underline font-medium">
+      <Link
+        href="/login"
+        className="inline-flex min-h-9 items-center rounded-md px-1 text-sm font-medium text-primary hover:bg-primary/10"
+      >
         ← Back to sign in
       </Link>
     </main>

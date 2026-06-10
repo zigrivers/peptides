@@ -28,6 +28,19 @@ describe('DosingReconstitutionPlanner Client Component', () => {
     expect(unitsText?.textContent?.trim()).toBe('20.0 Units');
   });
 
+  it('keeps the syringe thumb rest inside the SVG viewBox on the default mobile-visible dose', () => {
+    const { container } = render(<DosingReconstitutionPlanner {...defaultProps} />);
+
+    const svg = container.querySelector('svg[viewBox="0 0 450 80"]');
+    const thumbRest = svg?.querySelector('rect[width="6"][height="50"]');
+
+    expect(thumbRest).toBeTruthy();
+    const x = Number(thumbRest?.getAttribute('x'));
+    const width = Number(thumbRest?.getAttribute('width'));
+
+    expect(x + width).toBeLessThanOrEqual(450);
+  });
+
   it('re-calculates correctly when Low tier is clicked', () => {
     const { container } = render(<DosingReconstitutionPlanner {...defaultProps} />);
 
