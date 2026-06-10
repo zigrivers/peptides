@@ -702,18 +702,16 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
         </div>
 
         {viewMode === 'cards' && (
-          <div className="flex items-center gap-2">
+          <label htmlFor="show-deactivated" className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-1 text-sm text-gray-700 dark:text-gray-300">
             <input
               id="show-deactivated"
               type="checkbox"
               checked={showDeactivated}
               onChange={(e) => setShowDeactivated(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 dark:border-gray-800 text-primary focus:ring-primary"
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-800"
             />
-            <label htmlFor="show-deactivated" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
               Show deactivated protocols
-            </label>
-          </div>
+          </label>
         )}
       </div>
 
@@ -965,8 +963,8 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
                 </div>
 
                 {/* Protocol Card Bottom Actions */}
-                <div className="bg-gray-50 dark:bg-gray-900/60 px-6 py-4 flex items-center justify-between gap-4 border-t border-gray-100 dark:border-gray-900">
-                  <div className="flex gap-2">
+                <div className="bg-gray-50 dark:bg-gray-900/60 px-6 py-4 flex flex-col gap-3 border-t border-gray-100 dark:border-gray-900 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <div className="flex flex-wrap gap-2">
                     {p.status === 'ACTIVE' && (
                       <button
                         onClick={() => handlePause(p.id)}
@@ -1006,7 +1004,7 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
 
                   <Link
                     href={`/tracker/protocols/new?cloneFrom=${p.id}`}
-                    className="inline-flex min-h-9 items-center rounded-md px-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 hover:text-primary/95"
+                    className="inline-flex min-h-9 items-center self-start rounded-md px-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 hover:text-primary/95 sm:self-auto"
                   >
                     Clone Protocol
                   </Link>

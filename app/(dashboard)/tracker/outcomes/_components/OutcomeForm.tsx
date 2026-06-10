@@ -185,7 +185,7 @@ export function OutcomeForm({
                   type="button"
                   onClick={() => toggleTag(tag)}
                   aria-label={`Remove tag ${tag}`}
-                  className="-mr-2 inline-flex min-h-8 min-w-8 items-center justify-center rounded-full text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900"
+                  className="-mr-2 inline-flex min-h-9 min-w-9 items-center justify-center rounded-full text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900"
                 >
                   ×
                 </button>

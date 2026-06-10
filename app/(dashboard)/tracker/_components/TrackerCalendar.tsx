@@ -876,7 +876,8 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
       </div>
 
       {/* Week Grid */}
-      <div className={`grid grid-cols-7 gap-2 transition-opacity duration-200 ${isRescheduling ? 'opacity-60' : ''}`}>
+      <div className="overflow-x-auto pb-2">
+        <div className={`grid min-w-[560px] grid-cols-7 gap-2 transition-opacity duration-200 sm:min-w-0 ${isRescheduling ? 'opacity-60' : ''}`}>
         {cells.map(({ date, dateStr, events }) => {
           const isToday = dateStr === todayStr;
           const isSelected = isBulkMode ? selectedDates.includes(dateStr) : selectedDateStr === dateStr;
@@ -1001,6 +1002,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Daily Action Panel for Selected Date */}
@@ -1270,7 +1272,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                             placeholder="e.g. slight fatigue, felt good"
                             value={editNotes[e.id] ?? ''}
                             onChange={(evt) => setEditNotes((prev) => ({ ...prev, [e.id]: evt.target.value }))}
-                            className="w-full text-xs rounded-lg border border-input bg-background px-3 py-2 text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none"
+                            className="w-full min-h-9 text-xs rounded-lg border border-input bg-background px-3 py-2 text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none"
                             disabled={isLogPending}
                           />
                         </div>

@@ -176,7 +176,7 @@ export function BatchLogReview({ items, compoundNames }: Props) {
 
           return (
             <li key={item.protocol.id} className={`rounded-lg border px-3 py-2 ${state === 'failed' ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'}`}>
-              <label className="flex items-start gap-3 cursor-pointer">
+              <label className="flex min-h-9 items-start gap-3 rounded-md px-1 py-1 cursor-pointer hover:bg-muted/40">
                 <input
                   type="checkbox"
                   className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"

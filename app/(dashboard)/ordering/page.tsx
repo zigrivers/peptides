@@ -12,9 +12,9 @@ export default async function OrderingPage() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-8 animate-page-enter">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold text-foreground">Vendors</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Link
             href="/ordering/orders"
             className="mr-1 inline-flex min-h-9 items-center rounded-md px-1 text-sm font-medium text-primary hover:bg-primary/10"
