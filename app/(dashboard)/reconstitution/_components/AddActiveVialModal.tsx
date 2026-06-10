@@ -28,6 +28,19 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
     setIsMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!isMounted) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isMounted, onClose]);
+
   const selectedCompound = compounds.find((c) => c.id === compoundId) ?? null;
   const profile = selectedCompound?.profile ?? null;
   const reconstitutedShelfLifeDays = profile?.reconstitutedShelfLifeDays ?? 14;
@@ -102,15 +115,21 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
   if (!isMounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/20 dark:border-slate-800/40 bg-white/10 dark:bg-slate-950/20 backdrop-blur-xl shadow-2xl animate-scale-in">
-        
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 bg-background/80 backdrop-blur-md animate-fade-in">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-active-vial-title"
+        className="relative w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-white/20 dark:border-slate-800/40 bg-white/10 dark:bg-slate-950/20 backdrop-blur-xl shadow-2xl animate-scale-in"
+      >
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-2">
               <Thermometer className="h-5 w-5 text-emerald-400" />
               <div>
-                <h2 className="text-base font-bold text-foreground">Add Reconstituted Vial</h2>
+                <h2 id="add-active-vial-title" className="text-base font-bold text-foreground">
+                  Add Reconstituted Vial
+                </h2>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   {isRoomTemp
                     ? 'Directly record an active pre-mixed vial stored at room temperature.'
@@ -121,6 +140,7 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close add reconstituted vial dialog"
               className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <X className="h-4 w-4" />

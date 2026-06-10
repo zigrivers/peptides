@@ -54,6 +54,18 @@ function expectedDateInputValue(daysFromToday: number) {
 }
 
 describe('AddActiveVialModal', () => {
+  it('exposes dialog semantics and closes on Escape', async () => {
+    const onClose = vi.fn();
+
+    render(<AddActiveVialModal compounds={[compound]} onClose={onClose} />);
+
+    expect(await screen.findByRole('dialog', { name: /add reconstituted vial/i })).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('defaults the refrigerator expiration date to the calculated stability date', async () => {
     vi.mocked(addReconstitutedVialAction).mockResolvedValue({ ok: true });
 
