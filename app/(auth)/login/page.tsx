@@ -1,4 +1,5 @@
 import { LoginForm } from './_components/LoginForm';
+import { isGoogleOAuthConfigured } from '@/lib/auth/googleOAuth';
 
 interface PageProps {
   searchParams: Promise<{
@@ -15,6 +16,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
   const accepted = params.accepted === '1';
   const deletionScheduled = params.deletionScheduled === '1';
   const callbackUrl = params.callbackUrl;
+  const googleEnabled = isGoogleOAuthConfigured();
 
   return (
     <main className="min-h-screen relative flex flex-col items-center justify-center p-4 overflow-hidden bg-gradient-to-b from-background via-background to-muted/10">
@@ -68,7 +70,12 @@ export default async function LoginPage({ searchParams }: PageProps) {
 
         {/* Styled Glassmorphic Login Card */}
         <div className="bg-card/75 backdrop-blur-md border border-border/80 rounded-2xl shadow-xl p-8 space-y-6">
-          <LoginForm key={email} initialEmail={email} callbackUrl={callbackUrl} />
+          <LoginForm
+            key={email}
+            initialEmail={email}
+            callbackUrl={callbackUrl}
+            googleEnabled={googleEnabled}
+          />
         </div>
       </div>
     </main>
