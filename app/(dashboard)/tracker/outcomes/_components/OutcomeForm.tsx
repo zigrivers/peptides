@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import React, { useActionState, useState } from 'react';
 import type { LogOutcomeActionState } from '@/app/actions/tracker/log-outcome';
 
 interface ExistingOutcome {
@@ -113,7 +113,7 @@ export function OutcomeForm({
               type="button"
               onClick={() => setRating(value)}
               aria-pressed={rating === value}
-              className={`flex-1 rounded-md border px-3 py-2 text-sm transition-colors ${
+              className={`min-h-10 min-w-10 flex-1 rounded-md border px-3 py-2 text-sm transition-colors ${
                 rating === value
                   ? 'bg-indigo-600 text-white border-indigo-600'
                   : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -138,7 +138,7 @@ export function OutcomeForm({
                 type="button"
                 onClick={() => toggleTag(tag)}
                 aria-pressed={tags.includes(tag)}
-                className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                className={`min-h-9 rounded-full border px-3 py-2 text-xs transition-colors ${
                   tags.includes(tag)
                     ? 'bg-indigo-100 text-indigo-900 border-indigo-300'
                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -168,7 +168,7 @@ export function OutcomeForm({
           <button
             type="button"
             onClick={addTag}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            className="min-h-10 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
           >
             Add
           </button>
@@ -185,7 +185,7 @@ export function OutcomeForm({
                   type="button"
                   onClick={() => toggleTag(tag)}
                   aria-label={`Remove tag ${tag}`}
-                  className="text-indigo-700 hover:text-indigo-900"
+                  className="-mr-2 inline-flex min-h-8 min-w-8 items-center justify-center rounded-full text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900"
                 >
                   ×
                 </button>
@@ -227,7 +227,7 @@ export function OutcomeForm({
                       type="button"
                       onClick={() => setRatingFor(p.id, value)}
                       aria-pressed={protocolRatings[p.id] === value}
-                      className={`w-8 h-8 rounded text-xs ${
+                      className={`min-h-10 min-w-10 rounded text-xs ${
                         protocolRatings[p.id] === value
                           ? 'bg-indigo-600 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -257,7 +257,7 @@ export function OutcomeForm({
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="min-h-10 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isPending ? 'Saving…' : existingOutcome ? 'Update outcome' : 'Save outcome'}
       </button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   archiveVendorProductAction,
@@ -137,15 +137,17 @@ export function ProductList({ products, vendorId }: Props) {
                   {p.inStock && (
                     <>
                       <button
+                        type="button"
                         onClick={() => startEdit(p)}
-                        className="text-xs text-primary hover:text-primary/80"
+                        className="min-h-9 inline-flex items-center rounded-md px-2 text-xs font-semibold text-primary hover:bg-primary/10 hover:text-primary/80"
                       >
                         Edit
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleArchive(p.id)}
                         disabled={archivingId === p.id}
-                        className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
+                        className="min-h-9 inline-flex items-center rounded-md px-2 text-xs font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive/80 disabled:opacity-50"
                       >
                         {archivingId === p.id ? 'Archiving…' : 'Archive'}
                       </button>

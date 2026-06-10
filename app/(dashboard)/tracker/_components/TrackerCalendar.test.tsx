@@ -207,6 +207,26 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     expect(screen.getByText('May 2026')).toBeDefined();
   });
 
+  it('renders calendar and inline dose actions as touch-sized controls', () => {
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Today' }).className).toContain('min-h-9');
+    expect(screen.getByLabelText('Previous Week').className).toContain('min-h-9');
+    expect(screen.getByLabelText('Next Week').className).toContain('min-h-9');
+
+    fireEvent.click(screen.getByLabelText(/May 24/));
+
+    expect(screen.getByRole('button', { name: 'Log Dose' }).className).toContain('min-h-9');
+    expect(screen.getByRole('button', { name: 'Skip' }).className).toContain('min-h-9');
+  });
+
   it('allows inline quick-logging of scheduled doses with site selection and notes', async () => {
     const mockLogDoseAction = vi.mocked(logDoseAction);
     mockLogDoseAction.mockResolvedValue({

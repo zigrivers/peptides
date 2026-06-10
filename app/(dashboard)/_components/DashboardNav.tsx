@@ -103,8 +103,8 @@ export function DashboardNav({ orderingEnabled, hasUnloggedDoses = false }: Dash
             Peptides
           </span>
         </Link>
-        <div className="scale-90 origin-right">
-          <ThemeSwitcher />
+        <div className="flex items-center">
+          <ThemeSwitcher variant="popover" />
         </div>
       </header>
 

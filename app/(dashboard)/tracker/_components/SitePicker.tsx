@@ -239,8 +239,8 @@ export function SitePicker({ siteData, selectedSite, onSelect }: SitePickerProps
                   onClick={() => onSelect(site)}
                   className="outline-none group/hotspot cursor-pointer body-hotspot"
                 >
-                  {/* Invisible 40px outer touch target */}
-                  <circle cx={cx} cy={cy} r="20" className="fill-transparent" />
+                  {/* Invisible touch target, scaled by the SVG viewport on mobile. */}
+                  <circle cx={cx} cy={cy} r="25" style={{ fill: 'rgba(0, 0, 0, 0.001)' }} />
                   
                   {/* Outer pulse for suggested */}
                   {isSuggested && (
@@ -332,7 +332,7 @@ export function SitePicker({ siteData, selectedSite, onSelect }: SitePickerProps
                   type="button"
                   onClick={() => onSelect(site)}
                   aria-pressed={isSelected}
-                  className={`flex flex-col items-start px-2 py-1.5 rounded border text-left text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 outline-none ${
+                  className={`min-h-11 flex flex-col items-start px-3 py-2 rounded border text-left text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 outline-none ${
                     isThisSiteConflict
                       ? 'border-destructive bg-destructive/10 text-destructive font-semibold'
                       : isSelected

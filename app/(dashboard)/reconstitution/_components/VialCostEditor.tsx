@@ -137,11 +137,11 @@ export function VialCostEditor({ vial, editLabel }: Props) {
           setError(null);
           setIsEditing(true);
         }}
-        className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+        className="min-h-9 min-w-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
         aria-label={editLabel}
         title={editLabel}
       >
-        <Pencil className="h-3 w-3" />
+        <Pencil className="h-3.5 w-3.5" />
       </button>
     </div>
   );

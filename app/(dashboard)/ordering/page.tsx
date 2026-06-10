@@ -17,7 +17,7 @@ export default async function OrderingPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/ordering/orders"
-            className="text-sm font-medium text-primary hover:underline mr-1"
+            className="mr-1 inline-flex min-h-9 items-center rounded-md px-1 text-sm font-medium text-primary hover:bg-primary/10"
           >
             Order History
           </Link>
@@ -39,7 +39,10 @@ export default async function OrderingPage() {
       {vendors.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-muted-foreground text-sm mb-4">No vendors configured yet.</p>
-          <Link href="/ordering/new" className="text-primary text-sm font-medium hover:underline">
+          <Link
+            href="/ordering/new"
+            className="inline-flex min-h-9 items-center rounded-md px-1 text-sm font-medium text-primary hover:bg-primary/10"
+          >
             Add your first vendor →
           </Link>
         </div>

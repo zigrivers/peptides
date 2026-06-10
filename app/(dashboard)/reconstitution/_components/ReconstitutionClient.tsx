@@ -147,18 +147,18 @@ export function ReconstitutionClient({
 
       {/* View toggle: By storage ↔ By compound */}
       <div className="flex items-center justify-center">
-        <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5 text-sm font-semibold">
+        <div className="inline-flex rounded-lg border border-border bg-muted/30 p-1 text-sm font-semibold">
           <button
             type="button"
             onClick={() => setViewMode('storage')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors ${viewMode === 'storage' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+            className={`min-h-9 flex items-center gap-1.5 px-3 py-2 rounded-md transition-colors ${viewMode === 'storage' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
           >
             <LayoutGrid className="h-4 w-4" /> By storage
           </button>
           <button
             type="button"
             onClick={() => setViewMode('compound')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors ${viewMode === 'compound' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+            className={`min-h-9 flex items-center gap-1.5 px-3 py-2 rounded-md transition-colors ${viewMode === 'compound' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
           >
             <Boxes className="h-4 w-4" /> By compound
           </button>
@@ -189,21 +189,21 @@ export function ReconstitutionClient({
               <button
                 type="button"
                 onClick={() => setStorageFilter('all')}
-                className={`px-3 py-1.5 rounded-md transition-colors ${storageFilter === 'all' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`min-h-9 px-3 py-2 rounded-md transition-colors ${storageFilter === 'all' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 All
               </button>
               <button
                 type="button"
                 onClick={() => setStorageFilter('fridge')}
-                className={`px-3 py-1.5 rounded-md transition-colors ${storageFilter === 'fridge' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`min-h-9 px-3 py-2 rounded-md transition-colors ${storageFilter === 'fridge' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Fridge ({coldActiveVials.length})
               </button>
               <button
                 type="button"
                 onClick={() => setStorageFilter('freezer')}
-                className={`px-3 py-1.5 rounded-md transition-colors ${storageFilter === 'freezer' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`min-h-9 px-3 py-2 rounded-md transition-colors ${storageFilter === 'freezer' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Freezer ({coldDryVials.length})
               </button>
@@ -211,7 +211,7 @@ export function ReconstitutionClient({
                 <button
                   type="button"
                   onClick={() => setStorageFilter('room_temp')}
-                  className={`px-3 py-1.5 rounded-md transition-colors ${storageFilter === 'room_temp' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`min-h-9 px-3 py-2 rounded-md transition-colors ${storageFilter === 'room_temp' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   Room Temp ({roomTempActiveVials.length + roomTempDryVials.length})
                 </button>

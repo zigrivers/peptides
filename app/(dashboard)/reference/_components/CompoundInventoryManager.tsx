@@ -287,7 +287,7 @@ export function CompoundInventoryManager({
             clearMessages();
             setShowAddForm(!showAddForm);
           }}
-          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1 transition-all active:scale-95 shadow-sm"
+          className="flex min-h-9 items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-95"
         >
           {showAddForm ? <ChevronUp className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
           {showAddForm ? 'Close' : 'Add Vials'}
@@ -739,14 +739,14 @@ export function CompoundInventoryManager({
                               setEditingVialId(vial.id);
                               setEditRemainingMg(vial.remainingMg);
                             }}
-                            className="p-1.5 bg-secondary hover:bg-secondary-foreground/10 text-foreground border border-border rounded-lg flex items-center gap-1 text-[10px] font-bold"
+                            className="flex min-h-9 items-center gap-1 rounded-lg border border-border bg-secondary px-3 py-2 text-[10px] font-bold text-foreground hover:bg-secondary-foreground/10"
                             title="Edit quantity"
                           >
                             <Edit2 className="h-3 w-3" /> Edit Mg
                           </button>
                           <button
                             onClick={() => handleDeleteVial(vial.id)}
-                            className="p-1.5 bg-secondary hover:bg-red-500/10 hover:text-red-500 text-muted-foreground border border-border rounded-lg"
+                            className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-border bg-secondary p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
                             title="Delete vial"
                           >
                             <Trash2 className="h-3 w-3" />
