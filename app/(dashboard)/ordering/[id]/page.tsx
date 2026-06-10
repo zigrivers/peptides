@@ -30,7 +30,7 @@ export default async function VendorDetailPage({ params }: Props) {
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 space-y-8 animate-page-enter">
       <div>
-        <Link href="/ordering" className="text-sm text-primary hover:underline">
+        <Link href="/ordering" className="inline-flex min-h-9 items-center rounded-md px-1 text-sm text-primary hover:bg-primary/10 hover:underline">
           ← Back to Vendors
         </Link>
         <div className="flex items-start justify-between mt-2">

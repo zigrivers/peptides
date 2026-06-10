@@ -76,4 +76,28 @@ describe('DoseOutcomeChart Component Interactive clicks', () => {
 
     expect(handleSelectDate).toHaveBeenCalled();
   });
+
+  it('contains the wide mobile chart inside a clipped horizontal scroller', () => {
+    render(
+      <DoseOutcomeChart
+        doseLogs={mockDoseLogs}
+        outcomeLogs={mockOutcomeLogs}
+        compounds={mockCompounds}
+        referenceDate="2026-05-24"
+      />
+    );
+
+    const chart = screen.getByRole('graphics-document', {
+      name: /dosage and rating correlation graph/i,
+    });
+    const chartWidthLayer = chart.parentElement;
+    const scrollLayer = chartWidthLayer?.parentElement;
+    const clippingLayer = scrollLayer?.parentElement;
+
+    expect(chart.getAttribute('class')).toContain('w-full');
+    expect(chart.getAttribute('class')).not.toContain('min-w');
+    expect(chartWidthLayer?.getAttribute('class')).toContain('w-[680px]');
+    expect(scrollLayer?.getAttribute('class')).toContain('overflow-x-auto');
+    expect(clippingLayer?.getAttribute('class')).toContain('overflow-hidden');
+  });
 });

@@ -49,6 +49,31 @@ describe('ThemeSwitcher Component', () => {
     expect(screen.getByLabelText('Accent Indigo')).toBeDefined();
   });
 
+  it('renders touch-sized controls for mobile use', () => {
+    render(<ThemeSwitcher />);
+
+    expect(screen.getByLabelText('Light Theme').className).toContain('min-h-9');
+    expect(screen.getByLabelText('Dark Theme').className).toContain('min-h-9');
+    expect(screen.getByLabelText('System Theme').className).toContain('min-h-9');
+    expect(screen.getByLabelText('Accent Indigo').className).toContain('h-9');
+    expect(screen.getByLabelText('Accent Indigo').className).toContain('w-9');
+  });
+
+  it('renders a compact popover variant for constrained mobile headers', () => {
+    render(<ThemeSwitcher variant="popover" />);
+
+    const trigger = screen.getByLabelText('Customize appearance');
+    expect(trigger).toBeDefined();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByLabelText('Light Theme')).toBeNull();
+
+    fireEvent.click(trigger);
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByLabelText('Light Theme')).toBeDefined();
+    expect(screen.getByLabelText('Accent Indigo')).toBeDefined();
+  });
+
   it('synchronizes cookies with DOM attributes on mount', () => {
     render(<ThemeSwitcher />);
     expect(document.cookie).toContain('theme=system');
@@ -137,5 +162,28 @@ describe('ThemeSwitcher Component', () => {
         }),
       })
     );
+  });
+
+  it('does not sync on unmount when preferences have not changed', () => {
+    const { unmount } = render(<ThemeSwitcher />);
+
+    unmount();
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('does not log expected keepalive aborts during navigation', async () => {
+    mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { unmount } = render(<ThemeSwitcher />);
+
+    fireEvent.click(screen.getByLabelText('Dark Theme'));
+    unmount();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 });

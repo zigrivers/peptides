@@ -42,7 +42,7 @@ export function InventoryDashboard({
   return (
     <div className="space-y-6">
       {/* Action header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/5 dark:bg-black/10 backdrop-blur-md border border-white/10 p-5 rounded-2xl shadow-sm">
+      <div className="flex flex-col justify-between items-start gap-4 bg-white/5 dark:bg-black/10 backdrop-blur-md border border-white/10 p-5 rounded-2xl shadow-sm lg:flex-row lg:items-center">
         <div className="min-w-0">
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Compound Inventory</h1>
           <p className="text-xs text-muted-foreground mt-1 max-w-md">
@@ -51,25 +51,25 @@ export function InventoryDashboard({
               : 'Manage your freezer storage (dry powder) and refrigerator storage (active reconstituted vials).'}
           </p>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto">
           <button
             onClick={onToggleSound}
             type="button"
-            className="p-2 border border-border bg-white/5 dark:bg-black/10 rounded-xl text-muted-foreground hover:text-foreground transition-all duration-200"
+            className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-xl border border-border bg-white/5 p-2 text-muted-foreground transition-all duration-200 hover:text-foreground dark:bg-black/10"
             title={soundEnabled ? 'Mute sound effects' : 'Unmute sound effects'}
           >
             {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </button>
           <button
             onClick={onAddDry}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold border border-sky-400/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-700 dark:text-sky-300 rounded-xl transition-all duration-200"
+            className="flex min-h-9 min-w-[10rem] flex-1 items-center justify-center gap-1.5 rounded-xl border border-sky-400/30 bg-sky-500/10 px-4 py-2 text-xs font-bold text-sky-700 transition-all duration-200 hover:bg-sky-500/20 dark:text-sky-300 lg:flex-none"
           >
             <Snowflake className="h-3.5 w-3.5" />
             + Add Dry Vials
           </button>
           <button
             onClick={onAddActive}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold bg-primary hover:bg-primary/95 text-primary-foreground rounded-xl shadow-md transition-all duration-200"
+            className="flex min-h-9 min-w-[10rem] flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-md transition-all duration-200 hover:bg-primary/95 lg:flex-none"
           >
             <Beaker className="h-3.5 w-3.5" />
             + Add Reconstituted

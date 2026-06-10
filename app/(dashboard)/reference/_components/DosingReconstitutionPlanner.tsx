@@ -268,7 +268,7 @@ export function DosingReconstitutionPlanner({
                     value={customVial}
                     onChange={(e) => setCustomVial(e.target.value)}
                     placeholder="e.g. 5"
-                    className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-mono text-gray-800 dark:text-gray-200"
+                    className="w-full min-h-9 text-sm rounded-lg border border-border bg-card px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-mono text-gray-800 dark:text-gray-200"
                     min="0.1"
                     step="0.1"
                     id="custom-vial-input"
@@ -283,7 +283,7 @@ export function DosingReconstitutionPlanner({
                         setVialSizeMg(Number(e.target.value));
                       }
                     }}
-                    className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
+                    className="w-full min-h-9 text-sm rounded-lg border border-border bg-card px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
                     id="vial-size-select"
                   >
                     {isRoomTemp ? (
@@ -337,7 +337,7 @@ export function DosingReconstitutionPlanner({
                     value={customBac}
                     onChange={(e) => setCustomBac(e.target.value)}
                     placeholder="e.g. 2.0"
-                    className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-mono text-gray-800 dark:text-gray-200"
+                    className="w-full min-h-9 text-sm rounded-lg border border-border bg-card px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-mono text-gray-800 dark:text-gray-200"
                     min="0.1"
                     step="0.1"
                     id="custom-bac-input"
@@ -352,7 +352,7 @@ export function DosingReconstitutionPlanner({
                         setBacWaterMl(Number(e.target.value));
                       }
                     }}
-                    className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
+                    className="w-full min-h-9 text-sm rounded-lg border border-border bg-card px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
                     id="bac-water-select"
                   >
                     {isRoomTemp ? (
@@ -385,7 +385,7 @@ export function DosingReconstitutionPlanner({
                 <select
                   value={syringeUnits}
                   onChange={(e) => setSyringeUnits(Number(e.target.value))}
-                  className="w-full text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
+                  className="w-full min-h-9 text-sm rounded-lg border border-border bg-card px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
                   id="syringe-size-select"
                 >
                   {[30, 50, 100].map((u) => (
@@ -410,7 +410,7 @@ export function DosingReconstitutionPlanner({
               <select
                 value={syringeStandard}
                 onChange={(e) => setSyringeStandard(e.target.value as 'U100' | 'U40')}
-                className="text-sm rounded-lg border border-border bg-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
+                className="min-h-9 text-sm rounded-lg border border-border bg-card px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-gray-800 dark:text-gray-200"
                 id="syringe-standard-select"
               >
                 <option value="U100">U-100 Insulin Syringe</option>

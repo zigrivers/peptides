@@ -95,7 +95,7 @@ export function DashboardNav({ orderingEnabled, hasUnloggedDoses = false }: Dash
     <>
       {/* Mobile Top Header Bar */}
       <header className="fixed top-0 left-0 right-0 h-[var(--mobile-header-height,3.5rem)] bg-white dark:bg-card border-b border-border flex items-center justify-between px-4 z-40 sm:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2">
+        <Link href="/dashboard" prefetch={false} className="flex min-h-9 min-w-9 items-center gap-2 rounded-lg">
           <span className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg leading-none shrink-0" aria-hidden="true">
             P
           </span>
@@ -103,8 +103,8 @@ export function DashboardNav({ orderingEnabled, hasUnloggedDoses = false }: Dash
             Peptides
           </span>
         </Link>
-        <div className="scale-90 origin-right">
-          <ThemeSwitcher />
+        <div className="flex items-center">
+          <ThemeSwitcher variant="popover" />
         </div>
       </header>
 
@@ -116,6 +116,7 @@ export function DashboardNav({ orderingEnabled, hasUnloggedDoses = false }: Dash
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               aria-label={item.label}
               className={`flex flex-col items-center justify-center w-full h-full text-[10px] font-medium transition-colors ${
                 isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
@@ -140,7 +141,7 @@ export function DashboardNav({ orderingEnabled, hasUnloggedDoses = false }: Dash
       <nav className="fixed left-0 top-0 bottom-0 z-40 w-16 lg:w-64 bg-white dark:bg-card border-r border-border sm:flex flex-col hidden" aria-label="Desktop Navigation">
         {/* Branding Header */}
         <div className="border-b border-border py-4 px-4 mb-4">
-          <Link href="/dashboard" className="flex items-center gap-2">
+          <Link href="/dashboard" prefetch={false} className="flex items-center gap-2">
             <span className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg leading-none shrink-0" aria-hidden="true">
               P
             </span>
@@ -158,6 +159,7 @@ export function DashboardNav({ orderingEnabled, hasUnloggedDoses = false }: Dash
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 aria-label={item.label}
                 className={`flex items-center gap-3 py-3 rounded-lg text-sm font-medium transition-colors ${
                   isActive

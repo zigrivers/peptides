@@ -50,7 +50,7 @@ export function CatalogSearch() {
   );
 
   return (
-    <div className="flex gap-3 mb-6">
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row">
       <input
         type="search"
         placeholder="Search compounds…"
@@ -59,7 +59,7 @@ export function CatalogSearch() {
         className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
         aria-label="Search compounds"
       />
-      <div className="relative min-w-[160px]">
+      <div className="relative w-full sm:min-w-[160px] sm:w-auto">
         <select
           defaultValue={searchParams.get('tag') ?? ''}
           onChange={handleTagChange}

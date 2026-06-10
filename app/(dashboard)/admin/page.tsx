@@ -157,7 +157,10 @@ export default async function AdminPage() {
           {!isOrderingDisabled() && (
             <>
               {' '}
-              <Link href="/settings/telegram" className="text-primary hover:underline">
+              <Link
+                href="/settings/telegram"
+                className="inline-flex min-h-9 items-center rounded-md px-1 text-primary hover:bg-primary/10"
+              >
                 Go to Settings
               </Link>
               {' '}to invite someone.

@@ -840,7 +840,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
               setIsBulkMode(!isBulkMode);
               setSelectedDates([]);
             }}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+            className={`min-h-9 px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${
               isBulkMode
                 ? 'bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-950/20 dark:border-indigo-900 dark:text-indigo-400'
                 : 'bg-background hover:bg-accent border-input text-foreground'
@@ -851,7 +851,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
 
           <button
             onClick={handleJumpToToday}
-            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-input bg-background hover:bg-accent text-foreground transition-all"
+            className="min-h-9 px-3 py-2 rounded-lg text-xs font-semibold border border-input bg-background hover:bg-accent text-foreground transition-all"
           >
             Today
           </button>
@@ -859,14 +859,14 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
           <div className="flex items-center gap-1">
             <button
               onClick={handlePrevWeek}
-              className="p-1.5 rounded-md border border-input hover:bg-accent text-gray-500 dark:text-gray-400 transition-colors"
+              className="min-h-9 min-w-9 inline-flex items-center justify-center rounded-lg border border-input hover:bg-accent text-gray-500 dark:text-gray-400 transition-colors"
               aria-label="Previous Week"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
             <button
               onClick={handleNextWeek}
-              className="p-1.5 rounded-md border border-input hover:bg-accent text-gray-500 dark:text-gray-400 transition-colors"
+              className="min-h-9 min-w-9 inline-flex items-center justify-center rounded-lg border border-input hover:bg-accent text-gray-500 dark:text-gray-400 transition-colors"
               aria-label="Next Week"
             >
               <ChevronRight className="h-4 w-4" />
@@ -876,7 +876,8 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
       </div>
 
       {/* Week Grid */}
-      <div className={`grid grid-cols-7 gap-2 transition-opacity duration-200 ${isRescheduling ? 'opacity-60' : ''}`}>
+      <div className="overflow-x-auto pb-2">
+        <div className={`grid min-w-[560px] grid-cols-7 gap-2 transition-opacity duration-200 sm:min-w-0 ${isRescheduling ? 'opacity-60' : ''}`}>
         {cells.map(({ date, dateStr, events }) => {
           const isToday = dateStr === todayStr;
           const isSelected = isBulkMode ? selectedDates.includes(dateStr) : selectedDateStr === dateStr;
@@ -1001,6 +1002,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Daily Action Panel for Selected Date */}
@@ -1270,7 +1272,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                             placeholder="e.g. slight fatigue, felt good"
                             value={editNotes[e.id] ?? ''}
                             onChange={(evt) => setEditNotes((prev) => ({ ...prev, [e.id]: evt.target.value }))}
-                            className="w-full text-xs rounded-lg border border-input bg-background px-3 py-2 text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none"
+                            className="w-full min-h-9 text-xs rounded-lg border border-input bg-background px-3 py-2 text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none"
                             disabled={isLogPending}
                           />
                         </div>
@@ -1284,7 +1286,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                                 handleInlineSave(e, 'LOGGED');
                               }}
                               disabled={isLogPending}
-                              className="rounded-lg bg-success text-success-foreground px-3 py-1.5 text-xs font-semibold hover:bg-success/90 disabled:opacity-60 transition-colors"
+                              className="min-h-9 rounded-lg bg-success text-success-foreground px-3 py-2 text-xs font-semibold hover:bg-success/90 disabled:opacity-60 transition-colors"
                             >
                               {isLogPending ? 'Saving...' : 'Log Dose'}
                             </button>
@@ -1294,7 +1296,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                                 handleInlineSave(e, 'SKIPPED');
                               }}
                               disabled={isLogPending}
-                              className="rounded-lg border border-input bg-background text-foreground px-3 py-1.5 text-xs font-semibold hover:bg-accent disabled:opacity-60 transition-colors"
+                              className="min-h-9 rounded-lg border border-input bg-background text-foreground px-3 py-2 text-xs font-semibold hover:bg-accent disabled:opacity-60 transition-colors"
                             >
                               Skip
                             </button>
@@ -1304,7 +1306,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                             <Link
                               href={`/tracker/protocols/${e.protocolId}/edit`}
                               onClick={(e) => e.stopPropagation()}
-                              className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 transition-colors"
+                              className="min-h-9 px-2 text-[11px] font-bold text-primary hover:underline inline-flex items-center gap-1 transition-colors"
                             >
                               <Edit2 className="h-2.5 w-2.5" /> Edit Protocol
                             </Link>
@@ -1385,14 +1387,14 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
             <button
               onClick={() => handleBulkLog('LOGGED')}
               disabled={!bulkProtocolId || isBulkActionPending}
-              className="rounded-lg bg-success text-success-foreground px-3 py-1.5 text-xs font-semibold hover:bg-success/90 disabled:opacity-50 transition-all shadow"
+              className="min-h-9 rounded-lg bg-success text-success-foreground px-3 py-2 text-xs font-semibold hover:bg-success/90 disabled:opacity-50 transition-all shadow"
             >
               {isBulkActionPending ? 'Saving...' : 'Log'}
             </button>
             <button
               onClick={() => handleBulkLog('SKIPPED')}
               disabled={!bulkProtocolId || isBulkActionPending}
-              className="rounded-lg border border-input bg-background text-foreground px-3 py-1.5 text-xs font-semibold hover:bg-accent disabled:opacity-50 transition-all shadow"
+              className="min-h-9 rounded-lg border border-input bg-background text-foreground px-3 py-2 text-xs font-semibold hover:bg-accent disabled:opacity-50 transition-all shadow"
             >
               Skip
             </button>
@@ -1401,7 +1403,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                 setSelectedDates([]);
                 setIsBulkMode(false);
               }}
-              className="text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-1 py-1 transition-colors"
+              className="min-h-9 px-2 text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
             >
               Cancel
             </button>

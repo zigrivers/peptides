@@ -1,8 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { Sun, Moon, Monitor } from 'lucide-react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { Sun, Moon, Monitor, Palette } from 'lucide-react';
 import { type Theme, type AccentColor, SUPPORTED_ACCENTS } from '@/lib/shared/personalization';
+
+interface ThemeSwitcherProps {
+  variant?: 'panel' | 'popover';
+}
 
 function getEffectiveIsDark(theme: Theme): boolean {
   if (theme === 'dark') return true;
@@ -24,35 +28,39 @@ function syncThemeClass(theme: Theme) {
   }
 }
 
-export function ThemeSwitcher() {
+// Read cookies client-side helper
+const getCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+};
+
+// Safe client-side cookie setter helper
+const setCookie = (name: string, val: string) => {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${name}=${val}; path=/; max-age=31536000; Secure; SameSite=Lax`;
+};
+
+export function ThemeSwitcher({ variant = 'panel' }: ThemeSwitcherProps) {
   const [mounted, setMounted] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const [activeTheme, setActiveTheme] = useState<Theme>('system');
   const [activeAccent, setActiveAccent] = useState<AccentColor>('indigo');
 
   const versionRef = useRef<number>(1);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const didFlushRef = useRef(false);
+  const hasPendingSyncRef = useRef(false);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const popoverId = React.useId();
 
   // Store variables in refs so the unmount cleanup can read latest values without stale closure
   const stateRef = useRef({ theme: activeTheme, accent: activeAccent });
 
-  // Read cookies client-side helper
-  const getCookie = (name: string): string | null => {
-    if (typeof document === 'undefined') return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
-    return null;
-  };
-
-  // Safe client-side cookie setter helper
-  const setCookie = (name: string, val: string) => {
-    if (typeof document === 'undefined') return;
-    document.cookie = `${name}=${val}; path=/; max-age=31536000; Secure; SameSite=Lax`;
-  };
-
   // Perform database sync via api
-  const syncSettings = async (themeToSync: Theme, accentToSync: AccentColor, versionToSync: number, isKeepalive = false) => {
+  const syncSettings = useCallback(async (themeToSync: Theme, accentToSync: AccentColor, versionToSync: number, isKeepalive = false) => {
     try {
       const payload = {
         theme: themeToSync,
@@ -74,6 +82,7 @@ export function ThemeSwitcher() {
 
       const res = await fetch('/api/account/personalization', options);
       if (!res.ok) return;
+      hasPendingSyncRef.current = false;
 
       const data = await res.json();
       if (data && typeof data.personalizationVersion === 'number') {
@@ -100,20 +109,25 @@ export function ThemeSwitcher() {
         }
       }
     } catch (err) {
+      if (isKeepalive && err instanceof TypeError && err.message === 'Failed to fetch') {
+        return;
+      }
       console.error('[ThemeSwitcher sync error]:', err);
     }
-  };
+  }, []);
 
   // Schedule background database update
-  const scheduleSync = (themeToSync: Theme, accentToSync: AccentColor) => {
+  const scheduleSync = useCallback((themeToSync: Theme, accentToSync: AccentColor) => {
+    hasPendingSyncRef.current = true;
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
 
     debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = null;
       syncSettings(themeToSync, accentToSync, versionRef.current);
     }, 500);
-  };
+  }, [syncSettings]);
 
   useEffect(() => {
     setMounted(true);
@@ -174,14 +188,14 @@ export function ThemeSwitcher() {
         }
       }
 
-      if (!didFlushRef.current) {
+      if (!didFlushRef.current && hasPendingSyncRef.current) {
         didFlushRef.current = true;
         // Immediate database update on unmount using latest values in stateRef
         const latestState = stateRef.current;
         syncSettings(latestState.theme, latestState.accent, versionRef.current, true);
       }
     };
-  }, []);
+  }, [syncSettings]);
 
   const handleThemeChange = (newTheme: Theme) => {
     stateRef.current.theme = newTheme;
@@ -204,8 +218,35 @@ export function ThemeSwitcher() {
     scheduleSync(stateRef.current.theme, newAccent);
   };
 
+  useEffect(() => {
+    if (variant !== 'popover' || !popoverOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setPopoverOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPopoverOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [popoverOpen, variant]);
+
   if (!mounted) {
     // Glassmorphic hydration skeleton placeholder to prevent flash of content
+    if (variant === 'popover') {
+      return (
+        <div className="h-10 w-10 rounded-xl border border-border/70 bg-white/70 dark:bg-card/60 animate-pulse" />
+      );
+    }
+
     return (
       <div className="flex flex-col gap-3 p-3 bg-white/40 dark:bg-card/40 backdrop-blur-md rounded-xl border border-border/50 animate-pulse w-full max-w-[240px] h-[98px]">
         <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
@@ -228,14 +269,15 @@ export function ThemeSwitcher() {
     slate: { name: 'Slate', bgClass: 'bg-slate-500 ring-slate-500' },
   };
 
-  return (
+  const controls = (
     <div className="flex flex-col gap-3 p-3 bg-white/70 dark:bg-card/60 backdrop-blur-md rounded-xl border border-border/80 shadow-sm w-full max-w-[240px]">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Theme</span>
-        <div className="flex bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg border border-border/50">
+        <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl border border-border/50">
           <button
+            type="button"
             onClick={() => handleThemeChange('light')}
-            className={`p-1.5 rounded-md transition-all duration-150 ${
+            className={`min-h-9 min-w-9 inline-flex items-center justify-center rounded-lg transition-all duration-150 ${
               activeTheme === 'light'
                 ? 'bg-white dark:bg-card shadow-sm text-primary'
                 : 'text-muted-foreground hover:text-foreground'
@@ -246,8 +288,9 @@ export function ThemeSwitcher() {
             <Sun className="w-3.5 h-3.5" />
           </button>
           <button
+            type="button"
             onClick={() => handleThemeChange('dark')}
-            className={`p-1.5 rounded-md transition-all duration-150 ${
+            className={`min-h-9 min-w-9 inline-flex items-center justify-center rounded-lg transition-all duration-150 ${
               activeTheme === 'dark'
                 ? 'bg-white dark:bg-card shadow-sm text-primary'
                 : 'text-muted-foreground hover:text-foreground'
@@ -258,8 +301,9 @@ export function ThemeSwitcher() {
             <Moon className="w-3.5 h-3.5" />
           </button>
           <button
+            type="button"
             onClick={() => handleThemeChange('system')}
-            className={`p-1.5 rounded-md transition-all duration-150 ${
+            className={`min-h-9 min-w-9 inline-flex items-center justify-center rounded-lg transition-all duration-150 ${
               activeTheme === 'system'
                 ? 'bg-white dark:bg-card shadow-sm text-primary'
                 : 'text-muted-foreground hover:text-foreground'
@@ -274,24 +318,58 @@ export function ThemeSwitcher() {
 
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Accent</span>
-        <div className="flex gap-1.5">
+        <div className="grid grid-cols-3 gap-1.5">
           {SUPPORTED_ACCENTS.map((accent) => {
             const { name, bgClass } = accentDetails[accent];
             const isSelected = activeAccent === accent;
             return (
               <button
                 key={accent}
+                type="button"
                 onClick={() => handleAccentChange(accent)}
-                className={`w-3.5 h-3.5 rounded-full ${bgClass} transition-all duration-150 relative ${
-                  isSelected ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-card ring-primary scale-110' : 'hover:scale-105'
+                className={`h-9 w-9 inline-flex items-center justify-center rounded-lg transition-all duration-150 ${
+                  isSelected ? 'bg-white dark:bg-card shadow-sm ring-1 ring-primary/40' : 'hover:bg-muted'
                 }`}
                 aria-label={`Accent ${name}`}
                 title={`Accent ${name}`}
-              />
+              >
+                <span
+                  className={`h-3.5 w-3.5 rounded-full ${bgClass} transition-transform duration-150 ${
+                    isSelected
+                      ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-card ring-primary scale-110'
+                      : 'hover:scale-105'
+                  }`}
+                  aria-hidden="true"
+                />
+              </button>
             );
           })}
         </div>
       </div>
     </div>
   );
+
+  if (variant === 'popover') {
+    return (
+      <div ref={popoverRef} className="relative">
+        <button
+          type="button"
+          aria-label="Customize appearance"
+          aria-expanded={popoverOpen}
+          aria-controls={popoverId}
+          onClick={() => setPopoverOpen((open) => !open)}
+          className="h-10 w-10 inline-flex items-center justify-center rounded-xl border border-border/80 bg-white/80 text-muted-foreground shadow-sm backdrop-blur-md transition-colors hover:text-foreground hover:bg-white dark:bg-card/70 dark:hover:bg-card focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          <Palette className="h-5 w-5" aria-hidden="true" />
+        </button>
+        {popoverOpen && (
+          <div id={popoverId} className="absolute right-0 top-12 z-50 w-[240px]">
+            {controls}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return controls;
 }

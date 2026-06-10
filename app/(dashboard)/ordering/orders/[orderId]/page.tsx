@@ -26,7 +26,10 @@ export default async function OrderDetailPage({ params }: Props) {
   return (
     <main className="max-w-2xl mx-auto px-4 py-8 space-y-6 animate-page-enter">
       <div>
-        <Link href="/ordering/orders" className="text-sm text-primary hover:underline">
+        <Link
+          href="/ordering/orders"
+          className="inline-flex min-h-9 items-center rounded-md px-1 text-sm text-primary hover:bg-primary/10"
+        >
           ← Order History
         </Link>
         <div className="flex items-start justify-between mt-2">

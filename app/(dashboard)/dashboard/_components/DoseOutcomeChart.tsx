@@ -99,7 +99,7 @@ export function DoseOutcomeChart({ doseLogs, outcomeLogs, compounds, referenceDa
   })() : null;
 
   return (
-    <div className="border border-border bg-card text-card-foreground rounded-xl p-5 shadow-sm space-y-4 relative">
+    <div className="border border-border bg-card text-card-foreground rounded-xl p-5 shadow-sm space-y-4 relative min-w-0 overflow-hidden">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
@@ -142,21 +142,23 @@ export function DoseOutcomeChart({ doseLogs, outcomeLogs, compounds, referenceDa
       </table>
 
       {/* Interactive Chart Area */}
-      <div className="relative">
-        <svg
-          viewBox="0 0 600 240"
-          className="w-full h-auto overflow-visible select-none"
-          role="graphics-document"
-          aria-label="Dosage and rating correlation graph over the last 30 days"
-          onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const clientX = e.clientX - rect.left - PADDING_LEFT;
-            const ratio = clientX / CHART_WIDTH;
-            const idx = Math.min(29, Math.max(0, Math.round(ratio * 29)));
-            setHoveredIdx(idx);
-          }}
-          onMouseLeave={() => setHoveredIdx(null)}
-        >
+      <div className="relative min-w-0 max-w-full overflow-hidden">
+        <div className="overflow-x-auto pb-2">
+          <div className="w-[680px] max-w-none sm:w-full">
+            <svg
+              viewBox="0 0 600 240"
+              className="h-auto w-full select-none"
+              role="graphics-document"
+              aria-label="Dosage and rating correlation graph over the last 30 days"
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const clientX = e.clientX - rect.left - PADDING_LEFT;
+                const ratio = clientX / CHART_WIDTH;
+                const idx = Math.min(29, Math.max(0, Math.round(ratio * 29)));
+                setHoveredIdx(idx);
+              }}
+              onMouseLeave={() => setHoveredIdx(null)}
+            >
           <defs>
             <linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.15" />
@@ -285,7 +287,7 @@ export function DoseOutcomeChart({ doseLogs, outcomeLogs, compounds, referenceDa
           {/* Keyboard accessible invisible hover bars */}
           {dateArray.map((dateStr, idx) => {
             const x = PADDING_LEFT + (idx / 29) * CHART_WIDTH;
-            const width = CHART_WIDTH / 29;
+            const width = 36;
             return (
               <rect
                 key={`tab-bar-${idx}`}
@@ -305,7 +307,9 @@ export function DoseOutcomeChart({ doseLogs, outcomeLogs, compounds, referenceDa
               />
             );
           })}
-        </svg>
+            </svg>
+          </div>
+        </div>
 
         {/* Dynamic Glassmorphic Tooltip Overlay */}
         {activeHoverData && (
@@ -386,7 +390,7 @@ export function DoseOutcomeChart({ doseLogs, outcomeLogs, compounds, referenceDa
               const isChecked = selectedProtocolIds.includes(protoId);
               const color = getCapColor(comp.slug);
               return (
-                <label key={protoId} className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold select-none text-foreground/80 hover:text-foreground">
+                <label key={protoId} className="flex min-h-9 items-center gap-1.5 rounded-md px-1 cursor-pointer text-xs font-semibold select-none text-foreground/80 hover:bg-muted/50 hover:text-foreground">
                   <input
                     type="checkbox"
                     checked={isChecked}

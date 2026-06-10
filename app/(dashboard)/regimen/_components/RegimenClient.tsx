@@ -661,7 +661,7 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
               id="user-select"
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              className="rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:border-primary focus:ring-primary py-1.5 px-3"
+              className="min-h-9 rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:border-primary focus:ring-primary py-1.5 px-3"
             >
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
@@ -676,7 +676,7 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
               type="button"
               aria-pressed={viewMode === 'cards'}
               onClick={() => setViewMode('cards')}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors ${
+              className={`min-h-9 flex items-center gap-1.5 rounded-md px-3 py-2 transition-colors ${
                 viewMode === 'cards'
                   ? 'bg-primary/10 text-primary shadow-sm'
                   : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
@@ -689,7 +689,7 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
               type="button"
               aria-pressed={viewMode === 'summary'}
               onClick={() => setViewMode('summary')}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors ${
+              className={`min-h-9 flex items-center gap-1.5 rounded-md px-3 py-2 transition-colors ${
                 viewMode === 'summary'
                   ? 'bg-primary/10 text-primary shadow-sm'
                   : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
@@ -702,18 +702,16 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
         </div>
 
         {viewMode === 'cards' && (
-          <div className="flex items-center gap-2">
+          <label htmlFor="show-deactivated" className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-1 text-sm text-gray-700 dark:text-gray-300">
             <input
               id="show-deactivated"
               type="checkbox"
               checked={showDeactivated}
               onChange={(e) => setShowDeactivated(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 dark:border-gray-800 text-primary focus:ring-primary"
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-800"
             />
-            <label htmlFor="show-deactivated" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
               Show deactivated protocols
-            </label>
-          </div>
+          </label>
         )}
       </div>
 
@@ -965,13 +963,13 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
                 </div>
 
                 {/* Protocol Card Bottom Actions */}
-                <div className="bg-gray-50 dark:bg-gray-900/60 px-6 py-4 flex items-center justify-between gap-4 border-t border-gray-100 dark:border-gray-900">
-                  <div className="flex gap-2">
+                <div className="bg-gray-50 dark:bg-gray-900/60 px-6 py-4 flex flex-col gap-3 border-t border-gray-100 dark:border-gray-900 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <div className="flex flex-wrap gap-2">
                     {p.status === 'ACTIVE' && (
                       <button
                         onClick={() => handlePause(p.id)}
                         disabled={isPending}
-                        className="rounded-lg border border-yellow-200 dark:border-yellow-900/40 bg-yellow-50 dark:bg-yellow-950/20 text-yellow-800 dark:text-yellow-400 px-3 py-1.5 text-xs font-semibold hover:bg-yellow-100 dark:hover:bg-yellow-950/50 disabled:opacity-50 transition-colors"
+                        className="min-h-9 rounded-lg border border-yellow-200 dark:border-yellow-900/40 bg-yellow-50 dark:bg-yellow-950/20 text-yellow-800 dark:text-yellow-400 px-3 py-2 text-xs font-semibold hover:bg-yellow-100 dark:hover:bg-yellow-950/50 disabled:opacity-50 transition-colors"
                       >
                         Pause
                       </button>
@@ -980,7 +978,7 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
                       <button
                         onClick={() => handleResume(p.id)}
                         disabled={isPending}
-                        className="rounded-lg border border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/20 text-green-800 dark:text-green-400 px-3 py-1.5 text-xs font-semibold hover:bg-green-100 dark:hover:bg-green-950/50 disabled:opacity-50 transition-colors"
+                        className="min-h-9 rounded-lg border border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/20 text-green-800 dark:text-green-400 px-3 py-2 text-xs font-semibold hover:bg-green-100 dark:hover:bg-green-950/50 disabled:opacity-50 transition-colors"
                       >
                         Resume
                       </button>
@@ -989,14 +987,14 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
                       <>
                         <Link
                           href={`/tracker/protocols/${p.id}/edit`}
-                          className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 px-3 py-1.5 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors flex items-center"
+                          className="min-h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 px-3 py-2 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors flex items-center"
                         >
                           Edit
                         </Link>
                         <button
                           onClick={() => handleDeactivate(p.id)}
                           disabled={isPending}
-                          className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-400 px-3 py-1.5 text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-950/50 disabled:opacity-50 transition-colors"
+                          className="min-h-9 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-400 px-3 py-2 text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-950/50 disabled:opacity-50 transition-colors"
                         >
                           Deactivate
                         </button>
@@ -1006,7 +1004,7 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
 
                   <Link
                     href={`/tracker/protocols/new?cloneFrom=${p.id}`}
-                    className="text-primary hover:text-primary/95 text-xs font-semibold transition-colors"
+                    className="inline-flex min-h-9 items-center self-start rounded-md px-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 hover:text-primary/95 sm:self-auto"
                   >
                     Clone Protocol
                   </Link>

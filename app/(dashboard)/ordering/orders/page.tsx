@@ -16,7 +16,12 @@ export default async function OrderHistoryPage() {
     <main className="max-w-2xl mx-auto px-4 py-8 animate-page-enter">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <Link href="/ordering" className="text-sm text-primary hover:underline">← Vendors</Link>
+          <Link
+            href="/ordering"
+            className="inline-flex min-h-9 items-center rounded-md px-1 text-sm text-primary hover:bg-primary/10"
+          >
+            ← Vendors
+          </Link>
           <h1 className="text-2xl font-semibold text-foreground mt-1">Order History</h1>
         </div>
       </div>

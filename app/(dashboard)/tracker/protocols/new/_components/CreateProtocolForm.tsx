@@ -298,24 +298,24 @@ export function CreateProtocolForm({
   ];
 
   return (
-    <div className="bg-white dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-900 p-6 md:p-8 shadow-xl space-y-6">
+      <div className="bg-white dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-900 p-5 md:p-8 shadow-xl space-y-6">
       
       {/* Wizard Progress Steps Bar */}
-      <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-900">
+      <div className="grid grid-cols-3 gap-2 pb-4 border-b border-gray-100 dark:border-gray-900 sm:flex sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold ${
             step >= 1 ? 'bg-primary text-primary-foreground' : 'bg-gray-200 text-gray-500'
           }`}>1</span>
           <span className="text-xs font-bold text-gray-800 dark:text-gray-200">Basic Info</span>
         </div>
-        <div className="h-0.5 flex-1 mx-3 bg-gray-100 dark:bg-gray-800" />
+        <div className="hidden h-0.5 flex-1 mx-3 bg-gray-100 dark:bg-gray-800 sm:block" />
         <div className="flex items-center gap-2">
           <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold ${
             step >= 2 ? 'bg-primary text-primary-foreground' : 'bg-gray-200 text-gray-500'
           }`}>2</span>
           <span className="text-xs font-bold text-gray-800 dark:text-gray-200">Dose & Inventory</span>
         </div>
-        <div className="h-0.5 flex-1 mx-3 bg-gray-100 dark:bg-gray-800" />
+        <div className="hidden h-0.5 flex-1 mx-3 bg-gray-100 dark:bg-gray-800 sm:block" />
         <div className="flex items-center gap-2">
           <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold ${
             step >= 3 ? 'bg-primary text-primary-foreground' : 'bg-gray-200 text-gray-500'
