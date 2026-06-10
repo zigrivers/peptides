@@ -178,6 +178,8 @@ export function DosingReconstitutionPlanner({
       return 0;
     }
   }, [drawUnitsDec, syringeUnits, isInvalidInput]);
+  const stopperX = 30 + 308 * plungerPositionPercent;
+  const plungerEndX = Math.min(438, Math.max(340, 336 + (340 - stopperX)));
 
   // Generate tick marks based on syringe sizes
   const ticks = useMemo(() => {
@@ -523,9 +525,9 @@ export function DosingReconstitutionPlanner({
                 {/* Plunger Shaft & Rubber Stopper tip */}
                 {/* Shaft */}
                 <rect
-                  x={30 + 308 * plungerPositionPercent}
+                  x={stopperX}
                   y="36"
-                  width={340 - (30 + 308 * plungerPositionPercent)}
+                  width={plungerEndX - stopperX}
                   height="8"
                   fill="url(#plungerGrad)"
                   style={{ transition: 'x 0.3s ease-in-out, width 0.3s ease-in-out' }}
@@ -533,7 +535,7 @@ export function DosingReconstitutionPlanner({
                 
                 {/* Rubber Stopper black tip */}
                 <rect
-                  x={24 + 308 * plungerPositionPercent}
+                  x={stopperX - 6}
                   y="21"
                   width="8"
                   height="38"
@@ -544,7 +546,7 @@ export function DosingReconstitutionPlanner({
 
                 {/* Plunger thumb rest/handle on the right */}
                 <rect
-                  x={336 + (340 - (30 + 308 * plungerPositionPercent))}
+                  x={plungerEndX}
                   y="15"
                   width="6"
                   height="50"
