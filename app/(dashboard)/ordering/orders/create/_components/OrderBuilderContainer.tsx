@@ -337,6 +337,16 @@ export function OrderBuilderContainer({ vendors, suggestions, compounds }: Props
               <div className="grid gap-3 sm:grid-cols-2">
                 {vendorSuggestions.map((s) => {
                   const product = s.matchedProduct!;
+                  const suggestionForm = product.form === 'SOLUTION' ? 'SOLUTION' : 'LYOPHILIZED_POWDER';
+                  const suggestionVialSizeMg = product.vialSizeMg ? product.vialSizeMg.toString() : '5.0';
+                  const isSuggestionAdded = cart.some(
+                    (item) =>
+                      item.productId === product.id &&
+                      item.compoundId === s.compoundId &&
+                      item.form === suggestionForm &&
+                      new Decimal(item.vialSizeMg).eq(new Decimal(suggestionVialSizeMg))
+                  );
+
                   return (
                     <div
                       key={`${s.compoundId}:${s.formCategory}`}
@@ -372,21 +382,22 @@ export function OrderBuilderContainer({ vendors, suggestions, compounds }: Props
 
                       <button
                         type="button"
+                        disabled={isSuggestionAdded}
                         onClick={() =>
                           addToCart({
                             compoundId: s.compoundId,
                             compoundName: s.compoundName,
-                            form: product.form === 'SOLUTION' ? 'SOLUTION' : 'LYOPHILIZED_POWDER',
-                            vialSizeMg: product.vialSizeMg ? product.vialSizeMg.toString() : '5.0',
+                            form: suggestionForm,
+                            vialSizeMg: suggestionVialSizeMg,
                             quantity: s.calculatedQty,
                             productId: product.id,
                             unitPrice: product.priceUsd,
                             unitCurrency: selectedVendor?.preferredCurrency || 'USD',
                           })
                         }
-                        className="w-full text-center h-9 bg-primary text-primary-foreground font-semibold rounded-md hover:bg-primary/90 text-xs transition-colors"
+                        className="w-full text-center h-9 bg-primary text-primary-foreground font-semibold rounded-md hover:bg-primary/90 disabled:bg-secondary disabled:text-muted-foreground disabled:cursor-default text-xs transition-colors"
                       >
-                        Add Suggestion
+                        {isSuggestionAdded ? 'Added to draft' : 'Add Suggestion'}
                       </button>
                     </div>
                   );

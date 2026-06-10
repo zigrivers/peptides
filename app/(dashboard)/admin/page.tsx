@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
-import { isOrderingDisabled } from '@/lib/shared/featureFlags';
 import { getManagedUsersWithAdherence } from '@/lib/admin/application/AdminService';
 import type { InviteStatus, ManagedUserRow, PendingInviteRow } from '@/lib/admin/application/AdminService';
 import { deactivateManagedUserAction, triggerPasswordResetAction, requestDeletionAction, cancelDeletionAction } from './_actions';
@@ -153,19 +152,7 @@ export default async function AdminPage() {
 
       {total === 0 && (
         <p className="text-sm text-muted-foreground/60 py-4 text-center">
-          No managed users yet.
-          {!isOrderingDisabled() && (
-            <>
-              {' '}
-              <Link
-                href="/settings/telegram"
-                className="inline-flex min-h-9 items-center rounded-md px-1 text-primary hover:bg-primary/10"
-              >
-                Go to Settings
-              </Link>
-              {' '}to invite someone.
-            </>
-          )}
+          Use the invite form above to send your first registration link.
         </p>
       )}
     </main>
