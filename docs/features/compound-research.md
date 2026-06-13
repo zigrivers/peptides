@@ -31,6 +31,7 @@ The feature is **hidden and disabled** unless `COMPOUND_RESEARCH_ENABLED=true` A
 | `LOCAL_LLM_BASE_URL` | `"http://127.0.0.1:8001/v1"` | OpenAI-compatible endpoint; must be reachable |
 | `LOCAL_LLM_API_KEY` | `"not-needed"` | Set if the local endpoint requires auth |
 | `LOCAL_LLM_MODEL` | `""` | Optional; if blank, resolved from `GET {base}/models` |
+| `LOCAL_LLM_DISABLE_THINKING` | `"true"` | Injects `chat_template_kwargs.enable_thinking=false` into each chat-completion request; disable only if your model is not a reasoning model (reasoning models are otherwise too slow) |
 | `WEB_SEARCH_PROVIDER` | `"tavily"` | `tavily` or `ddg` |
 | `TAVILY_API_KEY` | `""` | Server-only; if absent, DuckDuckGo is used |
 

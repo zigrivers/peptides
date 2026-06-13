@@ -7,6 +7,30 @@ import type { LanguageModel } from 'ai';
  * to a paid provider — the feature simply hides when unreachable.
  */
 
+function disableThinking(): boolean {
+  // Default ON: the configured local model is a reasoning model that is far too slow
+  // unless thinking is disabled. Set LOCAL_LLM_DISABLE_THINKING="false" to keep thinking.
+  return process.env.LOCAL_LLM_DISABLE_THINKING !== 'false';
+}
+
+const thinkingFetch: typeof fetch = async (input, init) => {
+  if (disableThinking() && init?.body && typeof init.body === 'string') {
+    try {
+      const parsed = JSON.parse(init.body) as Record<string, unknown>;
+      if (parsed && Array.isArray(parsed.messages)) {
+        parsed.chat_template_kwargs = {
+          ...((parsed.chat_template_kwargs as Record<string, unknown>) ?? {}),
+          enable_thinking: false,
+        };
+        init = { ...init, body: JSON.stringify(parsed) };
+      }
+    } catch {
+      // non-JSON body — leave untouched
+    }
+  }
+  return globalThis.fetch(input, init);
+};
+
 let _factory: ((modelId: string) => LanguageModel) | null = null;
 let _modelIdPromise: Promise<string> | null = null;
 let _reach: { value: boolean; at: number } | null = null;
@@ -27,6 +51,7 @@ async function getFactory(): Promise<((modelId: string) => LanguageModel) | null
       name: 'local',
       baseURL: base,
       apiKey: process.env.LOCAL_LLM_API_KEY ?? 'not-needed',
+      fetch: thinkingFetch,
     });
     _factory = (id: string) => provider(id) as unknown as LanguageModel;
   }
