@@ -20,3 +20,4 @@ This log tracks the significant architectural decisions made for the Peptides ap
 | ADR-014 | Use Cloudflare R2 for Object Storage | Accepted | 2026-05-20 |
 | ADR-015 | Implement Bounded Context Isolation for Ordering | Accepted | 2026-05-20 |
 | ADR-016 | Local-First CI (No GitHub Actions) | Accepted | 2026-06-01 |
+| ADR-017 | Compound Research via Local Model + Server-Side Web Search | Accepted | 2026-06-13 |
