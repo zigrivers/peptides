@@ -15,6 +15,7 @@ const mockDoseLogDeleteMany = vi.fn();
 const mockVialCount = vi.fn();
 const mockVialFindFirst = vi.fn();
 const mockVialFindMany = vi.fn();
+const mockVialUpdate = vi.fn();
 const mockVialUpdateMany = vi.fn();
 const mockVialFindUnique = vi.fn();
 const mockVialCreate = vi.fn();
@@ -23,6 +24,8 @@ const mockCycleFindFirst = vi.fn();
 const mockCycleFindMany = vi.fn();
 const mockCycleUpdateMany = vi.fn();
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import Decimal from 'decimal.js';
+import { Prisma } from '@prisma/client';
 
 vi.mock('@/lib/shared/prisma', () => ({
   prisma: {
@@ -51,6 +54,7 @@ vi.mock('@/lib/shared/prisma', () => ({
       count: mockVialCount,
       findFirst: mockVialFindFirst,
       findMany: mockVialFindMany,
+      update: mockVialUpdate,
       updateMany: mockVialUpdateMany,
       findUnique: mockVialFindUnique,
       create: mockVialCreate,
@@ -81,6 +85,7 @@ vi.mock('@/lib/shared/prisma', () => ({
         vial: {
           findFirst: mockVialFindFirst,
           findMany: mockVialFindMany,
+          update: mockVialUpdate,
           updateMany: mockVialUpdateMany,
           findUnique: mockVialFindUnique,
           create: mockVialCreate,
@@ -308,6 +313,26 @@ describe('US-TRK-01: Create and Edit Protocol', () => {
       expect(result.schedule.frequency).toBe('SpecificDaysOfWeek');
     });
 
+    it('AC-5: accepts TwiceSpecificDaysOfWeek frequency', async () => {
+      mockProtocolCreate.mockResolvedValue({
+        ...baseProtocolRow,
+        schedule: { frequency: 'TwiceSpecificDaysOfWeek', daysOfWeek: ['Mon', 'Fri'] },
+      });
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await createProtocol({
+        actorUserId,
+        subjectUserId: actorUserId,
+        compoundId,
+        dose: { amount: '100/100', unit: 'mcg' },
+        schedule: { frequency: 'TwiceSpecificDaysOfWeek', daysOfWeek: ['Mon', 'Fri'] },
+        administrationRoute: 'SubQ',
+        startDate: new Date('2026-06-01'),
+      });
+
+      expect(result.schedule.frequency).toBe('TwiceSpecificDaysOfWeek');
+    });
+
     it('AC-5: accepts CustomInterval frequency', async () => {
       mockProtocolCreate.mockResolvedValue({
         ...baseProtocolRow,
@@ -328,6 +353,76 @@ describe('US-TRK-01: Create and Edit Protocol', () => {
       expect(result.schedule.frequency).toBe('CustomInterval');
     });
 
+    it('handles TwiceDaily frequency option and parses slash doses', async () => {
+      mockProtocolCreate.mockResolvedValue({
+        ...baseProtocolRow,
+        schedule: { frequency: 'TwiceDaily' },
+      });
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await createProtocol({
+        actorUserId,
+        subjectUserId: actorUserId,
+        compoundId,
+        dose: { amount: '100/100', unit: 'mcg' },
+        schedule: { frequency: 'TwiceDaily' },
+        administrationRoute: 'SubQ',
+        startDate: new Date('2026-06-01'),
+      });
+
+      expect(result.schedule.frequency).toBe('TwiceDaily');
+      expect(mockProtocolCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            dose: { amount: '100/100', unit: 'mcg' },
+            schedule: { frequency: 'TwiceDaily' },
+          }),
+        })
+      );
+    });
+
+    it('reconstitutes an existing dry vial when reconstituteVialId and initialVial are provided', async () => {
+      mockProtocolCreate.mockResolvedValue(baseProtocolRow);
+      mockAuditCreate.mockResolvedValue({});
+      mockVialFindFirst.mockResolvedValue({
+        id: 'v-dry-1',
+        userId: actorUserId,
+        compoundId,
+        totalMg: new Decimal('10.0'),
+        status: 'DRY',
+      });
+      mockVialUpdate.mockResolvedValue({});
+
+      const result = await createProtocol({
+        actorUserId,
+        subjectUserId: actorUserId,
+        compoundId,
+        dose: { amount: '250', unit: 'mcg' },
+        schedule: { frequency: 'Daily' },
+        administrationRoute: 'SubQ',
+        startDate: new Date('2026-06-01'),
+        initialVial: {
+          totalMg: '10.0',
+          bacWaterMl: '2.0',
+          expiresAt: new Date('2026-06-15'),
+        },
+        reconstituteVialId: 'v-dry-1',
+      });
+
+      expect(mockVialFindFirst).toHaveBeenCalled();
+      expect(mockVialCreate).not.toHaveBeenCalled();
+      expect(mockVialUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'v-dry-1' },
+          data: expect.objectContaining({
+            bacWaterMl: new Prisma.Decimal('2.0'),
+            status: 'RECONSTITUTED',
+            isActiveForCompound: true,
+          }),
+        })
+      );
+    });
+
     it('AC-3: throws if cycleId references a COMPLETED cycle', async () => {
       // DB query includes status: 'ACTIVE' filter — COMPLETED cycle returns null.
       mockCycleFindFirst.mockResolvedValue(null);
@@ -344,6 +439,48 @@ describe('US-TRK-01: Create and Edit Protocol', () => {
           startDate: new Date('2026-06-01'),
         })
       ).rejects.toThrow(/cycle_not_found/i);
+    });
+
+    it('deactivates or sets the endDate of existing active protocols for the same compound', async () => {
+      const existingProtocol = {
+        ...baseProtocolRow,
+        id: 'proto-existing-123',
+        status: 'ACTIVE',
+        startDate: new Date('2026-05-15'),
+      };
+      mockProtocolFindMany.mockResolvedValue([existingProtocol]);
+      mockProtocolCreate.mockResolvedValue(baseProtocolRow);
+      mockAuditCreate.mockResolvedValue({});
+      mockProtocolUpdate.mockResolvedValue({ ...existingProtocol, status: 'DEACTIVATED' });
+
+      await createProtocol({
+        actorUserId,
+        subjectUserId: actorUserId,
+        compoundId,
+        dose: { amount: '250', unit: 'mcg' },
+        schedule: { frequency: 'Daily' },
+        administrationRoute: 'SubQ',
+        startDate: new Date('2026-06-01'),
+      });
+
+      expect(mockProtocolFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: actorUserId,
+            compoundId,
+            status: 'ACTIVE',
+          }),
+        })
+      );
+
+      expect(mockProtocolUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'proto-existing-123' },
+          data: expect.objectContaining({
+            endDate: new Date('2026-05-31T00:00:00.000Z'),
+          }),
+        })
+      );
     });
   });
 
@@ -460,6 +597,21 @@ describe('ScheduleGenerator', () => {
     expect(dates[5].toISOString().slice(0, 10)).toBe('2026-06-12');
   });
 
+  it('TwiceSpecificDaysOfWeek: Mon/Fri generates correct dates', () => {
+    // 2026-06-01 is Monday
+    const dates = generateScheduleDates(
+      { frequency: 'TwiceSpecificDaysOfWeek', daysOfWeek: ['Mon', 'Fri'] },
+      start,
+      4
+    );
+    // Week 1: Mon Jun 1, Fri Jun 5
+    // Week 2: Mon Jun 8, Fri Jun 12
+    expect(dates[0].toISOString().slice(0, 10)).toBe('2026-06-01');
+    expect(dates[1].toISOString().slice(0, 10)).toBe('2026-06-05');
+    expect(dates[2].toISOString().slice(0, 10)).toBe('2026-06-08');
+    expect(dates[3].toISOString().slice(0, 10)).toBe('2026-06-12');
+  });
+
   it('CustomInterval: generates every N days', () => {
     const dates = generateScheduleDates(
       { frequency: 'CustomInterval', intervalDays: 3 },
@@ -505,6 +657,14 @@ describe('ScheduleGenerator', () => {
     it('SpecificDaysOfWeek: returns false for non-matching day', () => {
       // 2026-06-02 is Tuesday — not Wed
       expect(isScheduledOn({ frequency: 'SpecificDaysOfWeek', daysOfWeek: ['Wed'] }, s, null, new Date(Date.UTC(2026, 5, 2)))).toBe(false);
+    });
+    it('TwiceSpecificDaysOfWeek: returns true for matching day', () => {
+      // 2026-06-03 is Wednesday
+      expect(isScheduledOn({ frequency: 'TwiceSpecificDaysOfWeek', daysOfWeek: ['Wed'] }, s, null, new Date(Date.UTC(2026, 5, 3)))).toBe(true);
+    });
+    it('TwiceSpecificDaysOfWeek: returns false for non-matching day', () => {
+      // 2026-06-02 is Tuesday — not Wed
+      expect(isScheduledOn({ frequency: 'TwiceSpecificDaysOfWeek', daysOfWeek: ['Wed'] }, s, null, new Date(Date.UTC(2026, 5, 2)))).toBe(false);
     });
     it('CustomInterval: returns true when diff divisible by interval', () => {
       expect(isScheduledOn({ frequency: 'CustomInterval', intervalDays: 3 }, s, null, new Date(Date.UTC(2026, 5, 7)))).toBe(true);
@@ -560,6 +720,22 @@ describe('ScheduleGenerator', () => {
       expect(dates[0].toISOString().slice(0, 10)).toBe('2026-06-01'); // Mon
       expect(dates[1].toISOString().slice(0, 10)).toBe('2026-06-03'); // Wed
       expect(dates[2].toISOString().slice(0, 10)).toBe('2026-06-05'); // Fri
+    });
+
+    it('TwiceSpecificDaysOfWeek: returns days of week matching protocol settings', () => {
+      const rangeStart = new Date(Date.UTC(2026, 5, 1)); // Mon June 1
+      const rangeEnd = new Date(Date.UTC(2026, 5, 7));   // Sun June 7
+      // Days: Mon, Fri
+      const dates = getScheduledDatesInRange(
+        { frequency: 'TwiceSpecificDaysOfWeek', daysOfWeek: ['Mon', 'Fri'] },
+        pStart,
+        pEnd,
+        rangeStart,
+        rangeEnd
+      );
+      expect(dates).toHaveLength(2);
+      expect(dates[0].toISOString().slice(0, 10)).toBe('2026-06-01'); // Mon
+      expect(dates[1].toISOString().slice(0, 10)).toBe('2026-06-05'); // Fri
     });
 
     it('CustomInterval: returns dates on exact intervals', () => {

@@ -12,9 +12,14 @@ const DoseAmountSchema = z.object({
 
 const ScheduleSchema = z.discriminatedUnion('frequency', [
   z.object({ frequency: z.literal('Daily') }),
+  z.object({ frequency: z.literal('TwiceDaily') }),
   z.object({ frequency: z.literal('EOD') }),
   z.object({
     frequency: z.literal('SpecificDaysOfWeek'),
+    daysOfWeek: z.array(z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])).min(1),
+  }),
+  z.object({
+    frequency: z.literal('TwiceSpecificDaysOfWeek'),
     daysOfWeek: z.array(z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])).min(1),
   }),
   z.object({

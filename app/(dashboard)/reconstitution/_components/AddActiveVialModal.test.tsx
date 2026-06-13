@@ -2,11 +2,12 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { addReconstitutedVialAction } from '@/app/actions/reconstitution/inventory-actions';
+import { addReconstitutedVialAction, reconstituteDryVialAction } from '@/app/actions/reconstitution/inventory-actions';
 import { AddActiveVialModal } from './AddActiveVialModal';
 
 vi.mock('@/app/actions/reconstitution/inventory-actions', () => ({
   addReconstitutedVialAction: vi.fn(),
+  reconstituteDryVialAction: vi.fn(),
 }));
 
 const compound = {
@@ -42,6 +43,26 @@ const compound = {
   },
 };
 
+const mockDryVial = {
+  id: '00000000-0000-4000-9000-000000000001',
+  compoundId: '00000000-0000-4000-8000-000000000001',
+  compoundName: 'BPC-157',
+  compoundSlug: 'bpc-157',
+  totalMg: '10',
+  remainingMg: '10',
+  status: 'DRY',
+  bacWaterMl: null,
+  reconstitutedAt: null,
+  expiresAt: '2028-06-12T00:00:00.000Z',
+  daysUntilExpiry: null,
+  cost: '50.00',
+  currency: 'USD',
+  userId: 'user-1',
+  createdAt: '2026-06-12T00:00:00.000Z',
+  updatedAt: '2026-06-12T00:00:00.000Z',
+  badges: [],
+};
+
 afterEach(() => {
   vi.clearAllMocks();
   cleanup();
@@ -57,7 +78,7 @@ describe('AddActiveVialModal', () => {
   it('exposes dialog semantics and closes on Escape', async () => {
     const onClose = vi.fn();
 
-    render(<AddActiveVialModal compounds={[compound]} onClose={onClose} />);
+    render(<AddActiveVialModal compounds={[compound]} dryVials={[]} onClose={onClose} />);
 
     expect(await screen.findByRole('dialog', { name: /add reconstituted vial/i })).toBeTruthy();
 
@@ -69,7 +90,7 @@ describe('AddActiveVialModal', () => {
   it('defaults the refrigerator expiration date to the calculated stability date', async () => {
     vi.mocked(addReconstitutedVialAction).mockResolvedValue({ ok: true });
 
-    render(<AddActiveVialModal compounds={[compound]} onClose={vi.fn()} />);
+    render(<AddActiveVialModal compounds={[compound]} dryVials={[]} onClose={vi.fn()} />);
 
     fireEvent.change(await screen.findByLabelText(/compound/i), {
       target: { value: compound.id },
@@ -95,7 +116,7 @@ describe('AddActiveVialModal', () => {
   it('submits the calculated expiration date unless the user overrides it', async () => {
     vi.mocked(addReconstitutedVialAction).mockResolvedValue({ ok: true });
 
-    render(<AddActiveVialModal compounds={[compound]} onClose={vi.fn()} />);
+    render(<AddActiveVialModal compounds={[compound]} dryVials={[]} onClose={vi.fn()} />);
 
     fireEvent.change(await screen.findByLabelText(/compound/i), {
       target: { value: compound.id },
@@ -116,4 +137,40 @@ describe('AddActiveVialModal', () => {
       );
     });
   });
+
+  it('allows pulling from existing freezer inventory and calls reconstituteDryVialAction', async () => {
+    vi.mocked(reconstituteDryVialAction).mockResolvedValue({ ok: true });
+
+    render(<AddActiveVialModal compounds={[compound]} dryVials={[mockDryVial]} onClose={vi.fn()} />);
+
+    fireEvent.change(await screen.findByLabelText(/compound/i), {
+      target: { value: compound.id },
+    });
+
+    expect(screen.getByText(/Pull from Freezer/i)).toBeTruthy();
+    fireEvent.click(screen.getByText(/Pull from Freezer/i));
+
+    const freezerSelect = screen.getByLabelText(/select freezer vial/i) as HTMLSelectElement;
+    expect(freezerSelect.value).toBe(mockDryVial.id);
+
+    const sizeInput = screen.getByLabelText(/vial size/i) as HTMLInputElement;
+    expect(sizeInput.disabled).toBe(true);
+    expect(sizeInput.value).toBe('10');
+
+    fireEvent.change(screen.getByLabelText(/bac water volume/i), { target: { value: '2.5' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /add vial/i }));
+
+    const expectedExpiry = expectedDateInputValue(28);
+
+    await waitFor(() => {
+      expect(reconstituteDryVialAction).toHaveBeenCalledWith({
+        vialId: mockDryVial.id,
+        bacWaterMl: '2.5',
+        expiresAt: expectedExpiry,
+      });
+      expect(addReconstitutedVialAction).not.toHaveBeenCalled();
+    });
+  });
 });
+

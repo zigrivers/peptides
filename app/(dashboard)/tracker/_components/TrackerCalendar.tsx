@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Check, Calendar, AlertCircle, Edit2, Info, ChevronUp, ChevronDown, Sparkles } from 'lucide-react';
 import type { Protocol, DoseLog, InjectionSite } from '@/lib/tracker/domain/types';
-import type { CompoundProfile } from '@/lib/reference/domain/types';
+import type { CompoundProfile, BenefitTimelineItem, CatalogItem, SupplementProfile } from '@/lib/reference/domain/types';
 import { getScheduledDatesInRange } from '@/lib/tracker/domain/ScheduleGenerator';
 import { logDoseAction } from '@/app/actions/tracker/log-dose';
 import { rescheduleDoseAction } from '@/app/actions/tracker/reschedule-dose';
@@ -17,6 +17,7 @@ import { calculateStreak, type StreakResult } from '@/lib/tracker/domain/streak'
 import { ConfettiCanvas } from '@/app/(dashboard)/dashboard/_components/ConfettiCanvas';
 import { SitePicker, type SiteData, formatSiteLabel, formatSiteUseAgeForSentence } from './SitePicker';
 import { toUTCDay } from '@/lib/shared/date';
+import { CompoundInfoModal } from './CompoundInfoModal';
 
 type CalendarEvent = {
   id: string;
@@ -43,12 +44,21 @@ interface SerializedProtocol extends Omit<Protocol, 'startDate' | 'endDate'> {
 
 interface Props {
   protocols: SerializedProtocol[];
-  doseLogs: (Omit<DoseLog, 'loggedAt' | 'scheduledDate'> & {
+  doseLogs: (Omit<DoseLog, 'loggedAt' | 'scheduledDate' | 'loggedCost'> & {
     loggedAt: string;
     scheduledDate: string;
+    loggedCost: string | null;
     loggedDoseDisplay?: string | null;
   })[];
-  compounds: Record<string, { name: string; slug: string; profile?: Partial<CompoundProfile> | null }>;
+  compounds: Record<
+    string,
+    Omit<Partial<CatalogItem>, 'lastReviewedAt' | 'archivedAt' | 'profile' | 'supplementProfile'> & {
+      lastReviewedAt?: string | null;
+      archivedAt?: string | null;
+      profile?: Partial<CompoundProfile> | null;
+      supplementProfile?: Partial<SupplementProfile> | null;
+    }
+  >;
   siteSuggestions?: Record<string, SiteData>;
   initialDateISO: string;
   loggedDates?: string[];
@@ -315,6 +325,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
 
   const [streak, setStreak] = useState<StreakResult | null>(null);
   const [triggerConfetti, setTriggerConfetti] = useState(false);
+  const [selectedCompoundInfo, setSelectedCompoundInfo] = useState<Props['compounds'][string] | null>(null);
 
   // Client-side timezone-resilient streak calculation
   useEffect(() => {
@@ -446,8 +457,8 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
         id: `scheduled-${p.id}-${dateStr}`,
         protocolId: p.id,
         compoundId: p.compoundId,
-        compoundName: comp.name,
-        compoundSlug: comp.slug,
+        compoundName: comp.name || 'Compound',
+        compoundSlug: comp.slug || 'unknown',
         doseAmount: p.dose.amount,
         doseUnit: p.dose.unit,
         type: 'SCHEDULED',
@@ -596,16 +607,16 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
   const renderExpectedBenefits = (e: CalendarEvent, info: WeekInfo | null) => {
     if (e.type !== 'LOGGED') return null;
 
-    const profile = compounds[e.compoundId]?.profile;
-    const timeline = profile?.benefitTimeline;
+    const profile = compounds[e.compoundId]?.profile as CompoundProfile | null;
+    const timeline: BenefitTimelineItem[] = (profile?.benefitTimeline as BenefitTimelineItem[] | null) || [];
     if (!timeline || timeline.length === 0) return null;
 
     if (!info) return null;
 
-    const validTimeline = timeline.filter((item) => item && typeof item.week === 'number' && Array.isArray(item.benefits) && item.benefits.length > 0);
-    const currentWeekItem = validTimeline.find((item) => item.week === info.weekNumber);
-    const pastItems = validTimeline.filter((item) => item.week < info.weekNumber);
-    const futureItems = validTimeline.filter((item) => item.week > info.weekNumber);
+    const validTimeline: BenefitTimelineItem[] = timeline.filter((item: BenefitTimelineItem) => item && typeof item.week === 'number' && Array.isArray(item.benefits) && item.benefits.length > 0);
+    const currentWeekItem: BenefitTimelineItem | undefined = validTimeline.find((item: BenefitTimelineItem) => item.week === info.weekNumber);
+    const pastItems: BenefitTimelineItem[] = validTimeline.filter((item: BenefitTimelineItem) => item.week < info.weekNumber);
+    const futureItems: BenefitTimelineItem[] = validTimeline.filter((item: BenefitTimelineItem) => item.week > info.weekNumber);
 
     // If there's no milestones to display, skip
     if (!currentWeekItem && pastItems.length === 0 && futureItems.length === 0) return null;
@@ -622,7 +633,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
           <div className="space-y-1">
             <p className="text-[10px] uppercase font-bold text-primary tracking-wider">Current Milestone</p>
             <ul className="list-disc list-inside text-xs text-gray-600 dark:text-gray-400 space-y-0.5 ml-1">
-              {currentWeekItem.benefits.map((benefit, idx) => (
+              {currentWeekItem.benefits.map((benefit: string, idx: number) => (
                 <li key={idx}>{benefit}</li>
               ))}
             </ul>
@@ -634,7 +645,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
           <div className="space-y-1">
             <p className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">Upcoming Milestones</p>
             <div className="space-y-2.5 ml-1">
-              {futureItems.map((item, idx) => {
+              {futureItems.map((item: BenefitTimelineItem, idx: number) => {
                 const days = Math.max(0, (item.week - 1) * 7 - info.elapsedDays);
                 const rel = days === 0 ? 'starts today' : `(starts in ~${days} ${days === 1 ? 'day' : 'days'})`;
                 return (
@@ -646,7 +657,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                       </span>
                     </div>
                     <ul className="list-disc list-inside text-xs text-gray-600 dark:text-gray-400 space-y-0.5 ml-2">
-                      {item.benefits.map((benefit, bIdx) => (
+                      {item.benefits.map((benefit: string, bIdx: number) => (
                         <li key={bIdx} className="leading-relaxed">{benefit}</li>
                       ))}
                     </ul>
@@ -668,11 +679,11 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                 </span>
               </summary>
               <div className="mt-1.5 ml-2 space-y-2.5 border-l-2 border-gray-100 dark:border-gray-800 pl-3 animate-[fadeIn_0.2s_ease-out]">
-                {pastItems.map((item, idx) => (
+                {pastItems.map((item: BenefitTimelineItem, idx: number) => (
                   <div key={idx} className="space-y-1">
                     <span className="font-semibold text-xs text-gray-700 dark:text-gray-200 block">Week {item.week}:</span>
                     <ul className="list-disc list-inside text-xs text-gray-600 dark:text-gray-400 space-y-0.5 ml-2">
-                      {item.benefits.map((benefit, bIdx) => (
+                      {item.benefits.map((benefit: string, bIdx: number) => (
                         <li key={bIdx} className="leading-relaxed">{benefit}</li>
                       ))}
                     </ul>
@@ -1078,7 +1089,17 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                     >
                       <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200 flex items-center gap-2 flex-wrap">
-                          <span>{e.compoundName}</span>
+                          <span
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              const info = compounds[e.compoundId];
+                              if (info) setSelectedCompoundInfo(info);
+                            }}
+                            className="hover:text-primary hover:underline cursor-pointer transition-colors"
+                            title="View compound details"
+                          >
+                            {e.compoundName}
+                          </span>
                           <span className="text-xs font-normal text-gray-500">
                             {doseDisplay}
                             {!isProcessed && doseUnitsByCompoundId[e.compoundId]?.unitsText && (
@@ -1209,6 +1230,82 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                     {/* Inline Logging Form (Unlogged Expanded or Editing) */}
                     {isExpanded && (!isProcessed || isEditing) && (
                       <div className="px-4 pb-4 pt-3 border-t border-gray-50 dark:border-gray-900 space-y-4 bg-gray-50/30 dark:bg-gray-950/20">
+                        {/* Approach B: Unified Context Banner */}
+                        {(() => {
+                          const cycleInfo = getCycleInfo(e, weekInfo);
+                          
+                          const getDeterministicSummary = (timeline: BenefitTimelineItem[] | null): string | null => {
+                            if (!timeline || timeline.length === 0) return null;
+                            const validWeeks = timeline
+                              .filter(item => item && typeof item.week === 'number' && Array.isArray(item.benefits) && item.benefits.length > 0)
+                              .sort((a, b) => a.week - b.week);
+                            if (validWeeks.length === 0) return null;
+                            
+                            const firstWeek = validWeeks[0];
+                            const lastWeek = validWeeks[validWeeks.length - 1];
+                            
+                            const cleanBenefit = (text: string) => {
+                              const parts = text.split(':');
+                              let content = parts.length > 1 ? parts.slice(1).join(':').trim() : text.trim();
+                              if (content.length > 0) {
+                                content = content.charAt(0).toLowerCase() + content.slice(1);
+                              }
+                              return content;
+                            };
+
+                            const startBenefit = cleanBenefit(firstWeek.benefits[0]);
+                            if (validWeeks.length === 1 || firstWeek.week === lastWeek.week) {
+                              return `Expected to support ${startBenefit}.`;
+                            }
+                            const endBenefit = cleanBenefit(lastWeek.benefits[0]);
+                            return `Expected to support ${startBenefit}, progressing to support ${endBenefit}.`;
+                          };
+
+                          const summary = profile?.expectedBenefitsSummary || getDeterministicSummary(profile?.benefitTimeline ?? null);
+                          
+                          if (!cycleInfo && !summary) return null;
+
+                          return (
+                            <div
+                              className="p-3 rounded-lg border text-xs space-y-2 relative overflow-hidden animate-[fadeIn_0.2s_ease-out]"
+                              style={{
+                                borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,
+                                backgroundColor: `color-mix(in srgb, ${color} 6%, transparent)`,
+                              }}
+                            >
+                              {/* Top row: Cycle info / Continuous badge */}
+                              {cycleInfo && (
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between font-bold text-gray-700 dark:text-gray-300">
+                                    <span className="flex items-center gap-1">
+                                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+                                      {cycleInfo.isContinuous ? 'Continuous Protocol' : `Cycle Progress`}
+                                    </span>
+                                    <span className="text-[10px] opacity-85 font-semibold">{cycleInfo.text}</span>
+                                  </div>
+                                  {/* Progress bar (only for cycled) */}
+                                  {cycleInfo.percent !== null && (
+                                    <div className="w-full h-1 bg-gray-200/50 dark:bg-gray-800/50 rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full rounded-full transition-all duration-300"
+                                        style={{ backgroundColor: color, width: `${cycleInfo.percent}%` }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Bottom row: expected benefits summary */}
+                              {summary && (
+                                <div className="flex items-start gap-1.5 text-gray-600 dark:text-gray-400 leading-relaxed pt-1.5 border-t border-gray-200/30 dark:border-gray-800/30">
+                                  <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color }} />
+                                  <p className="text-[11px] font-medium italic">{summary}</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+
                         {logErrors[e.id] && (
                           <div className="text-xs text-destructive font-medium flex items-center gap-1" role="alert">
                             <AlertCircle className="h-3.5 w-3.5" />
@@ -1257,6 +1354,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                               siteData={siteData}
                               selectedSite={editSite[e.id] ?? null}
                               onSelect={(site) => setEditSite((prev) => ({ ...prev, [e.id]: site }))}
+                              defaultShowMap={false}
                             />
                           </div>
                         )}
@@ -1410,6 +1508,11 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
           </div>
         </div>
       )}
+      <CompoundInfoModal
+        compound={selectedCompoundInfo}
+        isOpen={!!selectedCompoundInfo}
+        onClose={() => setSelectedCompoundInfo(null)}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
   updateVialRemainingMg,
   updateVialCost,
 } from '@/lib/reconstitution/application/VialService';
+import { isAuthorizedSubject } from '@/lib/tracker/application/ProtocolService';
 
 const SupportedInventoryCurrencySchema = z.enum(['USD', 'USDT', 'EUR', 'GBP']);
 
@@ -41,6 +42,7 @@ const AddDryVialsSchema = z.object({
     const date = new Date(val);
     return !isNaN(date.getTime());
   }, 'Invalid date format'),
+  subjectUserId: z.string().uuid().optional(),
 });
 
 const ReconstituteVialSchema = z.object({
@@ -58,6 +60,7 @@ const ReconstituteVialSchema = z.object({
     const date = new Date(val);
     return !isNaN(date.getTime());
   }, 'Invalid date format'),
+  subjectUserId: z.string().uuid().optional(),
 });
 
 const AddReconstitutedVialSchema = z.object({
@@ -93,6 +96,7 @@ const AddReconstitutedVialSchema = z.object({
     const date = new Date(val);
     return !isNaN(date.getTime());
   }, 'Invalid date format'),
+  subjectUserId: z.string().uuid().optional(),
 });
 
 const UpdateVialCostSchema = z.object({
@@ -107,6 +111,7 @@ const UpdateVialCostSchema = z.object({
     }
   }, 'Must be a non-negative decimal'),
   currency: SupportedInventoryCurrencySchema.optional(),
+  subjectUserId: z.string().uuid().optional(),
 });
 
 export type InventoryResult =
@@ -122,9 +127,16 @@ export async function addDryVialsAction(rawInput: unknown): Promise<InventoryRes
     return { ok: false, error: 'validation_error', message: parsed.error.issues[0]?.message };
   }
 
+  let targetUserId = session.user.id;
+  if (parsed.data.subjectUserId && parsed.data.subjectUserId !== session.user.id) {
+    const authorized = await isAuthorizedSubject(session.user.id, parsed.data.subjectUserId);
+    if (!authorized) return { ok: false, error: 'unauthorized', message: 'Not authorized for this subject.' };
+    targetUserId = parsed.data.subjectUserId;
+  }
+
   try {
     await saveDryVials({
-      userId: session.user.id,
+      userId: targetUserId,
       compoundId: parsed.data.compoundId,
       totalMg: new Decimal(parsed.data.totalMg),
       quantity: parsed.data.quantity,
@@ -151,9 +163,16 @@ export async function reconstituteDryVialAction(rawInput: unknown): Promise<Inve
     return { ok: false, error: 'validation_error', message: parsed.error.issues[0]?.message };
   }
 
+  let targetUserId = session.user.id;
+  if (parsed.data.subjectUserId && parsed.data.subjectUserId !== session.user.id) {
+    const authorized = await isAuthorizedSubject(session.user.id, parsed.data.subjectUserId);
+    if (!authorized) return { ok: false, error: 'unauthorized', message: 'Not authorized for this subject.' };
+    targetUserId = parsed.data.subjectUserId;
+  }
+
   try {
     await reconstituteVial({
-      userId: session.user.id,
+      userId: targetUserId,
       vialId: parsed.data.vialId,
       bacWaterMl: new Decimal(parsed.data.bacWaterMl),
       expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : undefined,
@@ -171,7 +190,7 @@ export async function reconstituteDryVialAction(rawInput: unknown): Promise<Inve
   }
 }
 
-export async function deleteVialAction(vialId: string): Promise<InventoryResult> {
+export async function deleteVialAction(vialId: string, subjectUserId?: string): Promise<InventoryResult> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
 
@@ -180,8 +199,15 @@ export async function deleteVialAction(vialId: string): Promise<InventoryResult>
     return { ok: false, error: 'validation_error', message: 'Invalid Vial ID format' };
   }
 
+  let targetUserId = session.user.id;
+  if (subjectUserId && subjectUserId !== session.user.id) {
+    const authorized = await isAuthorizedSubject(session.user.id, subjectUserId);
+    if (!authorized) return { ok: false, error: 'unauthorized', message: 'Not authorized for this subject.' };
+    targetUserId = subjectUserId;
+  }
+
   try {
-    await deleteVial(session.user.id, parsed.data);
+    await deleteVial(targetUserId, parsed.data);
     revalidatePath('/reconstitution');
     revalidatePath('/dashboard');
     revalidatePath('/tracker');
@@ -203,9 +229,16 @@ export async function addReconstitutedVialAction(rawInput: unknown): Promise<Inv
     return { ok: false, error: 'validation_error', message: parsed.error.issues[0]?.message };
   }
 
+  let targetUserId = session.user.id;
+  if (parsed.data.subjectUserId && parsed.data.subjectUserId !== session.user.id) {
+    const authorized = await isAuthorizedSubject(session.user.id, parsed.data.subjectUserId);
+    if (!authorized) return { ok: false, error: 'unauthorized', message: 'Not authorized for this subject.' };
+    targetUserId = parsed.data.subjectUserId;
+  }
+
   try {
     await saveVial({
-      userId: session.user.id,
+      userId: targetUserId,
       compoundId: parsed.data.compoundId,
       totalMg: new Decimal(parsed.data.totalMg),
       bacWaterMl: new Decimal(parsed.data.bacWaterMl),
@@ -234,6 +267,7 @@ const UpdateVialRemainingMgSchema = z.object({
       return false;
     }
   }, 'Must be a non-negative decimal'),
+  subjectUserId: z.string().uuid().optional(),
 });
 
 export async function updateVialRemainingMgAction(rawInput: unknown): Promise<InventoryResult> {
@@ -245,9 +279,16 @@ export async function updateVialRemainingMgAction(rawInput: unknown): Promise<In
     return { ok: false, error: 'validation_error', message: parsed.error.issues[0]?.message };
   }
 
+  let targetUserId = session.user.id;
+  if (parsed.data.subjectUserId && parsed.data.subjectUserId !== session.user.id) {
+    const authorized = await isAuthorizedSubject(session.user.id, parsed.data.subjectUserId);
+    if (!authorized) return { ok: false, error: 'unauthorized', message: 'Not authorized for this subject.' };
+    targetUserId = parsed.data.subjectUserId;
+  }
+
   try {
     await updateVialRemainingMg({
-      userId: session.user.id,
+      userId: targetUserId,
       vialId: parsed.data.vialId,
       remainingMg: new Decimal(parsed.data.remainingMg),
     });
@@ -276,9 +317,16 @@ export async function updateVialCostAction(rawInput: unknown): Promise<Inventory
 
   const costText = parsed.data.cost?.trim() ?? '';
 
+  let targetUserId = session.user.id;
+  if (parsed.data.subjectUserId && parsed.data.subjectUserId !== session.user.id) {
+    const authorized = await isAuthorizedSubject(session.user.id, parsed.data.subjectUserId);
+    if (!authorized) return { ok: false, error: 'unauthorized', message: 'Not authorized for this subject.' };
+    targetUserId = parsed.data.subjectUserId;
+  }
+
   try {
     await updateVialCost({
-      userId: session.user.id,
+      userId: targetUserId,
       vialId: parsed.data.vialId,
       cost: costText ? new Decimal(costText) : null,
       currency: parsed.data.currency ?? 'USD',

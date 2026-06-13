@@ -13,9 +13,14 @@ const DoseAmountSchema = z.object({
 
 const ScheduleSchema = z.discriminatedUnion('frequency', [
   z.object({ frequency: z.literal('Daily') }),
+  z.object({ frequency: z.literal('TwiceDaily') }),
   z.object({ frequency: z.literal('EOD') }),
   z.object({
     frequency: z.literal('SpecificDaysOfWeek'),
+    daysOfWeek: z.array(z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])).min(1),
+  }),
+  z.object({
+    frequency: z.literal('TwiceSpecificDaysOfWeek'),
     daysOfWeek: z.array(z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])).min(1),
   }),
   z.object({
@@ -53,6 +58,7 @@ const InputSchema = z.object({
   endDate: z.coerce.date().optional(),
   notes: z.string().max(2000).optional(),
   initialVial: InitialVialSchema.optional(),
+  reconstituteVialId: z.string().uuid().optional(),
 });
 
 export type CreateProtocolError =
@@ -95,6 +101,7 @@ export async function createProtocolAction(
       endDate: parsed.data.endDate,
       notes: parsed.data.notes,
       initialVial: parsed.data.initialVial,
+      reconstituteVialId: parsed.data.reconstituteVialId,
     });
     revalidatePath('/tracker');
     revalidatePath('/regimen');

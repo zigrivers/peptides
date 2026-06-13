@@ -3,16 +3,19 @@
 import React, { useState, useTransition, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { Compound } from '@/lib/reference/domain/types';
-import { addReconstitutedVialAction } from '@/app/actions/reconstitution/inventory-actions';
+import type { SerializedVialData } from '@/lib/reconstitution/application/VialService';
+import { addReconstitutedVialAction, reconstituteDryVialAction } from '@/app/actions/reconstitution/inventory-actions';
 import { X, AlertTriangle, Thermometer, Plus, Droplet } from 'lucide-react';
 
 interface Props {
   compounds: Pick<Compound, 'id' | 'name' | 'profile' | 'slug'>[];
+  dryVials: SerializedVialData[];
+  subjectUserId?: string;
   onSuccess?: () => void;
   onClose: () => void;
 }
 
-export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
+export function AddActiveVialModal({ compounds, dryVials, subjectUserId, onSuccess, onClose }: Props) {
   const [compoundId, setCompoundId] = useState('');
   const [totalMg, setTotalMg] = useState('');
   const [bacWaterMl, setBacWaterMl] = useState('');
@@ -20,6 +23,8 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
   const [currency, setCurrency] = useState('USD');
   const [expiresAt, setExpiresAt] = useState('');
   const [hasEditedExpiresAt, setHasEditedExpiresAt] = useState(false);
+  const [sourceType, setSourceType] = useState<'new' | 'existing'>('new');
+  const [selectedDryVialId, setSelectedDryVialId] = useState('');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -86,20 +91,59 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
     }
   }, [compoundId, estimatedExpiresAt, hasEditedExpiresAt]);
 
+  const availableDryVials = useMemo(() => {
+    if (!compoundId) return [];
+    return dryVials.filter((v) => v.compoundId === compoundId);
+  }, [dryVials, compoundId]);
+
+  const currentDryVial = useMemo(() => {
+    return availableDryVials.find((v) => v.id === selectedDryVialId) ?? null;
+  }, [availableDryVials, selectedDryVialId]);
+
+  useEffect(() => {
+    if (availableDryVials.length === 0) {
+      setSourceType('new');
+      setSelectedDryVialId('');
+    } else {
+      setSelectedDryVialId(availableDryVials[0]?.id || '');
+    }
+  }, [availableDryVials]);
+
+  useEffect(() => {
+    if (sourceType === 'existing' && currentDryVial) {
+      setTotalMg(currentDryVial.totalMg);
+    }
+  }, [sourceType, currentDryVial]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!compoundId || !totalMg || !bacWaterMl) return;
 
     setError(null);
     startTransition(async () => {
-      const result = await addReconstitutedVialAction({
-        compoundId,
-        totalMg,
-        bacWaterMl,
-        cost: cost || undefined,
-        currency: cost ? currency : undefined,
-        expiresAt: expiresAt || undefined,
-      });
+      let result;
+      if (sourceType === 'existing') {
+        if (!selectedDryVialId) {
+          setError('Please select a dry vial to pull from.');
+          return;
+        }
+        result = await reconstituteDryVialAction({
+          vialId: selectedDryVialId,
+          bacWaterMl,
+          expiresAt: expiresAt || undefined,
+          subjectUserId,
+        });
+      } else {
+        result = await addReconstitutedVialAction({
+          compoundId,
+          totalMg,
+          bacWaterMl,
+          cost: cost || undefined,
+          currency: cost ? currency : undefined,
+          expiresAt: expiresAt || undefined,
+          subjectUserId,
+        });
+      }
 
       if (result.ok) {
         onSuccess?.();
@@ -179,6 +223,66 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
               </select>
             </div>
 
+            {/* Inventory Source Selection */}
+            {compoundId && availableDryVials.length > 0 && (
+              <div className="space-y-2">
+                <span className="block text-xs font-semibold text-foreground/80">Inventory Option</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSourceType('new')}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      sourceType === 'new'
+                        ? 'border-emerald-500 bg-emerald-500/10 text-foreground'
+                        : 'border-input hover:border-emerald-500/50 text-muted-foreground'
+                    }`}
+                  >
+                    <span className="block text-xs font-bold text-foreground">Add New Vial</span>
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">Not using freezer inventory</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSourceType('existing')}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      sourceType === 'existing'
+                        ? 'border-emerald-500 bg-emerald-500/10 text-foreground'
+                        : 'border-input hover:border-emerald-500/50 text-muted-foreground'
+                    }`}
+                  >
+                    <span className="block text-xs font-bold text-foreground">Pull from Freezer</span>
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">Use existing dry vial ({availableDryVials.length} available)</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Select Freezer Vial */}
+            {sourceType === 'existing' && availableDryVials.length > 0 && (
+              <div>
+                <label htmlFor="modal-dry-vial" className="block text-xs font-semibold text-foreground/80 mb-1">
+                  Select Freezer Vial
+                </label>
+                <select
+                  id="modal-dry-vial"
+                  required
+                  value={selectedDryVialId}
+                  onChange={(e) => setSelectedDryVialId(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {availableDryVials.map((v) => {
+                    const dateStr = v.expiresAt
+                      ? new Date(v.expiresAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                      : 'No expiry';
+                    return (
+                      <option key={v.id} value={v.id}>
+                        {v.totalMg} mg vial — Expiration: {dateStr}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+
             {/* Vial size / Total Mg */}
             <div>
               <label htmlFor="active-totalMg" className="block text-xs font-semibold text-foreground/80 mb-1">
@@ -190,11 +294,19 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
                 step="any"
                 min="0"
                 required
+                disabled={sourceType === 'existing'}
                 placeholder="E.g., 5, 10"
                 value={totalMg}
                 onChange={(e) => setTotalMg(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className={`w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                  sourceType === 'existing' ? 'opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-900' : ''
+                }`}
               />
+              {sourceType === 'existing' && (
+                <p className="text-[10px] text-muted-foreground mt-1 font-medium">
+                  Size locked to selected freezer vial.
+                </p>
+              )}
             </div>
 
             {/* BAC Water Volume */}
@@ -239,39 +351,41 @@ export function AddActiveVialModal({ compounds, onSuccess, onClose }: Props) {
             </div>
 
             {/* Cost and Currency */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="active-cost" className="block text-xs font-semibold text-foreground/80 mb-1">
-                  Cost <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
-                </label>
-                <input
-                  id="active-cost"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="E.g., 45.00"
-                  value={cost}
-                  onChange={(e) => setCost(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+            {sourceType === 'new' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="active-cost" className="block text-xs font-semibold text-foreground/80 mb-1">
+                    Cost <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    id="active-cost"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="E.g., 45.00"
+                    value={cost}
+                    onChange={(e) => setCost(e.target.value)}
+                    className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="active-currency" className="block text-xs font-semibold text-foreground/80 mb-1">
+                    Currency
+                  </label>
+                  <select
+                    id="active-currency"
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="USD">USD ($)</option>
+                    <option value="USDT">USDT</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label htmlFor="active-currency" className="block text-xs font-semibold text-foreground/80 mb-1">
-                  Currency
-                </label>
-                <select
-                  id="active-currency"
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  <option value="USD">USD ($)</option>
-                  <option value="USDT">USDT</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                </select>
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-3 border-t border-white/10">

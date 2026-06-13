@@ -10,17 +10,19 @@ interface Props {
   compounds: Pick<Compound, 'id' | 'name' | 'profile' | 'slug'>[];
   /** Pre-select a compound (e.g. when opened from the by-compound inventory row). */
   initialCompoundId?: string;
+  subjectUserId?: string;
   onSuccess?: () => void;
   onClose: () => void;
 }
 
-export function AddDryVialsModal({ compounds, initialCompoundId, onSuccess, onClose }: Props) {
+export function AddDryVialsModal({ compounds, initialCompoundId, subjectUserId, onSuccess, onClose }: Props) {
   const [compoundId, setCompoundId] = useState(initialCompoundId ?? '');
   const [totalMg, setTotalMg] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [cost, setCost] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [expiresAt, setExpiresAt] = useState('');
+  const [userOverrodeDate, setUserOverrodeDate] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -59,6 +61,21 @@ export function AddDryVialsModal({ compounds, initialCompoundId, onSuccess, onCl
     });
   }, [isMounted, compoundId, freezerShelfLifeMonths]);
 
+  // Auto-populate freezer expiry date when compound changes, unless overridden by user
+  useEffect(() => {
+    if (!isMounted) return;
+    if (compoundId && !userOverrodeDate) {
+      const now = new Date();
+      const expiry = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + freezerShelfLifeMonths, now.getUTCDate()));
+      const yyyy = expiry.getUTCFullYear();
+      const mm = String(expiry.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(expiry.getUTCDate()).padStart(2, '0');
+      setExpiresAt(`${yyyy}-${mm}-${dd}`);
+    } else if (!compoundId && !userOverrodeDate) {
+      setExpiresAt('');
+    }
+  }, [compoundId, freezerShelfLifeMonths, userOverrodeDate, isMounted]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const qtyVal = parseInt(quantity, 10);
@@ -76,6 +93,7 @@ export function AddDryVialsModal({ compounds, initialCompoundId, onSuccess, onCl
         cost: cost || undefined,
         currency: cost ? currency : undefined,
         expiresAt: expiresAt || undefined,
+        subjectUserId,
       });
 
       if (result.ok) {
@@ -195,7 +213,10 @@ export function AddDryVialsModal({ compounds, initialCompoundId, onSuccess, onCl
                 id="modal-expiresAt"
                 type="date"
                 value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
+                onChange={(e) => {
+                  setExpiresAt(e.target.value);
+                  setUserOverrodeDate(true);
+                }}
                 className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
               />
               {isMounted && compoundId && !expiresAt && (

@@ -47,8 +47,9 @@ export default async function TrackerPage() {
     compoundsList.map((c) => [
       c.id,
       {
-        name: c.name,
-        slug: c.slug,
+        ...c,
+        lastReviewedAt: c.lastReviewedAt ? c.lastReviewedAt.toISOString() : null,
+        archivedAt: c.archivedAt ? c.archivedAt.toISOString() : null,
         profile: c.profile
           ? c.profile
           : c.supplementProfile
@@ -76,6 +77,7 @@ export default async function TrackerPage() {
               daysOff: null,
               timingNotes: c.supplementProfile.timingNotes,
               isFdaApproved: false,
+              expectedBenefitsSummary: c.supplementProfile.expectedBenefitsSummary,
             }
           : null,
       },
@@ -126,6 +128,7 @@ export default async function TrackerPage() {
           ...item.existingLog,
           loggedAt: item.existingLog.loggedAt.toISOString(),
           scheduledDate: item.existingLog.scheduledDate.toISOString(),
+          loggedCost: item.existingLog.loggedCost ? item.existingLog.loggedCost.toString() : null,
         }
       : null,
     safetyWarnings: item.safetyWarnings || [],
@@ -186,6 +189,7 @@ export default async function TrackerPage() {
     amount: log.amount,
     injectionSite: log.injectionSite,
     status: log.status,
+    loggedCost: log.loggedCost ? log.loggedCost.toString() : null,
     loggedDoseDisplay:
       log.status === 'LOGGED'
         ? buildLoggedDoseDisplay(

@@ -27,6 +27,13 @@ function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: 
   return `${userId}:${protocolId}:${dateStr}`;
 }
 
+function parseDoseAmountSum(amountStr: string): Decimal {
+  if (amountStr.includes('/')) {
+    return amountStr.split('/').reduce((sum, part) => sum.plus(new Decimal(part.trim())), new Decimal(0));
+  }
+  return new Decimal(amountStr);
+}
+
 
 
 function isFutureCalendarDay(scheduledDate: Date): boolean {
@@ -287,7 +294,7 @@ export async function logDose(
       const newVialId = input.status === 'SKIPPED' ? null : (input.vialId ?? existing.vialId);
 
       const existingAmount = existing.amount as Record<string, unknown>;
-      const doseAmountVal = new Decimal(existingAmount.amount as string);
+      const doseAmountVal = parseDoseAmountSum(existingAmount.amount as string);
       const doseUnit = existingAmount.unit as string;
 
       if (oldStatus === 'LOGGED' && newStatus === 'SKIPPED') {
@@ -379,7 +386,7 @@ export async function logDose(
           innerTx,
           subjectUserId,
           effectiveVialId,
-          new Decimal(amount.amount),
+          parseDoseAmountSum(amount.amount),
           amount.unit,
           syringeStandard
         );
@@ -391,7 +398,7 @@ export async function logDose(
         const costRes = await resolveDoseCost(
           innerTx,
           effectiveVialId ?? null,
-          new Decimal(amount.amount),
+          parseDoseAmountSum(amount.amount),
           amount.unit,
           syringeStandard,
           subjectUserId,

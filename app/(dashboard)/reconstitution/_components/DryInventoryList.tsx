@@ -15,6 +15,7 @@ interface Props {
   syringeSize: '0.3' | '0.5' | '1.0';
   onReconstitute: (vial: SerializedVialData) => void;
   isRoomTemp?: boolean;
+  subjectUserId?: string;
 }
 
 function formatDate(isoStr: string | null): string {
@@ -34,6 +35,7 @@ export function DryInventoryList({
   syringeSize: _syringeSize,
   onReconstitute,
   isRoomTemp = false,
+  subjectUserId,
 }: Props) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [isPending, startTransition] = useTransition();
@@ -67,7 +69,7 @@ export function DryInventoryList({
     setDeletingVialId(null);
     setDeleteError(null);
     startTransition(async () => {
-      const result = await deleteVialAction(vialId);
+      const result = await deleteVialAction(vialId, subjectUserId);
       if (result.ok) {
         const isMuted =
           typeof window !== 'undefined' &&
@@ -251,7 +253,7 @@ export function DryInventoryList({
                               <Calendar className={`h-3 w-3 ${isRoomTemp ? 'text-amber-500' : 'text-sky-400'}`} />
                               Expires: <span className={vExpired ? 'text-destructive font-semibold' : 'text-foreground/80'}>{formatDate(v.expiresAt)}</span>
                             </p>
-                            <VialCostEditor vial={v} editLabel={`Edit cost for vial #${idx + 1}`} />
+                            <VialCostEditor vial={v} editLabel={`Edit cost for vial #${idx + 1}`} subjectUserId={subjectUserId} />
                           </div>
 
                           <div className="flex items-center gap-2">

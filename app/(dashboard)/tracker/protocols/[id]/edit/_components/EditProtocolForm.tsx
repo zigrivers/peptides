@@ -19,7 +19,8 @@ export function EditProtocolForm({ protocol }: Props) {
   const [doseUnit, setDoseUnit] = useState(protocol.dose.unit);
   const [frequency, setFrequency] = useState(protocol.schedule.frequency);
   const [daysOfWeek, setDaysOfWeek] = useState<DayOfWeek[]>(
-    protocol.schedule.frequency === 'SpecificDaysOfWeek'
+    protocol.schedule.frequency === 'SpecificDaysOfWeek' ||
+    protocol.schedule.frequency === 'TwiceSpecificDaysOfWeek'
       ? (protocol.schedule.daysOfWeek as DayOfWeek[])
       : []
   );
@@ -40,8 +41,10 @@ export function EditProtocolForm({ protocol }: Props) {
   function buildSchedule() {
     switch (frequency) {
       case 'Daily': return { frequency: 'Daily' as const };
+      case 'TwiceDaily': return { frequency: 'TwiceDaily' as const };
       case 'EOD': return { frequency: 'EOD' as const };
       case 'SpecificDaysOfWeek': return { frequency: 'SpecificDaysOfWeek' as const, daysOfWeek };
+      case 'TwiceSpecificDaysOfWeek': return { frequency: 'TwiceSpecificDaysOfWeek' as const, daysOfWeek };
       case 'CustomInterval': return { frequency: 'CustomInterval' as const, intervalDays };
     }
   }
@@ -114,17 +117,19 @@ export function EditProtocolForm({ protocol }: Props) {
           <select
             id="frequency"
             value={frequency}
-            onChange={(e) => setFrequency(e.target.value as typeof frequency)}
+            onChange={(e) => setFrequency(e.target.value as typeof protocol.schedule.frequency)}
             className="w-full rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:border-primary focus:ring-primary py-2 px-3"
           >
             <option value="Daily">Daily</option>
+            <option value="TwiceDaily">Twice daily</option>
             <option value="EOD">Every other day (EOD)</option>
             <option value="SpecificDaysOfWeek">Specific days of the week</option>
+            <option value="TwiceSpecificDaysOfWeek">Twice daily on specific days</option>
             <option value="CustomInterval">Custom interval (every N days)</option>
           </select>
         </div>
 
-        {frequency === 'SpecificDaysOfWeek' && (
+        {(frequency === 'SpecificDaysOfWeek' || frequency === 'TwiceSpecificDaysOfWeek') && (
           <div>
             <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Days of the week</p>
             <div className="flex flex-wrap gap-2">

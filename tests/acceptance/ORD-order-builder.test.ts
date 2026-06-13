@@ -299,6 +299,28 @@ describe('ORD-order-builder: Depletion Rate Calculations', () => {
     expect(rateMg.toFixed(2)).toBe('1.00'); // 3.5 * 2 / 7
   });
 
+  it('calculates daily protocol rates for TwiceDaily schedule', async () => {
+    const protocol = {
+      compoundId,
+      dose: { amount: '1.5/1.5', unit: 'mg' as const } as DoseAmount,
+      schedule: { frequency: 'TwiceDaily' as const } as Schedule,
+      administrationRoute: 'SUBCUTANEOUS',
+    };
+    const { rateMg } = await getProtocolDailyRateMg(userId, protocol, 'U100');
+    expect(rateMg.toFixed(2)).toBe('3.00'); // (1.5 + 1.5) * 1
+  });
+
+  it('calculates daily protocol rates for TwiceSpecificDaysOfWeek schedule', async () => {
+    const protocol = {
+      compoundId,
+      dose: { amount: '1.75/1.75', unit: 'mg' as const } as DoseAmount,
+      schedule: { frequency: 'TwiceSpecificDaysOfWeek' as const, daysOfWeek: ['Mon', 'Thu'] } as Schedule,
+      administrationRoute: 'SUBCUTANEOUS',
+    };
+    const { rateMg } = await getProtocolDailyRateMg(userId, protocol, 'U100');
+    expect(rateMg.toFixed(2)).toBe('1.00'); // (1.75 + 1.75) * 2 / 7 = 3.5 * 2 / 7 = 1.00
+  });
+
   it('calculates daily protocol rates for CustomInterval schedule', async () => {
     const protocol = {
       compoundId,

@@ -73,6 +73,40 @@ export default async function NewProtocolPage({
     ...Object.fromEntries(managedCycleEntries),
   };
 
+  // Load vials for currentUser and all managed users
+  const subjectIds = [session.user.id, ...managedUsers.map((u) => u.id)];
+  const vials = await prisma.vial.findMany({
+    where: {
+      userId: { in: subjectIds },
+      status: { in: ['DRY', 'RECONSTITUTED'] },
+    },
+    select: {
+      id: true,
+      userId: true,
+      compoundId: true,
+      totalMg: true,
+      bacWaterMl: true,
+      remainingMg: true,
+      status: true,
+      expiresAt: true,
+      cost: true,
+      currency: true,
+    },
+  });
+
+  const serializedVials = vials.map((v) => ({
+    id: v.id,
+    userId: v.userId,
+    compoundId: v.compoundId,
+    totalMg: v.totalMg.toString(),
+    bacWaterMl: v.bacWaterMl ? v.bacWaterMl.toString() : null,
+    remainingMg: v.remainingMg.toString(),
+    status: v.status,
+    expiresAt: v.expiresAt ? v.expiresAt.toISOString() : null,
+    cost: v.cost ? v.cost.toString() : null,
+    currency: v.currency,
+  }));
+
   const serializedCloneSource = cloneSource
     ? {
         ...cloneSource,
@@ -92,6 +126,7 @@ export default async function NewProtocolPage({
         currentUser={serializedCurrentUser}
         cyclesByUserId={cyclesByUserId}
         cloneSource={serializedCloneSource}
+        vials={serializedVials}
       />
     </main>
   );

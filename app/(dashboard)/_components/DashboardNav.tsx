@@ -17,6 +17,24 @@ interface DashboardNavProps {
   hasUnloggedDoses?: boolean;
 }
 
+function isNavItemActive(pathname: string, itemHref: string): boolean {
+  if (itemHref === '/tracker') {
+    if (pathname === '/tracker/protocols' || pathname.startsWith('/tracker/protocols/')) {
+      return false;
+    }
+    return pathname === '/tracker' || pathname.startsWith('/tracker/');
+  }
+
+  if (itemHref === '/regimen') {
+    if (pathname === '/tracker/protocols' || pathname.startsWith('/tracker/protocols/')) {
+      return true;
+    }
+    return pathname === '/regimen' || pathname.startsWith('/regimen/');
+  }
+
+  return pathname === itemHref || pathname.startsWith(itemHref + '/');
+}
+
 export function DashboardNav({ orderingEnabled, hasUnloggedDoses = false }: DashboardNavProps) {
   const pathname = usePathname();
 
@@ -111,7 +129,7 @@ export function DashboardNav({ orderingEnabled, hasUnloggedDoses = false }: Dash
       {/* Mobile Bottom Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-card border-t border-border flex justify-around items-center h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] sm:hidden" aria-label="Mobile Navigation">
         {items.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+          const isActive = isNavItemActive(pathname, item.href);
           return (
             <Link
               key={item.href}
@@ -154,7 +172,7 @@ export function DashboardNav({ orderingEnabled, hasUnloggedDoses = false }: Dash
         {/* Navigation links */}
         <div className="flex-1 flex flex-col gap-1 px-2">
           {items.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            const isActive = isNavItemActive(pathname, item.href);
             return (
               <Link
                 key={item.href}

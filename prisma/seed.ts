@@ -2337,9 +2337,11 @@ Think of an injury as a collapsed bridge in a remote town. BPC-157 acts as the l
       }
 
       const timeline = getBenefitTimelineForSeed(compound.name, compound.tags, compound.mechanismOfAction);
+      const summary = getExpectedBenefitsSummaryForSeed(compound.name, compound.tags, compound.mechanismOfAction);
       const dataWithTimeline = {
         ...mergedProfile,
         benefitTimeline: timeline,
+        expectedBenefitsSummary: summary,
       };
       const upsertedProfile = await prisma.compoundProfile.upsert({
         where: { catalogItemId: compound.id },
@@ -3362,4 +3364,94 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
     { week: 8, benefits: ['Advanced physiological integration and consolidation'] },
     { week: 12, benefits: ['Peak cumulative therapeutic benefits and baseline maintenance'] },
   ];
+}
+
+function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: string | null): string {
+  const normName = name.toLowerCase();
+
+  if (normName.includes('testosterone')) {
+    return 'Typically tracked for testosterone replacement therapy to support muscle maintenance, energy levels, libido, and bone density. It is intended to help restore physiological hormone levels.';
+  }
+  if (normName.includes('ara-290') || normName.includes('ara290')) {
+    return 'Expected to support small fiber neuropathy relief by calming neuropathic discomfort and supporting nerve repair pathways. It typically aims to reduce burning, tingling, and neuroinflammation.';
+  }
+  if (normName.includes('kpv')) {
+    return 'Typically tracked for anti-inflammatory support in gastrointestinal and skin applications to promote mucosal repair. It is expected to support overall immune modulation and barrier integrity.';
+  }
+  if (normName.includes('mots-c') || normName.includes('mots c')) {
+    return 'Expected to support metabolic function, physical endurance, and cellular energy production during lifestyle adaptation. It is typically monitored for mitochondrial health and vitality.';
+  }
+  if ((normName.includes('bpc-157') || normName.includes('bpc 157')) && (normName.includes('tb-500') || normName.includes('tb 500'))) {
+    return 'Expected to support tissue healing, joint flexibility, and localized inflammation reduction in musculoskeletal recovery. It is designed to assist in tendon, muscle, and ligament repair.';
+  }
+  if (normName.includes('bpc-157') || normName.includes('bpc 157')) {
+    return 'Typically tracked to support soft tissue repair, tendon healing, and gastrointestinal mucosal integrity. It is expected to assist in cellular migration and localized recovery processes.';
+  }
+  if (normName.includes('tb-500') || normName.includes('tb 500') || normName.includes('thymosin beta')) {
+    return 'Expected to support angiogenesis, muscle cell migration, and soft tissue repair in wound healing. It is typically used to promote recovery from acute muscle strains or joint injuries.';
+  }
+  if (normName.includes('retatrutide')) {
+    return 'Typically tracked to support glycemic control, weight management, and metabolic health adaptation. It targets glucagon, GIP, and GLP-1 receptors to support metabolic efficiency.';
+  }
+  if (normName.includes('semaglutide') || normName.includes('tirzepatide')) {
+    return 'Expected to support blood sugar regulation, appetite control, and body weight management. It acts by mimicking incretin hormones to help regulate metabolic signals and food intake.';
+  }
+  if (normName.includes('nad')) {
+    return 'Expected to support cellular repair, longevity pathways, and energy metabolism. It serves as a vital coenzyme to assist in DNA repair and mitochondrial cellular functioning.';
+  }
+  if (normName.includes('oxytocin')) {
+    return 'Typically tracked to support social bonding, stress management, and emotional regulation. It is expected to support neurological responses related to anxiety and social trust.';
+  }
+  if (normName.includes('ipamorelin') && (normName.includes('cjc') || normName.includes('modified grf'))) {
+    return 'Expected to support growth hormone release, muscle preservation, sleep quality, and recovery. It acts synergistically to stimulate pituitary secretion without increasing cortisol levels.';
+  }
+  if (normName.includes('ipamorelin')) {
+    return 'Expected to support growth hormone release, muscle growth, and recovery with minimal impact on appetite. It selectively binds to the ghrelin receptor to support lean body composition.';
+  }
+  if (normName.includes('cjc-1295') || normName.includes('cjc 1295') || normName.includes('modified grf')) {
+    return 'Expected to support growth hormone secretion, lean muscle tissue accumulation, and recovery. It is a growth hormone-releasing hormone analog designed to support recovery cycles.';
+  }
+  if (normName.includes('ghrp') || normName.includes('sermorelin') || normName.includes('cjc') || normName.includes('tesamorelin')) {
+    return 'Typically tracked to support growth hormone release, body composition, and recovery pathways. It is intended to support natural hormone secretion for cellular rejuvenation.';
+  }
+  if (normName.includes('snap-8') || normName.includes('snap 8')) {
+    return 'Expected to support expression line reduction and skin elasticity improvement. It is a cosmetic peptide aimed at relaxing facial muscles to support skin smoothing.';
+  }
+  if (normName.includes('cagrilintide')) {
+    return 'Expected to support appetite regulation and body weight management when paired with GLP-1 analogs. It functions as an amylin analogue to help signal satiety and slow gastric emptying.';
+  }
+  if (normName.includes('glow70') || normName.includes('glow-70') || normName.includes('glow50') || normName.includes('glow-50')) {
+    return 'Expected to support metabolic adaptation, cellular energy, and physical vitality. It is typically monitored for overall metabolic support and physiological balance.';
+  }
+  if (normName.includes('ghk-cu') || normName.includes('copper peptide')) {
+    return 'Expected to support collagen synthesis, skin rejuvenation, and tissue repair pathways. It utilizes copper peptide actions to help support skin elasticity and wound healing.';
+  }
+  if (normName.includes('selank')) {
+    return 'Typically tracked to support anxiety relief, cognitive enhancement, and immune response modulation. It is designed to regulate neurotransmitter balance without sedative effects.';
+  }
+  if (normName.includes('semax')) {
+    return 'Typically tracked to support cognitive function, memory consolidation, and neuroprotection during mental exertion. It is expected to support brain-derived neurotrophic factor levels.';
+  }
+  if (normName.includes('epitalon') || normName.includes('thymalin') || normName.includes('epithalon')) {
+    return 'Expected to support cellular health, telomere maintenance, and sleep quality. It is designed to stimulate melatonin production and support overall cellular longevity pathways.';
+  }
+  if (normName.includes('dsip')) {
+    return 'Expected to support deep sleep induction and physiological stress regulation. It is a delta sleep-inducing peptide designed to support normal sleep architecture and rest.';
+  }
+
+  // Tag-based fallbacks
+  if (tags.includes('healing') || tags.includes('recovery')) {
+    return 'Expected to support tissue repair, muscle recovery, and acute inflammation reduction. It typically aims to enhance cellular regeneration and reinforce tissue integrity.';
+  }
+  if (tags.includes('weight-loss') || tags.includes('metabolic')) {
+    return 'Typically tracked to support glycemic control, weight management, and metabolic rate adaptation. It is designed to assist in fat loss while preserving lean muscle mass.';
+  }
+  if (tags.includes('longevity') || tags.includes('skin') || tags.includes('anti-aging')) {
+    return 'Expected to support cellular rejuvenation, tissue elasticity, and biological vitality. It typically aims to slow senescence pathways and support overall systemic longevity.';
+  }
+  if (tags.includes('cognitive') || tags.includes('brain')) {
+    return 'Typically tracked to support memory consolidation, focus, and neuroprotective pathways. It is intended to support synaptic plasticity and cognitive resilience during exertion.';
+  }
+
+  return 'Typically tracked to support general health and physiological repair pathways. It is expected to assist in overall wellness monitoring and lifestyle management.';
 }

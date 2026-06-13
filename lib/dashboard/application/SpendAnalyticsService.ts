@@ -32,14 +32,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function getDosesPerDay(scheduleValue: unknown): Decimal {
   if (!isRecord(scheduleValue)) return new Decimal(0);
 
-  if (scheduleValue.frequency === 'Daily') {
+  if (scheduleValue.frequency === 'Daily' || scheduleValue.frequency === 'TwiceDaily') {
     return new Decimal(1);
   }
   if (scheduleValue.frequency === 'EOD') {
     return new Decimal(0.5);
   }
   if (
-    scheduleValue.frequency === 'SpecificDaysOfWeek' &&
+    (scheduleValue.frequency === 'SpecificDaysOfWeek' || scheduleValue.frequency === 'TwiceSpecificDaysOfWeek') &&
     Array.isArray(scheduleValue.daysOfWeek)
   ) {
     return new Decimal(scheduleValue.daysOfWeek.length).dividedBy(7);
@@ -53,6 +53,13 @@ function getDosesPerDay(scheduleValue: unknown): Decimal {
   }
 
   return new Decimal(0);
+}
+
+function parseDoseAmountSum(amountStr: string): Decimal {
+  if (amountStr.includes('/')) {
+    return amountStr.split('/').reduce((sum, part) => sum.plus(new Decimal(part.trim())), new Decimal(0));
+  }
+  return new Decimal(amountStr);
 }
 
 function parseDoseAmount(value: unknown): { amount: string; unit: string } | null {
@@ -234,7 +241,7 @@ export async function getSpendAnalytics(userId: string): Promise<SpendAnalytics>
     if (doseObj) {
       try {
         const doseMg = convertDoseToMg(
-          new Decimal(doseObj.amount),
+          parseDoseAmountSum(doseObj.amount),
           doseObj.unit,
           vialForConversion || { totalMg: new Decimal(10), bacWaterMl: new Decimal(2) },
           syringeStandard

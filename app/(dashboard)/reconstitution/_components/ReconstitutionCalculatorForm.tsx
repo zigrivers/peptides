@@ -19,6 +19,7 @@ interface Props {
   initialTargetDoseMcg?: string;
   initialSyringeStandard?: 'U100' | 'U40';
   initialSyringeSize?: '0.3' | '0.5' | '1.0';
+  subjectUserId?: string;
 }
 
 const WARNING_LABELS: Record<WarningType, string> = {
@@ -45,6 +46,7 @@ export function ReconstitutionCalculatorForm({
   initialTargetDoseMcg = '',
   initialSyringeStandard = 'U100',
   initialSyringeSize = '1.0',
+  subjectUserId,
 }: Props) {
   const [compoundId, setCompoundId] = useState(initialCompoundId);
   const [totalMg, setTotalMg] = useState(initialTotalMg);
@@ -168,6 +170,7 @@ export function ReconstitutionCalculatorForm({
       totalMg,
       bacWaterMl,
       expiresAt: expiresAt || undefined,
+      subjectUserId,
     });
     if (res.ok) {
       setSaveState('saved');

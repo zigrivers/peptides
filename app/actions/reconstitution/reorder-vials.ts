@@ -4,9 +4,11 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/shared/prisma';
+import { isAuthorizedSubject } from '@/lib/tracker/application/ProtocolService';
 
 const InputSchema = z.object({
   vialIds: z.array(z.string()),
+  subjectUserId: z.string().uuid().optional(),
 });
 
 type ReorderVialsResult =
@@ -27,6 +29,15 @@ export async function reorderVialsAction(input: unknown): Promise<ReorderVialsRe
   const { vialIds } = parsed.data;
   const userId = session.user.id;
 
+  let targetUserId = userId;
+  if (parsed.data.subjectUserId && parsed.data.subjectUserId !== userId) {
+    const authorized = await isAuthorizedSubject(userId, parsed.data.subjectUserId);
+    if (!authorized) {
+      return { ok: false, error: 'unauthorized', message: 'You are not authorized for this subject.' };
+    }
+    targetUserId = parsed.data.subjectUserId;
+  }
+
   if (new Set(vialIds).size !== vialIds.length) {
     return { ok: false, error: 'invalid_vial_ids_list', message: 'Duplicates not allowed.' };
   }
@@ -35,7 +46,7 @@ export async function reorderVialsAction(input: unknown): Promise<ReorderVialsRe
     await prisma.$transaction(async (tx) => {
       // Read active vials inside the transaction with a stable display ordering (F-003, F-006)
       const activeVials = await tx.vial.findMany({
-        where: { userId, status: 'RECONSTITUTED' },
+        where: { userId: targetUserId, status: 'RECONSTITUTED' },
         orderBy: [{ shelfOrder: 'asc' }, { expiresAt: 'asc' }],
         select: { id: true }
       });
@@ -56,7 +67,7 @@ export async function reorderVialsAction(input: unknown): Promise<ReorderVialsRe
       await Promise.all(
         finalOrder.map((id, index) =>
           tx.vial.updateMany({
-            where: { id, userId, status: 'RECONSTITUTED' },
+            where: { id, userId: targetUserId, status: 'RECONSTITUTED' },
             data: { shelfOrder: index },
           })
         )
@@ -66,10 +77,10 @@ export async function reorderVialsAction(input: unknown): Promise<ReorderVialsRe
       await tx.auditEvent.create({
         data: {
           actorUserId: userId,
-          subjectUserId: userId,
+          subjectUserId: targetUserId,
           category: 'Reconstitution',
           action: 'VIALS_REORDERED',
-          resourceId: userId,
+          resourceId: targetUserId,
           resourceType: 'Vial',
           newValues: {
             vialIds: finalOrder,

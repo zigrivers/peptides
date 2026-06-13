@@ -14,6 +14,7 @@ export type SerializedVial = SerializedVialData;
 interface Props {
   vials: SerializedVial[];
   isRoomTemp?: boolean;
+  subjectUserId?: string;
 }
 
 const BADGE_STYLES: Record<VialBadge, string> = {
@@ -40,7 +41,7 @@ function formatDate(isoStr: string | null): string {
 
 
 
-export function VialInventory({ vials, isRoomTemp = false }: Props) {
+export function VialInventory({ vials, isRoomTemp = false, subjectUserId }: Props) {
   const [localVials, setLocalVials] = useState<SerializedVial[]>(vials);
   const [deletingVialId, setDeletingVialId] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -51,7 +52,7 @@ export function VialInventory({ vials, isRoomTemp = false }: Props) {
     setDeletingVialId(null);
     setError(null);
     startTransition(async () => {
-      const res = await deleteVialAction(vialId);
+      const res = await deleteVialAction(vialId, subjectUserId);
       if (!res.ok) {
         setError(res.message || 'Failed to delete vial.');
       }

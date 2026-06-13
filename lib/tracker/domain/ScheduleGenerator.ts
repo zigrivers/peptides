@@ -21,6 +21,7 @@ export function generateScheduleDates(schedule: Schedule, startDate: Date, count
   );
 
   switch (schedule.frequency) {
+    case 'TwiceDaily':
     case 'Daily': {
       for (let i = 0; i < count; i++) {
         results.push(addDays(start, i));
@@ -33,6 +34,7 @@ export function generateScheduleDates(schedule: Schedule, startDate: Date, count
       }
       break;
     }
+    case 'TwiceSpecificDaysOfWeek':
     case 'SpecificDaysOfWeek': {
       const targetIndices = schedule.daysOfWeek.map((d) => DAY_INDEX[d]).sort((a, b) => a - b);
       let cursor = new Date(start);
@@ -81,10 +83,12 @@ export function isScheduledOn(
   const diffDays = Math.round((targetUTC.getTime() - startUTC.getTime()) / 86_400_000);
 
   switch (schedule.frequency) {
+    case 'TwiceDaily':
     case 'Daily':
       return true;
     case 'EOD':
       return diffDays % 2 === 0;
+    case 'TwiceSpecificDaysOfWeek':
     case 'SpecificDaysOfWeek': {
       const dow = targetUTC.getUTCDay();
       return schedule.daysOfWeek.some((d) => DAY_INDEX[d] === dow);
@@ -125,6 +129,7 @@ export function getScheduledDatesInRange(
   const limitUTC = new Date(Date.UTC(endBound.getUTCFullYear(), endBound.getUTCMonth(), endBound.getUTCDate()));
 
   switch (schedule.frequency) {
+    case 'TwiceDaily':
     case 'Daily': {
       while (cursor <= limitUTC) {
         results.push(new Date(cursor));
@@ -144,6 +149,7 @@ export function getScheduledDatesInRange(
       }
       break;
     }
+    case 'TwiceSpecificDaysOfWeek':
     case 'SpecificDaysOfWeek': {
       const targetIndices = schedule.daysOfWeek.map((d) => DAY_INDEX[d]);
       if (targetIndices.length === 0) break;

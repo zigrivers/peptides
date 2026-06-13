@@ -17,9 +17,10 @@ export type DoseUnitsResult =
   | { computable: false; reason: 'needs_vial' | 'invalid_input' };
 
 function parsePositive(value: string): Decimal | null {
+  const singleValue = value.includes('/') ? value.split('/')[0].trim() : value;
   let d: Decimal;
   try {
-    d = new Decimal(value);
+    d = new Decimal(singleValue);
   } catch {
     return null;
   }

@@ -18,6 +18,75 @@ type LifecycleInput = { actorUserId: string; protocolId: string };
 type CloneInput = LifecycleInput & { newStartDate: Date };
 type AnyClient = Prisma.TransactionClient | PrismaClient;
 
+async function deactivateOverlappingProtocols(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  compoundId: string,
+  newStartDate: Date,
+  excludeProtocolId?: string
+): Promise<void> {
+  const existingActive = (await tx.protocol.findMany({
+    where: {
+      userId,
+      compoundId,
+      status: 'ACTIVE',
+      id: excludeProtocolId ? { not: excludeProtocolId } : undefined,
+    },
+  })) || [];
+
+  const newStartUTC = new Date(Date.UTC(
+    newStartDate.getUTCFullYear(),
+    newStartDate.getUTCMonth(),
+    newStartDate.getUTCDate()
+  ));
+
+  for (const oldProto of existingActive) {
+    const oldStartUTC = new Date(Date.UTC(
+      oldProto.startDate.getUTCFullYear(),
+      oldProto.startDate.getUTCMonth(),
+      oldProto.startDate.getUTCDate()
+    ));
+
+    if (newStartUTC <= oldStartUTC) {
+      await tx.protocol.update({
+        where: { id: oldProto.id },
+        data: {
+          status: 'DEACTIVATED',
+          endDate: oldProto.endDate ?? newStartUTC,
+        },
+      });
+
+      await tx.doseLog.deleteMany({
+        where: {
+          protocolId: oldProto.id,
+          userId,
+          status: 'PENDING',
+          scheduledDate: { gte: newStartUTC },
+        },
+      });
+    } else {
+      const dayBefore = new Date(newStartUTC);
+      dayBefore.setUTCDate(dayBefore.getUTCDate() - 1);
+
+      await tx.protocol.update({
+        where: { id: oldProto.id },
+        data: {
+          endDate: dayBefore,
+        },
+      });
+
+      await tx.doseLog.deleteMany({
+        where: {
+          protocolId: oldProto.id,
+          userId,
+          status: 'PENDING',
+          scheduledDate: { gte: newStartUTC },
+        },
+      });
+    }
+  }
+}
+
 /**
  * Resolves the active managed user IDs for a given actor user ID.
  * Supports passing an optional transaction client.
@@ -62,18 +131,84 @@ export async function createProtocol(input: CreateProtocolInput): Promise<Protoc
 
   return withAudit(
     async (tx) => {
+      // Deactivate other overlapping active protocols first
+      await deactivateOverlappingProtocols(tx, input.subjectUserId, input.compoundId, input.startDate);
+
       if (input.cycleId) {
         const cycle = await tx.cycle.findFirst({ where: { id: input.cycleId, userId: input.subjectUserId, status: 'ACTIVE' } });
         if (!cycle) throw new Error(`cycle_not_found: cycle does not belong to this user or is not active`);
       }
 
-      if (input.initialVial) {
+      if (input.reconstituteVialId && input.initialVial) {
+        const dryVial = await tx.vial.findFirst({
+          where: { id: input.reconstituteVialId, userId: input.subjectUserId, status: 'DRY' }
+        });
+        if (!dryVial) {
+          throw new Error('dry_vial_not_found: The selected dry vial does not exist or has already been reconstituted.');
+        }
+
+        const shelfLifeDays = (await getReconstitutedShelfLifeDays(input.compoundId, tx)) ?? 14;
+        const now = new Date();
+        const expiresAt = input.initialVial.expiresAt ?? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays));
+        const bacWaterMlDecimal = new Prisma.Decimal(input.initialVial.bacWaterMl);
+
+        // Deactivate other active vials for this compound and user
+        await tx.vial.updateMany({
+          where: {
+            userId: input.subjectUserId,
+            compoundId: input.compoundId,
+            status: 'RECONSTITUTED',
+            isActiveForCompound: true,
+          },
+          data: { isActiveForCompound: false }
+        });
+
+        await tx.vial.update({
+          where: { id: input.reconstituteVialId },
+          data: {
+            bacWaterMl: bacWaterMlDecimal,
+            status: 'RECONSTITUTED',
+            reconstitutedAt: now,
+            expiresAt,
+            isActiveForCompound: true,
+          }
+        });
+
+        await tx.auditEvent.create({
+          data: {
+            actorUserId: input.actorUserId,
+            subjectUserId: input.subjectUserId,
+            category: 'Reconstitution',
+            action: 'VIAL_RECONSTITUTED',
+            resourceId: input.reconstituteVialId,
+            resourceType: 'Vial',
+            newValues: {
+              compoundId: input.compoundId,
+              totalMg: dryVial.totalMg.toFixed(3),
+              bacWaterMl: bacWaterMlDecimal.toFixed(3),
+              expiresAt: expiresAt.toISOString(),
+              reconstitutedFromDryVialId: input.reconstituteVialId,
+            },
+          }
+        });
+      } else if (input.initialVial) {
         const shelfLifeDays = (await getReconstitutedShelfLifeDays(input.compoundId, tx)) ?? 14;
         const now = new Date();
         const expiresAt = input.initialVial.expiresAt ?? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + shelfLifeDays));
 
         const totalMgDecimal = new Prisma.Decimal(input.initialVial.totalMg);
         const bacWaterMlDecimal = new Prisma.Decimal(input.initialVial.bacWaterMl);
+
+        // Deactivate other active vials for this compound and user
+        await tx.vial.updateMany({
+          where: {
+            userId: input.subjectUserId,
+            compoundId: input.compoundId,
+            status: 'RECONSTITUTED',
+            isActiveForCompound: true,
+          },
+          data: { isActiveForCompound: false }
+        });
 
         const vial = await tx.vial.create({
           data: {
@@ -85,6 +220,7 @@ export async function createProtocol(input: CreateProtocolInput): Promise<Protoc
             status: 'RECONSTITUTED',
             reconstitutedAt: now,
             expiresAt,
+            isActiveForCompound: true,
           }
         });
 
@@ -168,6 +304,16 @@ export async function updateProtocol(input: UpdateProtocolInput): Promise<Protoc
       notes: input.notes,
     });
 
+    if (updated.status === 'ACTIVE') {
+      await deactivateOverlappingProtocols(
+        tx,
+        existing.userId,
+        input.compoundId ?? existing.compoundId,
+        input.startDate ?? existing.startDate,
+        existing.id
+      );
+    }
+
     await tx.auditEvent.create({
       data: {
         actorUserId: input.actorUserId,
@@ -231,6 +377,8 @@ export async function resumeProtocol(input: LifecycleInput): Promise<Protocol> {
     const protocol = await requireProtocolForActor(tx, input.protocolId, input.actorUserId);
     if (protocol.status !== 'PAUSED') throw new Error('Protocol is not paused');
 
+    await deactivateOverlappingProtocols(tx, protocol.userId, protocol.compoundId, protocol.startDate, protocol.id);
+
     const updated = await transitionProtocolStatus(tx, input.protocolId, protocol.userId, 'ACTIVE', 'PAUSED');
 
     await tx.auditEvent.create({
@@ -256,6 +404,8 @@ export async function cloneProtocol(input: CloneInput): Promise<Protocol> {
     if (source.status === 'DEACTIVATED') {
       throw new Error('Cannot clone a deactivated protocol');
     }
+
+    await deactivateOverlappingProtocols(tx, source.userId, source.compoundId, input.newStartDate);
 
     const cloned = await createProtocolRecord(tx, {
       userId: source.userId,

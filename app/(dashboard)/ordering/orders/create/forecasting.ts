@@ -2,6 +2,13 @@ import Decimal from 'decimal.js';
 import { prisma } from '@/lib/shared/prisma';
 import type { DoseAmount, Schedule } from '@/lib/tracker/domain/types';
 
+function parseDoseAmountSum(amountStr: string): Decimal {
+  if (amountStr.includes('/')) {
+    return amountStr.split('/').reduce((sum, part) => sum.plus(new Decimal(part.trim())), new Decimal(0));
+  }
+  return new Decimal(amountStr);
+}
+
 export function getProtocolFormCategory(administrationRoute: string): 'Injectable' | 'Non-Injectable' {
   const route = administrationRoute.toUpperCase();
   if (route === 'SUBCUTANEOUS' || route === 'INTRAMUSCULAR') {
@@ -71,7 +78,7 @@ export async function getProtocolDailyRateMg(
   },
   syringeStandard: string
 ): Promise<{ rateMg: Decimal; isDefaultConcentration: boolean }> {
-  const amt = new Decimal(protocol.dose.amount);
+  const amt = parseDoseAmountSum(protocol.dose.amount);
   const unit = protocol.dose.unit;
   let doseMg = new Decimal(0);
   let isDefaultConcentration = false;
@@ -104,11 +111,11 @@ export async function getProtocolDailyRateMg(
   let dailyRate = new Decimal(0);
   const freq = schedule.frequency;
 
-  if (freq === 'Daily') {
+  if (freq === 'Daily' || freq === 'TwiceDaily') {
     dailyRate = doseMg;
   } else if (freq === 'EOD') {
     dailyRate = doseMg.dividedBy(2);
-  } else if (freq === 'SpecificDaysOfWeek') {
+  } else if (freq === 'SpecificDaysOfWeek' || freq === 'TwiceSpecificDaysOfWeek') {
     const daysCount = Array.isArray(schedule.daysOfWeek) ? schedule.daysOfWeek.length : 0;
     dailyRate = doseMg.times(daysCount).dividedBy(7);
   } else if (freq === 'CustomInterval') {

@@ -836,6 +836,185 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     expect(screen.getByText('Past Milestones')).toBeDefined();
     expect(screen.getByText('Replacement onset')).toBeDefined();
   });
+
+  it('renders expected benefits summary and cycle progress in unlogged/scheduled dose card', () => {
+    const customProtocols: Protocol[] = [
+      {
+        id: 'proto-scheduled-context',
+        userId: 'user-1',
+        compoundId: 'compound-scheduled',
+        cycleId: 'cycle-scheduled',
+        dose: { amount: '5', unit: 'mg' as const },
+        schedule: { frequency: 'Daily' },
+        administrationRoute: 'SUBCUTANEOUS',
+        status: 'ACTIVE',
+        startDate: new Date('2026-05-01'),
+        endDate: null,
+        notes: null,
+      },
+    ];
+
+    const customCompounds = {
+      'compound-scheduled': {
+        name: 'Curated Compound',
+        slug: 'curated-compound',
+        profile: {
+          cycleLengthWeeks: 8,
+          restPeriodWeeks: 4,
+          cycleRationale: null,
+          restPeriodRationale: null,
+          expectedBenefitsSummary: 'Expected to support recovery, tissue repair, and overall sleep optimization.',
+          benefitTimeline: [
+            { week: 1, benefits: ['Initial adaptation'] },
+          ],
+        },
+      },
+    };
+
+    const customCycles = {
+      'cycle-scheduled': {
+        startDate: '2026-05-01T00:00:00.000Z',
+        endDate: null,
+      },
+    };
+
+    render(
+      <TrackerCalendar
+        protocols={customProtocols}
+        doseLogs={[]}
+        compounds={customCompounds}
+        initialDateISO="2026-05-24T00:00:00.000Z" // Week 4
+        cycles={customCycles}
+      />
+    );
+
+    // Scheduled card is expanded by default, so inputs and contextual banner are rendered
+    expect(screen.getByText('Curated Compound')).toBeDefined();
+    
+    // 1. Verify expected benefits summary is rendered
+    expect(screen.getByText('Expected to support recovery, tissue repair, and overall sleep optimization.')).toBeDefined();
+
+    // 2. Verify cycle progress is rendered
+    expect(screen.getByText(/Week 4 of 8 \(50%\)/)).toBeDefined();
+  });
+
+  it('falls back to deterministic expected benefits summary when expectedBenefitsSummary is missing', () => {
+    const customProtocols: Protocol[] = [
+      {
+        id: 'proto-scheduled-fallback',
+        userId: 'user-1',
+        compoundId: 'compound-fallback',
+        cycleId: null,
+        dose: { amount: '5', unit: 'mg' as const },
+        schedule: { frequency: 'Daily' },
+        administrationRoute: 'SUBCUTANEOUS',
+        status: 'ACTIVE',
+        startDate: new Date('2026-05-01'),
+        endDate: null,
+        notes: null,
+      },
+    ];
+
+    const customCompounds = {
+      'compound-fallback': {
+        name: 'Fallback Compound',
+        slug: 'fallback-compound',
+        profile: {
+          cycleLengthWeeks: 8,
+          benefitTimeline: [
+            { week: 1, benefits: ['calm burning pain'] },
+            { week: 4, benefits: ['Silenced neuropathic pain signals'] },
+          ],
+        },
+      },
+    };
+
+    render(
+      <TrackerCalendar
+        protocols={customProtocols}
+        doseLogs={[]}
+        compounds={customCompounds}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+
+    // 1. Verify deterministic fallback summary is rendered
+    expect(screen.getByText('Expected to support calm burning pain, progressing to support silenced neuropathic pain signals.')).toBeDefined();
+  });
+
+  it('hides the expected benefits summary section when both expectedBenefitsSummary and timeline are missing', () => {
+    const customProtocols: Protocol[] = [
+      {
+        id: 'proto-scheduled-empty',
+        userId: 'user-1',
+        compoundId: 'compound-empty',
+        cycleId: null,
+        dose: { amount: '5', unit: 'mg' as const },
+        schedule: { frequency: 'Daily' },
+        administrationRoute: 'SUBCUTANEOUS',
+        status: 'ACTIVE',
+        startDate: new Date('2026-05-01'),
+        endDate: null,
+        notes: null,
+      },
+    ];
+
+    const customCompounds = {
+      'compound-empty': {
+        name: 'Empty Compound',
+        slug: 'empty-compound',
+        profile: {
+          cycleLengthWeeks: 8,
+          benefitTimeline: null,
+        },
+      },
+    };
+
+    render(
+      <TrackerCalendar
+        protocols={customProtocols}
+        doseLogs={[]}
+        compounds={customCompounds}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+
+    // Verify compound name and cycle progress render, but expected benefits banner is not rendered
+    expect(screen.getByText('Empty Compound')).toBeDefined();
+    expect(screen.getByText(/Week 4 of 8 \(50%\)/)).toBeDefined();
+    
+    // The expected benefits text should not be present
+    expect(screen.queryByText(/Expected to support/)).toBeNull();
+  });
+
+  it('opens the compound details modal when clicking the compound name', () => {
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+
+    // Locate the compound name inside the Daily Action Panel
+    const compoundNameBtn = screen.getByTitle('View compound details');
+    expect(compoundNameBtn).toBeDefined();
+
+    // Click it to open the modal
+    fireEvent.click(compoundNameBtn);
+
+    // Verify modal elements are displayed
+    expect(screen.getByRole('heading', { name: 'Tirzepatide' })).toBeDefined();
+    expect(screen.getByText('Close')).toBeDefined();
+
+    // Click close button
+    const closeBtn = screen.getByText('Close');
+    fireEvent.click(closeBtn);
+
+    // Modal should be closed / not showing close button anymore
+    expect(screen.queryByText('Close')).toBeNull();
+  });
 });
 
 describe('getWeekInfo Unit Tests', () => {
