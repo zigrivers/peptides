@@ -68,6 +68,7 @@ model User {
   reminderPrefs  ReminderPreference?
   pushSubscriptions PushSubscription[]
   vendors        Vendor[]
+  researchNotes  CompoundResearchNote[]
 
   @@index([managedBy])
 }
@@ -218,6 +219,7 @@ model CatalogItem {
   sourcePairings      CompoundPairing[] @relation("CompoundPairingSource")
   pairedInPairings    CompoundPairing[] @relation("CompoundPairingPartner")
   sourceAdjunctRecommendations CompoundAdjunctRecommendation[]
+  researchNotes                CompoundResearchNote[]
 
   @@index([status])
   @@map("Compound")
@@ -278,6 +280,30 @@ model Citation {
   doi               String?
   pmid              String?
   pairingCitations  CompoundPairingCitation[]
+}
+
+model CompoundResearchNote {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  catalogItemId String
+  catalogItem   CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  question      String
+  answerSummary String?  @db.Text
+  claim         String   @db.Text
+  citations     CompoundResearchNoteCitation[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, catalogItemId])
+}
+
+model CompoundResearchNoteCitation {
+  id     String @id @default(uuid())
+  noteId String
+  note   CompoundResearchNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  title  String
+  url    String
 }
 
 model CompoundPairing {
