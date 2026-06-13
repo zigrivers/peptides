@@ -39,7 +39,7 @@ const MAX_SOURCES_FOR_SYNTHESIS = 3;
 
 function classify(err: unknown): 'timeout' | 'aborted' | 'invalid_schema' | 'provider_error' {
   if (!(err instanceof Error)) return 'provider_error';
-  if (err.message === 'ai_timeout') return 'timeout';
+  if (err.message === 'ai_timeout' || err.name === 'TimeoutError') return 'timeout';
   if (err.name === 'AbortError' || err.message === 'aborted') return 'aborted';
   if (err.name === 'ZodError' || err.message.includes('no_json')) return 'invalid_schema';
   return 'provider_error';

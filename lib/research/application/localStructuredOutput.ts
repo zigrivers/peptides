@@ -42,7 +42,13 @@ export async function tryGenerateObjectOrParse<T>({ model, schema, system, promp
     return schema.parse(object);
   } catch (err) {
     // Fail closed on a real timeout/abort — do NOT mask it with a text retry.
-    if (err instanceof Error && (err.message === 'ai_timeout' || err.name === 'AbortError' || err.message === 'aborted')) {
+    if (
+      err instanceof Error &&
+      (err.name === 'AbortError' ||
+        err.name === 'TimeoutError' ||
+        err.message === 'ai_timeout' ||
+        err.message === 'aborted')
+    ) {
       throw err;
     }
     // Any other structured-output failure (no object, wrong shape/ZodError, unsupported

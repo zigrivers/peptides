@@ -39,8 +39,12 @@ describe('tryGenerateObjectOrParse', () => {
   });
 
   it('does NOT fall back on a timeout error (rethrows)', async () => {
-    mockGenerateObject.mockRejectedValue(new Error('ai_timeout'));
-    await expect(tryGenerateObjectOrParse({ model, schema, system: 's', prompt: 'p' })).rejects.toThrow('ai_timeout');
+    const timeoutErr = (() => {
+      try { return new DOMException('The operation was aborted due to timeout', 'TimeoutError'); }
+      catch { return Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' }); }
+    })();
+    mockGenerateObject.mockRejectedValue(timeoutErr);
+    await expect(tryGenerateObjectOrParse({ model, schema, system: 's', prompt: 'p' })).rejects.toThrow();
     expect(mockGenerateText).not.toHaveBeenCalled();
   });
 
