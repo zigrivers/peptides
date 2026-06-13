@@ -13,6 +13,7 @@ import { CompoundPairingsSection } from '../_components/CompoundPairingsSection'
 import { CompoundAdjunctsSection } from '../_components/CompoundAdjunctsSection';
 import { CompoundStorageStabilityGuide } from '../_components/CompoundStorageStabilityGuide';
 import { getCompoundCommonName } from '@/lib/reference/domain/commonName';
+import { CompoundResearchPanel } from '../_components/CompoundResearchPanel';
 
 function CitationLink({ citation }: { citation: Citation }) {
   const href = citation.url
@@ -531,6 +532,8 @@ export default async function CompoundProfilePage({
           </ul>
         </section>
       )}
+
+      <CompoundResearchPanel catalogItemId={compound.id} compoundName={compound.name} />
     </main>
   );
 }

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Sparkles, ShieldAlert, Link2 } from 'lucide-react';
 import type { CatalogItem, Citation, BenefitTimelineItem, CompoundProfile, SupplementProfile } from '@/lib/reference/domain/types';
+import { CompoundResearchPanel } from '@/app/(dashboard)/reference/_components/CompoundResearchPanel';
 
 interface CompoundInfoModalProps {
   compound: (Omit<Partial<CatalogItem>, 'lastReviewedAt' | 'archivedAt' | 'profile' | 'supplementProfile'> & {
@@ -651,6 +652,11 @@ export function CompoundInfoModal({ compound, isOpen, onClose }: CompoundInfoMod
                 ))}
               </ul>
             </div>
+          )}
+
+          {/* Research Panel */}
+          {compound.id && (
+            <CompoundResearchPanel catalogItemId={compound.id} compoundName={compound.name ?? 'this compound'} />
           )}
         </div>
 
