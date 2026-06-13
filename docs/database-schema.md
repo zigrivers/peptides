@@ -290,6 +290,31 @@ model CatalogItemRevision {
   publishedAt   DateTime?
 }
 
+// --- Research Domain (ADR-017) ---
+
+model CompoundResearchNote {
+  id            String                         @id @default(uuid())
+  userId        String
+  catalogItemId String
+  question      String
+  answerSummary String?                        @db.Text
+  claim         String                         @db.Text
+  citations     CompoundResearchNoteCitation[]
+  createdAt     DateTime                       @default(now())
+  updatedAt     DateTime                       @updatedAt
+
+  @@index([userId, catalogItemId])
+}
+
+model CompoundResearchNoteCitation {
+  id     String @id @default(uuid())
+  noteId String
+  title  String
+  url    String
+
+  @@index([noteId])
+}
+
 // --- Tracker Domain ---
 
 model Protocol {

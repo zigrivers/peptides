@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link2, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { useCompoundResearch } from './useCompoundResearch';
 import { listCompoundResearchAction } from '@/app/actions/reference/list-compound-research';
