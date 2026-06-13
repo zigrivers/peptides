@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Map } from 'lucide-react';
 import type { InjectionSite } from '@/lib/tracker/domain/types';
 import type { SiteWithMeta } from '@/lib/tracker/domain/SiteRotation';
 import { sitesEqual, sitesEqualLegacy } from '@/lib/tracker/domain/SiteRotation';
@@ -21,6 +22,7 @@ interface SitePickerProps {
   siteData: SiteData;
   selectedSite: InjectionSite | null;
   onSelect: (site: InjectionSite) => void;
+  defaultShowMap?: boolean;
 }
 
 export function formatSiteLabel(site: InjectionSite): string {
@@ -85,7 +87,9 @@ const ALL_POSSIBLE_SITES: InjectionSite[] = [
   { bodyPart: 'thigh', side: 'left' },
 ];
 
-export function SitePicker({ siteData, selectedSite, onSelect }: SitePickerProps) {
+export function SitePicker({ siteData, selectedSite, onSelect, defaultShowMap = true }: SitePickerProps) {
+  const [showMap, setShowMap] = React.useState(defaultShowMap);
+
   if (siteData.validSites.length === 0) return null;
 
   const canonicalSelected = selectedSite
@@ -115,16 +119,29 @@ export function SitePicker({ siteData, selectedSite, onSelect }: SitePickerProps
 
   return (
     <div className="space-y-4">
+      {/* Map toggle button */}
+      <div className="flex justify-start">
+        <button
+          type="button"
+          onClick={() => setShowMap(!showMap)}
+          className="min-h-9 px-3.5 py-1.5 text-xs font-semibold border border-input rounded-lg hover:bg-accent text-foreground transition-all flex items-center gap-1.5 focus-visible:ring-1 focus-visible:ring-primary outline-none"
+        >
+          <Map className="h-3.5 w-3.5" />
+          <span>{showMap ? 'Hide Body Map' : 'Show Body Map'}</span>
+        </button>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
         {/* Visual Body Map Card */}
-        <div className="w-48 sm:w-56 h-[290px] sm:h-[340px] shrink-0 border border-border bg-card rounded-lg p-3 flex flex-col items-center select-none shadow-sm relative">
-          <p className="text-[10px] font-semibold text-muted-foreground mb-2 tracking-wider">VISUAL MAP</p>
-          <svg
-            viewBox="0 0 200 280"
-            className="w-full h-full"
-            role="group"
-            aria-label="Injection site body map"
-          >
+        {showMap && (
+          <div className="w-48 sm:w-56 h-[290px] sm:h-[340px] shrink-0 border border-border bg-card rounded-lg p-3 flex flex-col items-center select-none shadow-sm relative animate-[fadeIn_0.2s_ease-out]">
+            <p className="text-[10px] font-semibold text-muted-foreground mb-2 tracking-wider">VISUAL MAP</p>
+            <svg
+              viewBox="0 0 200 280"
+              className="w-full h-full"
+              role="group"
+              aria-label="Injection site body map"
+            >
             <defs>
               <style>{`
                 @keyframes pulse-ring {
@@ -308,7 +325,8 @@ export function SitePicker({ siteData, selectedSite, onSelect }: SitePickerProps
             })}
           </svg>
         </div>
-
+        )}
+        
         {/* Text selectors list */}
         <div className="flex-1 w-full space-y-2">
           <p className="text-xs font-medium text-muted-foreground">

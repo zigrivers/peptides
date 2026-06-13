@@ -151,6 +151,7 @@ export type CompoundProfile = {
   isFdaApproved: boolean;
   pairings: CompoundPairing[];
   adjuncts: CompoundAdjunctRecommendation[];
+  expectedBenefitsSummary?: string | null;
 };
 
 export type SupplementProfile = {
@@ -167,6 +168,7 @@ export type SupplementProfile = {
   dosesPerDay: number | null;
   preferredTime: PreferredTime | null;
   timingNotes: string | null;
+  expectedBenefitsSummary?: string | null;
 };
 
 export type CatalogItemRevision = {

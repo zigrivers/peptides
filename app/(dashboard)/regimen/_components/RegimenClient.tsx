@@ -45,7 +45,7 @@ interface Compound {
 }
 
 interface Schedule {
-  frequency: 'Daily' | 'EOD' | 'SpecificDaysOfWeek' | 'CustomInterval';
+  frequency: 'Daily' | 'TwiceDaily' | 'EOD' | 'SpecificDaysOfWeek' | 'TwiceSpecificDaysOfWeek' | 'CustomInterval';
   daysOfWeek?: string[];
   intervalDays?: number;
 }
@@ -102,10 +102,14 @@ const CATALOG_TAG_LABELS: ReadonlyMap<string, string> = new Map(
 
 function formatScheduleText(schedule: Schedule): string {
   if (schedule.frequency === 'Daily') return 'Every day';
+  if (schedule.frequency === 'TwiceDaily') return 'Twice daily';
   if (schedule.frequency === 'EOD') return 'Every other day';
   if (schedule.frequency === 'CustomInterval') return `Every ${schedule.intervalDays} days`;
   if (schedule.frequency === 'SpecificDaysOfWeek') {
     return `On ${(schedule.daysOfWeek || []).join(', ')}`;
+  }
+  if (schedule.frequency === 'TwiceSpecificDaysOfWeek') {
+    return `Twice daily on ${(schedule.daysOfWeek || []).join(', ')}`;
   }
   return 'Custom schedule';
 }
@@ -158,6 +162,13 @@ function compareSummaryProtocols(
   return a.compound.name.localeCompare(b.compound.name);
 }
 
+const parseDoseAmountSum = (amountStr: string): Decimal => {
+  if (amountStr.includes('/')) {
+    return amountStr.split('/').reduce((sum, part) => sum.plus(new Decimal(part.trim())), new Decimal(0));
+  }
+  return new Decimal(amountStr);
+};
+
 function calculateDailyEquivalentMg(
   protocol: Protocol,
   referenceVial: Vial,
@@ -168,7 +179,7 @@ function calculateDailyEquivalentMg(
   let doseMg: Decimal;
   try {
     doseMg = convertDoseToMg(
-      new Decimal(protocol.dose.amount),
+      parseDoseAmountSum(protocol.dose.amount),
       protocol.dose.unit,
       {
         totalMg: new Decimal(referenceVial.totalMg),
@@ -182,7 +193,7 @@ function calculateDailyEquivalentMg(
 
   if (doseMg.lte(0)) return new Decimal(0);
 
-  if (protocol.schedule.frequency === 'Daily') {
+  if (protocol.schedule.frequency === 'Daily' || protocol.schedule.frequency === 'TwiceDaily') {
     return doseMg;
   }
   if (protocol.schedule.frequency === 'EOD') {
@@ -193,7 +204,7 @@ function calculateDailyEquivalentMg(
     if (interval <= 0) return new Decimal(0);
     return doseMg.dividedBy(interval);
   }
-  if (protocol.schedule.frequency === 'SpecificDaysOfWeek') {
+  if (protocol.schedule.frequency === 'SpecificDaysOfWeek' || protocol.schedule.frequency === 'TwiceSpecificDaysOfWeek') {
     const days = protocol.schedule.daysOfWeek?.length || 0;
     return doseMg.times(days).dividedBy(7);
   }
@@ -306,7 +317,7 @@ function calculateCompoundRunout(
       if (isScheduledOn(p.schedule as unknown as Parameters<typeof isScheduledOn>[0], protocolStartDate, protocolEndDate, checkDate)) {
         dayDoses.push({
           protocol: p,
-          amount: new Decimal(p.dose.amount),
+          amount: parseDoseAmountSum(p.dose.amount),
           unit: p.dose.unit,
         });
       }

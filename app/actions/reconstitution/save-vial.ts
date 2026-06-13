@@ -5,6 +5,7 @@ import { z } from 'zod';
 import Decimal from 'decimal.js';
 import { saveVial } from '@/lib/reconstitution/application/VialService';
 import { revalidatePath } from 'next/cache';
+import { isAuthorizedSubject } from '@/lib/tracker/application/ProtocolService';
 
 function isPositiveDecimal(v: string): boolean {
   try {
@@ -19,6 +20,7 @@ const schema = z.object({
   totalMg: z.string().refine(isPositiveDecimal, 'Must be a positive number'),
   bacWaterMl: z.string().refine(isPositiveDecimal, 'Must be a positive number'),
   expiresAt: z.string().date().optional(),
+  subjectUserId: z.string().uuid().optional(),
 });
 
 export async function saveVialAction(data: {
@@ -26,6 +28,7 @@ export async function saveVialAction(data: {
   totalMg: string;
   bacWaterMl: string;
   expiresAt?: string;
+  subjectUserId?: string;
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'Unauthorized' };
@@ -36,9 +39,18 @@ export async function saveVialAction(data: {
     return { ok: false, error: firstError ?? 'Invalid input' };
   }
 
+  let targetUserId = session.user.id;
+  if (parsed.data.subjectUserId && parsed.data.subjectUserId !== session.user.id) {
+    const authorized = await isAuthorizedSubject(session.user.id, parsed.data.subjectUserId);
+    if (!authorized) {
+      return { ok: false, error: 'Unauthorized for this subject' };
+    }
+    targetUserId = parsed.data.subjectUserId;
+  }
+
   try {
     const vial = await saveVial({
-      userId: session.user.id,
+      userId: targetUserId,
       compoundId: parsed.data.compoundId,
       totalMg: new Decimal(parsed.data.totalMg),
       bacWaterMl: new Decimal(parsed.data.bacWaterMl),

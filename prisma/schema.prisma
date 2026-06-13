@@ -248,23 +248,25 @@ model CompoundProfile {
   preferredTime              PreferredTime?
   timingNotes                String?
   isFdaApproved              Boolean          @default(false)
+  expectedBenefitsSummary    String?
 }
 
 model SupplementProfile {
-  id              String        @id @default(uuid())
-  catalogItemId   String        @unique
-  catalogItem     CatalogItem   @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
-  form            String
-  servingSize     Decimal       @db.Decimal(10, 3)
-  servingUnit     String
-  dosingLow       Json
-  dosingTypical   Json
-  dosingHigh      Json
-  benefitTimeline Json?
-  dosingFrequency DosingFrequency?
-  dosesPerDay     Int?
-  preferredTime   PreferredTime?
-  timingNotes     String?
+  id                      String        @id @default(uuid())
+  catalogItemId           String        @unique
+  catalogItem             CatalogItem   @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  form                    String
+  servingSize             Decimal       @db.Decimal(10, 3)
+  servingUnit             String
+  dosingLow               Json
+  dosingTypical           Json
+  dosingHigh              Json
+  benefitTimeline         Json?
+  dosingFrequency         DosingFrequency?
+  dosesPerDay             Int?
+  preferredTime           PreferredTime?
+  timingNotes             String?
+  expectedBenefitsSummary String?
 }
 
 model Citation {

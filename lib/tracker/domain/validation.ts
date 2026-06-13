@@ -23,14 +23,21 @@ export function validateUpdateInput(input: UpdateProtocolInput): void {
 }
 
 function validateDoseAmount(amount: string): void {
-  let d: Decimal;
-  try {
-    d = new Decimal(amount);
-  } catch {
-    throw new ProtocolValidationError('dose amount must be a valid number');
-  }
-  if (d.lte(0)) {
-    throw new ProtocolValidationError('dose amount must be greater than zero');
+  const parts = amount.includes('/') ? amount.split('/') : [amount];
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed === '') {
+      throw new ProtocolValidationError('dose amount must be a valid number');
+    }
+    let d: Decimal;
+    try {
+      d = new Decimal(trimmed);
+    } catch {
+      throw new ProtocolValidationError('dose amount must be a valid number');
+    }
+    if (d.lte(0)) {
+      throw new ProtocolValidationError('dose amount must be greater than zero');
+    }
   }
 }
 
@@ -46,9 +53,14 @@ export const DayOfWeekSchema = z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat',
 
 export const ScheduleSchema = z.discriminatedUnion('frequency', [
   z.object({ frequency: z.literal('Daily') }),
+  z.object({ frequency: z.literal('TwiceDaily') }),
   z.object({ frequency: z.literal('EOD') }),
   z.object({
     frequency: z.literal('SpecificDaysOfWeek'),
+    daysOfWeek: z.array(DayOfWeekSchema),
+  }),
+  z.object({
+    frequency: z.literal('TwiceSpecificDaysOfWeek'),
     daysOfWeek: z.array(DayOfWeekSchema),
   }),
   z.object({

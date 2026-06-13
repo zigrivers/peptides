@@ -229,7 +229,7 @@ export function ReconstitutionClient({
                   {coldActiveVials.length}
                 </span>
               </div>
-              <VialInventory vials={coldActiveVials} isRoomTemp={false} />
+              <VialInventory vials={coldActiveVials} isRoomTemp={false} subjectUserId={userId} />
             </section>
           )}
 
@@ -250,6 +250,7 @@ export function ReconstitutionClient({
                 syringeSize={syringeSize}
                 onReconstitute={setReconstitutingVial}
                 isRoomTemp={false}
+                subjectUserId={userId}
               />
             </section>
           )}
@@ -264,7 +265,7 @@ export function ReconstitutionClient({
                   {roomTempActiveVials.length}
                 </span>
               </div>
-              <VialInventory vials={roomTempActiveVials} isRoomTemp={true} />
+              <VialInventory vials={roomTempActiveVials} isRoomTemp={true} subjectUserId={userId} />
             </section>
           )}
 
@@ -285,6 +286,7 @@ export function ReconstitutionClient({
                 syringeSize={syringeSize}
                 onReconstitute={setReconstitutingVial}
                 isRoomTemp={true}
+                subjectUserId={userId}
               />
             </section>
           )}
@@ -317,6 +319,7 @@ export function ReconstitutionClient({
               compounds={compounds}
               initialSyringeStandard={syringeStandard}
               initialSyringeSize={syringeSize}
+              subjectUserId={userId}
             />
           </div>
         )}
@@ -327,6 +330,7 @@ export function ReconstitutionClient({
         <AddDryVialsModal
           compounds={compounds}
           initialCompoundId={addDryCompoundId}
+          subjectUserId={userId}
           onSuccess={() => playSoundEffect('swoosh')}
           onClose={() => setShowAddDryModal(false)}
         />
@@ -335,6 +339,8 @@ export function ReconstitutionClient({
       {showAddActiveModal && (
         <AddActiveVialModal
           compounds={compounds}
+          dryVials={dryVials}
+          subjectUserId={userId}
           onSuccess={() => playSoundEffect('chime')}
           onClose={() => setShowAddActiveModal(false)}
         />
@@ -346,6 +352,7 @@ export function ReconstitutionClient({
           compounds={compounds}
           initialSyringeStandard={syringeStandard}
           initialSyringeSize={syringeSize}
+          subjectUserId={userId}
           onSuccess={() => playSoundEffect('chime')}
           onClose={() => setReconstitutingVial(null)}
         />

@@ -151,6 +151,7 @@ function mapCatalogItem(raw: PrismaCatalogItemResult): CatalogItem {
           preferredTime: raw.profile.preferredTime as PreferredTime | null,
           timingNotes: raw.profile.timingNotes,
           isFdaApproved: raw.profile.isFdaApproved,
+          expectedBenefitsSummary: raw.profile.expectedBenefitsSummary,
           pairings: sourcePairings.map((pairing) => ({
             id: pairing.id,
             sourceCompoundId: pairing.sourceCompoundId,
@@ -208,6 +209,7 @@ function mapCatalogItem(raw: PrismaCatalogItemResult): CatalogItem {
           dosesPerDay: raw.supplementProfile.dosesPerDay,
           preferredTime: raw.supplementProfile.preferredTime as PreferredTime | null,
           timingNotes: raw.supplementProfile.timingNotes,
+          expectedBenefitsSummary: raw.supplementProfile.expectedBenefitsSummary,
         }
       : null,
     citations: raw.citations.map((citation) => ({

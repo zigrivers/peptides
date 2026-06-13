@@ -16,8 +16,14 @@ import {
 } from '@/lib/reconstitution/application/VialService';
 import { revalidatePath } from 'next/cache';
 
+const mockIsAuthorizedSubject = vi.fn();
+
 vi.mock('@/lib/auth', () => ({
   auth: vi.fn(),
+}));
+
+vi.mock('@/lib/tracker/application/ProtocolService', () => ({
+  isAuthorizedSubject: (...args: unknown[]) => mockIsAuthorizedSubject(...args),
 }));
 
 vi.mock('@/lib/reconstitution/application/VialService', () => ({
@@ -113,6 +119,42 @@ describe('Inventory Server Actions', () => {
       });
       expect(revalidatePath).toHaveBeenCalledWith('/reconstitution');
       expect(revalidatePath).toHaveBeenCalledWith('/dashboard');
+    });
+
+    it('should support subjectUserId when authorized', async () => {
+      mockAuth.mockResolvedValue({ user: { id: 'caregiver-123' } });
+      mockIsAuthorizedSubject.mockResolvedValue(true);
+      vi.mocked(saveDryVials).mockResolvedValue(undefined as never);
+
+      const compoundId = '45a13798-41d4-46e8-9fdd-3812e6f0982a';
+      const result = await addDryVialsAction({
+        compoundId,
+        totalMg: '5.0',
+        quantity: 3,
+        subjectUserId: '00000000-0000-4000-8000-000000000002',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(mockIsAuthorizedSubject).toHaveBeenCalledWith('caregiver-123', '00000000-0000-4000-8000-000000000002');
+      expect(saveDryVials).toHaveBeenCalledWith(expect.objectContaining({
+        userId: '00000000-0000-4000-8000-000000000002',
+      }));
+    });
+
+    it('should block subjectUserId when not authorized', async () => {
+      mockAuth.mockResolvedValue({ user: { id: 'caregiver-123' } });
+      mockIsAuthorizedSubject.mockResolvedValue(false);
+
+      const compoundId = '45a13798-41d4-46e8-9fdd-3812e6f0982a';
+      const result = await addDryVialsAction({
+        compoundId,
+        totalMg: '5.0',
+        quantity: 3,
+        subjectUserId: '00000000-0000-4000-8000-000000000003',
+      });
+
+      expect(result).toEqual({ ok: false, error: 'unauthorized', message: expect.any(String) });
+      expect(saveDryVials).not.toHaveBeenCalled();
     });
   });
 

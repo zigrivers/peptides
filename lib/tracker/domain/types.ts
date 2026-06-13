@@ -12,8 +12,10 @@ export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
 export type Schedule =
   | { frequency: 'Daily' }
+  | { frequency: 'TwiceDaily' }
   | { frequency: 'EOD' }
   | { frequency: 'SpecificDaysOfWeek'; daysOfWeek: DayOfWeek[] }
+  | { frequency: 'TwiceSpecificDaysOfWeek'; daysOfWeek: DayOfWeek[] }
   | { frequency: 'CustomInterval'; intervalDays: number };
 
 export type ProtocolStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DEACTIVATED';
@@ -49,6 +51,7 @@ export type CreateProtocolInput = {
     bacWaterMl: string;
     expiresAt?: Date;
   };
+  reconstituteVialId?: string;
 };
 
 export type UpdateProtocolInput = {

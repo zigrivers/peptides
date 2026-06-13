@@ -43,6 +43,19 @@ const compound = {
   },
 };
 
+const compound2 = {
+  ...compound,
+  id: '00000000-0000-4000-8000-000000000002',
+  name: 'TB-500',
+  slug: 'tb-500',
+  profile: {
+    ...compound.profile,
+    id: 'profile-2',
+    catalogItemId: '00000000-0000-4000-8000-000000000002',
+    freezerShelfLifeMonths: 12,
+  },
+};
+
 afterEach(() => {
   vi.clearAllMocks();
   cleanup();
@@ -61,4 +74,33 @@ describe('AddDryVialsModal', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('auto-populates and updates expiration date unless overridden', async () => {
+    const onClose = vi.fn();
+    render(<AddDryVialsModal compounds={[compound, compound2]} onClose={onClose} />);
+
+    const expiresInput = screen.getByLabelText(/freezer expiration date/i) as HTMLInputElement;
+    expect(expiresInput.value).toBe('');
+
+    const compoundSelect = screen.getByLabelText(/compound/i) as HTMLSelectElement;
+    fireEvent.change(compoundSelect, { target: { value: compound.id } });
+
+    const now = new Date();
+    const expiry1 = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 24, now.getUTCDate()));
+    const expectedDateStr1 = expiry1.toISOString().split('T')[0];
+    expect(expiresInput.value).toBe(expectedDateStr1);
+
+    fireEvent.change(compoundSelect, { target: { value: compound2.id } });
+
+    const expiry2 = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 12, now.getUTCDate()));
+    const expectedDateStr2 = expiry2.toISOString().split('T')[0];
+    expect(expiresInput.value).toBe(expectedDateStr2);
+
+    fireEvent.change(expiresInput, { target: { value: '2030-01-01' } });
+    expect(expiresInput.value).toBe('2030-01-01');
+
+    fireEvent.change(compoundSelect, { target: { value: compound.id } });
+    expect(expiresInput.value).toBe('2030-01-01');
+  });
 });
+

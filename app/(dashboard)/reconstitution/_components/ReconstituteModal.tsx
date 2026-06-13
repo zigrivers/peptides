@@ -17,6 +17,7 @@ interface Props {
   compounds: Pick<Compound, 'id' | 'name' | 'profile' | 'slug'>[];
   initialSyringeStandard?: 'U100' | 'U40';
   initialSyringeSize?: '0.3' | '0.5' | '1.0';
+  subjectUserId?: string;
   onSuccess?: () => void;
   onClose: () => void;
 }
@@ -42,6 +43,7 @@ export function ReconstituteModal({
   compounds,
   initialSyringeStandard = 'U100',
   initialSyringeSize = '1.0',
+  subjectUserId,
   onSuccess,
   onClose,
 }: Props) {
@@ -215,6 +217,7 @@ export function ReconstituteModal({
         vialId: vial.id,
         bacWaterMl,
         expiresAt: expiresAt || undefined,
+        subjectUserId,
       });
 
       if (result.ok) {

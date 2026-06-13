@@ -11,6 +11,7 @@ const SUPPORTED_CURRENCIES = ['USD', 'USDT', 'EUR', 'GBP'] as const;
 type Props = {
   vial: Pick<SerializedVialData, 'id' | 'cost' | 'currency'>;
   editLabel: string;
+  subjectUserId?: string;
 };
 
 function formatCost(cost: string | null | undefined, currency: string | undefined) {
@@ -18,7 +19,7 @@ function formatCost(cost: string | null | undefined, currency: string | undefine
   return `${cost} ${currency ?? 'USD'}`;
 }
 
-export function VialCostEditor({ vial, editLabel }: Props) {
+export function VialCostEditor({ vial, editLabel, subjectUserId }: Props) {
   const router = useRouter();
   const [displayCost, setDisplayCost] = useState(vial.cost);
   const [displayCurrency, setDisplayCurrency] = useState(vial.currency ?? 'USD');
@@ -55,6 +56,7 @@ export function VialCostEditor({ vial, editLabel }: Props) {
         vialId: vial.id,
         cost: normalizedCost,
         currency,
+        subjectUserId,
       });
 
       if (result.ok) {

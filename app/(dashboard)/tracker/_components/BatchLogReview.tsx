@@ -10,9 +10,10 @@ interface SerializedProtocol extends Omit<Protocol, 'startDate' | 'endDate'> {
   endDate: string | null;
 }
 
-interface SerializedDoseLog extends Omit<DoseLog, 'loggedAt' | 'scheduledDate'> {
+interface SerializedDoseLog extends Omit<DoseLog, 'loggedAt' | 'scheduledDate' | 'loggedCost'> {
   loggedAt: string;
   scheduledDate: string;
+  loggedCost: string | null;
 }
 
 interface SerializedBatchDueItem {

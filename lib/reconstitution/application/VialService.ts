@@ -22,6 +22,11 @@ export const VIAL_STATUS = {
 
 export type VialStatusType = typeof VIAL_STATUS[keyof typeof VIAL_STATUS];
 
+function parseSingleDoseDecimal(amountStr: string): Decimal {
+  const single = amountStr.includes('/') ? amountStr.split('/')[0].trim() : amountStr;
+  return new Decimal(single);
+}
+
 export type VialBadge = 'LOW_INVENTORY' | 'EXPIRING_SOON' | 'EXPIRED';
 
 export interface SaveVialInput {
@@ -249,7 +254,7 @@ export function serializeVial(
     );
     if (compoundProtocols.length > 0) {
       const dosesMg = compoundProtocols.map((p) => {
-        const amt = new Decimal(p.dose.amount);
+        const amt = parseSingleDoseDecimal(p.dose.amount);
         if (p.dose.unit === 'mcg') {
           return amt.dividedBy(1000);
         }
@@ -284,7 +289,7 @@ export function serializeVial(
       }
 
       const maxProto = compoundProtocols.find((p) => {
-        const amt = new Decimal(p.dose.amount);
+        const amt = parseSingleDoseDecimal(p.dose.amount);
         const mg = p.dose.unit === 'mcg' ? amt.dividedBy(1000) : amt;
         return mg.eq(maxDoseMg);
       });
@@ -792,7 +797,7 @@ export async function getInventorySummaryByCompound(
 
       if (canConvert) {
         const doseMg = convertDoseToMg(
-          new Decimal(dose.amount),
+          parseSingleDoseDecimal(dose.amount),
           dose.unit,
           { totalMg: new Decimal(activeVial.totalMg), bacWaterMl },
           syringeStandard

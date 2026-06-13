@@ -36,6 +36,13 @@ function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: 
   return `${userId}:${protocolId}:${scheduledDate.toISOString().slice(0, 10)}`;
 }
 
+function parseDoseAmountSum(amountStr: string): Decimal {
+  if (amountStr.includes('/')) {
+    return amountStr.split('/').reduce((sum, part) => sum.plus(new Decimal(part.trim())), new Decimal(0));
+  }
+  return new Decimal(amountStr);
+}
+
 function calculateLoggedCost(
   vial: {
     cost: Prisma.Decimal | Decimal | number | string | null;
@@ -52,7 +59,7 @@ function calculateLoggedCost(
 
   try {
     const doseMg = convertDoseToMg(
-      new Decimal(amount.amount),
+      parseDoseAmountSum(amount.amount),
       amount.unit,
       { totalMg: new Decimal(vial.totalMg.toString()), bacWaterMl: vial.bacWaterMl ? new Decimal(vial.bacWaterMl.toString()) : null },
       syringeStandard
@@ -173,7 +180,7 @@ async function logOneInBatch(
       });
       const syringeStandard = user?.syringeStandard ?? 'U100';
 
-      const doseAmountVal = new Decimal(amount.amount);
+      const doseAmountVal = parseDoseAmountSum(amount.amount);
       const doseUnit = amount.unit;
       const { loggedCost, loggedCurrency } = calculateLoggedCost(activeVial, amount, syringeStandard);
 
@@ -223,7 +230,7 @@ async function logOneInBatch(
       });
       const syringeStandard = user?.syringeStandard ?? 'U100';
 
-      const doseAmountVal = new Decimal(amount.amount);
+      const doseAmountVal = parseDoseAmountSum(amount.amount);
       const doseUnit = amount.unit;
       const { loggedCost, loggedCurrency } = calculateLoggedCost(activeVial, amount, syringeStandard);
 
@@ -286,7 +293,7 @@ async function logOneInBatch(
           });
           const syringeStandard = user?.syringeStandard ?? 'U100';
 
-          const doseAmountVal = new Decimal(amount.amount);
+          const doseAmountVal = parseDoseAmountSum(amount.amount);
           const doseUnit = amount.unit;
           const { loggedCost, loggedCurrency } = calculateLoggedCost(activeVial, amount, syringeStandard);
 

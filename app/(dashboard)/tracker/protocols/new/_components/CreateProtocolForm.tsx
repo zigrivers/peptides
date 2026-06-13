@@ -30,6 +30,19 @@ type ManagedUser = {
   syringeStandard: string;
 };
 
+type SerializedVial = {
+  id: string;
+  userId: string;
+  compoundId: string;
+  totalMg: string;
+  bacWaterMl: string | null;
+  remainingMg: string;
+  status: string;
+  expiresAt: string | null;
+  cost: string | null;
+  currency: string;
+};
+
 type Props = {
   compounds: Compound[];
   managedUsers: ManagedUser[];
@@ -48,6 +61,7 @@ type Props = {
     administrationRoute: string;
     notes: string | null;
   };
+  vials?: SerializedVial[];
 };
 
 export function CreateProtocolForm({
@@ -56,6 +70,7 @@ export function CreateProtocolForm({
   currentUser,
   cyclesByUserId,
   cloneSource,
+  vials = [],
 }: Props) {
   const currentUserId = currentUser.id;
   const router = useRouter();
@@ -75,8 +90,8 @@ export function CreateProtocolForm({
     (cloneSource?.dose.unit as 'mcg' | 'mg' | 'IU' | 'mL') ?? 'mcg'
   );
   
-  const cloneSchedule = cloneSource?.schedule as { frequency?: 'Daily' | 'EOD' | 'SpecificDaysOfWeek' | 'CustomInterval'; daysOfWeek?: DayOfWeek[]; intervalDays?: number } | undefined;
-  const [frequency, setFrequency] = useState<'Daily' | 'EOD' | 'SpecificDaysOfWeek' | 'CustomInterval'>(
+  const cloneSchedule = cloneSource?.schedule as { frequency?: 'Daily' | 'TwiceDaily' | 'EOD' | 'SpecificDaysOfWeek' | 'TwiceSpecificDaysOfWeek' | 'CustomInterval'; daysOfWeek?: DayOfWeek[]; intervalDays?: number } | undefined;
+  const [frequency, setFrequency] = useState<'Daily' | 'TwiceDaily' | 'EOD' | 'SpecificDaysOfWeek' | 'TwiceSpecificDaysOfWeek' | 'CustomInterval'>(
     cloneSchedule?.frequency ?? 'Daily'
   );
   const [daysOfWeek, setDaysOfWeek] = useState<DayOfWeek[]>(cloneSchedule?.daysOfWeek ?? []);
@@ -87,6 +102,9 @@ export function CreateProtocolForm({
 
   // Inventory Seeding State
   const [seedInventory, setSeedInventory] = useState(false);
+  const [startingInventoryOption, setStartingInventoryOption] = useState<'existing_active' | 'reconstitute' | 'new'>('new');
+  const [selectedActiveVialId, setSelectedActiveVialId] = useState('');
+  const [selectedDryVialId, setSelectedDryVialId] = useState('');
   const [vialTotalMg, setVialTotalMg] = useState('');
   const [vialBacWaterMl, setVialBacWaterMl] = useState('');
   const [vialExpiresAt, setVialExpiresAt] = useState('');
@@ -105,10 +123,51 @@ export function CreateProtocolForm({
   const dosingTypical = selectedCompound?.profile?.dosingTypical ? parseCompoundDosing(selectedCompound.profile.dosingTypical) : null;
   const dosingHigh = selectedCompound?.profile?.dosingHigh ? parseCompoundDosing(selectedCompound.profile.dosingHigh) : null;
 
+  // Filter vials based on selected subjectUserId and compoundId
+  const subjectVials = useMemo(() => {
+    return (vials || []).filter(
+      (v) => v.userId === subjectUserId && v.compoundId === compoundId
+    );
+  }, [vials, subjectUserId, compoundId]);
+
+  const activeVialsInInventory = useMemo(() => {
+    return subjectVials.filter((v) => v.status === 'RECONSTITUTED');
+  }, [subjectVials]);
+
+  const dryVialsInInventory = useMemo(() => {
+    return subjectVials.filter((v) => v.status === 'DRY');
+  }, [subjectVials]);
+
+  // Handle inventory option defaults and presets on subject/compound change
+  useEffect(() => {
+    if (activeVialsInInventory.length > 0) {
+      setStartingInventoryOption('existing_active');
+      setSelectedActiveVialId(activeVialsInInventory[0].id);
+    } else if (dryVialsInInventory.length > 0) {
+      setStartingInventoryOption('reconstitute');
+      setSelectedDryVialId(dryVialsInInventory[0].id);
+      setVialTotalMg(dryVialsInInventory[0].totalMg);
+    } else {
+      setStartingInventoryOption('new');
+      setVialTotalMg('');
+    }
+  }, [compoundId, subjectUserId]);
+
+  // Sync selected dry vial totalMg
+  useEffect(() => {
+    if (startingInventoryOption === 'reconstitute' && selectedDryVialId) {
+      const dv = dryVialsInInventory.find((v) => v.id === selectedDryVialId);
+      if (dv) {
+        setVialTotalMg(dv.totalMg);
+      }
+    }
+  }, [startingInventoryOption, selectedDryVialId, dryVialsInInventory]);
+
   const activeGuidanceDose = useMemo(() => {
     if (!doseAmount) return null;
     try {
-      const currentVal = new Decimal(doseAmount);
+      const singleAmount = doseAmount.includes('/') ? doseAmount.split('/')[0].trim() : doseAmount;
+      const currentVal = new Decimal(singleAmount);
       if (dosingTypical && currentVal.equals(new Decimal(dosingTypical.amount)) && doseUnit === dosingTypical.unit) {
         return { tierName: 'Typical Range', dose: dosingTypical };
       }
@@ -132,7 +191,8 @@ export function CreateProtocolForm({
       return;
     }
     try {
-      const amountVal = new Decimal(doseAmount);
+      const singleAmount = doseAmount.includes('/') ? doseAmount.split('/')[0].trim() : doseAmount;
+      const amountVal = new Decimal(singleAmount);
       const highVal = new Decimal(dosingHigh.amount);
       if (amountVal.gt(highVal)) {
         setDoseWarning(`Note: This dose exceeds the typical upper research threshold (${dosingHigh.amount} ${dosingHigh.unit}). Confirm with study references.`);
@@ -146,7 +206,7 @@ export function CreateProtocolForm({
 
   // Automatically calculate default expiration date if seeding inventory
   useEffect(() => {
-    if (seedInventory && selectedCompound?.profile?.reconstitutedShelfLifeDays) {
+    if (seedInventory && (startingInventoryOption === 'new' || startingInventoryOption === 'reconstitute') && selectedCompound?.profile?.reconstitutedShelfLifeDays) {
       const shelfLife = selectedCompound.profile.reconstitutedShelfLifeDays;
       const expDate = new Date();
       expDate.setDate(expDate.getDate() + shelfLife);
@@ -154,10 +214,10 @@ export function CreateProtocolForm({
       const month = String(expDate.getMonth() + 1).padStart(2, '0');
       const day = String(expDate.getDate()).padStart(2, '0');
       setVialExpiresAt(`${year}-${month}-${day}`);
-    } else if (!seedInventory) {
+    } else if (!seedInventory || startingInventoryOption === 'existing_active') {
       setVialExpiresAt('');
     }
-  }, [seedInventory, compoundId, selectedCompound]);
+  }, [seedInventory, startingInventoryOption, compoundId, selectedCompound]);
 
   // Dynamic calculations for reconstitution and syringe logging guidance
   let concentrationMgPerMl: number | null = null;
@@ -169,17 +229,26 @@ export function CreateProtocolForm({
   const syringeStandard = selectedSubject?.syringeStandard ?? 'U100';
   const unitVolumeMl = syringeStandard === 'U40' ? 0.025 : 0.01;
 
-  if (vialTotalMg && vialBacWaterMl) {
+  // Derive active vial details if using existing active vial option
+  const activeVialForCalc = startingInventoryOption === 'existing_active'
+    ? activeVialsInInventory.find((v) => v.id === selectedActiveVialId) || activeVialsInInventory[0]
+    : null;
+
+  const effectiveTotalMg = activeVialForCalc ? activeVialForCalc.totalMg : vialTotalMg;
+  const effectiveBacWaterMl = activeVialForCalc ? activeVialForCalc.bacWaterMl : vialBacWaterMl;
+
+  if (effectiveTotalMg && effectiveBacWaterMl) {
     try {
-      const mgVal = parseFloat(vialTotalMg);
-      const mlVal = parseFloat(vialBacWaterMl);
+      const mgVal = parseFloat(effectiveTotalMg);
+      const mlVal = parseFloat(effectiveBacWaterMl);
       if (mgVal > 0 && mlVal > 0) {
         concentrationMgPerMl = mgVal / mlVal;
         concentrationMcgPerMl = concentrationMgPerMl * 1000;
         mcgPerUnit = concentrationMcgPerMl * unitVolumeMl;
 
         if (doseAmount) {
-          const doseVal = parseFloat(doseAmount);
+          const singleAmount = doseAmount.includes('/') ? doseAmount.split('/')[0].trim() : doseAmount;
+          const doseVal = parseFloat(singleAmount);
           if (doseVal > 0) {
             let doseMcg = 0;
             if (doseUnit === 'mcg') {
@@ -217,15 +286,26 @@ export function CreateProtocolForm({
   function buildSchedule() {
     switch (frequency) {
       case 'Daily': return { frequency: 'Daily' as const };
+      case 'TwiceDaily': return { frequency: 'TwiceDaily' as const };
       case 'EOD': return { frequency: 'EOD' as const };
       case 'SpecificDaysOfWeek': return { frequency: 'SpecificDaysOfWeek' as const, daysOfWeek };
+      case 'TwiceSpecificDaysOfWeek': return { frequency: 'TwiceSpecificDaysOfWeek' as const, daysOfWeek };
       case 'CustomInterval': return { frequency: 'CustomInterval' as const, intervalDays };
     }
   }
 
   function applyFrequencyString(freqStr: string) {
     const freq = freqStr.toLowerCase();
-    if (freq.includes('daily') || freq.includes('every day') || freq.includes('once daily') || freq.includes('twice daily')) {
+    if (freq.includes('twice daily') && (freq.includes('mon') || freq.includes('tue') || freq.includes('wed') || freq.includes('thu') || freq.includes('fri') || freq.includes('sat') || freq.includes('sun') || freq.includes('weekly') || freq.includes('days') || freq.includes('specific'))) {
+      setFrequency('TwiceSpecificDaysOfWeek');
+      if (freq.includes('twice') || freq.includes('2x')) {
+        setDaysOfWeek(['Mon', 'Thu']);
+      } else {
+        setDaysOfWeek(['Mon', 'Wed', 'Fri']);
+      }
+    } else if (freq.includes('twice daily') || freq.includes('2x daily')) {
+      setFrequency('TwiceDaily');
+    } else if (freq.includes('daily') || freq.includes('every day') || freq.includes('once daily')) {
       setFrequency('Daily');
     } else if (freq.includes('eod') || freq.includes('every other day')) {
       setFrequency('EOD');
@@ -275,11 +355,12 @@ export function CreateProtocolForm({
       administrationRoute: adminRoute,
       startDate: new Date(startDate),
       notes: notes || undefined,
-      initialVial: (seedInventory && vialTotalMg && vialBacWaterMl) ? {
+      initialVial: (seedInventory && startingInventoryOption !== 'existing_active' && vialTotalMg && vialBacWaterMl) ? {
         totalMg: vialTotalMg,
         bacWaterMl: vialBacWaterMl,
         expiresAt: vialExpiresAt ? new Date(`${vialExpiresAt}T00:00:00Z`) : undefined,
       } : undefined,
+      reconstituteVialId: (seedInventory && startingInventoryOption === 'reconstitute') ? selectedDryVialId : undefined,
     };
 
     startTransition(async () => {
@@ -400,7 +481,14 @@ export function CreateProtocolForm({
             </select>
           </div>
 
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-between pt-4">
+            <button
+              type="button"
+              onClick={() => router.push('/regimen')}
+              className="rounded-lg border border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 px-5 py-2.5 text-sm font-semibold transition-colors"
+            >
+              Cancel
+            </button>
             <button
               type="button"
               disabled={!compoundId}
@@ -547,8 +635,10 @@ export function CreateProtocolForm({
               className="w-full rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:border-primary focus:ring-primary py-2 px-3"
             >
               <option value="Daily">Daily</option>
+              <option value="TwiceDaily">Twice daily</option>
               <option value="EOD">Every other day (EOD)</option>
               <option value="SpecificDaysOfWeek">Specific days of the week</option>
+              <option value="TwiceSpecificDaysOfWeek">Twice daily on specific days</option>
               <option value="CustomInterval">Custom interval (every N days)</option>
             </select>
 
@@ -568,7 +658,7 @@ export function CreateProtocolForm({
             )}
           </div>
 
-          {frequency === 'SpecificDaysOfWeek' && (
+          {(frequency === 'SpecificDaysOfWeek' || frequency === 'TwiceSpecificDaysOfWeek') && (
             <div className="space-y-2">
               <p className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Days of the week</p>
               <div className="flex flex-wrap gap-2">
@@ -625,54 +715,203 @@ export function CreateProtocolForm({
             </div>
 
             {seedInventory && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-primary/10 animate-page-enter">
+              <div className="space-y-4 pt-2 border-t border-primary/10 animate-page-enter">
+                {/* Segmented radio selector */}
                 <div className="space-y-1.5">
-                  <label htmlFor="vial-total-mg" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    Vial Size (mg) <span className="text-red-500">*</span>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Inventory Option
                   </label>
-                  <input
-                    id="vial-total-mg"
-                    type="text"
-                    inputMode="decimal"
-                    required={seedInventory}
-                    value={vialTotalMg}
-                    onChange={(e) => setVialTotalMg(e.target.value)}
-                    placeholder="e.g. 5"
-                    className="w-full rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-xs focus:border-primary focus:ring-primary py-2 px-3"
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      disabled={activeVialsInInventory.length === 0}
+                      onClick={() => setStartingInventoryOption('existing_active')}
+                      className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all text-center flex flex-col justify-center items-center gap-1 ${
+                        startingInventoryOption === 'existing_active'
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-800 hover:border-primary/50 disabled:opacity-40 disabled:hover:border-gray-200 dark:disabled:hover:border-gray-800'
+                      }`}
+                    >
+                      <span>Use Existing Active</span>
+                      <span className="text-[10px] opacity-75 font-normal">
+                        ({activeVialsInInventory.length} available)
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={dryVialsInInventory.length === 0}
+                      onClick={() => setStartingInventoryOption('reconstitute')}
+                      className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all text-center flex flex-col justify-center items-center gap-1 ${
+                        startingInventoryOption === 'reconstitute'
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-800 hover:border-primary/50 disabled:opacity-40 disabled:hover:border-gray-200 dark:disabled:hover:border-gray-800'
+                      }`}
+                    >
+                      <span>Reconstitute Dry Vial</span>
+                      <span className="text-[10px] opacity-75 font-normal">
+                        ({dryVialsInInventory.length} in freezer)
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setStartingInventoryOption('new')}
+                      className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all text-center flex flex-col justify-center items-center gap-1 ${
+                        startingInventoryOption === 'new'
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-800 hover:border-primary/50'
+                      }`}
+                    >
+                      <span>Add Brand New</span>
+                      <span className="text-[10px] opacity-75 font-normal">
+                        (Record from scratch)
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label htmlFor="vial-bac-water" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    Bac Water Added (mL) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="vial-bac-water"
-                    type="text"
-                    inputMode="decimal"
-                    required={seedInventory}
-                    value={vialBacWaterMl}
-                    onChange={(e) => setVialBacWaterMl(e.target.value)}
-                    placeholder="e.g. 2"
-                    className="w-full rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-xs focus:border-primary focus:ring-primary py-2 px-3"
-                  />
-                </div>
+                {/* Option 1 fields */}
+                {startingInventoryOption === 'existing_active' && activeVialsInInventory.length > 0 && (
+                  <div className="space-y-1.5 animate-page-enter">
+                    <label htmlFor="active-vial-select" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Select Reconstituted Vial <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="active-vial-select"
+                      required={seedInventory && startingInventoryOption === 'existing_active'}
+                      value={selectedActiveVialId}
+                      onChange={(e) => setSelectedActiveVialId(e.target.value)}
+                      className="w-full rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-xs focus:border-primary focus:ring-primary py-2 px-3"
+                    >
+                      {activeVialsInInventory.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.totalMg}mg vial (reconstituted with {v.bacWaterMl}mL bac water) · remaining: {parseFloat(v.remainingMg).toFixed(2)}mg
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
-                <div className="space-y-1.5">
-                  <label htmlFor="vial-expires" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    Vial Expiration Date <span className="text-gray-400">(optional)</span>
-                  </label>
-                  <input
-                    id="vial-expires"
-                    type="date"
-                    value={vialExpiresAt}
-                    onChange={(e) => setVialExpiresAt(e.target.value)}
-                    className="w-full rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-xs focus:border-primary focus:ring-primary py-2 px-3"
-                  />
-                </div>
+                {/* Option 2 fields */}
+                {startingInventoryOption === 'reconstitute' && dryVialsInInventory.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-page-enter">
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <label htmlFor="dry-vial-select" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Select Dry Vial to Reconstitute <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="dry-vial-select"
+                        required={seedInventory && startingInventoryOption === 'reconstitute'}
+                        value={selectedDryVialId}
+                        onChange={(e) => setSelectedDryVialId(e.target.value)}
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-xs focus:border-primary focus:ring-primary py-2 px-3"
+                      >
+                        {dryVialsInInventory.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.totalMg}mg dry vial {v.cost ? `· cost: ${v.currency} ${v.cost}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
+                    <div className="space-y-1.5">
+                      <label htmlFor="vial-total-mg" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Vial Size (mg)
+                      </label>
+                      <input
+                        id="vial-total-mg"
+                        type="text"
+                        disabled
+                        value={vialTotalMg}
+                        className="w-full rounded-lg border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-xs py-2 px-3"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="vial-bac-water" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Bac Water Added (mL) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="vial-bac-water"
+                        type="text"
+                        inputMode="decimal"
+                        required={seedInventory && startingInventoryOption === 'reconstitute'}
+                        value={vialBacWaterMl}
+                        onChange={(e) => setVialBacWaterMl(e.target.value)}
+                        placeholder="e.g. 2"
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-xs focus:border-primary focus:ring-primary py-2 px-3"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <label htmlFor="vial-expires" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Vial Expiration Date <span className="text-gray-400">(optional)</span>
+                      </label>
+                      <input
+                        id="vial-expires"
+                        type="date"
+                        value={vialExpiresAt}
+                        onChange={(e) => setVialExpiresAt(e.target.value)}
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-xs focus:border-primary focus:ring-primary py-2 px-3"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Option 3 fields */}
+                {startingInventoryOption === 'new' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-page-enter">
+                    <div className="space-y-1.5">
+                      <label htmlFor="vial-total-mg" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Vial Size (mg) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="vial-total-mg"
+                        type="text"
+                        inputMode="decimal"
+                        required={seedInventory && startingInventoryOption === 'new'}
+                        value={vialTotalMg}
+                        onChange={(e) => setVialTotalMg(e.target.value)}
+                        placeholder="e.g. 5"
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-xs focus:border-primary focus:ring-primary py-2 px-3"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="vial-bac-water" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Bac Water Added (mL) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="vial-bac-water"
+                        type="text"
+                        inputMode="decimal"
+                        required={seedInventory && startingInventoryOption === 'new'}
+                        value={vialBacWaterMl}
+                        onChange={(e) => setVialBacWaterMl(e.target.value)}
+                        placeholder="e.g. 2"
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-xs focus:border-primary focus:ring-primary py-2 px-3"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <label htmlFor="vial-expires" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Vial Expiration Date <span className="text-gray-400">(optional)</span>
+                      </label>
+                      <input
+                        id="vial-expires"
+                        type="date"
+                        value={vialExpiresAt}
+                        onChange={(e) => setVialExpiresAt(e.target.value)}
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-xs focus:border-primary focus:ring-primary py-2 px-3"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Reconstitution details card */}
                 {concentrationMgPerMl !== null && (
-                  <div className="sm:col-span-2 bg-white dark:bg-gray-950 border border-gray-200/50 dark:border-gray-800/80 rounded-xl p-4 space-y-3.5 text-xs">
+                  <div className="sm:col-span-2 bg-white dark:bg-gray-950 border border-gray-200/50 dark:border-gray-800/80 rounded-xl p-4 space-y-3.5 text-xs animate-page-enter">
                     <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-900 pb-2">
                       <span className="text-gray-500 font-medium">Reconstitution Details</span>
                       <span className="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
@@ -730,14 +969,23 @@ export function CreateProtocolForm({
           </div>
 
           {/* Navigation */}
-          <div className="flex justify-between pt-4">
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              ← Back
-            </button>
+          <div className="flex justify-between items-center pt-4">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="rounded-lg border border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 px-5 py-2.5 text-sm font-semibold transition-colors"
+              >
+                ← Back
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/regimen')}
+                className="rounded-lg border border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 px-5 py-2.5 text-sm font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
             <button
               type="button"
               disabled={!doseAmount}
@@ -830,7 +1078,7 @@ export function CreateProtocolForm({
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              className="rounded-lg border border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 px-5 py-2.5 text-sm font-semibold transition-colors"
             >
               ← Back
             </button>
@@ -843,8 +1091,8 @@ export function CreateProtocolForm({
             </button>
             <button
               type="button"
-              onClick={() => router.back()}
-              className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              onClick={() => router.push('/regimen')}
+              className="rounded-lg border border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 px-5 py-2.5 text-sm font-semibold transition-colors"
             >
               Cancel
             </button>
