@@ -35,6 +35,7 @@ interface RunInput {
 const OPERATION: AIOperation = 'compound_research';
 const STEP_TIMEOUT_MS = 240_000;
 const MAX_SOURCE_CONTENT_CHARS = 1200;
+const MAX_SOURCES_FOR_SYNTHESIS = 3;
 
 function classify(err: unknown): 'timeout' | 'aborted' | 'invalid_schema' | 'provider_error' {
   if (!(err instanceof Error)) return 'provider_error';
@@ -89,7 +90,8 @@ export async function runCompoundResearch(input: RunInput, onProgress: (e: Progr
 
     // Step 3 — synthesize
     onProgress({ phase: 'synthesizing' });
-    const sourceBlock = sources
+    const topSources = sources.slice(0, MAX_SOURCES_FOR_SYNTHESIS);
+    const sourceBlock = topSources
       .map((s, i) => `[${i + 1}] ${s.title}\nURL: ${s.url}\n${(s.content ?? s.snippet).slice(0, MAX_SOURCE_CONTENT_CHARS)}`)
       .join('\n\n');
     const synth = await tryGenerateObjectOrParse({
@@ -101,9 +103,9 @@ export async function runCompoundResearch(input: RunInput, onProgress: (e: Progr
       abortSignal: AbortSignal.timeout(STEP_TIMEOUT_MS),
     });
 
-    // Step 4 — guard
-    const fetchedSet = new Set(sources.map((s) => normalizeUrl(s.url)));
-    const fetchedByNorm = new Map(sources.map((s) => [normalizeUrl(s.url), s.url] as const));
+    // Step 4 — guard (validate against exactly the sources shown to the model)
+    const fetchedSet = new Set(topSources.map((s) => normalizeUrl(s.url)));
+    const fetchedByNorm = new Map(topSources.map((s) => [normalizeUrl(s.url), s.url] as const));
     const kept = synth.findings
       .map((f) => ({
         claim: f.claim,
