@@ -1,12 +1,15 @@
 import { generateObject, generateText, NoObjectGeneratedError, type LanguageModel } from 'ai';
 import type { z } from 'zod';
 
+const DEFAULT_MAX_OUTPUT_TOKENS = 8000;
+
 interface Args<T> {
   model: LanguageModel;
   schema: z.ZodSchema<T>;
   system: string;
   prompt: string;
   abortSignal?: AbortSignal;
+  maxOutputTokens?: number;
 }
 
 /** Extract the first balanced JSON object/array from a text blob. */
@@ -32,9 +35,9 @@ function extractJson(text: string): string | null {
  * mode), fall back to generateText + strict-parse + Zod validate. Timeout/abort/
  * network errors propagate unchanged so the orchestrator fails closed.
  */
-export async function tryGenerateObjectOrParse<T>({ model, schema, system, prompt, abortSignal }: Args<T>): Promise<T> {
+export async function tryGenerateObjectOrParse<T>({ model, schema, system, prompt, abortSignal, maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS }: Args<T>): Promise<T> {
   try {
-    const { object } = await generateObject({ model, schema, system, prompt, maxRetries: 0, abortSignal });
+    const { object } = await generateObject({ model, schema, system, prompt, maxRetries: 0, abortSignal, maxOutputTokens });
     return schema.parse(object);
   } catch (err) {
     if (!NoObjectGeneratedError.isInstance(err)) throw err;
@@ -44,6 +47,7 @@ export async function tryGenerateObjectOrParse<T>({ model, schema, system, promp
       prompt,
       maxRetries: 0,
       abortSignal,
+      maxOutputTokens,
     });
     const json = extractJson(text);
     if (!json) throw new Error('local_text_fallback_no_json');

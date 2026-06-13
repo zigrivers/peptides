@@ -28,6 +28,7 @@ describe('tryGenerateObjectOrParse', () => {
     const out = await tryGenerateObjectOrParse({ model, schema, system: 's', prompt: 'p' });
     expect(out).toEqual({ queries: ['a'] });
     expect(mockGenerateText).not.toHaveBeenCalled();
+    expect(mockGenerateObject).toHaveBeenCalledWith(expect.objectContaining({ maxOutputTokens: 8000 }));
   });
 
   it('falls back to generateText+parse on NoObjectGeneratedError', async () => {
