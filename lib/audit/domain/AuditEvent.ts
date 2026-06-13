@@ -5,7 +5,8 @@ export type AuditCategory =
   | 'Order'
   | 'Reconstitution'
   | 'Security'
-  | 'Notification';
+  | 'Notification'
+  | 'Research';
 
 // Recursive JSON-serializable type — excludes functions, symbols, and undefined.
 // Callers must use this type for metadata/oldValues/newValues to prevent non-serializable
@@ -106,7 +107,10 @@ export type AuditAction =
   | 'PUSH_SUBSCRIPTION_REMOVED'
   | 'PUSH_SUBSCRIPTION_PRUNED'
   | 'TEST_PUSH_SENT'
-  | 'REMINDER_DISPATCHED';
+  | 'REMINDER_DISPATCHED'
+  // Research
+  | 'RESEARCH_NOTE_SAVED'
+  | 'RESEARCH_NOTE_DELETED';
 
 export interface CreateAuditEventInput {
   actorUserId: string;

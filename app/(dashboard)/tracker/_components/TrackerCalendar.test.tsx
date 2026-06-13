@@ -24,6 +24,18 @@ vi.mock('@/app/actions/tracker/batch-log-dates', () => ({
   batchLogDatesAction: vi.fn(),
 }));
 
+vi.mock('@/app/actions/reference/list-compound-research', () => ({
+  listCompoundResearchAction: vi.fn(async () => ({ ok: true, enabled: false, notes: [] })),
+}));
+
+vi.mock('@/app/actions/reference/save-compound-research-notes', () => ({
+  saveCompoundResearchNotesAction: vi.fn(async () => ({ ok: true, savedCount: 0 })),
+}));
+
+vi.mock('@/app/actions/reference/delete-compound-research-note', () => ({
+  deleteCompoundResearchNoteAction: vi.fn(async () => ({ ok: true, deleted: true })),
+}));
+
 vi.mock('@/app/(dashboard)/dashboard/_components/ConfettiCanvas', () => ({
   ConfettiCanvas: () => null,
 }));
