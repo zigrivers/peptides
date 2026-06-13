@@ -21,17 +21,25 @@ provider** for it.
 
 This is a new AI operation (`compound_research`) that is multi-step (plan searches → run
 searches server-side → synthesize), so it does not fit `AIClient`'s single-shot failover
-orchestrator.
+orchestrator. A run can take ~2–3 minutes on the local model, which also rules out a single
+opaque synchronous request.
 
 ## Decision
 
 ### Provider
 - Add `lib/ai/infrastructure/localModelClient.ts`, a lazy, **side-effect-free**,
   env-gated factory mirroring `deepseekClient.ts`. It returns `null` unless
-  `LOCAL_LLM_BASE_URL` is set, uses `@ai-sdk/openai-compatible`'s `createOpenAICompatible`
-  with **`maxRetries: 0`** (fail instantly when the local stack is unreachable), and
-  **resolves the model id at runtime** from `GET {base}/models` (cached), overridable via
-  `LOCAL_LLM_MODEL`. Never hardcode a model alias.
+  `LOCAL_LLM_BASE_URL` is set, uses `@ai-sdk/openai-compatible`'s `createOpenAICompatible`,
+  and **resolves the model id at runtime** from `GET {base}/models` (in-flight-promise
+  deduped, TTL-cached), overridable via `LOCAL_LLM_MODEL`. Never hardcode a model alias.
+  `maxRetries: 0` is applied **per call** on `generateObject`/`generateText` (it is not a
+  factory option) so a local failure aborts instantly. Reachability and feature-enabled
+  helpers are TTL-cached and never throw.
+- Pin **`@ai-sdk/openai-compatible@^2.0.50`** — this is the line compatible with the
+  installed `ai@6` / `@ai-sdk/provider@3.0.10` / `@ai-sdk/provider-utils@4.0.x` tree (the
+  `3.0.0-beta` line is a pre-release, NOT "v3 like the other adapters"). After install,
+  confirm a single deduped `@ai-sdk/provider`/`provider-utils` copy; a required type cast on
+  the factory's model would signal a duplicate install to fix, not to paper over.
 - Default `LOCAL_LLM_BASE_URL = http://127.0.0.1:8001/v1`.
 - A feature flag `COMPOUND_RESEARCH_ENABLED` plus a cheap reachability check gate the
   feature. **When the flag is off or the endpoint is unreachable, the feature is
@@ -41,21 +49,34 @@ orchestrator.
 
 ### Web search (server-side only)
 - Add `lib/research/webSearch.ts`. **Tavily primary** (`@tavily/core`, `searchDepth:
-  'basic'`, prefer cleaned page content), **DuckDuckGo fallback** (`duck-duck-scrape`,
-  keyless, with retry/backoff + small in-memory cache). Provider selected by
-  `WEB_SEARCH_PROVIDER` (default `tavily`); auto-fallback to DDG when `TAVILY_API_KEY` is
-  missing or Tavily errors. `TAVILY_API_KEY` is **server-only**, never sent to the client.
-  Log which provider served each request.
+  'basic'` **plus `includeRawContent:'markdown'`** — `basic` alone returns only snippets,
+  so raw content is required to feed real text to the small-context model; normalize
+  `content = rawContent ?? content`), **DuckDuckGo fallback** (`duck-duck-scrape`, keyless,
+  snippet-only, with retry/backoff + small in-memory cache and try/catch around its thrown
+  anomaly/VQD errors). Provider selected by `WEB_SEARCH_PROVIDER` (default `tavily`);
+  auto-fallback to DDG when `TAVILY_API_KEY` is missing or Tavily errors. `TAVILY_API_KEY`
+  is **server-only**, never sent to the client. Log which provider served each request.
+- **SSRF boundary:** `webSearch` passes only the query string to the provider SDK; the
+  server never issues an outbound fetch to any model- or result-supplied URL. Page text
+  comes only from the provider response. Source URLs are client-side links only, never
+  dereferenced server-side. Fetched page content is treated as **untrusted** input to the
+  synthesis prompt (prompt-injection mitigation), backed by the output content guard below.
 
 ### Orchestration
 - Add `lib/ai/application/compoundResearch.ts` — a multi-step loop (NOT `AIClient`):
   (1) local model plans 1–3 queries, (2) server searches + dedupes, (3) local model
-  synthesizes `{ summary, findings:[{claim, sourceUrls[]}], sourcesUsed[] }` via
-  `generateObject`. Because local (mlx-style) endpoints are inconsistent at JSON mode, a
-  `generateText` + strict-parse **fallback is built regardless**. **Every claim must cite
-  at least one fetched source URL**; a post-synthesis guard drops uncited claims. Reuse
-  the existing timeout + audit pattern with a generous ~180s timeout; audit events carry
-  **no prompt or answer content** (operation + provider + error class only), consistent
+  synthesizes `{ summary, findings:[{claim, sourceUrls[]}], sourcesUsed[] }`. Both the
+  planning and synthesis calls go through one shared structured-output helper that tries
+  `generateObject` and, on `NoObjectGeneratedError` only (mlx-style endpoints are
+  inconsistent at JSON mode), falls back to `generateText` + strict-parse + Zod-validate;
+  timeout/abort/network errors do **not** trigger the parse fallback (they fail closed).
+  Zod schemas use `.nullable()` rather than `.optional()` for JSON-mode reliability.
+  **Every claim must cite at least one fetched source URL**; a post-synthesis guard
+  URL-normalizes both sides, drops uncited/hallucinated claims, prunes orphaned
+  `sourcesUsed`, and runs the existing `containsDisallowedPhrase()` over the summary and
+  every claim (ADR-010). Reuse the existing timeout pattern with an overall budget (~150s)
+  and an explicit `maxDuration` on the run endpoint; audit events carry **no prompt,
+  answer, or search-query content** — fixed-label error classification only, consistent
   with `AIClient`. New `AIOperation` value `compound_research`.
 
 ### Persistence (per-user private)
@@ -70,12 +91,30 @@ orchestrator.
 - New audit category `Research` with actions `RESEARCH_NOTE_SAVED`,
   `RESEARCH_NOTE_DELETED`.
 
+### Execution model (resolved blocker)
+- The **run is a streaming `POST` Route Handler**
+  (`app/api/reference/[catalogItemId]/research/route.ts`) that emits NDJSON progress events
+  (`planning` → `searching` → `synthesizing` → `result`|`error`), not a single ~180s
+  synchronous server action. Streaming keeps the connection alive with data flowing
+  (defeating proxy/LB/client idle timeouts), surfaces progress, and is fully compatible with
+  "no draft persistence" — the terminal `result` event carries the answer, held client-side
+  until save. This supersedes the original "`runCompoundResearch` server action" wording.
+- `auth()` session required; zod-validate (`question` 1–500 chars); **feature-gate**
+  (disabled/unreachable → terminal `error` event the UI renders as a disabled state);
+  **best-effort rate-limit 5 runs/hour/user**; never leaks secrets. No DB write.
+
 ### Server actions
-- `runCompoundResearch(compoundId, question)` and `saveCompoundResearchNotes(compoundId,
-  approvedFindings)` — both require a NextAuth session, validate with zod, and are
-  `userId`-scoped. `runCompoundResearch` is **rate-limited to 5 runs/hour/user** (protects
-  the local model and Tavily credits) and never throws to the user (failures return an
-  `error` field; disabled/unreachable returns a disabled state).
+- `saveCompoundResearchNotes(input)` — persists only user-approved findings + their
+  citations (zod-bounded: ≤25 findings, `http(s)` URLs only, capped text lengths) in a
+  `withAudit` transaction; **every write carries `userId`.**
+- `deleteCompoundResearchNote(noteId)` — delete scoped by `{ id, userId }` (never `{ id }`).
+- All reads are `where: { userId, catalogItemId }`. No new identity-scoping exception.
+
+### Required edits to existing files
+`prisma/schema.prisma` gains `researchNotes CompoundResearchNote[]` back-relations on
+`User` and `CatalogItem`; `lib/ai/domain/types.ts` extends `AIOperation`;
+`lib/audit/domain/AuditEvent.ts` adds the `Research` category and two actions. These are
+closed unions / bidirectional relations — omitting them fails `typecheck`/`prisma:validate`.
 
 ### Disallowed (reaffirms ADR-010)
 - No dose recommendations, stack optimization, interaction analysis, or "safety
@@ -96,6 +135,12 @@ orchestrator.
   global reference data; mixing user web sources in would break the identity model.
 - **Client-side web search.** Rejected: would leak `TAVILY_API_KEY` and is not reliably
   available; search runs server-side only.
+- **Single synchronous ~180s server action for the run.** Rejected: fragile behind
+  proxy/LB/client idle timeouts, blank-spinner UX, and the heaviest possible blocking flow
+  (against ADR-010's spirit). Streaming Route Handler chosen instead.
+- **Job + poll (enqueue, return runId, poll for status).** Rejected for v1: needs a
+  transient store, which fights the "persist only on save / no draft rows" decision. The
+  stream delivers the same long-run resilience without persisting drafts.
 
 ## Consequences
 - **Benefits**: A cited, on-demand research assistant at zero per-call frontier cost when
@@ -103,9 +148,16 @@ orchestrator.
   ADR-010's non-blocking guarantee.
 - **Costs**: Feature availability depends on the operator's local stack being reachable
   from the deployment — by design it is simply hidden when not. Local generation is slow
-  (~180s timeouts). Local JSON-mode unreliability forces a `generateText` parse fallback to
-  maintain. One optional `TAVILY_API_KEY` to manage (DDG works keyless). Non-deterministic
-  output requires eval/test coverage (ADR-008).
+  (~150s budget). Local JSON-mode unreliability forces a `generateText` parse fallback to
+  maintain (on both model calls). Tavily `includeRawContent` may raise per-search credit
+  cost vs. plain `basic`. One optional `TAVILY_API_KEY` to manage (DDG works keyless).
+  Non-deterministic output requires eval/test coverage (ADR-008).
+- **Rate-limit caveat**: `createRateLimiter` is an in-memory per-process Map, so "5/hr/user"
+  is **best-effort**, not a hard cross-instance quota (effective limit `5 × instances`,
+  resets on redeploy). Acceptable because the feature only runs where the local model is
+  reachable (single-operator/self-hosted, typically one instance) and the real bottleneck is
+  serialized local generation. For Tavily **billing** protection, set an account-level spend
+  cap in the Tavily dashboard — the limiter is not a billing guard.
 
 ## Traces
 - ADR-010 (AI strategy — bounded uses, non-blocking; this ADR adds a local-only operation
