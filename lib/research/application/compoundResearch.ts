@@ -33,7 +33,8 @@ interface RunInput {
 }
 
 const OPERATION: AIOperation = 'compound_research';
-const STEP_TIMEOUT_MS = 150_000;
+const STEP_TIMEOUT_MS = 240_000;
+const MAX_SOURCE_CONTENT_CHARS = 1200;
 
 function classify(err: unknown): 'timeout' | 'aborted' | 'invalid_schema' | 'provider_error' {
   if (!(err instanceof Error)) return 'provider_error';
@@ -89,7 +90,7 @@ export async function runCompoundResearch(input: RunInput, onProgress: (e: Progr
     // Step 3 — synthesize
     onProgress({ phase: 'synthesizing' });
     const sourceBlock = sources
-      .map((s, i) => `[${i + 1}] ${s.title}\nURL: ${s.url}\n${s.content ?? s.snippet}`)
+      .map((s, i) => `[${i + 1}] ${s.title}\nURL: ${s.url}\n${(s.content ?? s.snippet).slice(0, MAX_SOURCE_CONTENT_CHARS)}`)
       .join('\n\n');
     const synth = await tryGenerateObjectOrParse({
       model,

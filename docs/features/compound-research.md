@@ -14,7 +14,7 @@ A signed-in user opens any compound — either via the Tracker's `CompoundInfoMo
 1. Sends the question to the server, where a **local open-source model** (OpenAI-compatible API, operator-hosted) plans 1–3 focused web search queries.
 2. The server runs those searches (Tavily primary, DuckDuckGo fallback) and collects page text.
 3. The local model synthesizes a **cited answer** from the fetched sources. Every claim must reference at least one fetched URL; uncited claims are dropped before the result reaches the client.
-4. The answer streams back to the UI as NDJSON progress events (`planning → searching → synthesizing → result`), keeping the connection alive during the ~150s generation window.
+4. The answer streams back to the UI as NDJSON progress events (`planning → searching → synthesizing → result`), keeping the connection alive during the multi-minute generation window.
 5. The user reviews the results and **selectively saves** individual findings as private notes. Saved notes render on both the Tracker modal and the Catalog detail page, each labeled **"Unverified — not medical advice."**
 
 **Drafts are never persisted.** Only user-approved findings are written to the database.
@@ -104,7 +104,7 @@ Audit category `Research`, actions `RESEARCH_NOTE_SAVED` and `RESEARCH_NOTE_DELE
 ## Caveats
 
 - **Rate limit is best-effort.** The 5 runs/hr/user guard uses an in-memory per-process Map. Effective limit is `5 × running instances` and resets on redeploy. This is acceptable because the feature only operates when the local model is reachable (typically single-operator, one instance), and the real serialization bottleneck is local generation. For Tavily **billing protection**, set an account-level spend cap in the Tavily dashboard — the in-process rate limiter is not a billing guard.
-- **Generation is slow.** The local model budget is ~150 s per run; the streaming approach keeps the UI responsive during this window.
+- **Generation is slow.** The local model generates at ~2.5 tok/s; each AI step (planning, synthesis) has a ~240 s per-step timeout. End-to-end runs typically take several minutes. The streaming approach keeps the UI responsive during this window. Each source's content is capped at 1 200 characters before synthesis to stay within the local model's context window.
 - **Tavily `includeRawContent` credit cost.** Using `includeRawContent:'markdown'` on the Tavily `basic` search depth returns full page text, which is required for synthesis quality but may raise per-search credit consumption above a plain `basic` request.
 
 ---
