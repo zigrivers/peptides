@@ -1,4 +1,4 @@
-import { generateObject, generateText, NoObjectGeneratedError, type LanguageModel } from 'ai';
+import { generateObject, generateText, type LanguageModel } from 'ai';
 import type { z } from 'zod';
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 8000;
@@ -31,23 +31,29 @@ function extractJson(text: string): string | null {
 
 /**
  * Try structured output via generateObject (maxRetries:0 — local, fail fast).
- * On NoObjectGeneratedError ONLY (local mlx endpoints are inconsistent at JSON
- * mode), fall back to generateText + strict-parse + Zod validate. Timeout/abort/
- * network errors propagate unchanged so the orchestrator fails closed.
+ * Falls back to generateText + strict-parse + Zod validate on ANY structured-output
+ * failure EXCEPT genuine timeout/abort (which must fail closed). This covers
+ * NoObjectGeneratedError, wrong-shape objects (ZodError), and unsupported
+ * responseFormat on local endpoints.
  */
 export async function tryGenerateObjectOrParse<T>({ model, schema, system, prompt, abortSignal, maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS }: Args<T>): Promise<T> {
   try {
-    const { object } = await generateObject({ model, schema, system, prompt, maxRetries: 0, abortSignal, maxOutputTokens });
+    const { object } = await generateObject({ model, schema, system, prompt, maxRetries: 0, maxOutputTokens, abortSignal });
     return schema.parse(object);
   } catch (err) {
-    if (!NoObjectGeneratedError.isInstance(err)) throw err;
+    // Fail closed on a real timeout/abort — do NOT mask it with a text retry.
+    if (err instanceof Error && (err.message === 'ai_timeout' || err.name === 'AbortError' || err.message === 'aborted')) {
+      throw err;
+    }
+    // Any other structured-output failure (no object, wrong shape/ZodError, unsupported
+    // responseFormat on a local endpoint) → fall back to plain text + tolerant parse.
     const { text } = await generateText({
       model,
-      system: `${system}\n\nRespond with ONLY a single JSON value matching the requested shape. No prose, no markdown fences.`,
+      system: `${system}\n\nRespond with ONLY a single JSON value matching the requested shape. No prose, no markdown fences, no explanation.`,
       prompt,
       maxRetries: 0,
-      abortSignal,
       maxOutputTokens,
+      abortSignal,
     });
     const json = extractJson(text);
     if (!json) throw new Error('local_text_fallback_no_json');

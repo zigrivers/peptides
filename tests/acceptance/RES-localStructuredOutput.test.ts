@@ -49,4 +49,12 @@ describe('tryGenerateObjectOrParse', () => {
     mockGenerateText.mockResolvedValue({ text: 'no json here' });
     await expect(tryGenerateObjectOrParse({ model, schema, system: 's', prompt: 'p' })).rejects.toBeTruthy();
   });
+
+  it('falls back to generateText when generateObject returns a schema-invalid shape', async () => {
+    mockGenerateObject.mockResolvedValue({ object: ['a', 'b'] }); // array, fails object schema
+    mockGenerateText.mockResolvedValue({ text: '{"queries":["x"]}' });
+    const out = await tryGenerateObjectOrParse({ model, schema, system: 's', prompt: 'p' });
+    expect(out).toEqual({ queries: ['x'] });
+    expect(mockGenerateText).toHaveBeenCalled();
+  });
 });
