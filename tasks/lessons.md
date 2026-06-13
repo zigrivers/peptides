@@ -277,3 +277,43 @@ Lessons that cut across multiple of the seven PRs shipped this session
   prior compaction (matches the 2026-05-21 lesson). They were
   untracked, but `find ... -name '* 2'` should be part of any
   new-session warmup if `git status` shows nothing relevant.
+
+## 2026-06-13 — Compound Research (ADR-017)
+
+- **Local reasoning models (Qwen3-style) are unusable until you disable
+  "thinking"**: the bf16 35B orchestrator emitted huge `reasoning` blocks and
+  returned EMPTY `content` under default token caps (generateObject →
+  `NoObjectGeneratedError`, generateText → `""`). Two fixes: (1) pass a generous
+  `maxOutputTokens` (8000) so content survives, and (2) inject
+  `chat_template_kwargs: {enable_thinking: false}` — a 200s+ request dropped to
+  ~7s. The `@ai-sdk/openai-compatible` provider has no first-class field for
+  this, so we inject it via a custom `fetch` on the factory (env-gated by
+  `LOCAL_LLM_DISABLE_THINKING`). Even with thinking off the model is ~2.5 tok/s,
+  so synthesis needs a ~240s step timeout + truncated (1200-char) and capped
+  (top-3) sources.
+- **`AbortSignal.timeout(ms)` throws a `DOMException` with `name ==='TimeoutError'`**,
+  NOT `AbortError`/`ai_timeout`. Fail-closed/abort guards and audit
+  classification must check `TimeoutError` explicitly. Mocked unit tests that
+  assert `new Error('ai_timeout')` pass while testing a path production never
+  emits — only the live run caught this.
+- **Local OpenAI-compatible endpoints often don't honor `responseFormat`** (the
+  SDK warns "responseFormat is not supported"). `generateObject` then succeeds
+  only if the model happens to emit clean JSON. Build a `generateText` +
+  tolerant-JSON-parse fallback, fall back on ANY non-timeout failure (not just
+  `NoObjectGeneratedError` — a wrong shape throws `ZodError`), and put the EXACT
+  JSON object shape in the prompt (the model returned a bare `["q"]` array when
+  the prompt only said "output queries").
+- **Pre-existing dev-DB schema drift makes `prisma migrate dev` offer to RESET**
+  (data-loss prompt). When the dev DB has out-of-band columns not in migration
+  history, author the additive `migration.sql` by hand and apply with
+  `prisma migrate deploy` (never `migrate dev`/`migrate reset`). Back up first.
+- **Vitest renders with the classic JSX runtime**: client components must
+  `import React` (default), not just named hooks, or `renderToString`/RTL tests
+  throw "React is not defined". Also, embedding a server-action-importing client
+  component (our panel → `@/lib/auth` → next-auth) into a parent breaks any test
+  that renders the parent unless it mocks the new actions — next-auth's
+  `next/server` ESM import crashes vitest collection. `TrackerCalendar.test.tsx`
+  passed on main and only broke once our panel entered its module graph.
+- **Two evals gate new modules**: a new `lib/<slice>/` must be added to
+  `tests/evals/structure.test.ts` `allowedModules`, and every new Prisma model
+  name must appear in `docs/database-schema.md` (`tests/evals/database.test.ts`).
