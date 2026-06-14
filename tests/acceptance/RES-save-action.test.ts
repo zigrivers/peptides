@@ -12,7 +12,7 @@ vi.mock('@/lib/research/application/CompoundResearchNoteService', () => ({
   listResearchNotes: (...a: unknown[]) => mockList(...a),
   deleteResearchNote: vi.fn(),
 }));
-vi.mock('@/lib/ai/infrastructure/localModelClient', () => ({ isCompoundResearchEnabled: () => mockEnabled() }));
+vi.mock('@/lib/ai/infrastructure/localModelClient', () => ({ isLocalResearchEnabled: () => mockEnabled() }));
 
 import { saveCompoundResearchNotesAction } from '@/app/actions/reference/save-compound-research-notes';
 import { listCompoundResearchAction } from '@/app/actions/reference/list-compound-research';

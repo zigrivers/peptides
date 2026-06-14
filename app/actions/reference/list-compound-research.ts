@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth';
 import { listResearchNotes } from '@/lib/research/application/CompoundResearchNoteService';
-import { isCompoundResearchEnabled } from '@/lib/ai/infrastructure/localModelClient';
+import { isLocalResearchEnabled } from '@/lib/ai/infrastructure/localModelClient';
 import type { SavedResearchNote } from '@/lib/research/domain/types';
 
 type Result =
@@ -13,7 +13,7 @@ export async function listCompoundResearchAction(catalogItemId: string): Promise
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: 'unauthorized' };
   const [enabled, notes] = await Promise.all([
-    isCompoundResearchEnabled(),
+    isLocalResearchEnabled(),
     listResearchNotes(session.user.id, catalogItemId),
   ]);
   return { ok: true, enabled, notes };

@@ -6,7 +6,7 @@ const mockRun = vi.fn();
 const mockFindUnique = vi.fn();
 
 vi.mock('@/lib/auth', () => ({ auth: () => mockAuth() }));
-vi.mock('@/lib/ai/infrastructure/localModelClient', () => ({ isCompoundResearchEnabled: () => mockEnabled() }));
+vi.mock('@/lib/ai/infrastructure/localModelClient', () => ({ isLocalResearchEnabled: () => mockEnabled() }));
 vi.mock('@/lib/research/application/compoundResearch', () => ({
   runCompoundResearch: (...a: unknown[]) => mockRun(...a),
   ResearchUnavailableError: class extends Error {},
