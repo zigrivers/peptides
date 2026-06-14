@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Link2, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { useCompoundResearch } from './useCompoundResearch';
 import { listCompoundResearchAction } from '@/app/actions/reference/list-compound-research';
@@ -155,7 +156,9 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
                   ⚠ {DOSE_WARNING}
                 </p>
               )}
-              <p className="text-[11px] uppercase tracking-wide text-amber-600 dark:text-amber-400">{DISCLAIMER}</p>
+              <p className="text-[11px] uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                <Link href="/about" className="underline">{DISCLAIMER}</Link>
+              </p>
 
               {result.evidence.length > 0 && (
                 <AnswerSection
@@ -218,7 +221,9 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
       {notes.length > 0 && (
         <div className="mt-5 border-t border-border pt-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Your saved research</h3>
-          <p className="text-[11px] uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-2">{DISCLAIMER}</p>
+          <p className="text-[11px] uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-2">
+            <Link href="/about" className="underline">{DISCLAIMER}</Link>
+          </p>
           <ul className="space-y-3">
             {notes.map((n) => (
               <li key={n.id} className="rounded-md border border-border/60 p-3">
