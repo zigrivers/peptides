@@ -18,10 +18,10 @@ export function isDoseIntentQuestion(text: string): boolean {
 }
 
 const PRESCRIPTIVE_PATTERNS: RegExp[] = [
-  // 2nd-person + an action verb (you should/can/may... take/dose/inject/use/start/run/cycle)
-  /\byou(?:'?re| are| should| can| could| may| might| must| need to)?\b[^.]*\b(take|dose|inject|use|start|run|cycle)\b/i,
-  // bare imperative + a number+unit ("take 2 mg", "inject 300 mcg")
-  /\b(take|dose|inject|use)\b[^.]*\b\d+(?:\.\d+)?\s?(mg|mcg|iu|ml|units?)\b/i,
+  // 2nd-person + an action verb (you should/can/may... take/dose/inject/use/start)
+  /\byou(?:'?re| are| should| can| could| may| might| must| need to)?\b[^.]*\b(take|dose|inject|use|start)\b/i,
+  // bare imperative + a number+unit ("take 2 mg", "inject 300 mcg") — anchored to clause start to avoid "subjects take" attribution
+  /(?:^|[,;])\s*\b(take|dose|inject|use)\b[^.]*\b\d+(?:\.\d+)?\s?(mg|mcg|iu|ml|units?)\b/im,
   // personalization to an age ("for a 56-year-old")
   /\bfor (?:a |an )?\d+[- ]?(?:year|yr|yo)\b/i,
   // "your/my dose/protocol/cycle/regimen"

@@ -16,8 +16,9 @@ describe('isDoseIntentQuestion', () => {
   it('returns false for non-dose questions', () => {
     expect(isDoseIntentQuestion('what is its mechanism of action?')).toBe(false);
   });
-  it('exports a non-empty term list', () => {
-    expect(DOSE_INTENT_TERMS.length).toBeGreaterThan(5);
+  it('includes core dose terms', () => {
+    expect(DOSE_INTENT_TERMS).toContain('mg');
+    expect(DOSE_INTENT_TERMS).toContain('frequency');
   });
 });
 
@@ -31,7 +32,13 @@ describe('containsPrescriptivePhrase', () => {
   it('accepts descriptive, attributed reporting', () => {
     expect(containsPrescriptivePhrase('Study X used 1-2 mg SubQ daily for 28 days')).toBe(false);
     expect(containsPrescriptivePhrase('A community protocol reports a 30-day cycle')).toBe(false);
+    expect(containsPrescriptivePhrase('Researchers had subjects take 200 mcg per day')).toBe(false);
+    expect(containsPrescriptivePhrase('When you examine the cycle of peptide delivery')).toBe(false);
   });
+});
+
+describe('containsPrescriptivePhrase — known gaps (documented, not yet caught)', () => {
+  it.todo('catches imperative-without-you forms like "Start with a low dose" and "Never exceed 2 mg"');
 });
 
 describe('containsDoseFigure', () => {
