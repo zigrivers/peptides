@@ -37,6 +37,7 @@ export const CompoundResearchNoteRepo = {
       question: r.question,
       answerSummary: r.answerSummary,
       claim: r.claim,
+      sections: [], // populated in Task 5 when per-section persistence is added
       citations: r.citations,
       createdAt: r.createdAt.toISOString(),
     }));
