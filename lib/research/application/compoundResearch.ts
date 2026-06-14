@@ -201,9 +201,9 @@ export async function runCompoundResearch(input: RunInput, onProgress: (e: Progr
     onProgress({ phase: 'searching', queries: plan.queries });
     await runSearches(plan.queries, seen, sources);
 
-    onProgress({ phase: 'synthesizing' });
     let selected = selectSources(sources);
     onProgress({ phase: 'sources_found', count: selected.length }); // report what synthesis actually sees
+    onProgress({ phase: 'synthesizing' }); // emit AFTER sources_found so the timeline never regresses
     const synthesize = async (): Promise<ResearchAnswer> => {
       const raw = await tryGenerateObjectOrParse({
         model,
