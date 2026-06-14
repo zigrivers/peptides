@@ -23,7 +23,7 @@ const ALWAYS_DISALLOWED = [
 const APPROVAL_CLAIM_PATTERNS = [
   /safety[\s-]*clearance/i,
   /clinically\s+approved/i,
-  /\bapproved\s+by\s+the\s+(fda|ema)\b/i,
+  /\bapproved\s+by\s+(?:the\s+)?(fda|ema)\b/i,
   /\b(fda|ema)[\s-]*approved\b/i,
 ] as const;
 
@@ -38,7 +38,12 @@ const NEGATION = /\b(not|no|never|cannot|can'?t|isn'?t|aren'?t|wasn'?t|lacks?|la
 /** Words of context immediately before an approval phrase searched for a governing negation. */
 const NEG_WINDOW_WORDS = 4;
 
-/** Back-compat export: the full set of phrases the guard is concerned with. */
+/**
+ * Back-compat export: the full set of phrases the guard is concerned with.
+ *
+ * WARNING: testing these patterns directly does NOT apply negation context. Callers must use
+ * `containsDisallowedPhrase` / `isAffirmativeApprovalClaim`, not test the raw patterns.
+ */
 export const DISALLOWED_PHRASES = [...ALWAYS_DISALLOWED, ...APPROVAL_CLAIM_PATTERNS] as const;
 
 /**
@@ -52,7 +57,17 @@ export function isAffirmativeApprovalClaim(text: string): boolean {
     let m: RegExpExecArray | null;
     while ((m = re.exec(text)) !== null) {
       const before = text.slice(0, m.index);
-      const clauseStart = Math.max(before.lastIndexOf('.'), before.lastIndexOf(';'), before.lastIndexOf('\n')) + 1;
+      // `, ` (comma-space) is a clause boundary so a negation in a preceding clause
+      // (e.g. "Although not FDA-approved, it is EMA approved") cannot rescue a later
+      // affirmative claim. Bare `,` is intentionally excluded to avoid splitting
+      // numeric literals like "1,000".
+      const clauseStart =
+        Math.max(
+          before.lastIndexOf('.'),
+          before.lastIndexOf(';'),
+          before.lastIndexOf('\n'),
+          before.lastIndexOf(', '),
+        ) + 1;
       const window = before.slice(clauseStart).trim().split(/\s+/).slice(-NEG_WINDOW_WORDS).join(' ');
       if (!NEGATION.test(window)) return true; // affirmative — no governing negation nearby
       if (m.index === re.lastIndex) re.lastIndex++; // guard against zero-width loop

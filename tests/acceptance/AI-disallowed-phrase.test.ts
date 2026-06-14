@@ -25,6 +25,14 @@ describe('containsDisallowedPhrase (negation-aware)', () => {
   it('a trailing negation does not rescue an affirmative claim', () => {
     expect(containsDisallowedPhrase('FDA-approved, though not for this use')).toBe(true);
   });
+  it('blocks an affirmative claim in the second clause of a comma-joined contrast', () => {
+    expect(containsDisallowedPhrase('Although not FDA-approved, it is EMA approved in Europe')).toBe(true);
+    expect(containsDisallowedPhrase('It lacks FDA approval, but is clinically approved abroad')).toBe(true);
+  });
+  it('catches "approved by FDA" without the article', () => {
+    expect(containsDisallowedPhrase('It was approved by FDA last year')).toBe(true);
+    expect(containsDisallowedPhrase('It is not approved by FDA')).toBe(false);
+  });
   it('always blocks personalized dose-recommendation phrasing', () => {
     expect(containsDisallowedPhrase('the recommended dose for you is 2 mg')).toBe(true);
   });
