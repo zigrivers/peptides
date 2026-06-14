@@ -150,7 +150,7 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
               >
                 <p className="text-sm text-gray-700 dark:text-gray-200">{result.directAnswer}</p>
               </AnswerSection>
-              {result && shouldShowDoseWarning(result.directAnswer, result.dosing.length) && (
+              {shouldShowDoseWarning(result.directAnswer, result.dosing.length) && (
                 <p className="text-xs rounded px-2 py-1 bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
                   ⚠ {DOSE_WARNING}
                 </p>

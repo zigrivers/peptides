@@ -33,7 +33,7 @@ const APPROVAL_CLAIM_PATTERNS = [
  * "this NON-peptide is FDA-approved"; "unapproved"/"non-approved" lack a \bapproved\b
  * boundary anyway, so they never match the approval patterns).
  */
-const NEGATION = /\b(not|no|never|cannot|can'?t|isn'?t|aren'?t|wasn'?t|lacks?|lacking|without|absence of|yet to be|fails? to)\b/i;
+const NEGATION = /\b(not|no|never|cannot|can'?t|isn'?t|aren'?t|wasn'?t|doesn'?t|don'?t|didn'?t|hasn'?t|haven'?t|hadn'?t|wouldn'?t|shouldn'?t|couldn'?t|won'?t|lacks?|lacking|without|absence of|yet to be|fails? to)\b/i;
 
 /** Words of context immediately before an approval phrase searched for a governing negation. */
 const NEG_WINDOW_WORDS = 4;

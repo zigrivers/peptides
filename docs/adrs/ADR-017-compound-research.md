@@ -207,7 +207,7 @@ Replaces `{ summary, findings[], sourcesUsed }`:
 
 ```ts
 interface ResearchAnswer {
-  directAnswer: string;               // prose conclusions; NO dose figures
+  directAnswer: string;               // prose conclusions; NO dose figures (superseded — see Revision 2026-06-14)
   evidence: { point: string; sourceUrls: string[] }[];
   dosing: { text: string; tier: DoseTier; sourceUrls: string[] }[];
   caveatsGaps: string[];
