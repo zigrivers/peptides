@@ -9,7 +9,7 @@ import { withAudit } from '@/lib/audit/application/withAudit';
 import type { CreateAuditEventInput } from '@/lib/audit/domain/AuditEvent';
 import type { FdaBriefingResult } from '@/lib/research/domain/types';
 
-type Result = { ok: true; briefing: FdaBriefingResult } | { ok: false; error: string };
+type Result = { ok: true; briefing: FdaBriefingResult; updatedAt: string } | { ok: false; error: string };
 
 export async function refreshFdaBriefingAction(): Promise<Result> {
   const session = await auth();
@@ -20,7 +20,7 @@ export async function refreshFdaBriefingAction(): Promise<Result> {
 
   try {
     const briefing = await runFdaBriefing(userId);
-    await withAudit(
+    const row = await withAudit(
       (tx) =>
         FdaBriefingRepo.upsertGlobal(tx, {
           summary: briefing.summary,
@@ -39,7 +39,7 @@ export async function refreshFdaBriefingAction(): Promise<Result> {
       } satisfies CreateAuditEventInput
     );
     try { revalidatePath('/about'); } catch { /* best-effort cache revalidation */ }
-    return { ok: true, briefing };
+    return { ok: true, briefing, updatedAt: row.updatedAt.toISOString() };
   } catch {
     return { ok: false, error: 'failed' };
   }

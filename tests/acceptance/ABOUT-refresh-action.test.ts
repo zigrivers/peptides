@@ -18,7 +18,7 @@ import { refreshFdaBriefingAction } from '@/app/actions/about/refresh-fda-briefi
 const briefing = { summary: 's', findings: [], sourcesUsed: [] };
 
 describe('refreshFdaBriefingAction', () => {
-  beforeEach(() => { vi.clearAllMocks(); mockRun.mockResolvedValue(briefing); mockUpsert.mockResolvedValue({}); });
+  beforeEach(() => { vi.clearAllMocks(); mockRun.mockResolvedValue(briefing); mockUpsert.mockResolvedValue({ updatedAt: new Date('2026-06-14T00:00:00.000Z') }); });
 
   it('returns unauthorized when there is no session (no model call)', async () => {
     mockAuth.mockResolvedValue(null);

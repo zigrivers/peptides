@@ -7,12 +7,13 @@ import { fdaBriefingSchema } from '@/lib/research/domain/schemas';
 import { ABOUT_SECTIONS } from './_content';
 
 export default async function AboutPage() {
-  const [session, row] = await Promise.all([auth(), FdaBriefingRepo.getGlobal()]);
+  const [session, row] = await Promise.all([auth(), FdaBriefingRepo.getGlobal().catch(() => null)]);
   const canRefresh = session?.user?.role === 'POWER_USER' && (await isLocalResearchEnabled());
   let initial: (FdaBriefingResult & { updatedAt: string }) | null = null;
   if (row) {
     const parsed = fdaBriefingSchema.safeParse({ summary: row.summary, findings: row.findings, sourcesUsed: row.sourcesUsed });
     if (parsed.success) initial = { ...parsed.data, updatedAt: row.updatedAt.toISOString() };
+    else console.error('[about] stored FdaBriefing row failed schema validation', parsed.error);
   }
 
   return (

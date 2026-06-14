@@ -19,7 +19,7 @@ export function FdaBriefingSection({ initial, canRefresh }: Props) {
     setBusy(true); setError(null);
     try {
       const res = await refreshFdaBriefingAction();
-      if (res.ok) setBriefing({ ...res.briefing, updatedAt: new Date().toISOString() });
+      if (res.ok) setBriefing({ ...res.briefing, updatedAt: res.updatedAt });
       else setError(res.error === 'unavailable' ? 'Local model unavailable.' : 'Refresh failed.');
     } catch {
       setError('Refresh failed.');

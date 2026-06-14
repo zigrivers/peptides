@@ -12,11 +12,12 @@ const MAX_SOURCES_FOR_SYNTHESIS = 8;
 const MAX_TOTAL_SOURCE_CHARS = 24_000;
 const PER_QUERY_MAX_RESULTS = 5;
 
-export function classify(err: unknown): 'timeout' | 'aborted' | 'invalid_schema' | 'provider_error' {
+export function classify(err: unknown): 'timeout' | 'aborted' | 'invalid_schema' | 'no_findings' | 'provider_error' {
   if (!(err instanceof Error)) return 'provider_error';
   if (err.message === 'ai_timeout' || err.name === 'TimeoutError') return 'timeout';
   if (err.name === 'AbortError' || err.message === 'aborted') return 'aborted';
   if (err.name === 'ZodError' || err.message.includes('no_json')) return 'invalid_schema';
+  if (err.message.includes('no_findings')) return 'no_findings';
   return 'provider_error';
 }
 
