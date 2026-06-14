@@ -97,16 +97,22 @@ run exactly one follow-up round iff **any objective** condition holds:
 - `directAnswer` is empty or shorter than `MIN_DIRECT_ANSWER_CHARS` (= 80), **or**
 - zero `evidence` items survive the citation guard, **or**
 - `dosing` is empty **and** the question is dose-related — detected objectively by matching
-  `DOSE_INTENT_TERMS` (a shared list in `guards.ts`: `dose, dosage, dosing, mg, mcg, iu, ml,
-  amount, frequency, how often, protocol, cycle, units`) against the lowercased question
-  **and** each `subQuestion`.
+  `DOSE_INTENT_TERMS` (a shared list in `guards.ts`, the **dose-intent** set — not a general
+  topic list: `dose, dosage, dosing, mg, mcg, iu, ml, amount, frequency, how often, how much,
+  duration, how long, per day, per week, daily, weekly, protocol, cycle, units`) against the
+  lowercased question **and** each `subQuestion`.
 
-`needsMoreEvidence` (a boolean the model may return) is **advisory only** — it may *raise*
-the gap-fill signal but never *suppress* it, and it is never shown to the user.
+`needsMoreEvidence` (a boolean the model may return) is **advisory only**. The trigger is
+exactly `gapFill = objectiveTrigger || needsMoreEvidence`, evaluated **only after the first
+round**: it can *raise* the signal but never *suppress* it (objective triggers fire
+regardless of its value); it is never shown to the user and never saved.
 
-Gap-fill behavior: build queries focused on the missing dimension (e.g. `GHK-Cu
-subcutaneous dose clinical study`); search with the shared `seen` Set (so overlaps are
-deduped); **re-synthesize once** over the combined source set; run the guard again. A
+Gap-fill behavior: gap-fill queries are **built in code** (1–2 targeted queries focused on
+the missing dimension, e.g. `GHK-Cu subcutaneous dose clinical study`) — the planner is
+**not** re-invoked, so a gap-fill run adds exactly **one** extra model call (the
+re-synthesis), not two. Search uses the shared `seen` Set (overlaps deduped); the combined
+deduped set is re-capped to `MAX_SOURCES_FOR_SYNTHESIS` (trim + log dropped) and
+`MAX_TOTAL_SOURCE_CHARS`; **re-synthesize once** over that set; run the guard again. A
 2nd-round `needsMoreEvidence=true` is **ignored** — never loops past one retry. Exactly one
 gap-fill round, ever.
 
@@ -138,10 +144,13 @@ type DoseTier = 'clinical' | 'non_clinical' | 'unclear';
   `dosing[]` where citation enforcement applies); enforced by prompt + guard (§3).
 - `caveatsGaps` items are free text describing absence (no citation required) but ARE
   subject to both content guards (§3).
-- Zod (`researchAnswerSchema`) uses `.nullable()` (not `.optional()`) per ADR-017's JSON-mode
-  reliability rule. `needsMoreEvidence` defaults to `false`. Bounds: `directAnswer` ≤4000;
-  `evidence` ≤25 items, `point` ≤2000; `dosing` ≤25 items, `text` ≤1000, `tier` enum;
-  `caveatsGaps` ≤25 items, ≤1000 each; `sourcesUsed` default `[]`.
+- Zod (`researchAnswerSchema`, authored verbatim in the plan) uses `.nullable()` (not
+  `.optional()`) per ADR-017's JSON-mode reliability rule. `needsMoreEvidence` defaults to
+  `false`. Bounds: `directAnswer` ≤4000; `evidence` ≤25 items, `point` ≤2000, **`sourceUrls`
+  `.min(1).max(25)`**; `dosing` ≤25 items, `text` ≤1000, `tier` enum (default `unclear`),
+  **`sourceUrls` `.min(1).max(25)`**; `caveatsGaps` ≤25 items, ≤1000 each; `sourcesUsed`
+  default `[]`. The `.min(1)` on `evidence`/`dosing` `sourceUrls` enforces the citation
+  invariant at the schema layer (defense-in-depth alongside the §3 guard).
 - `queryPlanSchema` bounds: `subQuestions` array `min(1).max(6)`, each item `min(5).max(300)`;
   `queries` array `min(1).max(5)` (raised from 3), each item `min(3).max(200)`.
 
@@ -182,6 +191,13 @@ type DoseTier = 'clinical' | 'non_clinical' | 'unclear';
    (default `unclear` when missing/invalid).
 6. **Prune `sourcesUsed`** to those still referenced after items are dropped.
 
+**Guard ordering:** steps 1–4 run as a **single pass per item** — an
+`evidence`/`dosing`/`caveatsGaps` item is dropped if **any** of steps 1–4 reject it;
+`directAnswer` is replaced with the policy-withheld message if any of steps 2–4 reject it.
+Steps 5 (tier-normalize) and 6 (prune `sourcesUsed`) then run once over the survivors.
+`evidence`/`dosing` items cite source **URLs**, not other items, so dropping one item never
+orphans another item's citation; only `sourcesUsed` can become orphaned, which step 6 prunes.
+
 Output stays labeled **"Unverified — not medical advice."** in the UI.
 
 ### 4. Persistence / save model
@@ -211,13 +227,17 @@ CompoundResearchNoteSectionCitation  // NEW (section-owned; legacy citation tabl
   id, sectionId(FK→Section, cascade), title, url
   @@index([sectionId])
 ```
-- `type` ∈ `direct_answer | evidence | dosing | caveats` (string enum).
+- `type` ∈ `direct_answer | evidence | dosing | caveats`. Both `type` and `tier` are plain
+  **`String`/`String?` columns** validated in the app layer via Zod (consistent with existing
+  app-validated string-enum columns like `CompoundPairing.missingCompoundAction`) — **not**
+  Postgres `enum` types, to keep the migration additive and avoid enum-alter friction.
 - `tier` is set **only** on `dosing` sections (the validated `DoseTier`); null otherwise —
   stored as a column, NOT embedded in `content`, so the UI can render a badge and future
   filtering is possible.
-- `content` holds the section's rendered text (a single block; for `evidence`/`dosing`,
-  multiple bullet lines joined). The UI reconstructs the dosing tier badge from the `tier`
-  column.
+- `content` holds the section's rendered text: for `evidence`/`dosing`, the items' lines
+  joined by `\n`; for `caveats`, the `caveatsGaps[]` items joined by `\n` (rendered as a
+  bulleted list); for `direct_answer`, the prose. The UI reconstructs the dosing tier badge
+  from the `tier` column.
 
 **Legacy discrimination & rendering:**
 - A note is **legacy** iff it has zero `sections` (its `claim` is non-null). It is **new**
@@ -237,9 +257,23 @@ No backfill, no data movement, no `claim`/citation rewrites. `prisma migrate res
 used on dev/prod; the migration is hand-verified additive SQL (idempotent guards where
 practical, per the project's drift-reconciliation precedent).
 
-**Identity scoping (CLAUDE.md):** all reads `where: { userId, catalogItemId }`; sections and
-section-citations are reached only through their owning userId-scoped note; delete scoped by
-`{ id, userId }` with cascade to sections/citations. **No new identity-scoping exception.**
+**No-orphan invariant:** every note has **either** a non-null `claim` (legacy) **or** ≥1
+`section` (new) — never neither. The save action enforces this structurally: it only ever
+creates new notes with `sections.min(1)` (see save schema) and never writes a `claim`-null,
+section-less row. The render path's discriminator (`sections.length > 0`) is therefore total.
+
+**Identity scoping (CLAUDE.md):** The feature exposes exactly **two mutations**, both
+cleanly scoped — no transitive/nested-`where` writes, so **no new identity-scoping
+exception** is needed:
+- **Create** — one `withAudit` transaction that creates the `CompoundResearchNote` with
+  `userId` stamped, plus its sections and section-citations as nested `create` writes under
+  that same userId-owned note. There is **no** standalone section/citation create, update,
+  or delete endpoint.
+- **Delete** — whole-note delete via `deleteMany({ where: { id, userId } })`; sections and
+  section-citations are removed by FK **cascade**, never deleted directly. (Same shape as the
+  current `deleteScoped`.)
+All reads use `where: { userId, catalogItemId }`; sections/section-citations are loaded only
+through the `include` on that userId-scoped note query.
 
 **Save action (`saveNotesInputSchema` fully REPLACED, not patched):**
 ```
@@ -249,10 +283,14 @@ section-citations are reached only through their owning userId-scoped note; dele
                citations: [{title(≤300), url(http/https)}] }]  // bounds below
 }
 ```
-- `sections` `min(1).max(4)`; at most one section per `type`.
+- `sections` `min(1).max(4)`; **at most one section per `type`** — enforced by a Zod
+  `.refine()` on the array (unique `type` values); a duplicate is rejected with error code
+  `duplicate_section_type`.
 - `evidence` & `dosing` sections: `citations.min(1).max(25)`.
 - `direct_answer` & `caveats` sections: `citations.min(0).max(25)` (may legitimately have
   none).
+- `tier` must be `null` unless `type === 'dosing'` (Zod `.refine()`); for `dosing` it must be
+  a valid `DoseTier`.
 - URLs validated by `isHttpUrl`.
 
 ### 5. Progress UX (rich timeline)
@@ -293,6 +331,10 @@ category (`RESEARCH_NOTE_SAVED` / `RESEARCH_NOTE_DELETED`) remains for save/dele
   prompt + `subQuestions` + question + JSON output reserve an additional ~2–3K-token margin,
   keeping a worst-case run comfortably under 32K. These constants are tunable and centralized
   in `compoundResearch.ts`.
+- **Verify before merge:** as part of the required real end-to-end run (§7), exercise a
+  worst-case input (max sub-questions, full 8-source set, gap-fill triggered) against the live
+  local model and confirm no context-overflow. If overflow occurs, reduce
+  `MAX_TOTAL_SOURCE_CHARS` or `MAX_SOURCES_FOR_SYNTHESIS` and re-run.
 
 ### 7. ADR + tests
 
