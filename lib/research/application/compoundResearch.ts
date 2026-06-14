@@ -47,7 +47,12 @@ const MAX_SOURCES_FOR_SYNTHESIS = 8;
 const MAX_TOTAL_SOURCE_CHARS = 24_000;
 const MIN_DIRECT_ANSWER_CHARS = 80;
 const PER_QUERY_MAX_RESULTS = 5;
-const WITHHELD = 'Summary withheld (policy).';
+// Neutral lead used when the model's prose directAnswer can't be shown verbatim — either it tripped
+// the ADR-010 content guard (e.g. a benign "not FDA-approved" mention), or it was only dose figures
+// (which belong in the dosing section). The structured sections below carry the actual answer. Kept
+// ASCII and in sync with CompoundResearchPanel's save-skip check so the placeholder is never saved.
+const NO_PROSE_SUMMARY =
+  'A plain-language summary is not shown here - see the evidence, dosing, and caveats below for what the sources report.';
 
 const PLANNER_SYSTEM =
   'You plan web research about a compound. Decompose the user question into 1-6 atomic sub-questions, ' +
@@ -62,8 +67,11 @@ const SYNTH_SYSTEM =
   'directAnswer). Report dosing descriptively and attributed — never as advice, never personalized, never ' +
   'in the second person — and tag each with tier "clinical", "non_clinical", or "unclear". Every evidence ' +
   'and dosing item MUST cite >=1 sourceUrl copied verbatim from the sources. caveatsGaps lists what the ' +
-  'sources do not cover. Set needsMoreEvidence true if the sources are insufficient. No medical advice, ' +
-  'dosing recommendations, or approval/safety-clearance language. Respond with ONLY a JSON object of this ' +
+  'sources do not cover. directAnswer must be plain-language conclusions ONLY: do NOT put dose numbers or ' +
+  'units in it, and do NOT use regulatory/approval wording (e.g. "FDA-approved", "clinically approved") — ' +
+  'state any regulatory or approval status in caveatsGaps instead. Set needsMoreEvidence true if the ' +
+  'sources are insufficient. No medical advice, dosing recommendations, or approval/safety-clearance ' +
+  'language. Respond with ONLY a JSON object of this ' +
   'exact shape: {"directAnswer":string,"evidence":[{"point":string,"sourceUrls":[string]}],' +
   '"dosing":[{"text":string,"tier":string,"sourceUrls":[string]}],"caveatsGaps":[string],' +
   '"sourcesUsed":[{"title":string,"url":string}],"needsMoreEvidence":boolean}. No other text.';
@@ -141,10 +149,10 @@ function applyGuards(ans: ResearchAnswer, fetched: WebSearchResult[]): ResearchA
   const caveatsGaps = ans.caveatsGaps.filter(clean);
 
   let directAnswer = ans.directAnswer;
-  if (!clean(directAnswer)) directAnswer = WITHHELD;
+  if (!clean(directAnswer)) directAnswer = NO_PROSE_SUMMARY;
   else if (containsDoseFigure(directAnswer)) {
     const stripped = stripDoseFigureSentences(directAnswer);
-    directAnswer = stripped.length > 0 ? stripped : WITHHELD;
+    directAnswer = stripped.length > 0 ? stripped : NO_PROSE_SUMMARY;
   }
 
   const referenced = new Set([...evidence, ...dosing].flatMap((i) => i.sourceUrls.map(normalizeUrl)));
@@ -155,8 +163,8 @@ function applyGuards(ans: ResearchAnswer, fetched: WebSearchResult[]): ResearchA
 
 function needsGapFill(ans: ResearchAnswer, doseIntent: boolean): boolean {
   const da = ans.directAnswer;
-  // A policy-WITHHELD directAnswer is a content-pattern issue, not an evidence gap — don't gap-fill on it.
-  if ((!da || da.length < MIN_DIRECT_ANSWER_CHARS) && da !== WITHHELD) return true;
+  // A placeholder directAnswer is a content-pattern issue, not an evidence gap — don't gap-fill on it.
+  if ((!da || da.length < MIN_DIRECT_ANSWER_CHARS) && da !== NO_PROSE_SUMMARY) return true;
   if (ans.evidence.length === 0) return true;
   if (ans.dosing.length === 0 && doseIntent) return true;
   if (ans.needsMoreEvidence) return true; // advisory: raises (never suppresses)

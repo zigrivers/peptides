@@ -147,4 +147,18 @@ describe('runCompoundResearch (structured)', () => {
     await runCompoundResearch({ ...baseInput, question: 'what is the mechanism?' }, () => {});
     expect(mockTry).toHaveBeenCalledTimes(2); // plan + 1 synth only
   });
+
+  it('redirects (not policy-withholds) a directAnswer that is entirely dose figures', async () => {
+    mockTry
+      .mockResolvedValueOnce({ subQuestions: ['q'], queries: ['q'] })
+      .mockResolvedValueOnce({
+        directAnswer: 'Reported amounts are 1 mg daily. Ranges reach 2 mg weekly.', // every sentence carries a figure, none prescriptive
+        evidence: [{ point: 'Studied for skin repair.', sourceUrls: ['https://a.com'] }],
+        dosing: [], caveatsGaps: [], sourcesUsed: [{ title: 'A', url: 'https://a.com' }], needsMoreEvidence: false,
+      });
+    mockWebSearch.mockResolvedValue([{ title: 'A', url: 'https://a.com', snippet: 's', content: 'c' }]);
+    const res = await runCompoundResearch({ ...baseInput, question: 'what is known about it?' }, () => {});
+    expect(res.directAnswer).not.toMatch(/withheld|policy/i);
+    expect(res.directAnswer).toMatch(/below for what the sources report/i);
+  });
 });

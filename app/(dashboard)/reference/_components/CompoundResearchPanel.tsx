@@ -65,7 +65,9 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
   function collectSections() {
     if (!result) return [];
     const sections: { type: 'direct_answer' | 'evidence' | 'dosing' | 'caveats'; content: string; tier: 'clinical' | 'non_clinical' | 'unclear' | null; citations: { title: string; url: string }[] }[] = [];
-    if (approved.direct_answer && result.directAnswer && result.directAnswer !== 'Summary withheld (policy).')
+    // Keep this literal in sync with NO_PROSE_SUMMARY in lib/research/application/compoundResearch.ts —
+    // the placeholder lead is never worth saving as a note section.
+    if (approved.direct_answer && result.directAnswer && result.directAnswer !== 'A plain-language summary is not shown here - see the evidence, dosing, and caveats below for what the sources report.')
       sections.push({ type: 'direct_answer', content: result.directAnswer, tier: null, citations: [] });
     if (approved.evidence && result.evidence.length)
       sections.push({ type: 'evidence', content: result.evidence.map((e) => `• ${e.point}`).join('\n'), tier: null, citations: dedupeCitations(result.evidence.flatMap((e) => e.sourceUrls)) });
