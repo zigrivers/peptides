@@ -20,7 +20,7 @@ export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];
  * case and prevents accidental prompt-content leakage into the audit log
  * via mis-labelled operations.
  */
-export type AIOperation = 'extract_citation' | 'draft_compound_profile' | 'compound_research';
+export type AIOperation = 'extract_citation' | 'draft_compound_profile' | 'compound_research' | 'fda_briefing';
 
 export interface CitationOutput {
   title: string;

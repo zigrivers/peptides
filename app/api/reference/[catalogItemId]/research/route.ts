@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/shared/prisma';
-import { isCompoundResearchEnabled } from '@/lib/ai/infrastructure/localModelClient';
+import { isLocalResearchEnabled } from '@/lib/ai/infrastructure/localModelClient';
 import { runCompoundResearch, type ProgressEvent } from '@/lib/research/application/compoundResearch';
 import { runResearchInputSchema } from '@/lib/research/domain/schemas';
 import { createRateLimiter } from '@/lib/shared/rateLimiter';
@@ -35,7 +35,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ catalogItemId:
 
   const { catalogItemId } = await ctx.params;
 
-  if (!(await isCompoundResearchEnabled())) {
+  if (!(await isLocalResearchEnabled())) {
     return singleEvent({ phase: 'error', code: 'feature_disabled' });
   }
   if (!limiter.check(`research:${userId}`)) {

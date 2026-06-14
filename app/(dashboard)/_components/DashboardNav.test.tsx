@@ -48,6 +48,13 @@ describe('DashboardNav Component', () => {
     expect(html).not.toContain('href="/ordering"');
   });
 
+  it('renders an About nav item linking to /about', () => {
+    mockPathname = '/dashboard';
+    const html = renderToString(<DashboardNav orderingEnabled={false} />);
+    expect(html).toContain('href="/about"');
+    expect(html).toContain('About');
+  });
+
   it('correctly maps active nav states for tracker vs regimen', () => {
     const isLinkActive = (html: string, href: string) => {
       const chunks = html.split('<a ');

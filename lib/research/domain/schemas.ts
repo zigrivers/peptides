@@ -36,6 +36,15 @@ export const researchAnswerSchema = z.object({
 });
 export type ResearchAnswerParsed = z.infer<typeof researchAnswerSchema>;
 
+export const fdaBriefingSchema = z.object({
+  summary: z.string().min(1).max(4000),
+  findings: z
+    .array(z.object({ point: z.string().min(1).max(2000), sourceUrls: z.array(z.string()).min(1).max(25) }))
+    .max(25)
+    .default([]),
+  sourcesUsed: z.array(z.object({ title: z.string().min(1), url: z.string() })).default([]),
+});
+
 /** Run endpoint request body. */
 export const runResearchInputSchema = z.object({
   question: z.string().trim().min(1).max(500),

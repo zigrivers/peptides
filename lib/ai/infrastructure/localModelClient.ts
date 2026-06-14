@@ -108,8 +108,13 @@ export async function isLocalModelReachable(): Promise<boolean> {
   return value;
 }
 
-/** Feature gate: flag ON and endpoint reachable. Never throws. */
-export async function isCompoundResearchEnabled(): Promise<boolean> {
+/**
+ * Feature gate for ALL local-model research features (compound research + the FDA briefing):
+ * the flag is ON and the local endpoint is reachable. The env var name stays
+ * COMPOUND_RESEARCH_ENABLED (it is the single switch for local research; renaming it would
+ * churn .env + Railway config for no functional gain). Never throws.
+ */
+export async function isLocalResearchEnabled(): Promise<boolean> {
   if (process.env.COMPOUND_RESEARCH_ENABLED !== 'true') return false;
   return isLocalModelReachable();
 }

@@ -9,7 +9,7 @@ import {
   getLocalModel,
   resolveLocalModelId,
   isLocalModelReachable,
-  isCompoundResearchEnabled,
+  isLocalResearchEnabled,
   __resetLocalModelClientForTesting,
 } from '@/lib/ai/infrastructure/localModelClient';
 
@@ -56,22 +56,22 @@ describe('localModelClient', () => {
     expect(await isLocalModelReachable()).toBe(false);
   });
 
-  it('isCompoundResearchEnabled is false when flag is off even if reachable', async () => {
+  it('isLocalResearchEnabled is false when flag is off even if reachable', async () => {
     process.env.LOCAL_LLM_BASE_URL = 'http://127.0.0.1:8001/v1';
     process.env.COMPOUND_RESEARCH_ENABLED = 'false';
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ data: [{ id: 'm' }] }), { status: 200 })
     );
-    expect(await isCompoundResearchEnabled()).toBe(false);
+    expect(await isLocalResearchEnabled()).toBe(false);
   });
 
-  it('isCompoundResearchEnabled is true when flag on AND reachable', async () => {
+  it('isLocalResearchEnabled is true when flag on AND reachable', async () => {
     process.env.LOCAL_LLM_BASE_URL = 'http://127.0.0.1:8001/v1';
     process.env.COMPOUND_RESEARCH_ENABLED = 'true';
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ data: [{ id: 'm' }] }), { status: 200 })
     );
-    expect(await isCompoundResearchEnabled()).toBe(true);
+    expect(await isLocalResearchEnabled()).toBe(true);
   });
 
   it('resolveLocalModelId retries the /models fetch after a prior failure (cache cleared on error)', async () => {

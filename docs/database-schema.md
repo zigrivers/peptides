@@ -343,6 +343,19 @@ model CompoundResearchNoteSectionCitation {
   @@index([sectionId])
 }
 
+// --- About Domain: Global FDA Briefing (ADR-018, added 2026-06-14) ---
+
+/// Single global, operator-curated FDA briefing (CLAUDE.md identity-scoping exception:
+/// global content, no userId; POWER_USER-only writes; read by all authenticated users).
+model FdaBriefing {
+  id              String   @id @default("global")  // single row: always "global"
+  summary         String   @db.Text
+  findings        Json                              // FdaBriefingResult['findings'] — cached wholesale
+  sourcesUsed     Json                              // FdaBriefingResult['sourcesUsed'] — cached wholesale
+  updatedByUserId String                            // actorUserId recorded at upsert time
+  updatedAt       DateTime @updatedAt
+}
+
 // --- Tracker Domain ---
 
 model Protocol {

@@ -1,3 +1,6 @@
+import type { z } from 'zod';
+import type { fdaBriefingSchema } from './schemas';
+
 export interface WebSearchResult {
   title: string;
   url: string;
@@ -32,6 +35,8 @@ export interface ResearchAnswer {
   /** Advisory only; raises (never suppresses) gap-fill; never shown or saved. */
   needsMoreEvidence: boolean;
 }
+
+export type FdaBriefingResult = z.output<typeof fdaBriefingSchema>;
 
 export interface SavedSectionCitation {
   id: string;

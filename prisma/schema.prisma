@@ -679,6 +679,19 @@ model PushSubscription {
   createdAt DateTime @default(now())
 }
 
+// --- Research Domain ---
+
+/// Single global, operator-curated FDA briefing (CLAUDE.md identity-scoping exception:
+/// global content, no userId; POWER_USER-only writes; read by all authenticated users).
+model FdaBriefing {
+  id              String   @id @default("global") // single row: always "global"
+  summary         String   @db.Text
+  findings        Json
+  sourcesUsed     Json
+  updatedByUserId String
+  updatedAt       DateTime @updatedAt
+}
+
 // --- Audit Domain ---
 
 // NOTE: actorUserId and subjectUserId are intentionally NOT modeled as FKs to
