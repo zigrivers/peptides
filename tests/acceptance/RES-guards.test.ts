@@ -4,6 +4,7 @@ import {
   isDoseIntentQuestion,
   containsPrescriptivePhrase,
   containsDoseFigure,
+  shouldShowDoseWarning,
 } from '@/lib/research/domain/guards';
 
 describe('isDoseIntentQuestion', () => {
@@ -49,6 +50,18 @@ describe('containsDoseFigure', () => {
   });
   it('ignores prose without figures', () => {
     expect(containsDoseFigure('used for tissue repair and skin health')).toBe(false);
+  });
+});
+
+describe('shouldShowDoseWarning', () => {
+  it('is true when the dosing section is non-empty', () => {
+    expect(shouldShowDoseWarning('Studied for skin.', 2)).toBe(true);
+  });
+  it('is true when the lead contains a dose figure', () => {
+    expect(shouldShowDoseWarning('Studies report 1-2 mg/day.', 0)).toBe(true);
+  });
+  it('is false when there are no figures and no dosing items', () => {
+    expect(shouldShowDoseWarning('GHK-Cu is studied for skin repair and wound healing.', 0)).toBe(false);
   });
 });
 

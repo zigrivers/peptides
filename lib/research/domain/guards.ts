@@ -42,3 +42,8 @@ const DOSE_FIGURE_PATTERNS: RegExp[] = [
 export function containsDoseFigure(text: string): boolean {
   return DOSE_FIGURE_PATTERNS.some((re) => re.test(text));
 }
+
+/** Whether to show the "research purposes only" dose warning: any dose figure present. */
+export function shouldShowDoseWarning(directAnswer: string, dosingCount: number): boolean {
+  return dosingCount > 0 || containsDoseFigure(directAnswer);
+}

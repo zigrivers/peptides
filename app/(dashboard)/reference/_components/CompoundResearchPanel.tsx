@@ -7,8 +7,10 @@ import { listCompoundResearchAction } from '@/app/actions/reference/list-compoun
 import { saveCompoundResearchNotesAction } from '@/app/actions/reference/save-compound-research-notes';
 import { deleteCompoundResearchNoteAction } from '@/app/actions/reference/delete-compound-research-note';
 import type { SavedResearchNote } from '@/lib/research/domain/types';
+import { shouldShowDoseWarning } from '@/lib/research/domain/guards';
 
 const DISCLAIMER = 'Unverified — not medical advice.';
+const DOSE_WARNING = 'Dose figures are reported from studies and protocols for informational purposes only — not dosing advice.';
 
 const TIER_LABEL: Record<string, string> = {
   clinical: 'clinical',
@@ -148,6 +150,11 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
               >
                 <p className="text-sm text-gray-700 dark:text-gray-200">{result.directAnswer}</p>
               </AnswerSection>
+              {result && shouldShowDoseWarning(result.directAnswer, result.dosing.length) && (
+                <p className="text-xs rounded px-2 py-1 bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                  ⚠ {DOSE_WARNING}
+                </p>
+              )}
               <p className="text-[11px] uppercase tracking-wide text-amber-600 dark:text-amber-400">{DISCLAIMER}</p>
 
               {result.evidence.length > 0 && (
