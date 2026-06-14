@@ -6,13 +6,11 @@ import { prisma } from '@/lib/shared/prisma';
 import { PrismaAuditRepo } from '@/lib/audit/infrastructure/PrismaAuditRepo';
 import type { AIOperation } from '@/lib/ai/domain/types';
 
-const OPERATION: AIOperation = 'compound_research';
-
 export const STEP_TIMEOUT_MS = 240_000;
-export const MAX_SOURCE_CONTENT_CHARS = 3000;
-export const MAX_SOURCES_FOR_SYNTHESIS = 8;
-export const MAX_TOTAL_SOURCE_CHARS = 24_000;
-export const PER_QUERY_MAX_RESULTS = 5;
+const MAX_SOURCE_CONTENT_CHARS = 3000;
+const MAX_SOURCES_FOR_SYNTHESIS = 8;
+const MAX_TOTAL_SOURCE_CHARS = 24_000;
+const PER_QUERY_MAX_RESULTS = 5;
 
 export function classify(err: unknown): 'timeout' | 'aborted' | 'invalid_schema' | 'provider_error' {
   if (!(err instanceof Error)) return 'provider_error';
@@ -23,6 +21,7 @@ export function classify(err: unknown): 'timeout' | 'aborted' | 'invalid_schema'
 }
 
 export async function emitResearchRunAudit(
+  operation: AIOperation,
   action: 'AI_REQUEST_INITIATED' | 'AI_REQUEST_FAILED',
   actorUserId: string,
   errors?: string[],
@@ -31,7 +30,7 @@ export async function emitResearchRunAudit(
     actorUserId,
     category: 'Security',
     action,
-    resourceId: OPERATION,
+    resourceId: operation,
     resourceType: 'AIRequest',
     ...(errors ? { metadata: { errors } } : {}),
   }).catch(() => null);
@@ -62,7 +61,7 @@ export function selectSources(sources: WebSearchResult[]): WebSearchResult[] {
     out.push(s);
   }
   const dropped = capped.length - out.length;
-  if (dropped > 0) console.warn(`[compoundResearch] dropped ${dropped} sources over char budget`);
+  if (dropped > 0) console.warn(`[research] dropped ${dropped} sources over char budget`);
   return out;
 }
 

@@ -1,3 +1,6 @@
+import type { z } from 'zod';
+import type { fdaBriefingSchema } from './schemas';
+
 export interface WebSearchResult {
   title: string;
   url: string;
@@ -33,11 +36,7 @@ export interface ResearchAnswer {
   needsMoreEvidence: boolean;
 }
 
-export interface FdaBriefingResult {
-  summary: string;
-  findings: { point: string; sourceUrls: string[] }[];
-  sourcesUsed: { title: string; url: string }[];
-}
+export type FdaBriefingResult = z.output<typeof fdaBriefingSchema>;
 
 export interface SavedSectionCitation {
   id: string;

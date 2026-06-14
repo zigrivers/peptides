@@ -112,7 +112,7 @@ function buildGapQueries(input: RunInput, ans: ResearchAnswer, doseIntent: boole
 }
 
 export async function runCompoundResearch(input: RunInput, onProgress: (e: ProgressEvent) => void): Promise<ResearchAnswer> {
-  await emitResearchRunAudit('AI_REQUEST_INITIATED', input.actorUserId);
+  await emitResearchRunAudit('compound_research', 'AI_REQUEST_INITIATED', input.actorUserId);
   const errors: string[] = [];
   try {
     const model = await getLocalModel();
@@ -169,11 +169,11 @@ export async function runCompoundResearch(input: RunInput, onProgress: (e: Progr
   } catch (err) {
     if (err instanceof ResearchUnavailableError) {
       errors.push(`local:${err.message}`);
-      await emitResearchRunAudit('AI_REQUEST_FAILED', input.actorUserId, errors);
+      await emitResearchRunAudit('compound_research', 'AI_REQUEST_FAILED', input.actorUserId, errors);
       throw err;
     }
     errors.push(`research:${classify(err)}`);
-    await emitResearchRunAudit('AI_REQUEST_FAILED', input.actorUserId, errors);
+    await emitResearchRunAudit('compound_research', 'AI_REQUEST_FAILED', input.actorUserId, errors);
     throw new ResearchUnavailableError('research_failed');
   }
 }

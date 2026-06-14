@@ -63,4 +63,12 @@ describe('runFdaBriefing', () => {
     mockGetLocalModel.mockResolvedValue(null);
     await expect(runFdaBriefing('u1')).rejects.toThrow();
   });
+
+  it('throws when no cited findings survive the guard (does not return a hollow briefing)', async () => {
+    mockTry
+      .mockResolvedValueOnce({ subQuestions: ['q'], queries: ['q'] })
+      .mockResolvedValueOnce({ summary: 'x', findings: [{ point: 'p', sourceUrls: ['https://not-fetched.com'] }], sourcesUsed: [] });
+    mockWebSearch.mockResolvedValue([{ title: 'A', url: 'https://a.com', snippet: 's', content: 'c' }]);
+    await expect(runFdaBriefing('u1')).rejects.toThrow();
+  });
 });
