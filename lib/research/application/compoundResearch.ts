@@ -109,8 +109,8 @@ function selectSources(sources: WebSearchResult[]): WebSearchResult[] {
     total += text.length;
     out.push(s);
   }
-  const dropped = sources.length - out.length;
-  if (dropped > 0) console.warn(`[compoundResearch] dropped ${dropped} sources over budget`);
+  const dropped = capped.length - out.length;
+  if (dropped > 0) console.warn(`[compoundResearch] dropped ${dropped} sources over char budget`);
   return out;
 }
 

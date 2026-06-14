@@ -26,6 +26,8 @@ const PRESCRIPTIVE_PATTERNS: RegExp[] = [
   /\bfor (?:a |an )?\d+[- ]?(?:year|yr|yo)\b/i,
   // "your/my dose/protocol/cycle/regimen"
   /\b(your|my)\s+(dose|dosage|protocol|cycle|regimen)\b/i,
+  // 2nd-person + prescriptive modal + run/cycle ("you should run a cycle")
+  /\byou\s+(?:should|must|can|could|may|might|need to)\b[^.]*\b(run|cycle)\b/i,
 ];
 
 export function containsPrescriptivePhrase(text: string): boolean {

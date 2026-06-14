@@ -28,6 +28,7 @@ describe('containsPrescriptivePhrase', () => {
     expect(containsPrescriptivePhrase('take 2 mg subcutaneously')).toBe(true);
     expect(containsPrescriptivePhrase('for a 56-year-old man, dose at 1 mg')).toBe(true);
     expect(containsPrescriptivePhrase('adjust your protocol as needed')).toBe(true);
+    expect(containsPrescriptivePhrase('you should run a 12-week cycle')).toBe(true);
   });
   it('accepts descriptive, attributed reporting', () => {
     expect(containsPrescriptivePhrase('Study X used 1-2 mg SubQ daily for 28 days')).toBe(false);

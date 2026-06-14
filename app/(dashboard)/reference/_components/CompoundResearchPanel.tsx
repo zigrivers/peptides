@@ -126,7 +126,7 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
               )}
 
               {result.dosing.length > 0 && (
-                <AnswerSection title="Reported dosing &amp; protocols">
+                <AnswerSection title="Reported dosing & protocols">
                   <ul className="space-y-2">
                     {result.dosing.map((d, i) => (
                       <li key={i} className="text-sm">
@@ -140,14 +140,14 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
               )}
 
               {result.caveatsGaps.length > 0 && (
-                <AnswerSection title="Caveats &amp; gaps">
+                <AnswerSection title="Caveats & gaps">
                   <ul className="list-disc pl-5 text-sm text-gray-700 dark:text-gray-200">
                     {result.caveatsGaps.map((c, i) => <li key={i}>{c}</li>)}
                   </ul>
                 </AnswerSection>
               )}
 
-              <button onClick={onSave} disabled={saving} className="rounded-md border border-primary px-3 py-1.5 text-sm text-primary disabled:opacity-50">
+              <button onClick={onSave} disabled={saving || (result.evidence.length === 0 && result.dosing.length === 0)} className="rounded-md border border-primary px-3 py-1.5 text-sm text-primary disabled:opacity-50">
                 {saving ? 'Saving…' : 'Save this answer'}
               </button>
             </div>
@@ -211,9 +211,9 @@ function SourceLinks({ urls }: { urls: string[] }) {
 function ResearchTimeline({ state }: { state: ReturnType<typeof useCompoundResearch>['state'] }) {
   const order = ['planning', 'searching', 'sources_found', 'synthesizing', 'gap_filling'];
   const idx = order.indexOf(state.phase);
-  const Row = ({ at, label, done }: { at: number; label: string; done?: boolean }) => (
+  const Row = ({ at, label }: { at: number; label: string }) => (
     <li className={`flex items-center gap-2 ${idx >= at ? 'text-gray-700 dark:text-gray-200' : 'text-muted-foreground/50'}`}>
-      <span>{idx > at || done ? '✓' : idx === at ? '◐' : '○'}</span>
+      <span>{idx > at ? '✓' : idx === at ? '◐' : '○'}</span>
       <span>{label}</span>
     </li>
   );
@@ -222,7 +222,7 @@ function ResearchTimeline({ state }: { state: ReturnType<typeof useCompoundResea
       <Row at={0} label="Planning searches" />
       <Row at={1} label={state.queries.length ? `Searching: ${state.queries.join(' · ')}` : 'Searching'} />
       <Row at={2} label={state.sourceCount != null ? `Found ${state.sourceCount} sources` : 'Collecting sources'} />
-      <Row at={3} label="Reading &amp; writing answer" />
+      <Row at={3} label="Reading & writing answer" />
       {state.gapQuery && <Row at={4} label={`Filling a gap: ${state.gapQuery}`} />}
     </ul>
   );
