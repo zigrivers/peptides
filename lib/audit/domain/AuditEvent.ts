@@ -110,7 +110,8 @@ export type AuditAction =
   | 'REMINDER_DISPATCHED'
   // Research
   | 'RESEARCH_NOTE_SAVED'
-  | 'RESEARCH_NOTE_DELETED';
+  | 'RESEARCH_NOTE_DELETED'
+  | 'FDA_BRIEFING_REFRESHED';
 
 export interface CreateAuditEventInput {
   actorUserId: string;
