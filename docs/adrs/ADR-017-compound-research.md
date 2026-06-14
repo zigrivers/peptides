@@ -293,3 +293,89 @@ The following invariants from the original decision are **unchanged** by this re
 - **Fixed-label audit.** Research-run audit events carry no prompt, answer, sub-question,
   or search-query content — fixed-label error classification only (ADR-009).
 - **No identity-scoping exception.** Per-user private notes, no new exception needed.
+
+---
+
+## Revision (2026-06-14)
+
+**Source of truth:** `docs/superpowers/specs/2026-06-14-research-content-relaxation-design.md` §2–§5, §6.
+
+### Descriptive dose figures are now permitted in `directAnswer`
+
+The 2026-06-13 revision's rule — *"directAnswer carries no specific dose amounts or
+frequencies — those belong in dosing[] where citation enforcement applies"* — is
+**superseded** by this revision.
+
+Descriptive dose figures (e.g. "studies report 1–2 mg/day subcutaneously") are now
+**permitted in the free-text `directAnswer`**. The safety rationale for the old rule was that
+dose figures in the prose lead might constitute dosing advice; however, the
+`containsPrescriptivePhrase` guard already blocks the genuinely unsafe forms (imperatives,
+personalized/2nd-person dosing such as "you should take 2 mg"). Stripping descriptive figures
+was over-censorship that collapsed informative research leads into the `NO_PROSE_SUMMARY`
+placeholder.
+
+The structured tiered `dosing[]` section is **retained** — it provides per-protocol
+source citation enforcement and `DoseTier` tagging that the prose lead does not. Descriptive
+figures in `directAnswer` complement the structured section; they do not replace it.
+
+### `directAnswer` is withheld only for prescriptive or disallowed phrasing
+
+`directAnswer` is replaced by the `NO_PROSE_SUMMARY` placeholder **only when** it trips the
+content guard — i.e. it contains:
+
+- **prescriptive/personalized phrasing** (`containsPrescriptivePhrase`): 2nd-person dosing
+  imperatives, personalized recommendations ("you should take", "for a 56-year-old, dose
+  at…"), or
+- **an affirmative approval/clearance claim** (`containsDisallowedPhrase`, now
+  negation-aware per ADR-010 Revision 2026-06-14).
+
+Descriptive dose figures and cautionary regulatory-status statements ("not FDA-approved",
+"investigational", "lacks FDA approval") do **not** trigger the placeholder.
+
+### Dose-figures warning banner
+
+Whenever the research answer contains dose figures — either in `directAnswer` or in the
+structured `dosing[]` section — the UI renders a **"research purposes only" warning banner**
+alongside the result:
+
+> *Dose figures are reported from studies and protocols for informational purposes only —
+> not dosing advice.*
+
+This banner is conditional on `shouldShowDoseWarning(directAnswer, dosing.length)` (exported
+from `lib/research/domain/guards.ts`). The existing `DISCLAIMER` ("Unverified — not medical
+advice.") remains in place unconditionally.
+
+### Guard pipeline changes
+
+Step 4 of the 2026-06-13 guard pipeline — **Dose-figure-in-directAnswer guard**
+(`stripDoseFigureSentences`) — is **removed**. The updated pipeline is:
+
+1. Citation invariant (unchanged).
+2. Disallowed-phrase guard — `containsDisallowedPhrase()`, now negation-aware (ADR-010
+   Revision 2026-06-14). Applied to `directAnswer`, every `evidence.point`, every
+   `dosing.text`, and every `caveatsGaps` item.
+3. Prescriptive-phrase guard — `containsPrescriptivePhrase()` (unchanged). Applied to the
+   same four targets.
+4. ~~Dose-figure-in-directAnswer guard~~ — **removed**.
+5. Tier normalization (renumbered from 5, unchanged).
+6. Prune `sourcesUsed` (renumbered from 6, unchanged).
+
+### Synthesis prompt (`SYNTH_SYSTEM`) relaxation
+
+The two constraints added on 2026-06-13 that prohibited dose figures and regulatory wording
+in `directAnswer` are removed from the synthesis system prompt. The model is now instructed:
+
+> "directAnswer may summarize key reported dose ranges and regulatory status descriptively
+> (e.g. 'studies report 1-2 mg/day'; 'not FDA-approved'); put the full per-protocol
+> breakdown in dosing[]. Never phrase anything as advice, a recommendation, personalized,
+> or 2nd-person."
+
+Unchanged instructions: descriptive/attributed/cited, never advice, never personalized, never
+2nd person; every evidence/dosing item cites a fetched source; tier-tag dosing.
+
+### Invariants unchanged by this revision
+
+- **Prescriptive/personalized dosing remains blocked.** `containsPrescriptivePhrase` is
+  unchanged and continues to catch 2nd-person imperatives and profile personalization.
+- **Local-only provider, SSRF boundary, citation invariant, fixed-label audit,
+  no identity-scoping exception** — all unchanged (see 2026-06-13 revision).
