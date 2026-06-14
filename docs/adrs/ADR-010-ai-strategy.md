@@ -53,3 +53,63 @@ We will use **the Vercel AI SDK** as the AI client abstraction and **default to 
 - Vision §8 Anti-Vision (allowed vs. disallowed AI uses — verbatim).
 - ADR-012 (Railway Cron — runs the background AI jobs).
 - ADR-013 (Sentry — captures AI call failures).
+
+---
+
+## Revision (2026-06-14)
+
+**Source of truth:** `docs/superpowers/specs/2026-06-14-research-content-relaxation-design.md` §1, §6.
+
+### Clarification: "approval/safety-clearance language" targets affirmative claims only
+
+The disallowed AI uses entry — *"Safety clearance" or "approved" language on any AI output* —
+is clarified to target **affirmative approval/clearance claims**. The AI **may** state the
+**absence** of approval as a cautionary descriptive fact. Examples that are now permitted:
+
+- "GHK-Cu is not FDA-approved"
+- "there is no safety clearance for this compound"
+- "remains investigational"
+- "lacks FDA approval"
+
+Examples that remain disallowed (affirmative claims):
+
+- "GHK-Cu is FDA-approved"
+- "FDA-approved for wound healing"
+- "It is clinically approved"
+- "This compound has safety clearance"
+
+### Implementation: negation-aware `containsDisallowedPhrase`
+
+The guard in `lib/ai/domain/schemas.ts` is split into two categories:
+
+- **`ALWAYS_DISALLOWED`** — patterns that are disallowed unconditionally, regardless of
+  surrounding context. Currently: `/\brecommended\s+dose\s+for\s+you\b/i` (personalized dose
+  recommendation). Personalized recommendations ("recommended dose for you") remain
+  **unconditionally disallowed** and are not affected by this revision.
+- **`APPROVAL_CLAIM_PATTERNS`** — approval/clearance phrases that are disallowed **only when
+  they appear as affirmative claims**. A new helper `isAffirmativeApprovalClaim(text)` checks
+  a bounded preceding window (within the same clause) for a governing negation token. If a
+  negation such as `not`, `no`, `never`, `lacks`, `without`, `absence of`, or `yet to be` is
+  found within the window immediately before the match, the phrase is treated as a cautionary
+  absence-of-approval statement and is permitted. A trailing negation ("FDA-approved, though
+  not for this use") does **not** rescue an affirmative claim — only a preceding negation
+  within the same clause governs the match. The bounded window also prevents a distant,
+  unrelated negation ("this non-peptide compound is FDA-approved") from wrongly rescuing an
+  affirmative claim.
+
+`containsDisallowedPhrase(text)` returns `true` iff any always-disallowed pattern matches
+**or** `isAffirmativeApprovalClaim(text)` is `true`.
+
+### Callers
+
+The guard has two callers:
+
+1. **Compound research synthesis** (`lib/research/application/compoundResearch.ts`) — applied
+   after each synthesis pass to `directAnswer`, every `evidence.point`, every `dosing.text`,
+   and every `caveatsGaps` item.
+2. **Admin profile drafting** (`lib/ai/application/draftCompoundProfile.ts`) — applied to
+   AI-generated draft content before it is returned for human review.
+
+Both callers benefit identically from the negation-aware guard. The relaxation only ever
+permits a cautionary "not approved" statement; it never permits an affirmative approval claim,
+so neither caller becomes less safe.

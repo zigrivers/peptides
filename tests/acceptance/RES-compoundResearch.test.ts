@@ -66,15 +66,15 @@ describe('runCompoundResearch (structured)', () => {
     expect(auditCalls).not.toContain('tendon'); // no prompt content in audit
   });
 
-  it('strips dose figures from directAnswer and drops prescriptive/disallowed items', async () => {
-    // After guards, evidence=[] (prescriptive dropped) → gap-fill triggers; but all gap searches return
-    // the already-seen https://a.com, so gapSources is empty → no 2nd synthesis. Only 2 mockTry calls.
+  it('keeps descriptive dose figures in directAnswer; still drops prescriptive/disallowed items', async () => {
+    // evidence becomes [] after the prescriptive drop → gap-fill triggers, but all gap searches return
+    // the already-seen https://a.com, so gapSources is empty → no 2nd synthesis (2 mockTry calls).
     const synthResult = {
-      directAnswer: 'GHK-Cu is studied for skin. Some report 1-2 mg per day.',
+      directAnswer: 'GHK-Cu is studied for skin. Some report 1-2 mg per day. It is not FDA-approved.',
       evidence: [{ point: 'You should take 2 mg daily.', sourceUrls: ['https://a.com'] }], // prescriptive -> dropped
       dosing: [
         { text: 'Topical 1-2% daily in cosmetic studies.', tier: 'clinical', sourceUrls: ['https://a.com'] },
-        { text: 'FDA-approved for healing.', tier: 'clinical', sourceUrls: ['https://a.com'] }, // disallowed -> dropped
+        { text: 'FDA-approved for healing.', tier: 'clinical', sourceUrls: ['https://a.com'] }, // affirmative claim -> dropped
       ],
       caveatsGaps: ['No age-specific data.'],
       sourcesUsed: [{ title: 'S', url: 'https://a.com' }],
@@ -82,19 +82,31 @@ describe('runCompoundResearch (structured)', () => {
     };
     mockTry
       .mockResolvedValueOnce({ subQuestions: ['dose?'], queries: ['GHK-Cu dose'] })
-      .mockResolvedValueOnce(synthResult); // synth #1 → guards applied; gap-fill triggers but finds no NEW sources
+      .mockResolvedValueOnce(synthResult);
     mockWebSearch.mockResolvedValue([{ title: 'S', url: 'https://a.com', snippet: 's', content: 'c' }]);
 
-    const res = await runCompoundResearch(
-      { ...baseInput, question: 'what dose and how often?' },
-      () => {}
-    );
+    const res = await runCompoundResearch({ ...baseInput, question: 'what dose and how often?' }, () => {});
 
     expect(res.directAnswer).toContain('studied for skin');
-    expect(res.directAnswer).not.toMatch(/\d\s?mg/i); // dose figure stripped
-    expect(res.evidence).toHaveLength(0); // prescriptive dropped
-    expect(res.dosing).toHaveLength(1); // disallowed dropped, descriptive kept
+    expect(res.directAnswer).toContain('1-2 mg');        // dose figure KEPT (no longer stripped)
+    expect(res.directAnswer).toContain('not FDA-approved'); // negated regulatory status KEPT
+    expect(res.evidence).toHaveLength(0);                 // prescriptive dropped
+    expect(res.dosing).toHaveLength(1);                   // affirmative-claim dosing dropped, descriptive kept
     expect(res.dosing[0].tier).toBe('clinical');
+  });
+
+  it('withholds a prescriptive directAnswer with the NO_PROSE_SUMMARY placeholder', async () => {
+    mockTry
+      .mockResolvedValueOnce({ subQuestions: ['q'], queries: ['q'] })
+      .mockResolvedValueOnce({
+        directAnswer: 'You should take 2 mg subcutaneously every day.', // prescriptive -> withheld
+        evidence: [{ point: 'Studied for skin repair.', sourceUrls: ['https://a.com'] }],
+        dosing: [], caveatsGaps: [], sourcesUsed: [{ title: 'A', url: 'https://a.com' }], needsMoreEvidence: false,
+      });
+    mockWebSearch.mockResolvedValue([{ title: 'A', url: 'https://a.com', snippet: 's', content: 'c' }]);
+    const res = await runCompoundResearch({ ...baseInput, question: 'what is known about it?' }, () => {});
+    expect(res.directAnswer).not.toMatch(/take 2 mg/i);
+    expect(res.directAnswer).toMatch(/not shown here/i);  // NO_PROSE_SUMMARY
   });
 
   it('throws typed error + failed audit when the local model is unavailable', async () => {
@@ -148,17 +160,5 @@ describe('runCompoundResearch (structured)', () => {
     expect(mockTry).toHaveBeenCalledTimes(2); // plan + 1 synth only
   });
 
-  it('redirects (not policy-withholds) a directAnswer that is entirely dose figures', async () => {
-    mockTry
-      .mockResolvedValueOnce({ subQuestions: ['q'], queries: ['q'] })
-      .mockResolvedValueOnce({
-        directAnswer: 'Reported amounts are 1 mg daily. Ranges reach 2 mg weekly.', // every sentence carries a figure, none prescriptive
-        evidence: [{ point: 'Studied for skin repair.', sourceUrls: ['https://a.com'] }],
-        dosing: [], caveatsGaps: [], sourcesUsed: [{ title: 'A', url: 'https://a.com' }], needsMoreEvidence: false,
-      });
-    mockWebSearch.mockResolvedValue([{ title: 'A', url: 'https://a.com', snippet: 's', content: 'c' }]);
-    const res = await runCompoundResearch({ ...baseInput, question: 'what is known about it?' }, () => {});
-    expect(res.directAnswer).not.toMatch(/withheld|policy/i);
-    expect(res.directAnswer).toMatch(/below for what the sources report/i);
-  });
+
 });

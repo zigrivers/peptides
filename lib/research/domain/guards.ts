@@ -1,8 +1,8 @@
 /**
  * ADR-010 guards for compound research. Pure, dependency-free, unit-tested.
  * Dosing may be reported DESCRIPTIVELY (cited, tier-tagged) but never
- * PRESCRIPTIVELY (2nd-person imperatives or personalization), and numeric dose
- * figures must not appear in the free-text directAnswer (they live in dosing[]).
+ * PRESCRIPTIVELY (2nd-person imperatives or personalization).
+ * Descriptive dose figures are permitted in research output; only prescriptive/personalized phrasing is blocked (ADR-017 Revision 2026-06-14).
  */
 
 /** Dose-intent detection set (NOT a general topic list) — drives gap-fill. */
@@ -43,11 +43,7 @@ export function containsDoseFigure(text: string): boolean {
   return DOSE_FIGURE_PATTERNS.some((re) => re.test(text));
 }
 
-/** Remove sentences carrying a dose figure; keep the rest. Used to clean directAnswer. */
-export function stripDoseFigureSentences(text: string): string {
-  return text
-    .split(/(?<=[.!?])\s+/)
-    .filter((s) => !containsDoseFigure(s))
-    .join(' ')
-    .trim();
+/** Whether to show the "research purposes only" dose warning: any dose figure present. */
+export function shouldShowDoseWarning(directAnswer: string, dosingCount: number): boolean {
+  return dosingCount > 0 || containsDoseFigure(directAnswer);
 }

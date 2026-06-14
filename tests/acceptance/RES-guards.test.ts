@@ -4,7 +4,7 @@ import {
   isDoseIntentQuestion,
   containsPrescriptivePhrase,
   containsDoseFigure,
-  stripDoseFigureSentences,
+  shouldShowDoseWarning,
 } from '@/lib/research/domain/guards';
 
 describe('isDoseIntentQuestion', () => {
@@ -53,15 +53,15 @@ describe('containsDoseFigure', () => {
   });
 });
 
-describe('stripDoseFigureSentences', () => {
-  it('removes only the sentences that carry dose figures', () => {
-    const text = 'GHK-Cu supports skin repair. Some report 1-2 mg per day. It is studied in animals.';
-    const out = stripDoseFigureSentences(text);
-    expect(out).toContain('skin repair');
-    expect(out).toContain('studied in animals');
-    expect(out).not.toContain('1-2 mg');
+describe('shouldShowDoseWarning', () => {
+  it('is true when the dosing section is non-empty', () => {
+    expect(shouldShowDoseWarning('Studied for skin.', 2)).toBe(true);
   });
-  it('returns empty string when every sentence has a figure', () => {
-    expect(stripDoseFigureSentences('Take 1 mg. Then 2 mg.')).toBe('');
+  it('is true when the lead contains a dose figure', () => {
+    expect(shouldShowDoseWarning('Studies report 1-2 mg/day.', 0)).toBe(true);
+  });
+  it('is false when there are no figures and no dosing items', () => {
+    expect(shouldShowDoseWarning('GHK-Cu is studied for skin repair and wound healing.', 0)).toBe(false);
   });
 });
+
