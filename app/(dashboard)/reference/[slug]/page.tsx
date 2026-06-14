@@ -450,7 +450,8 @@ export default async function CompoundProfilePage({
               <div className="flex gap-2 text-red-800 dark:text-red-300">
                 <span className="text-base shrink-0">⚠️</span>
                 <div className="text-sm leading-relaxed" id="fda-disclaimer">
-                  <strong className="font-semibold">DISCLAIMER:</strong> This compound is not FDA-approved for therapeutic human use. Protocols are for research-use only based on scientific literature, including preclinical studies and early clinical research.
+                  <strong className="font-semibold">DISCLAIMER:</strong> This compound is not FDA-approved for the uses described here. The protocols and doses shown are reported from scientific literature and community sources for your information — not medical advice or a prescription. You are responsible for your own decisions. See{' '}
+                  <Link href="/about" className="underline">About</Link> for how this app frames regulatory status and what its labels mean.
                 </div>
               </div>
             </div>
