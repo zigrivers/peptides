@@ -317,3 +317,33 @@ Lessons that cut across multiple of the seven PRs shipped this session
 - **Two evals gate new modules**: a new `lib/<slice>/` must be added to
   `tests/evals/structure.test.ts` `allowedModules`, and every new Prisma model
   name must appear in `docs/database-schema.md` (`tests/evals/database.test.ts`).
+
+## 2026-06-14 — Compound research enhancement (structured answers)
+
+- **The global ADR-010 disallowed-phrase guard (`/\b(fda|ema)[\s-]*approved\b/`
+  etc.) fires on benign, descriptive mentions** like "GHK-Cu is *not* FDA-approved."
+  A small local model reliably puts such regulatory framing into its prose
+  `directAnswer`, so the lead got fully withheld on real runs even though the
+  cited evidence/dosing/caveats sections were excellent. Don't widen the shared
+  guard (it protects the whole AI layer). Instead: (a) instruct synthesis to keep
+  the prose lead free of dose figures and approval wording (route those to
+  dosing/caveats), and (b) when the lead is still unusable, fall back to a single
+  NEUTRAL placeholder pointing to the structured sections — never an alarming
+  "withheld (policy)" string. Only the live model run surfaced this; unit tests
+  with hand-written mocks never produced an approval-word lead.
+- **Structured sections beat a prose paragraph for a "digest the sources" feature.**
+  Splitting the answer into directAnswer / evidence / tiered-dosing / caveats let
+  the dose-figure guard strip the lead without losing the dose data (it lives,
+  cited and tier-tagged, in `dosing[]`). The tier tag (`clinical` vs
+  `non_clinical`) is what makes descriptive dose reporting ADR-010-safe.
+- **Gap-fill must skip its second synthesis when no NEW source was found.** With a
+  fixed source cap, appended gap-fill results can be crowded out (or be pure
+  duplicates via the shared `seen` set), so a naive "always re-synthesize" burns a
+  full ~slow local model call on identical input. Collect gap results separately,
+  prioritize them in the re-selection, and only re-synthesize when the set grew.
+- **Additive migration on a live dev DB, the safe sequence**: back up
+  (`docker exec <pg> pg_dump -Fc`) → snapshot row counts → `prisma migrate deploy`
+  (never `dev`/`reset`) → re-verify counts unchanged + new tables present +
+  `claim` nullable. Relaxing `NOT NULL` + `CREATE TABLE IF NOT EXISTS` + DO-guarded
+  FK adds is non-destructive; legacy per-finding notes coexist with new per-section
+  notes via a `sections.length > 0` discriminator.

@@ -290,18 +290,21 @@ model CatalogItemRevision {
   publishedAt   DateTime?
 }
 
-// --- Research Domain (ADR-017) ---
+// --- Research Domain (ADR-017, revised 2026-06-13) ---
 
 model CompoundResearchNote {
-  id            String                         @id @default(uuid())
+  id            String                            @id @default(uuid())
   userId        String
   catalogItemId String
   question      String
-  answerSummary String?                        @db.Text
-  claim         String                         @db.Text
-  citations     CompoundResearchNoteCitation[]
-  createdAt     DateTime                       @default(now())
-  updatedAt     DateTime                       @updatedAt
+  answerSummary String?                           @db.Text
+  claim         String?                           @db.Text  // nullable (relaxed from NOT NULL);
+                                                            // non-null = legacy per-finding note;
+                                                            // null = new per-section note (sections ≥1)
+  citations     CompoundResearchNoteCitation[]    // legacy-only; preserved for existing data
+  sections      CompoundResearchNoteSection[]     // new per-section notes
+  createdAt     DateTime                          @default(now())
+  updatedAt     DateTime                          @updatedAt
 
   @@index([userId, catalogItemId])
 }
@@ -313,6 +316,31 @@ model CompoundResearchNoteCitation {
   url    String
 
   @@index([noteId])
+}
+
+// New tables added 2026-06-13 (additive migration — no existing rows touched)
+
+model CompoundResearchNoteSection {
+  id        String                                @id @default(uuid())
+  noteId    String
+  type      String                                // 'direct_answer' | 'evidence' | 'dosing' | 'caveats'
+                                                  // plain String validated in app layer (not a Postgres enum)
+  content   String                                @db.Text
+  tier      String?                               // DoseTier: 'clinical' | 'non_clinical' | 'unclear'
+                                                  // set only on dosing sections; null otherwise
+  order     Int
+  citations CompoundResearchNoteSectionCitation[]
+
+  @@index([noteId])
+}
+
+model CompoundResearchNoteSectionCitation {
+  id        String @id @default(uuid())
+  sectionId String
+  title     String
+  url       String
+
+  @@index([sectionId])
 }
 
 // --- Tracker Domain ---
@@ -586,6 +614,10 @@ Per `.claude/rules/safety-math.md` and ADR-008, all dose-amount, volume, and con
 | `CompoundAdjunctRecommendation` | `@@unique([sourceCompoundId, adjunctId, benefitGoal])` | Idempotent seed sync and duplicate prevention |
 | `CompoundAdjunctRecommendation` | `@@index([sourceCompoundId, benefitGoal])` | Compound detail adjunct lookup grouped by support goal |
 | `CompoundAdjunctRecommendationCitation` | `@@unique([recommendationId, citationId])` | Prevent duplicate citation links on an adjunct recommendation |
+| `CompoundResearchNote` | `@@index([userId, catalogItemId])` | Per-user research note lookup for a compound |
+| `CompoundResearchNoteCitation` | `@@index([noteId])` | Citation lookup by note (legacy) |
+| `CompoundResearchNoteSection` | `@@index([noteId])` | Section lookup by note |
+| `CompoundResearchNoteSectionCitation` | `@@index([sectionId])` | Citation lookup by section |
 | `DoseLog` | `@@index([userId, scheduledDate])` | Dashboard "today's doses" + history paging |
 | `DoseLog` | `@@unique([userId, protocolId, scheduledDate])` | PWA sync conflict prevention (server-side) |
 | `OutcomeLog` | `@@index([userId, scheduledDate])` + `@@unique` | Daily outcome lookup + uniqueness invariant |
@@ -645,5 +677,5 @@ We use **Prisma Migrate** for all schema changes.
 ## 7. Cross-References
 
 - **Domain models**: `docs/domain-models/` — each Prisma model maps to a documented domain entity. See especially `auth.md`, `tracker.md`, and `ordering.md` for the field-level rationale.
-- **ADRs**: ADR-002 (Postgres + Prisma), ADR-004 (Auth.js v5), ADR-008 (Testing — Decimal rule + 100% coverage on `lib/reconstitution` and `lib/audit`), ADR-009 (Audit retention + actor reference preservation), ADR-010 (AI provider — no schema impact in v1), ADR-012 (Cron — `audit_events` purge + `data_export_requests` cleanup).
+- **ADRs**: ADR-002 (Postgres + Prisma), ADR-004 (Auth.js v5), ADR-008 (Testing — Decimal rule + 100% coverage on `lib/reconstitution` and `lib/audit`), ADR-009 (Audit retention + actor reference preservation), ADR-010 (AI provider — no schema impact in v1), ADR-012 (Cron — `audit_events` purge + `data_export_requests` cleanup), ADR-017 (Compound research — `CompoundResearchNote*` tables; revised 2026-06-13 adding `CompoundResearchNoteSection` and `CompoundResearchNoteSectionCitation`).
 - **PRD**: §5.6 (account lifecycle), §5.7 (data retention matrix), §8.2 (security NFRs).

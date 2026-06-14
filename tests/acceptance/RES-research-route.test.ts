@@ -70,4 +70,25 @@ describe('POST research route', () => {
     expect(events[0]).toMatchObject({ phase: 'planning' });
     expect(events.at(-1)).toMatchObject({ phase: 'result' });
   });
+
+  it('streams a structured result event with the section keys', async () => {
+    const answer = {
+      directAnswer: 'A grounded answer.',
+      evidence: [], dosing: [], caveatsGaps: [], sourcesUsed: [], needsMoreEvidence: false,
+    };
+    mockRun.mockImplementation(async (_input: unknown, send: (e: unknown) => void) => {
+      send({ phase: 'result', result: answer });
+      return answer;
+    });
+    const res = await POST(makeReq({ question: 'what does the research say?' }), ctx);
+    expect(res.headers.get('content-type')).toContain('application/x-ndjson');
+    const events = await readNdjson(res);
+    const last = events.at(-1) as { phase: string; result?: Record<string, unknown> };
+    expect(last.phase).toBe('result');
+    expect(last.result).toBeDefined();
+    expect(Object.keys(last.result as object)).toEqual(
+      expect.arrayContaining(['directAnswer', 'evidence', 'dosing', 'caveatsGaps', 'sourcesUsed'])
+    );
+    expect(mockRun).toHaveBeenCalled();
+  });
 });

@@ -22,19 +22,19 @@ describe('research server actions', () => {
 
   it('save returns unauthorized when no session', async () => {
     mockAuth.mockResolvedValue(null);
-    const res = await saveCompoundResearchNotesAction({ catalogItemId: 'c1', question: 'q', answerSummary: null, approvedFindings: [] });
+    const res = await saveCompoundResearchNotesAction({ catalogItemId: 'c1', question: 'q', sections: [] });
     expect(res).toMatchObject({ ok: false, error: 'unauthorized' });
   });
 
-  it('save rejects invalid input (no findings)', async () => {
-    const res = await saveCompoundResearchNotesAction({ catalogItemId: 'c1', question: 'q', answerSummary: null, approvedFindings: [] });
+  it('save rejects invalid input (no sections)', async () => {
+    const res = await saveCompoundResearchNotesAction({ catalogItemId: 'c1', question: 'q', sections: [] });
     expect(res).toMatchObject({ ok: false, error: 'invalid_input' });
   });
 
-  it('save rejects a non-http citation url', async () => {
+  it('save rejects a non-http citation url through the sections schema', async () => {
     const res = await saveCompoundResearchNotesAction({
-      catalogItemId: 'c1', question: 'q', answerSummary: null,
-      approvedFindings: [{ claim: 'c', citations: [{ title: 't', url: 'javascript:alert(1)' }] }],
+      catalogItemId: 'c1', question: 'q',
+      sections: [{ type: 'evidence', content: 'c', tier: null, citations: [{ title: 't', url: 'javascript:alert(1)' }] }],
     });
     expect(res).toMatchObject({ ok: false, error: 'invalid_input' });
   });
@@ -42,8 +42,8 @@ describe('research server actions', () => {
   it('save persists valid findings', async () => {
     mockSave.mockResolvedValue({ savedCount: 1 });
     const res = await saveCompoundResearchNotesAction({
-      catalogItemId: 'c1', question: 'q', answerSummary: 's',
-      approvedFindings: [{ claim: 'c', citations: [{ title: 't', url: 'https://a.com' }] }],
+      catalogItemId: 'c1', question: 'q',
+      sections: [{ type: 'evidence', content: 'c', tier: null, citations: [{ title: 't', url: 'https://a.com' }] }],
     });
     expect(res).toMatchObject({ ok: true, savedCount: 1 });
     expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ actorUserId: 'u1', catalogItemId: 'c1' }));

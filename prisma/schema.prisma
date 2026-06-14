@@ -290,8 +290,9 @@ model CompoundResearchNote {
   catalogItem   CatalogItem                    @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
   question      String
   answerSummary String?                        @db.Text
-  claim         String                         @db.Text
+  claim         String?                        @db.Text
   citations     CompoundResearchNoteCitation[]
+  sections      CompoundResearchNoteSection[]
   createdAt     DateTime                       @default(now())
   updatedAt     DateTime                       @updatedAt
 
@@ -306,6 +307,29 @@ model CompoundResearchNoteCitation {
   url    String
 
   @@index([noteId])
+}
+
+model CompoundResearchNoteSection {
+  id        String                                @id @default(uuid())
+  noteId    String
+  note      CompoundResearchNote                  @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  type      String
+  content   String                                @db.Text
+  tier      String?
+  order     Int                                   @default(0)
+  citations CompoundResearchNoteSectionCitation[]
+
+  @@index([noteId])
+}
+
+model CompoundResearchNoteSectionCitation {
+  id        String                      @id @default(uuid())
+  sectionId String
+  section   CompoundResearchNoteSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  title     String
+  url       String
+
+  @@index([sectionId])
 }
 
 model CompoundPairing {
