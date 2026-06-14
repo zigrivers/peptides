@@ -67,7 +67,8 @@ describe('runCompoundResearch (structured)', () => {
   });
 
   it('strips dose figures from directAnswer and drops prescriptive/disallowed items', async () => {
-    // After guards, evidence=[] (prescriptive dropped) → gap-fill triggers; provide a 3rd mock to satisfy it.
+    // After guards, evidence=[] (prescriptive dropped) → gap-fill triggers; but all gap searches return
+    // the already-seen https://a.com, so gapSources is empty → no 2nd synthesis. Only 2 mockTry calls.
     const synthResult = {
       directAnswer: 'GHK-Cu is studied for skin. Some report 1-2 mg per day.',
       evidence: [{ point: 'You should take 2 mg daily.', sourceUrls: ['https://a.com'] }], // prescriptive -> dropped
@@ -81,8 +82,7 @@ describe('runCompoundResearch (structured)', () => {
     };
     mockTry
       .mockResolvedValueOnce({ subQuestions: ['dose?'], queries: ['GHK-Cu dose'] })
-      .mockResolvedValueOnce(synthResult)   // synth #1 → gap-fill triggers (evidence=[] after guard)
-      .mockResolvedValueOnce(synthResult);  // synth #2 (gap-fill round) → same result
+      .mockResolvedValueOnce(synthResult); // synth #1 → guards applied; gap-fill triggers but finds no NEW sources
     mockWebSearch.mockResolvedValue([{ title: 'S', url: 'https://a.com', snippet: 's', content: 'c' }]);
 
     const res = await runCompoundResearch(
@@ -131,6 +131,8 @@ describe('runCompoundResearch (structured)', () => {
     expect(events.map((e) => e.phase)).toContain('gap_filling');
     expect(res.dosing).toHaveLength(1);
     expect(events.filter((e) => e.phase === 'result')).toHaveLength(1); // single terminal result
+    // 2nd synthesis (index 2) must have seen the gap source b.com in its prompt
+    expect(JSON.stringify(mockTry.mock.calls[2][0])).toContain('b.com');
   });
 
   it('does NOT gap-fill when the first answer is complete', async () => {

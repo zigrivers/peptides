@@ -153,17 +153,17 @@ function applyGuards(ans: ResearchAnswer, fetched: WebSearchResult[]): ResearchA
   return { directAnswer, evidence, dosing, caveatsGaps, sourcesUsed, needsMoreEvidence: ans.needsMoreEvidence };
 }
 
-function needsGapFill(ans: ResearchAnswer, question: string, subQuestions: string[]): boolean {
-  if (!ans.directAnswer || ans.directAnswer === WITHHELD || ans.directAnswer.length < MIN_DIRECT_ANSWER_CHARS) return true;
+function needsGapFill(ans: ResearchAnswer, doseIntent: boolean): boolean {
+  const da = ans.directAnswer;
+  // A policy-WITHHELD directAnswer is a content-pattern issue, not an evidence gap — don't gap-fill on it.
+  if ((!da || da.length < MIN_DIRECT_ANSWER_CHARS) && da !== WITHHELD) return true;
   if (ans.evidence.length === 0) return true;
-  const doseIntent = isDoseIntentQuestion(question) || subQuestions.some(isDoseIntentQuestion);
   if (ans.dosing.length === 0 && doseIntent) return true;
-  if (ans.needsMoreEvidence) return true; // advisory: raises only
+  if (ans.needsMoreEvidence) return true; // advisory: raises (never suppresses)
   return false;
 }
 
-function buildGapQueries(ans: ResearchAnswer, input: RunInput, subQuestions: string[]): string[] {
-  const doseIntent = isDoseIntentQuestion(input.question) || subQuestions.some(isDoseIntentQuestion);
+function buildGapQueries(input: RunInput, ans: ResearchAnswer, doseIntent: boolean): string[] {
   if (ans.dosing.length === 0 && doseIntent) {
     return [`${input.compoundName} dosage protocol clinical study`, `${input.compoundName} dose frequency`];
   }
@@ -192,11 +192,10 @@ export async function runCompoundResearch(input: RunInput, onProgress: (e: Progr
     const sources: WebSearchResult[] = [];
     onProgress({ phase: 'searching', queries: plan.queries });
     await runSearches(plan.queries, seen, sources);
-    onProgress({ phase: 'sources_found', count: sources.length });
 
-    // Step 3 — synthesize + guard
     onProgress({ phase: 'synthesizing' });
     let selected = selectSources(sources);
+    onProgress({ phase: 'sources_found', count: selected.length }); // report what synthesis actually sees
     const synthesize = async (): Promise<ResearchAnswer> => {
       const raw = await tryGenerateObjectOrParse({
         model,
@@ -209,14 +208,19 @@ export async function runCompoundResearch(input: RunInput, onProgress: (e: Progr
     };
     let answer = await synthesize();
 
-    // Step 4 — adaptive gap-fill: at most ONE round, objective triggers (+ advisory needsMoreEvidence)
-    if (needsGapFill(answer, input.question, plan.subQuestions)) {
-      const gapQueries = buildGapQueries(answer, input, plan.subQuestions);
-      onProgress({ phase: 'gap_filling', query: gapQueries[0] });
-      await runSearches(gapQueries, seen, sources); // shared seen — overlaps deduped
-      onProgress({ phase: 'sources_found', count: sources.length });
-      selected = selectSources(sources);
-      answer = await synthesize(); // 2nd-round needsMoreEvidence is ignored — no further retry
+    // Step 4 — adaptive gap-fill: at most ONE round, and only re-synthesize if new sources were found.
+    const doseIntent = isDoseIntentQuestion(input.question) || plan.subQuestions.some(isDoseIntentQuestion);
+    if (needsGapFill(answer, doseIntent)) {
+      const gapQueries = buildGapQueries(input, answer, doseIntent);
+      onProgress({ phase: 'gap_filling', query: gapQueries.join(' · ') }); // show all gap queries
+      const gapSources: WebSearchResult[] = [];
+      await runSearches(gapQueries, seen, gapSources); // shared `seen` dedupes against round 1
+      if (gapSources.length > 0) {
+        selected = selectSources([...gapSources, ...sources]); // prioritize newly-found sources
+        onProgress({ phase: 'sources_found', count: selected.length });
+        onProgress({ phase: 'synthesizing' });
+        answer = await synthesize(); // 2nd-round needsMoreEvidence is ignored — no further round
+      }
     }
 
     onProgress({ phase: 'result', result: answer });
