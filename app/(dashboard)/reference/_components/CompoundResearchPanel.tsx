@@ -62,8 +62,8 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
 
   const busy = ['planning', 'searching', 'sources_found', 'synthesizing', 'gap_filling'].includes(state.phase);
 
-  async function onSave() {
-    if (!result) return;
+  function collectSections() {
+    if (!result) return [];
     const sections: { type: 'direct_answer' | 'evidence' | 'dosing' | 'caveats'; content: string; tier: 'clinical' | 'non_clinical' | 'unclear' | null; citations: { title: string; url: string }[] }[] = [];
     if (approved.direct_answer && result.directAnswer && result.directAnswer !== 'Summary withheld (policy).')
       sections.push({ type: 'direct_answer', content: result.directAnswer, tier: null, citations: [] });
@@ -74,6 +74,11 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
       sections.push({ type: 'dosing', content: result.dosing.map((d) => `• [${TIER_LABEL[d.tier]}] ${d.text}`).join('\n'), tier: strongestTier(result.dosing.map((d) => d.tier)), citations: dedupeCitations(result.dosing.flatMap((d) => d.sourceUrls)) });
     if (approved.caveats && result.caveatsGaps.length)
       sections.push({ type: 'caveats', content: result.caveatsGaps.map((c) => `• ${c}`).join('\n'), tier: null, citations: [] });
+    return sections;
+  }
+
+  async function onSave() {
+    const sections = collectSections();
     if (sections.length === 0) return;
     setSaving(true);
     const res = await saveCompoundResearchNotesAction({ catalogItemId, question: submittedQuestion, sections });
@@ -112,7 +117,7 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
               disabled={busy}
             />
             <button
-              onClick={() => { setSubmittedQuestion(question); run(question); }}
+              onClick={() => { setSubmittedQuestion(question); setApproved({ direct_answer: true, evidence: true, dosing: true, caveats: true }); run(question); }}
               disabled={busy || question.trim().length === 0}
               aria-label={busy ? 'Running research…' : 'Ask'}
               className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
@@ -163,7 +168,7 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
 
               {result.dosing.length > 0 && (
                 <AnswerSection
-                  title="Reported dosing &amp; protocols"
+                  title="Reported dosing & protocols"
                   sectionKey="dosing"
                   approved={approved.dosing}
                   onToggle={(v) => setApproved((prev) => ({ ...prev, dosing: v }))}
@@ -182,7 +187,7 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
 
               {result.caveatsGaps.length > 0 && (
                 <AnswerSection
-                  title="Caveats &amp; gaps"
+                  title="Caveats & gaps"
                   sectionKey="caveats"
                   approved={approved.caveats}
                   onToggle={(v) => setApproved((prev) => ({ ...prev, caveats: v }))}
@@ -193,7 +198,7 @@ export function CompoundResearchPanel({ catalogItemId, compoundName }: { catalog
                 </AnswerSection>
               )}
 
-              <button onClick={onSave} disabled={saving} className="rounded-md border border-primary px-3 py-1.5 text-sm text-primary disabled:opacity-50">
+              <button onClick={onSave} disabled={saving || collectSections().length === 0} className="rounded-md border border-primary px-3 py-1.5 text-sm text-primary disabled:opacity-50">
                 {saving ? 'Saving…' : 'Save this answer'}
               </button>
             </div>
@@ -293,9 +298,9 @@ function SourceLinks({ urls }: { urls: string[] }) {
 function ResearchTimeline({ state }: { state: ReturnType<typeof useCompoundResearch>['state'] }) {
   const order = ['planning', 'searching', 'sources_found', 'synthesizing', 'gap_filling'];
   const idx = order.indexOf(state.phase);
-  const Row = ({ at, label, done }: { at: number; label: string; done?: boolean }) => (
+  const Row = ({ at, label }: { at: number; label: string }) => (
     <li className={`flex items-center gap-2 ${idx >= at ? 'text-gray-700 dark:text-gray-200' : 'text-muted-foreground/50'}`}>
-      <span>{idx > at || done ? '✓' : idx === at ? '◐' : '○'}</span>
+      <span>{idx > at ? '✓' : idx === at ? '◐' : '○'}</span>
       <span>{label}</span>
     </li>
   );
@@ -304,7 +309,7 @@ function ResearchTimeline({ state }: { state: ReturnType<typeof useCompoundResea
       <Row at={0} label="Planning searches" />
       <Row at={1} label={state.queries.length ? `Searching: ${state.queries.join(' · ')}` : 'Searching'} />
       <Row at={2} label={state.sourceCount != null ? `Found ${state.sourceCount} sources` : 'Collecting sources'} />
-      <Row at={3} label="Reading &amp; writing answer" />
+      <Row at={3} label="Reading & writing answer" />
       {state.gapQuery && <Row at={4} label={`Filling a gap: ${state.gapQuery}`} />}
     </ul>
   );

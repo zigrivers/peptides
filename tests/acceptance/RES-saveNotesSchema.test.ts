@@ -34,4 +34,11 @@ describe('saveNotesInputSchema (sections)', () => {
     const ok = saveNotesInputSchema.safeParse({ ...base, sections: [{ type: 'caveats', content: 'c', tier: null, citations: [] }] });
     expect(ok.success).toBe(true);
   });
+  it('rejects a dosing section with null tier', () => {
+    const r = saveNotesInputSchema.safeParse({
+      catalogItemId: 'c1', question: 'q',
+      sections: [{ type: 'dosing', content: 'x', tier: null, citations: [{ title: 'S', url: 'https://a.com' }] }],
+    });
+    expect(r.success).toBe(false);
+  });
 });
