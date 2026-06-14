@@ -33,6 +33,12 @@ export interface ResearchAnswer {
   needsMoreEvidence: boolean;
 }
 
+export interface FdaBriefingResult {
+  summary: string;
+  findings: { point: string; sourceUrls: string[] }[];
+  sourcesUsed: { title: string; url: string }[];
+}
+
 export interface SavedSectionCitation {
   id: string;
   title: string;

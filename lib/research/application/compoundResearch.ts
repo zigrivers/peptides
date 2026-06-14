@@ -1,15 +1,19 @@
-import type { Prisma } from '@prisma/client';
 import { getLocalModel } from '@/lib/ai/infrastructure/localModelClient';
-import { webSearch } from '@/lib/research/infrastructure/webSearch';
 import { tryGenerateObjectOrParse } from './localStructuredOutput';
 import { queryPlanSchema, researchAnswerSchema } from '../domain/schemas';
 import { normalizeUrl } from '../domain/urlNormalize';
 import { containsPrescriptivePhrase, isDoseIntentQuestion } from '../domain/guards';
 import type { DoseTier, ResearchAnswer, WebSearchResult } from '../domain/types';
 import { containsDisallowedPhrase } from '@/lib/ai/domain/schemas';
-import { prisma } from '@/lib/shared/prisma';
-import { PrismaAuditRepo } from '@/lib/audit/infrastructure/PrismaAuditRepo';
-import type { AIOperation } from '@/lib/ai/domain/types';
+import {
+  STEP_TIMEOUT_MS,
+  classify,
+  emitResearchRunAudit,
+  runSearches,
+  selectSources,
+  buildSourceBlock,
+  makeKeepCited,
+} from './searchPipeline';
 
 export class ResearchUnavailableError extends Error {
   constructor(reason: string) {
@@ -35,13 +39,7 @@ interface RunInput {
   actorUserId: string;
 }
 
-const OPERATION: AIOperation = 'compound_research';
-const STEP_TIMEOUT_MS = 240_000;
-const MAX_SOURCE_CONTENT_CHARS = 3000;
-const MAX_SOURCES_FOR_SYNTHESIS = 8;
-const MAX_TOTAL_SOURCE_CHARS = 24_000;
 const MIN_DIRECT_ANSWER_CHARS = 80;
-const PER_QUERY_MAX_RESULTS = 5;
 // Neutral lead used when the model's prose directAnswer can't be shown verbatim — it tripped the
 // ADR-010 content guard (prescriptive phrasing, or an affirmative approval/clearance claim). The
 // structured sections below carry the answer. Kept ASCII and in sync with CompoundResearchPanel's
@@ -71,66 +69,9 @@ const SYNTH_SYSTEM =
   '"dosing":[{"text":string,"tier":string,"sourceUrls":[string]}],"caveatsGaps":[string],' +
   '"sourcesUsed":[{"title":string,"url":string}],"needsMoreEvidence":boolean}. No other text.';
 
-function classify(err: unknown): 'timeout' | 'aborted' | 'invalid_schema' | 'provider_error' {
-  if (!(err instanceof Error)) return 'provider_error';
-  if (err.message === 'ai_timeout' || err.name === 'TimeoutError') return 'timeout';
-  if (err.name === 'AbortError' || err.message === 'aborted') return 'aborted';
-  if (err.name === 'ZodError' || err.message.includes('no_json')) return 'invalid_schema';
-  return 'provider_error';
-}
-
-async function emitAudit(action: 'AI_REQUEST_INITIATED' | 'AI_REQUEST_FAILED', actorUserId: string, errors?: string[]) {
-  await PrismaAuditRepo.create(prisma as unknown as Prisma.TransactionClient, {
-    actorUserId,
-    category: 'Security',
-    action,
-    resourceId: OPERATION,
-    resourceType: 'AIRequest',
-    ...(errors ? { metadata: { errors } } : {}),
-  }).catch(() => null);
-}
-
-/** Run searches for `queries`, dedupe into `sources` using the shared `seen` set. */
-async function runSearches(queries: string[], seen: Set<string>, sources: WebSearchResult[]): Promise<void> {
-  for (const q of queries) {
-    const results = await webSearch(q, { maxResults: PER_QUERY_MAX_RESULTS });
-    for (const r of results) {
-      const key = normalizeUrl(r.url);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      sources.push(r);
-    }
-  }
-}
-
-/** Cap to MAX_SOURCES_FOR_SYNTHESIS then to MAX_TOTAL_SOURCE_CHARS; log drops. */
-function selectSources(sources: WebSearchResult[]): WebSearchResult[] {
-  const capped = sources.slice(0, MAX_SOURCES_FOR_SYNTHESIS);
-  const out: WebSearchResult[] = [];
-  let total = 0;
-  for (const s of capped) {
-    const text = (s.content ?? s.snippet).slice(0, MAX_SOURCE_CONTENT_CHARS);
-    if (total + text.length > MAX_TOTAL_SOURCE_CHARS) break;
-    total += text.length;
-    out.push(s);
-  }
-  const dropped = capped.length - out.length;
-  if (dropped > 0) console.warn(`[compoundResearch] dropped ${dropped} sources over char budget`);
-  return out;
-}
-
-function buildSourceBlock(sources: WebSearchResult[]): string {
-  return sources
-    .map((s, i) => `[${i + 1}] ${s.title}\nURL: ${s.url}\n${(s.content ?? s.snippet).slice(0, MAX_SOURCE_CONTENT_CHARS)}`)
-    .join('\n\n');
-}
-
 /** Citation + ADR-010 guard over the structured answer. */
 function applyGuards(ans: ResearchAnswer, fetched: WebSearchResult[]): ResearchAnswer {
-  const fetchedSet = new Set(fetched.map((s) => normalizeUrl(s.url)));
-  const fetchedByNorm = new Map(fetched.map((s) => [normalizeUrl(s.url), s.url] as const));
-  const keepCited = (urls: string[]): string[] =>
-    urls.map(normalizeUrl).filter((u) => fetchedSet.has(u)).map((u) => fetchedByNorm.get(u) ?? u);
+  const keepCited = makeKeepCited(fetched);
   const clean = (t: string) => !containsDisallowedPhrase(t) && !containsPrescriptivePhrase(t);
 
   const evidence = ans.evidence
@@ -171,7 +112,7 @@ function buildGapQueries(input: RunInput, ans: ResearchAnswer, doseIntent: boole
 }
 
 export async function runCompoundResearch(input: RunInput, onProgress: (e: ProgressEvent) => void): Promise<ResearchAnswer> {
-  await emitAudit('AI_REQUEST_INITIATED', input.actorUserId);
+  await emitResearchRunAudit('AI_REQUEST_INITIATED', input.actorUserId);
   const errors: string[] = [];
   try {
     const model = await getLocalModel();
@@ -228,12 +169,11 @@ export async function runCompoundResearch(input: RunInput, onProgress: (e: Progr
   } catch (err) {
     if (err instanceof ResearchUnavailableError) {
       errors.push(`local:${err.message}`);
-      await emitAudit('AI_REQUEST_FAILED', input.actorUserId, errors);
+      await emitResearchRunAudit('AI_REQUEST_FAILED', input.actorUserId, errors);
       throw err;
     }
     errors.push(`research:${classify(err)}`);
-    await emitAudit('AI_REQUEST_FAILED', input.actorUserId, errors);
+    await emitResearchRunAudit('AI_REQUEST_FAILED', input.actorUserId, errors);
     throw new ResearchUnavailableError('research_failed');
   }
 }
-
