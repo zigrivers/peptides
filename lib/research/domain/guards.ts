@@ -42,4 +42,3 @@ const DOSE_FIGURE_PATTERNS: RegExp[] = [
 export function containsDoseFigure(text: string): boolean {
   return DOSE_FIGURE_PATTERNS.some((re) => re.test(text));
 }
-
