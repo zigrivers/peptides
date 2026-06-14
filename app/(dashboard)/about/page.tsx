@@ -3,20 +3,17 @@ import { isLocalResearchEnabled } from '@/lib/ai/infrastructure/localModelClient
 import { FdaBriefingRepo } from '@/lib/research/infrastructure/FdaBriefingRepo';
 import { FdaBriefingSection } from './_components/FdaBriefingSection';
 import type { FdaBriefingResult } from '@/lib/research/domain/types';
+import { fdaBriefingSchema } from '@/lib/research/domain/schemas';
 import { ABOUT_SECTIONS } from './_content';
 
 export default async function AboutPage() {
-  const session = await auth();
-  const row = await FdaBriefingRepo.getGlobal();
+  const [session, row] = await Promise.all([auth(), FdaBriefingRepo.getGlobal()]);
   const canRefresh = session?.user?.role === 'POWER_USER' && (await isLocalResearchEnabled());
-  const initial = row
-    ? ({
-        summary: row.summary,
-        findings: row.findings as FdaBriefingResult['findings'],
-        sourcesUsed: row.sourcesUsed as FdaBriefingResult['sourcesUsed'],
-        updatedAt: row.updatedAt.toISOString(),
-      })
-    : null;
+  let initial: (FdaBriefingResult & { updatedAt: string }) | null = null;
+  if (row) {
+    const parsed = fdaBriefingSchema.safeParse({ summary: row.summary, findings: row.findings, sourcesUsed: row.sourcesUsed });
+    if (parsed.success) initial = { ...parsed.data, updatedAt: row.updatedAt.toISOString() };
+  }
 
   return (
     <div className="mx-auto max-w-3xl p-4 sm:p-6 space-y-8">

@@ -20,6 +20,13 @@ const briefing = { summary: 's', findings: [], sourcesUsed: [] };
 describe('refreshFdaBriefingAction', () => {
   beforeEach(() => { vi.clearAllMocks(); mockRun.mockResolvedValue(briefing); mockUpsert.mockResolvedValue({}); });
 
+  it('returns unauthorized when there is no session (no model call)', async () => {
+    mockAuth.mockResolvedValue(null);
+    const res = await refreshFdaBriefingAction();
+    expect(res).toMatchObject({ ok: false, error: 'unauthorized' });
+    expect(mockRun).not.toHaveBeenCalled();
+  });
+
   it('rejects a non-POWER_USER with forbidden (no model call)', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'MANAGED_USER' } });
     mockEnabled.mockResolvedValue(true);
@@ -43,5 +50,9 @@ describe('refreshFdaBriefingAction', () => {
     expect(res).toMatchObject({ ok: true });
     expect(mockRun).toHaveBeenCalledWith('u1');
     expect(mockUpsert).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((mockWithAudit.mock.calls[0] as any[])[1]).toMatchObject({
+      actorUserId: 'u1', action: 'FDA_BRIEFING_REFRESHED', resourceType: 'FdaBriefing', resourceId: 'global',
+    });
   });
 });

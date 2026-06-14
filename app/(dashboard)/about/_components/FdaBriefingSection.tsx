@@ -17,10 +17,15 @@ export function FdaBriefingSection({ initial, canRefresh }: Props) {
 
   async function onRefresh() {
     setBusy(true); setError(null);
-    const res = await refreshFdaBriefingAction();
-    setBusy(false);
-    if (res.ok) setBriefing({ ...res.briefing, updatedAt: new Date().toISOString() });
-    else setError(res.error === 'unavailable' ? 'Local model unavailable.' : 'Refresh failed.');
+    try {
+      const res = await refreshFdaBriefingAction();
+      if (res.ok) setBriefing({ ...res.briefing, updatedAt: new Date().toISOString() });
+      else setError(res.error === 'unavailable' ? 'Local model unavailable.' : 'Refresh failed.');
+    } catch {
+      setError('Refresh failed.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -28,7 +33,7 @@ export function FdaBriefingSection({ initial, canRefresh }: Props) {
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">FDA &amp; peptides: latest</h2>
         {canRefresh && (
-          <button onClick={onRefresh} disabled={busy} className="rounded-md border border-primary px-3 py-1.5 text-sm text-primary disabled:opacity-50 inline-flex items-center gap-1">
+          <button type="button" onClick={onRefresh} disabled={busy} className="rounded-md border border-primary px-3 py-1.5 text-sm text-primary disabled:opacity-50 inline-flex items-center gap-1">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null} {busy ? 'Refreshing…' : 'Refresh'}
           </button>
         )}
@@ -52,6 +57,18 @@ export function FdaBriefingSection({ initial, canRefresh }: Props) {
               </li>
             ))}
           </ul>
+          {briefing.sourcesUsed.length > 0 && (
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Sources</h3>
+              <ul className="mt-1 flex flex-wrap gap-2">
+                {briefing.sourcesUsed.map((s) => (
+                  <li key={s.url}>
+                    <a href={s.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-xs text-primary underline">{s.title}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p className="text-[11px] uppercase tracking-wide text-amber-600 dark:text-amber-400">Unverified — not medical advice.</p>
         </div>
       )}

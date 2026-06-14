@@ -38,7 +38,7 @@ export async function refreshFdaBriefingAction(): Promise<Result> {
         metadata: { findingCount: briefing.findings.length },
       } satisfies CreateAuditEventInput
     );
-    revalidatePath('/about');
+    try { revalidatePath('/about'); } catch { /* best-effort cache revalidation */ }
     return { ok: true, briefing };
   } catch {
     return { ok: false, error: 'failed' };
