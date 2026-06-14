@@ -8,6 +8,7 @@ import {
   containsPrescriptivePhrase,
   containsDoseFigure,
   stripDoseFigureSentences,
+  isDoseIntentQuestion,
 } from '../domain/guards';
 import type { DoseTier, ResearchAnswer, WebSearchResult } from '../domain/types';
 import { containsDisallowedPhrase } from '@/lib/ai/domain/schemas';
@@ -44,6 +45,7 @@ const STEP_TIMEOUT_MS = 240_000;
 const MAX_SOURCE_CONTENT_CHARS = 3000;
 const MAX_SOURCES_FOR_SYNTHESIS = 8;
 const MAX_TOTAL_SOURCE_CHARS = 24_000;
+const MIN_DIRECT_ANSWER_CHARS = 80;
 const PER_QUERY_MAX_RESULTS = 5;
 const WITHHELD = 'Summary withheld (policy).';
 
@@ -151,6 +153,23 @@ function applyGuards(ans: ResearchAnswer, fetched: WebSearchResult[]): ResearchA
   return { directAnswer, evidence, dosing, caveatsGaps, sourcesUsed, needsMoreEvidence: ans.needsMoreEvidence };
 }
 
+function needsGapFill(ans: ResearchAnswer, question: string, subQuestions: string[]): boolean {
+  if (!ans.directAnswer || ans.directAnswer === WITHHELD || ans.directAnswer.length < MIN_DIRECT_ANSWER_CHARS) return true;
+  if (ans.evidence.length === 0) return true;
+  const doseIntent = isDoseIntentQuestion(question) || subQuestions.some(isDoseIntentQuestion);
+  if (ans.dosing.length === 0 && doseIntent) return true;
+  if (ans.needsMoreEvidence) return true; // advisory: raises only
+  return false;
+}
+
+function buildGapQueries(ans: ResearchAnswer, input: RunInput, subQuestions: string[]): string[] {
+  const doseIntent = isDoseIntentQuestion(input.question) || subQuestions.some(isDoseIntentQuestion);
+  if (ans.dosing.length === 0 && doseIntent) {
+    return [`${input.compoundName} dosage protocol clinical study`, `${input.compoundName} dose frequency`];
+  }
+  return [`${input.compoundName} ${input.question} evidence study`];
+}
+
 export async function runCompoundResearch(input: RunInput, onProgress: (e: ProgressEvent) => void): Promise<ResearchAnswer> {
   await emitAudit('AI_REQUEST_INITIATED', input.actorUserId);
   const errors: string[] = [];
@@ -177,7 +196,7 @@ export async function runCompoundResearch(input: RunInput, onProgress: (e: Progr
 
     // Step 3 — synthesize + guard
     onProgress({ phase: 'synthesizing' });
-    const selected = selectSources(sources);
+    let selected = selectSources(sources);
     const synthesize = async (): Promise<ResearchAnswer> => {
       const raw = await tryGenerateObjectOrParse({
         model,
@@ -188,9 +207,17 @@ export async function runCompoundResearch(input: RunInput, onProgress: (e: Progr
       });
       return applyGuards(raw as ResearchAnswer, selected);
     };
-    const answer = await synthesize();
+    let answer = await synthesize();
 
-    // Step 4 — adaptive gap-fill (added in Task 3) — placeholder retained for one terminal result.
+    // Step 4 — adaptive gap-fill: at most ONE round, objective triggers (+ advisory needsMoreEvidence)
+    if (needsGapFill(answer, input.question, plan.subQuestions)) {
+      const gapQueries = buildGapQueries(answer, input, plan.subQuestions);
+      onProgress({ phase: 'gap_filling', query: gapQueries[0] });
+      await runSearches(gapQueries, seen, sources); // shared seen — overlaps deduped
+      onProgress({ phase: 'sources_found', count: sources.length });
+      selected = selectSources(sources);
+      answer = await synthesize(); // 2nd-round needsMoreEvidence is ignored — no further retry
+    }
 
     onProgress({ phase: 'result', result: answer });
     return answer;

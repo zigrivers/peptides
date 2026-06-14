@@ -67,19 +67,22 @@ describe('runCompoundResearch (structured)', () => {
   });
 
   it('strips dose figures from directAnswer and drops prescriptive/disallowed items', async () => {
+    // After guards, evidence=[] (prescriptive dropped) → gap-fill triggers; provide a 3rd mock to satisfy it.
+    const synthResult = {
+      directAnswer: 'GHK-Cu is studied for skin. Some report 1-2 mg per day.',
+      evidence: [{ point: 'You should take 2 mg daily.', sourceUrls: ['https://a.com'] }], // prescriptive -> dropped
+      dosing: [
+        { text: 'Topical 1-2% daily in cosmetic studies.', tier: 'clinical', sourceUrls: ['https://a.com'] },
+        { text: 'FDA-approved for healing.', tier: 'clinical', sourceUrls: ['https://a.com'] }, // disallowed -> dropped
+      ],
+      caveatsGaps: ['No age-specific data.'],
+      sourcesUsed: [{ title: 'S', url: 'https://a.com' }],
+      needsMoreEvidence: false,
+    };
     mockTry
       .mockResolvedValueOnce({ subQuestions: ['dose?'], queries: ['GHK-Cu dose'] })
-      .mockResolvedValueOnce({
-        directAnswer: 'GHK-Cu is studied for skin. Some report 1-2 mg per day.',
-        evidence: [{ point: 'You should take 2 mg daily.', sourceUrls: ['https://a.com'] }], // prescriptive -> dropped
-        dosing: [
-          { text: 'Topical 1-2% daily in cosmetic studies.', tier: 'clinical', sourceUrls: ['https://a.com'] },
-          { text: 'FDA-approved for healing.', tier: 'clinical', sourceUrls: ['https://a.com'] }, // disallowed -> dropped
-        ],
-        caveatsGaps: ['No age-specific data.'],
-        sourcesUsed: [{ title: 'S', url: 'https://a.com' }],
-        needsMoreEvidence: false,
-      });
+      .mockResolvedValueOnce(synthResult)   // synth #1 → gap-fill triggers (evidence=[] after guard)
+      .mockResolvedValueOnce(synthResult);  // synth #2 (gap-fill round) → same result
     mockWebSearch.mockResolvedValue([{ title: 'S', url: 'https://a.com', snippet: 's', content: 'c' }]);
 
     const res = await runCompoundResearch(
@@ -97,5 +100,49 @@ describe('runCompoundResearch (structured)', () => {
   it('throws typed error + failed audit when the local model is unavailable', async () => {
     mockGetLocalModel.mockResolvedValue(null);
     await expect(runCompoundResearch(baseInput, () => {})).rejects.toThrow(/local_model_unavailable/);
+  });
+
+  it('runs ONE gap-fill round when dosing is empty for a dose-intent question', async () => {
+    mockTry
+      .mockResolvedValueOnce({ subQuestions: ['dose?'], queries: ['GHK-Cu dose'] })       // plan
+      .mockResolvedValueOnce({                                                              // synth #1: no dosing
+        directAnswer: 'GHK-Cu is studied for skin repair and wound healing in animal models.',
+        evidence: [{ point: 'Skin repair in studies.', sourceUrls: ['https://a.com'] }],
+        dosing: [], caveatsGaps: [], sourcesUsed: [{ title: 'A', url: 'https://a.com' }], needsMoreEvidence: false,
+      })
+      .mockResolvedValueOnce({                                                              // synth #2 (gap-fill): dosing found
+        directAnswer: 'GHK-Cu is studied for skin repair and wound healing in animal models.',
+        evidence: [{ point: 'Skin repair in studies.', sourceUrls: ['https://a.com'] }],
+        dosing: [{ text: 'Topical 1-2% daily in studies.', tier: 'clinical', sourceUrls: ['https://b.com'] }],
+        caveatsGaps: [], sourcesUsed: [{ title: 'B', url: 'https://b.com' }], needsMoreEvidence: true,
+      });
+    mockWebSearch
+      .mockResolvedValueOnce([{ title: 'A', url: 'https://a.com', snippet: 's', content: 'c' }]) // initial search
+      .mockResolvedValueOnce([{ title: 'B', url: 'https://b.com', snippet: 's', content: 'c' }]) // gap-fill query 1
+      .mockResolvedValueOnce([]); // gap-fill query 2 (no new results)
+
+    const events: { phase: string }[] = [];
+    const res = await runCompoundResearch(
+      { ...baseInput, question: 'what dose and how often?' },
+      (e) => events.push(e as { phase: string })
+    );
+
+    expect(mockTry).toHaveBeenCalledTimes(3);                       // plan + 2 synth (no 2nd plan)
+    expect(events.map((e) => e.phase)).toContain('gap_filling');
+    expect(res.dosing).toHaveLength(1);
+    expect(events.filter((e) => e.phase === 'result')).toHaveLength(1); // single terminal result
+  });
+
+  it('does NOT gap-fill when the first answer is complete', async () => {
+    mockTry
+      .mockResolvedValueOnce({ subQuestions: ['q'], queries: ['q'] })
+      .mockResolvedValueOnce({
+        directAnswer: 'A thorough, sufficiently long direct answer about the compound and its studied effects.',
+        evidence: [{ point: 'Effect.', sourceUrls: ['https://a.com'] }],
+        dosing: [], caveatsGaps: [], sourcesUsed: [{ title: 'A', url: 'https://a.com' }], needsMoreEvidence: false,
+      });
+    mockWebSearch.mockResolvedValue([{ title: 'A', url: 'https://a.com', snippet: 's', content: 'c' }]);
+    await runCompoundResearch({ ...baseInput, question: 'what is the mechanism?' }, () => {});
+    expect(mockTry).toHaveBeenCalledTimes(2); // plan + 1 synth only
   });
 });
