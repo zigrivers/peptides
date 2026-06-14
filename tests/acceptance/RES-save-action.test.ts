@@ -42,8 +42,8 @@ describe('research server actions', () => {
   it('save persists valid findings', async () => {
     mockSave.mockResolvedValue({ savedCount: 1 });
     const res = await saveCompoundResearchNotesAction({
-      catalogItemId: 'c1', question: 'q', answerSummary: 's',
-      approvedFindings: [{ claim: 'c', citations: [{ title: 't', url: 'https://a.com' }] }],
+      catalogItemId: 'c1', question: 'q',
+      sections: [{ type: 'evidence', content: 'c', tier: null, citations: [{ title: 't', url: 'https://a.com' }] }],
     });
     expect(res).toMatchObject({ ok: true, savedCount: 1 });
     expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ actorUserId: 'u1', catalogItemId: 'c1' }));
