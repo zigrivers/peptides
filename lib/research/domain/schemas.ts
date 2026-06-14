@@ -41,27 +41,27 @@ export const runResearchInputSchema = z.object({
   question: z.string().trim().min(1).max(500),
 });
 
-/** Save action input. */
+export const sectionTypeSchema = z.enum(['direct_answer', 'evidence', 'dosing', 'caveats']);
+
 export const saveNotesInputSchema = z.object({
   catalogItemId: z.string().min(1),
   question: z.string().trim().min(1).max(500),
-  answerSummary: z.string().max(4000).nullable().default(null),
-  approvedFindings: z
+  sections: z
     .array(
-      z.object({
-        claim: z.string().trim().min(1).max(4000),
-        citations: z
-          .array(
-            z.object({
-              title: z.string().trim().min(1).max(300),
-              url: z.string().refine(isHttpUrl, 'must be an http(s) URL'),
-            })
-          )
-          .min(1)
-          .max(10),
-      })
+      z
+        .object({
+          type: sectionTypeSchema,
+          content: z.string().trim().min(1).max(4000),
+          tier: doseTierSchema.nullable().default(null),
+          citations: z
+            .array(z.object({ title: z.string().trim().min(1).max(300), url: z.string().refine(isHttpUrl, 'must be an http(s) URL') }))
+            .max(25),
+        })
+        .refine((s) => (s.type === 'dosing' ? s.tier !== null : s.tier === null), { message: 'tier must be set only for dosing sections' })
+        .refine((s) => (s.type === 'evidence' || s.type === 'dosing' ? s.citations.length >= 1 : true), { message: 'evidence and dosing sections require at least one citation' })
     )
     .min(1)
-    .max(25),
+    .max(4)
+    .refine((arr) => new Set(arr.map((s) => s.type)).size === arr.length, { message: 'duplicate_section_type' }),
 });
 export type SaveNotesInput = z.infer<typeof saveNotesInputSchema>;
