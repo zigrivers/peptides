@@ -14,7 +14,7 @@
  *
  * 2. ENABLE GATE (ADR-017) — listCompoundResearchAction runs as a Next.js
  *    server action on every mount of CompoundResearchPanel. It calls
- *    isCompoundResearchEnabled(), which reads the LOCAL_LLM_BASE_URL
+ *    isLocalResearchEnabled(), which reads the LOCAL_LLM_BASE_URL
  *    environment variable on the server. When that variable is unset (the
  *    default in CI / developer machines without a local LLM), enabled is
  *    false and the panel renders "Research assistant is unavailable right
