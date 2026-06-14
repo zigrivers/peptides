@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import { X, Sparkles, ShieldAlert, Link2 } from 'lucide-react';
 import type { CatalogItem, Citation, BenefitTimelineItem, CompoundProfile, SupplementProfile } from '@/lib/reference/domain/types';
 import { CompoundResearchPanel } from '@/app/(dashboard)/reference/_components/CompoundResearchPanel';
@@ -415,7 +416,8 @@ export function CompoundInfoModal({ compound, isOpen, onClose }: CompoundInfoMod
                     <div className="border border-red-200 dark:border-red-950/30 bg-red-50/40 dark:bg-red-950/10 p-3.5 rounded-xl text-red-800 dark:text-red-300 flex gap-2">
                       <ShieldAlert className="h-4.5 w-4.5 shrink-0 mt-0.5" />
                       <div className="text-xs leading-relaxed">
-                        <strong className="font-semibold">RESEARCH-USE ONLY:</strong> This compound is not FDA-approved for therapeutic human use. Dosing references are derived from scientific literature and clinical studies.
+                        <strong className="font-semibold">NOT FDA-APPROVED:</strong> This compound is not FDA-approved for the uses described here. Dosing references are reported from scientific literature and community sources for your information — not medical advice or a prescription. See{' '}
+                        <Link href="/about" className="underline">About</Link>.
                       </div>
                     </div>
                   )}
