@@ -1,6 +1,23 @@
+import { auth } from '@/lib/auth';
+import { isLocalResearchEnabled } from '@/lib/ai/infrastructure/localModelClient';
+import { FdaBriefingRepo } from '@/lib/research/infrastructure/FdaBriefingRepo';
+import { FdaBriefingSection } from './_components/FdaBriefingSection';
+import type { FdaBriefingResult } from '@/lib/research/domain/types';
 import { ABOUT_SECTIONS } from './_content';
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const session = await auth();
+  const row = await FdaBriefingRepo.getGlobal();
+  const canRefresh = session?.user?.role === 'POWER_USER' && (await isLocalResearchEnabled());
+  const initial = row
+    ? ({
+        summary: row.summary,
+        findings: row.findings as FdaBriefingResult['findings'],
+        sourcesUsed: row.sourcesUsed as FdaBriefingResult['sourcesUsed'],
+        updatedAt: row.updatedAt.toISOString(),
+      })
+    : null;
+
   return (
     <div className="mx-auto max-w-3xl p-4 sm:p-6 space-y-8">
       <header>
@@ -21,7 +38,7 @@ export default function AboutPage() {
           )}
         </section>
       ))}
-      {/* Task 5 inserts <FdaBriefingSection /> here */}
+      <FdaBriefingSection initial={initial} canRefresh={canRefresh} />
     </div>
   );
 }
