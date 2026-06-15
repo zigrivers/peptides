@@ -341,6 +341,8 @@ export function ReconstitutionClient({
           compounds={compounds}
           dryVials={dryVials}
           subjectUserId={userId}
+          syringeStandard={syringeStandard}
+          syringeSize={syringeSize}
           onSuccess={() => playSoundEffect('chime')}
           onClose={() => setShowAddActiveModal(false)}
         />

@@ -152,6 +152,37 @@ describe('AddActiveVialModal', () => {
     expect(compoundSelect.value).toBe(compound.id);
   });
 
+  it('renders a live syringe preview once total mg and BAC water are set', async () => {
+    render(
+      <AddActiveVialModal
+        compounds={[compound]}
+        dryVials={[]}
+        syringeStandard="U100"
+        onClose={vi.fn()}
+      />
+    );
+
+    fireEvent.change(await screen.findByLabelText(/compound/i), {
+      target: { value: compound.id },
+    });
+    fireEvent.change(screen.getByLabelText(/vial size/i), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText(/bac water volume/i), { target: { value: '2' } });
+
+    expect(await screen.findByText(/syringe preview/i)).toBeTruthy();
+    expect(screen.getByText(/Conservative/)).toBeTruthy();
+    expect(screen.getByText(/Typical/)).toBeTruthy();
+    expect(screen.getByText(/Aggressive/)).toBeTruthy();
+    expect(screen.getAllByText(/units/i).length).toBeGreaterThan(0);
+  });
+
+  it('does not render the syringe preview before total mg and BAC water are provided', async () => {
+    render(<AddActiveVialModal compounds={[compound]} dryVials={[]} syringeStandard="U100" onClose={vi.fn()} />);
+
+    await screen.findByRole('dialog', { name: /add reconstituted vial/i });
+
+    expect(screen.queryByText(/syringe preview/i)).toBeNull();
+  });
+
   it('allows pulling from existing freezer inventory and calls reconstituteDryVialAction', async () => {
     vi.mocked(reconstituteDryVialAction).mockResolvedValue({ ok: true });
 
