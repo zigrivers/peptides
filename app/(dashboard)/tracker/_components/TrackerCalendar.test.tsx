@@ -999,6 +999,19 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     expect(screen.queryByText(/Expected to support/)).toBeNull();
   });
 
+  it('shows the dose cadence on the route line', () => {
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+    fireEvent.click(screen.getByLabelText(/May 25/));
+    expect(screen.getAllByText(/Every other day/).length).toBeGreaterThan(0);
+  });
+
   it('opens the compound details modal when clicking the compound name', () => {
     render(
       <TrackerCalendar

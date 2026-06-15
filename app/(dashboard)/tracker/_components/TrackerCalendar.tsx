@@ -17,6 +17,7 @@ import { calculateStreak, type StreakResult } from '@/lib/tracker/domain/streak'
 import { ConfettiCanvas } from '@/app/(dashboard)/dashboard/_components/ConfettiCanvas';
 import { SitePicker, type SiteData, formatSiteLabel, formatSiteUseAgeForSentence } from './SitePicker';
 import { toUTCDay, localDayAnchoredUTC } from '@/lib/shared/date';
+import { formatScheduleFrequency } from '@/lib/tracker/domain/schedule';
 import { CompoundInfoModal } from './CompoundInfoModal';
 
 type CalendarEvent = {
@@ -35,6 +36,7 @@ type CalendarEvent = {
   isOffline?: boolean;
   scheduledDateStr?: string;
   administrationRoute?: string;
+  scheduleSummary?: string;
 };
 
 interface SerializedProtocol extends Omit<Protocol, 'startDate' | 'endDate'> {
@@ -298,6 +300,14 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
     })) as Protocol[];
   }, [serializedProtocols]);
 
+  const protocolsById = React.useMemo(() => {
+    const map: Record<string, Protocol> = {};
+    for (const p of protocols) {
+      map[p.id] = p;
+    }
+    return map;
+  }, [protocols]);
+
   const router = useRouter();
   const [localLogs, setLocalLogs] = useState(doseLogs);
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
@@ -449,6 +459,9 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
       isOffline: 'isOffline' in log ? (log as { isOffline?: boolean }).isOffline : undefined,
       scheduledDateStr: dateStr,
       administrationRoute: proto?.administrationRoute,
+      scheduleSummary: protocolsById[log.protocolId]
+        ? formatScheduleFrequency(protocolsById[log.protocolId].schedule)
+        : undefined,
     });
   });
 
@@ -481,6 +494,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
         type: 'SCHEDULED',
         scheduledDateStr: dateStr,
         administrationRoute: p.administrationRoute,
+        scheduleSummary: formatScheduleFrequency(p.schedule),
       });
     });
   });
@@ -1138,6 +1152,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                           ) : (
                             e.administrationRoute ? (e.administrationRoute.charAt(0).toUpperCase() + e.administrationRoute.slice(1).toLowerCase()) : 'Subcutaneous'
                           )}
+                          {e.scheduleSummary ? <span className="text-gray-400"> · {e.scheduleSummary}</span> : null}
                         </p>
                       </div>
 
