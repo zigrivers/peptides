@@ -269,6 +269,7 @@ export default async function TrackerPage() {
               compounds={compoundsMap}
               siteSuggestions={siteSuggestions}
               initialDateISO={todayUTC.toISOString()}
+              followClientToday
               loggedDates={loggedDates}
               doseUnitsByCompoundId={doseUnitsByCompoundId}
               syringeStandard={syringeStandard}

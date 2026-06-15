@@ -1027,6 +1027,38 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     // Modal should be closed / not showing close button anymore
     expect(screen.queryByText('Close')).toBeNull();
   });
+
+  // System time is faked to Sunday, May 24, 2026 (see beforeEach). These guard the
+  // timezone bug where the tracker showed tomorrow as "today" for viewers behind UTC.
+  it('corrects the selected day to the local "today" on mount when followClientToday is set', async () => {
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        // Seed a DIFFERENT day (Wed May 20) — the mount correction must override it
+        // with the viewer's local today (Sun May 24).
+        initialDateISO="2026-05-20T00:00:00.000Z"
+        followClientToday
+      />
+    );
+
+    expect(await screen.findByText(/Doses for Sunday, May 24/)).toBeDefined();
+    expect(screen.queryByText(/Doses for Wednesday, May 20/)).toBeNull();
+  });
+
+  it('honors the pinned initialDateISO when followClientToday is not set', () => {
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        initialDateISO="2026-05-20T00:00:00.000Z"
+      />
+    );
+
+    expect(screen.getByText(/Doses for Wednesday, May 20/)).toBeDefined();
+  });
 });
 
 describe('getWeekInfo Unit Tests', () => {

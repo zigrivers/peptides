@@ -3,6 +3,22 @@ export function utcMidnightToday(): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
+/**
+ * The viewer's LOCAL calendar day, anchored to UTC midnight.
+ *
+ * The tracker calendar operates entirely in UTC-anchored date strings, but "today"
+ * must reflect the user's wall-clock day, not the UTC day. Deriving today from UTC
+ * (e.g. getUTCDate / `new Date().toISOString()`) rolls the day forward for users
+ * behind UTC in the evening — 8pm Mountain is already next-day 02:00 UTC — so the
+ * app highlights tomorrow as "today". Reading LOCAL getters and anchoring to UTC
+ * midnight keeps "today" correct while staying in the calendar's date-string space.
+ *
+ * @param now defaults to the current time; injectable for testing.
+ */
+export function localDayAnchoredUTC(now: Date = new Date()): Date {
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+}
+
 export function utcMidnightOf(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }

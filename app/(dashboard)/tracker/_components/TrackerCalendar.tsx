@@ -16,7 +16,7 @@ import type { DoseUnitsDisplay } from '@/lib/reconstitution/domain/doseUnits';
 import { calculateStreak, type StreakResult } from '@/lib/tracker/domain/streak';
 import { ConfettiCanvas } from '@/app/(dashboard)/dashboard/_components/ConfettiCanvas';
 import { SitePicker, type SiteData, formatSiteLabel, formatSiteUseAgeForSentence } from './SitePicker';
-import { toUTCDay } from '@/lib/shared/date';
+import { toUTCDay, localDayAnchoredUTC } from '@/lib/shared/date';
 import { CompoundInfoModal } from './CompoundInfoModal';
 
 type CalendarEvent = {
@@ -61,6 +61,13 @@ interface Props {
   >;
   siteSuggestions?: Record<string, SiteData>;
   initialDateISO: string;
+  /**
+   * When true, the client corrects the selected day to the viewer's LOCAL "today"
+   * after hydration. The server computes `initialDateISO` in UTC and cannot know the
+   * viewer's timezone, so a user behind UTC in the evening would otherwise land on
+   * tomorrow. Tests / deep-links that pin a specific date leave this off.
+   */
+  followClientToday?: boolean;
   loggedDates?: string[];
   /** Server-computed "units to draw" per compound for SCHEDULED doses (no Decimals client-side). */
   doseUnitsByCompoundId?: Record<string, DoseUnitsDisplay>;
@@ -282,7 +289,7 @@ function getSundayOfWeek(d: Date): Date {
 const EMPTY_DATES: string[] = [];
 const EMPTY_DOSE_UNITS: Record<string, DoseUnitsDisplay> = {};
 
-export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, compounds, siteSuggestions = {}, initialDateISO, loggedDates = EMPTY_DATES, doseUnitsByCompoundId = EMPTY_DOSE_UNITS, cycles = {} }: Props) {
+export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, compounds, siteSuggestions = {}, initialDateISO, followClientToday = false, loggedDates = EMPTY_DATES, doseUnitsByCompoundId = EMPTY_DOSE_UNITS, cycles = {} }: Props) {
   const protocols = React.useMemo(() => {
     return serializedProtocols.map((p) => ({
       ...p,
@@ -329,11 +336,22 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
 
   // Client-side timezone-resilient streak calculation
   useEffect(() => {
-    const now = new Date();
-    const clientTodayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-    const calculated = calculateStreak(loggedDates, clientTodayUTC);
+    const calculated = calculateStreak(loggedDates, localDayAnchoredUTC());
     setStreak(calculated);
   }, [loggedDates]);
+
+  // Correct the initial selection to the viewer's LOCAL "today" after hydration.
+  // `initialDateISO` is the server's UTC "today" (used as the SSR seed to avoid a
+  // hydration mismatch); the server can't know the viewer's timezone, so a user
+  // behind UTC in the evening would otherwise see tomorrow selected/highlighted.
+  // Runs once on mount; only when the page opts in (not for pinned-date tests).
+  useEffect(() => {
+    if (!followClientToday) return;
+    const today = localDayAnchoredUTC();
+    setSelectedDate(today);
+    setCurrentWeekStart(getSundayOfWeek(today));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Completed-day celebration triggers
   useEffect(() => {
@@ -383,8 +401,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
   };
 
   const handleJumpToToday = () => {
-    const today = new Date();
-    const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+    const todayUTC = localDayAnchoredUTC();
     setSelectedDate(todayUTC);
     setCurrentWeekStart(getSundayOfWeek(todayUTC));
   };
@@ -482,7 +499,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toUTCDateString(localDayAnchoredUTC());
   const selectedDateStr = selectedDate.toISOString().split('T')[0];
   const selectedEvents = eventsByDateString[selectedDateStr] || [];
 
