@@ -17,7 +17,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const VENDOR_NAME = 'QSC';
-const VENDOR_TELEGRAM = 'qsc'; // placeholder handle — edit in-app if the real one is known
+const VENDOR_TELEGRAM = 'tracyfromqsc'; // QSC's Telegram contact (stored without the leading @)
 const VENDOR_CURRENCY = 'USD';
 
 // Each row: catalog compound name (must match CatalogItem.name exactly),
