@@ -441,6 +441,52 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     );
   });
 
+  it('falls back to the planned amount when the dose field is cleared', async () => {
+    const mockLogDoseAction = vi.mocked(logDoseAction);
+    mockLogDoseAction.mockResolvedValue({
+      ok: true,
+      doseLog: { id: 'new-log-2', status: 'LOGGED' } as unknown as DoseLog,
+      warnings: [],
+    });
+
+    const mockSiteSuggestions = {
+      'proto-1': {
+        suggestion: { side: 'left' as const, bodyPart: 'abdomen' },
+        validSites: [
+          { side: 'left' as const, bodyPart: 'abdomen' },
+          { side: 'right' as const, bodyPart: 'abdomen' },
+        ],
+        siteMeta: [
+          { site: { side: 'left' as const, bodyPart: 'abdomen' }, daysSinceLastUse: 3, isRested: false, lastUsed: null },
+        ],
+        recentSites: [{ side: 'left' as const, bodyPart: 'abdomen' }],
+      },
+    };
+
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        siteSuggestions={mockSiteSuggestions}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/May 24/));
+    const doseInput = await screen.findByLabelText(/^dose$/i);
+    // Clear the field, then log — should send the planned amount (2.5 mg), not "".
+    fireEvent.change(doseInput, { target: { value: '' } });
+    fireEvent.click(screen.getByText('Left Lower Abdomen'));
+    fireEvent.click(screen.getByRole('button', { name: 'Log Dose' }));
+
+    await waitFor(() =>
+      expect(mockLogDoseAction).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: { amount: '2.5', unit: 'mg' } })
+      )
+    );
+  });
+
   it('labels site history relative to the selected calendar date, not loggedAt or stale server metadata', () => {
     const testosteroneProtocol: Protocol = {
       id: 'proto-test',

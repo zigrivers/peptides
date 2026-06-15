@@ -762,6 +762,14 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
 
     const targetDateStr = event.scheduledDateStr || selectedDateStr;
 
+    // Honor a per-dose amount override on both the online and offline paths.
+    // A blank field falls back to the planned dose (no empty round-trip to the server).
+    const trimmedOverride = (editAmount[event.id] ?? '').trim();
+    const effectiveAmount = {
+      amount: trimmedOverride !== '' ? trimmedOverride : event.doseAmount,
+      unit: event.doseUnit as 'mcg' | 'mg' | 'IU' | 'mL',
+    };
+
     if (status === 'LOGGED' && requiresSite && !eventSite) {
       setLogErrors((prev) => ({ ...prev, [event.id]: 'Please select an injection site.' }));
       return;
@@ -775,7 +783,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
           protocolId: event.protocolId,
           scheduledDate: targetDateStr,
           deviceId: 'web-client',
-          amount: { amount: event.doseAmount, unit: event.doseUnit as 'mcg' | 'mg' | 'IU' | 'mL' },
+          amount: effectiveAmount,
           status,
           injectionSite: status === 'LOGGED' ? (eventSite ?? undefined) : undefined,
           note: eventNote.trim(),
@@ -787,7 +795,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
             protocolId: event.protocolId,
             status,
             scheduledDate: new Date(targetDateStr + 'T00:00:00.000Z').toISOString(),
-            amount: { amount: event.doseAmount, unit: event.doseUnit as 'mcg' | 'mg' | 'IU' | 'mL' },
+            amount: effectiveAmount,
             loggedAt: new Date().toISOString(),
             isOffline: true,
             note: eventNote.trim() || null,
@@ -833,7 +841,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
         const result = await logDoseAction({
           id: event.type !== 'SCHEDULED' && !event.id.startsWith('scheduled-') ? event.id : undefined,
           protocolId: event.protocolId,
-          amount: { amount: (editAmount[event.id] ?? event.doseAmount), unit: event.doseUnit },
+          amount: effectiveAmount,
           status,
           injectionSite: status === 'LOGGED' ? (eventSite ?? undefined) : undefined,
           note: eventNote.trim(),
