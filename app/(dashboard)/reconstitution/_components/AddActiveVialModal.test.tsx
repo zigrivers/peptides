@@ -138,6 +138,20 @@ describe('AddActiveVialModal', () => {
     });
   });
 
+  it('preselects the compound when initialCompoundId is provided', async () => {
+    render(
+      <AddActiveVialModal
+        compounds={[compound]}
+        dryVials={[]}
+        initialCompoundId={compound.id}
+        onClose={vi.fn()}
+      />
+    );
+
+    const compoundSelect = (await screen.findByLabelText(/compound/i)) as HTMLSelectElement;
+    expect(compoundSelect.value).toBe(compound.id);
+  });
+
   it('allows pulling from existing freezer inventory and calls reconstituteDryVialAction', async () => {
     vi.mocked(reconstituteDryVialAction).mockResolvedValue({ ok: true });
 

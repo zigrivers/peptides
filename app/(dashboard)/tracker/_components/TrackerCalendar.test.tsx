@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react';
 import { TrackerCalendar, getWeekInfo } from './TrackerCalendar';
 import type { Protocol, DoseLog } from '@/lib/tracker/domain/types';
 import { logDoseAction } from '@/app/actions/tracker/log-dose';
@@ -38,6 +38,11 @@ vi.mock('@/app/actions/reference/delete-compound-research-note', () => ({
 
 vi.mock('@/app/(dashboard)/dashboard/_components/ConfettiCanvas', () => ({
   ConfettiCanvas: () => null,
+}));
+
+vi.mock('@/app/actions/reconstitution/inventory-actions', () => ({
+  addReconstitutedVialAction: vi.fn(),
+  reconstituteDryVialAction: vi.fn(),
 }));
 
 describe('TrackerCalendar Component UI/UX with JSDOM', () => {
@@ -301,6 +306,185 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
       note: 'felt excellent',
       scheduledDate: '2026-05-24',
     });
+  });
+
+  const mockSiteSuggestionsForInventory = {
+    'proto-1': {
+      suggestion: { side: 'left' as const, bodyPart: 'abdomen' },
+      validSites: [
+        { side: 'left' as const, bodyPart: 'abdomen' },
+        { side: 'right' as const, bodyPart: 'abdomen' },
+      ],
+      siteMeta: [
+        { site: { side: 'left' as const, bodyPart: 'abdomen' }, daysSinceLastUse: 3, isRested: false, lastUsed: null },
+      ],
+      recentSites: [{ side: 'left' as const, bodyPart: 'abdomen' }],
+    },
+  };
+
+  async function triggerInsufficientInventoryWarning() {
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        siteSuggestions={mockSiteSuggestionsForInventory}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+        dryVials={[]}
+        compoundOptions={[
+          { id: 'compound-tirz', name: 'Tirzepatide', slug: 'tirzepatide', profile: null } as never,
+        ]}
+      />
+    );
+
+    // Expand the scheduled dose for proto-1 (Tirzepatide) on May 24
+    fireEvent.click(screen.getByLabelText(/May 24/));
+
+    // Select an injection site (required to log)
+    fireEvent.click(screen.getByText('Left Lower Abdomen'));
+
+    // Click Log Dose
+    fireEvent.click(screen.getByRole('button', { name: 'Log Dose' }));
+  }
+
+  it('shows a friendly insufficient-inventory warning with an Add inventory action', async () => {
+    vi.mocked(logDoseAction).mockResolvedValueOnce({
+      ok: true,
+      doseLog: { id: 'newlog' } as never,
+      warnings: [
+        {
+          code: 'insufficient_inventory',
+          message: "Your active vial couldn't cover this dose — inventory may be inaccurate.",
+        },
+      ],
+    });
+
+    await triggerInsufficientInventoryWarning();
+
+    expect(await screen.findByText(/inventory may be inaccurate/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /add inventory/i })).toBeDefined();
+  });
+
+  it('opens the Add Vial modal when Add inventory is clicked', async () => {
+    vi.mocked(logDoseAction).mockResolvedValueOnce({
+      ok: true,
+      doseLog: { id: 'newlog' } as never,
+      warnings: [
+        {
+          code: 'insufficient_inventory',
+          message: "Your active vial couldn't cover this dose — inventory may be inaccurate.",
+        },
+      ],
+    });
+
+    await triggerInsufficientInventoryWarning();
+
+    fireEvent.click(await screen.findByRole('button', { name: /add inventory/i }));
+
+    expect(await screen.findByRole('dialog', { name: /add .*vial/i })).toBeDefined();
+  });
+
+  it('logs an overridden dose amount and shows the planned hint', async () => {
+    const mockLogDoseAction = vi.mocked(logDoseAction);
+    mockLogDoseAction.mockResolvedValue({
+      ok: true,
+      doseLog: { id: 'new-log-1', status: 'LOGGED' } as unknown as DoseLog,
+      warnings: [],
+    });
+
+    const mockSiteSuggestions = {
+      'proto-1': {
+        suggestion: { side: 'left' as const, bodyPart: 'abdomen' },
+        validSites: [
+          { side: 'left' as const, bodyPart: 'abdomen' },
+          { side: 'right' as const, bodyPart: 'abdomen' },
+        ],
+        siteMeta: [
+          { site: { side: 'left' as const, bodyPart: 'abdomen' }, daysSinceLastUse: 3, isRested: false, lastUsed: null },
+        ],
+        recentSites: [
+          { side: 'left' as const, bodyPart: 'abdomen' },
+        ],
+      },
+    };
+
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        siteSuggestions={mockSiteSuggestions}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+
+    // Selecting cell for May 24 to reveal the inline log panel for proto-1
+    const cell24 = screen.getByLabelText(/May 24/);
+    fireEvent.click(cell24);
+
+    // Override the planned dose amount
+    const doseInput = await screen.findByLabelText(/^dose$/i);
+    fireEvent.change(doseInput, { target: { value: '12' } });
+    expect(screen.getByText(/Planned:/i)).toBeDefined();
+
+    // Select an injection site manually (required to log)
+    fireEvent.click(screen.getByText('Left Lower Abdomen'));
+
+    // Click Log Dose button
+    const logBtn = screen.getByRole('button', { name: 'Log Dose' });
+    fireEvent.click(logBtn);
+
+    await waitFor(() =>
+      expect(mockLogDoseAction).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: expect.objectContaining({ amount: '12' }) })
+      )
+    );
+  });
+
+  it('falls back to the planned amount when the dose field is cleared', async () => {
+    const mockLogDoseAction = vi.mocked(logDoseAction);
+    mockLogDoseAction.mockResolvedValue({
+      ok: true,
+      doseLog: { id: 'new-log-2', status: 'LOGGED' } as unknown as DoseLog,
+      warnings: [],
+    });
+
+    const mockSiteSuggestions = {
+      'proto-1': {
+        suggestion: { side: 'left' as const, bodyPart: 'abdomen' },
+        validSites: [
+          { side: 'left' as const, bodyPart: 'abdomen' },
+          { side: 'right' as const, bodyPart: 'abdomen' },
+        ],
+        siteMeta: [
+          { site: { side: 'left' as const, bodyPart: 'abdomen' }, daysSinceLastUse: 3, isRested: false, lastUsed: null },
+        ],
+        recentSites: [{ side: 'left' as const, bodyPart: 'abdomen' }],
+      },
+    };
+
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        siteSuggestions={mockSiteSuggestions}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/May 24/));
+    const doseInput = await screen.findByLabelText(/^dose$/i);
+    // Clear the field, then log — should send the planned amount (2.5 mg), not "".
+    fireEvent.change(doseInput, { target: { value: '' } });
+    fireEvent.click(screen.getByText('Left Lower Abdomen'));
+    fireEvent.click(screen.getByRole('button', { name: 'Log Dose' }));
+
+    await waitFor(() =>
+      expect(mockLogDoseAction).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: { amount: '2.5', unit: 'mg' } })
+      )
+    );
   });
 
   it('labels site history relative to the selected calendar date, not loggedAt or stale server metadata', () => {
@@ -997,6 +1181,19 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     
     // The expected benefits text should not be present
     expect(screen.queryByText(/Expected to support/)).toBeNull();
+  });
+
+  it('shows the dose cadence on the route line', () => {
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+    fireEvent.click(screen.getByLabelText(/May 25/));
+    expect(screen.getAllByText(/Every other day/).length).toBeGreaterThan(0);
   });
 
   it('opens the compound details modal when clicking the compound name', () => {

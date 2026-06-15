@@ -6,21 +6,16 @@ import Decimal from 'decimal.js';
 import type { Compound, DoseAmount } from '@/lib/reference/domain/types';
 import { createProtocolAction } from '@/app/actions/tracker/create-protocol';
 import { parseCompoundDosing } from '@/lib/reference/domain/validation';
+import type { Schedule } from '@/lib/tracker/domain/types';
+import { formatScheduleFrequency } from '@/lib/tracker/domain/schedule';
 
 type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 const DAYS: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 type CycleOption = { id: string; name: string };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatScheduleText(schedule: any): string {
-  if (schedule.frequency === 'Daily') return 'Every day';
-  if (schedule.frequency === 'EOD') return 'Every other day';
-  if (schedule.frequency === 'CustomInterval') return `Every ${schedule.intervalDays} days`;
-  if (schedule.frequency === 'SpecificDaysOfWeek') {
-    return `On ${schedule.daysOfWeek?.join(', ') || ''}`;
-  }
-  return 'Custom schedule';
+function formatScheduleText(schedule: Schedule): string {
+  return formatScheduleFrequency(schedule);
 }
 
 type ManagedUser = {

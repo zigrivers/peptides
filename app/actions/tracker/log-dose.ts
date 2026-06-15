@@ -94,6 +94,12 @@ export async function logDoseAction(input: unknown): Promise<LogDoseActionResult
     if (/protocol is not active/i.test(msg)) {
       return { ok: false, error: 'protocol_not_active', message: msg };
     }
-    return { ok: false, error: 'unknown', message: msg };
+    if (/^insufficient_inventory/.test(msg)) {
+      return { ok: false, error: 'insufficient_inventory', message: 'Not enough inventory to fully cover this dose. Add inventory to keep your stock accurate.' };
+    }
+    if (/invalid_input/.test(msg)) {
+      return { ok: false, error: 'invalid_input', message: 'Please enter a valid dose amount.' };
+    }
+    return { ok: false, error: 'unknown', message: 'Something went wrong logging this dose. Please try again.' };
   }
 }

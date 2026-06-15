@@ -7,7 +7,8 @@ import { getDueTodayForBatch } from '@/lib/tracker/application/BatchLogService';
 import { getCurrentWeekInfo } from '@/lib/tracker/application/CycleService';
 import { findCompoundsByIds, listCompounds } from '@/lib/reference/infrastructure/CompoundRepo';
 import { getRecentDoseLogsForUser, getDoseLogsRange } from '@/lib/tracker/application/DoseLogService';
-import { resolveActiveVial } from '@/lib/reconstitution/application/VialService';
+import { resolveActiveVial, getDryVialsForUser, serializeVial } from '@/lib/reconstitution/application/VialService';
+import { utcMidnightToday } from '@/lib/shared/date';
 import {
   buildLoggedDoseDisplay,
   buildDoseUnitsDisplay,
@@ -34,14 +35,16 @@ export default async function TrackerPage() {
   const streakSince = new Date();
   streakSince.setUTCDate(streakSince.getUTCDate() - streakLimitDays);
 
-  const [protocols, dueToday, weekInfo, doseLogs, compoundsList, allDoseLogsForStreak] = await Promise.all([
-    getProtocolsForUser(userId),
-    getDueTodayForBatch(userId),
-    getCurrentWeekInfo(userId),
-    getRecentDoseLogsForUser(userId),
-    listCompounds({ includeArchived: true }),
-    getDoseLogsRange(userId, streakSince),
-  ]);
+  const [protocols, dueToday, weekInfo, doseLogs, compoundsList, allDoseLogsForStreak, dryVialsRaw] =
+    await Promise.all([
+      getProtocolsForUser(userId),
+      getDueTodayForBatch(userId),
+      getCurrentWeekInfo(userId),
+      getRecentDoseLogsForUser(userId),
+      listCompounds({ includeArchived: true }),
+      getDoseLogsRange(userId, streakSince),
+      getDryVialsForUser(userId),
+    ]);
 
   const compoundsMap = Object.fromEntries(
     compoundsList.map((c) => [
@@ -159,6 +162,18 @@ export default async function TrackerPage() {
   const syringeStandard = (user?.syringeStandard ?? 'U100') as SyringeStandard;
   const syringeSize = (user?.syringeSize ?? '1.0') as SyringeSize;
 
+  // Dry (un-reconstituted) vials + compound options for the inline "Add inventory" modal.
+  // Serialized exactly as the reconstitution page does (mirrors its serializeVial call shape).
+  const dryVials = dryVialsRaw.map((v) =>
+    serializeVial(v, utcMidnightToday(), protocols, syringeStandard)
+  );
+  const compoundOptions = compoundsList.map((c) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    profile: c.profile,
+  }));
+
   const loggedVialIds = [
     ...new Set(doseLogs.filter((log) => log.status === 'LOGGED' && log.vialId).map((log) => log.vialId as string)),
   ];
@@ -274,6 +289,8 @@ export default async function TrackerPage() {
               doseUnitsByCompoundId={doseUnitsByCompoundId}
               syringeStandard={syringeStandard}
               cycles={cyclesMap}
+              dryVials={dryVials}
+              compoundOptions={compoundOptions}
             />
           </section>
 

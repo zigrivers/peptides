@@ -89,7 +89,7 @@ describe('RegimenClient summary view', () => {
 
     expect(screen.getByRole('table', { name: /active regimen summary/i })).toBeTruthy();
     expect(screen.getByText('BPC-157')).toBeTruthy();
-    expect(screen.getByText('250 mcg · Every day')).toBeTruthy();
+    expect(screen.getByText('250 mcg · Daily')).toBeTruthy();
     expect(screen.getByText('SUBCUTANEOUS')).toBeTruthy();
     expect(screen.getByText('May 20, 2026')).toBeTruthy();
     expect(screen.getByText('Recovery')).toBeTruthy();
