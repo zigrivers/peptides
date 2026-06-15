@@ -52,6 +52,12 @@ const WHY_STATEMENTS: Record<string, string> = {
   cjc1295nodacipamorelinmix: 'A powerful synergistic GHRH/GHRP combination that primes and triggers growth hormone release for maximum physical recovery, fat loss, and deep sleep.',
   bpc157tb500: 'Combines localized blood vessel growth and systemic cell mobility pathways to deliver unmatched acceleration in tendon, ligament, and muscle healing.',
   bpc157tb500mix: 'Combines localized blood vessel growth and systemic cell mobility pathways to deliver unmatched acceleration in tendon, ligament, and muscle healing.',
+  aod9604: 'A growth-hormone fragment researched for fat loss that aims to trigger fat breakdown and limit fat storage without the growth or blood-sugar effects of full HGH, though its clinical weight-loss benefit remains unproven.',
+  igf1lr3: 'A long-acting IGF-1 analogue researched for muscle growth and tissue repair by strongly activating growth and glucose-uptake pathways; a high-risk research chemical with serious hypoglycemia and uncontrolled-growth concerns.',
+  melanotan1: 'A melanocortin peptide that darkens skin and adds sun-independent photoprotection by stimulating melanin; the implant form (afamelanotide) is FDA-approved for a rare light sensitivity, while injectable tanning use is unapproved and warrants mole monitoring.',
+  pe2228: 'A spadin-derived peptide investigated as a fast-acting antidepressant by blocking the TREK-1 potassium channel to lift neuronal activity and neurogenesis, with evidence that is preclinical only and no human data.',
+  ss31: 'A mitochondria-targeting peptide (elamipretide) studied for cellular energy and longevity by stabilizing cardiolipin to improve mitochondrial efficiency; FDA-approved only for Barth syndrome and investigational for other uses.',
+  'tb500fragment(889da)': 'The small actin-binding fragment of Thymosin Beta-4 used for soft-tissue recovery by promoting cell migration and blood-vessel growth, with evidence largely preclinical and extrapolated from the full-length peptide.',
 };
 
 export function getCompoundWhyStatement(name: string): string | null {
