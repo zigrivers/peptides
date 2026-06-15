@@ -2670,6 +2670,15 @@ Think of full-length Thymosin Beta-4 as a complete multi-tool and this fragment 
   await syncCompoundPairings(pairingFixtures);
   await syncCompoundAdjunctRecommendations(adjunctFixtures);
 
+  // Production seeds the reference catalog ONLY (compounds, profiles, citations,
+  // pairings, adjuncts) — never the demo Power User / vendor / protocol / vial data
+  // below. This makes `pnpm db:seed` safe to run against production to publish catalog
+  // updates. The reference upserts above are idempotent, so re-running is a no-op diff.
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`Seed complete — ${compounds.length} reference compounds upserted (production: demo data skipped).`);
+    return;
+  }
+
   // 1. Create default Power User
   const email = 'test@example.com';
   const password = 'Password123!';
