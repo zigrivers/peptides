@@ -394,7 +394,12 @@ export async function logDose(
   const plannedAmount = protocol.dose;
   let amount = plannedAmount;
   if (input.amount && input.amount.unit === plannedAmount.unit) {
-    const parsed = parseDoseAmountSum(input.amount.amount);
+    let parsed: Decimal;
+    try {
+      parsed = parseDoseAmountSum(input.amount.amount);
+    } catch {
+      throw new Error('invalid_input: dose amount must be a positive number');
+    }
     if (parsed.isFinite() && parsed.gt(0)) {
       amount = input.amount;
     } else {

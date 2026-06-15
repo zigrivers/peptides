@@ -1601,6 +1601,17 @@ describe('logDose — inventory shortfall, amount override, re-bind', () => {
     ).rejects.toThrow(/invalid_input/);
   });
 
+  it('C: non-numeric override → throws invalid_input (not a raw DecimalError)', async () => {
+    mockVialFindFirst.mockResolvedValue(reconstitutedVial);
+    await expect(
+      logDose({
+        actorUserId: uid, protocolId: pid, scheduledDate,
+        amount: { amount: 'abc', unit: 'mg' as const }, status: 'LOGGED',
+        injectionSite: { bodyPart: 'thigh', side: 'left' },
+      })
+    ).rejects.toThrow(/invalid_input/);
+  });
+
   // GOAL D
   it('D: existing LOGGED dose with null vialId is re-bound on retry — decrements once and persists vialId', async () => {
     // An existing dose log that was created without a backing vial (e.g. inventory short at the time).
