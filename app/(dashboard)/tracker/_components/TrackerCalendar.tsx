@@ -75,6 +75,10 @@ interface Props {
   doseUnitsByCompoundId?: Record<string, DoseUnitsDisplay>;
   syringeStandard?: 'U100' | 'U40';
   cycles?: Record<string, { startDate: string; endDate: string | null }>;
+  /** Dry (un-reconstituted) vials for the add-inventory modal. */
+  dryVials?: import('@/lib/reconstitution/application/VialService').SerializedVialData[];
+  /** Compounds list for the add-inventory modal. Shaped to match AddActiveVialModal's `compounds` prop. */
+  compoundOptions?: Pick<CatalogItem, 'id' | 'name' | 'profile' | 'slug'>[];
 }
 
 type SerializedDoseLog = Props['doseLogs'][number];
@@ -290,8 +294,10 @@ function getSundayOfWeek(d: Date): Date {
 
 const EMPTY_DATES: string[] = [];
 const EMPTY_DOSE_UNITS: Record<string, DoseUnitsDisplay> = {};
+const EMPTY_DRY_VIALS: NonNullable<Props['dryVials']> = [];
+const EMPTY_COMPOUND_OPTIONS: NonNullable<Props['compoundOptions']> = [];
 
-export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, compounds, siteSuggestions = {}, initialDateISO, followClientToday = false, loggedDates = EMPTY_DATES, doseUnitsByCompoundId = EMPTY_DOSE_UNITS, cycles = {} }: Props) {
+export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, compounds, siteSuggestions = {}, initialDateISO, followClientToday = false, loggedDates = EMPTY_DATES, doseUnitsByCompoundId = EMPTY_DOSE_UNITS, cycles = {}, dryVials = EMPTY_DRY_VIALS, compoundOptions = EMPTY_COMPOUND_OPTIONS }: Props) {
   const protocols = React.useMemo(() => {
     return serializedProtocols.map((p) => ({
       ...p,
