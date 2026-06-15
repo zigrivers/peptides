@@ -1133,7 +1133,7 @@
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "MORNING",
-      "timingNotes": "Commonly administered subcutaneously once daily, often in the morning on an empty stomach (fasted), as insulin/feeding may blunt lipolysis. Not FDA-approved; regimen is empirical and based on research literature.",
+      "timingNotes": "Commonly administered subcutaneously once daily, often in the morning on an empty stomach (fasted), as insulin/feeding may blunt lipolysis. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Clinical trials evaluated AOD-9604 over multi-week to multi-month courses; a ~12-week block mirrors the trial duration that showed any (modest) effect before reassessing.",
       "restPeriodRationale": "A short break allows reassessment of response and tolerability; there is no validated continuous-use safety profile, so periodic pauses are conservative."
@@ -1162,7 +1162,7 @@
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "POST_WORKOUT",
-      "timingNotes": "In informal research protocols, typically administered once daily (often post-workout) followed by a carbohydrate- and protein-containing meal within ~30 minutes to blunt the acute hypoglycemic response; blood glucose should be monitorable. Not an FDA-validated recommendation.",
+      "timingNotes": "In informal research protocols, typically administered once daily (often post-workout) followed by a carbohydrate- and protein-containing meal within ~30 minutes to blunt the acute hypoglycemic response; blood glucose should be monitorable. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Short cycles (commonly ~4 weeks) are used informally to limit cumulative exposure to a potent, long-acting growth/proliferation signal, reducing the window for acromegaly-like changes, organ overgrowth, and tumor-promotion risk. No clinical cycling standard exists.",
       "restPeriodRationale": "An off period of similar length allows IGF-1R signaling and the body's own GH/IGF axis to normalize and reduces cumulative oncogenic and organ-growth risk. Anecdotal, not clinically validated."
@@ -1191,8 +1191,8 @@
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "ANYTIME",
-      "timingNotes": "Injectable protocols use a daily loading phase (~1-2 weeks) until desired pigmentation, then 2-3x weekly maintenance; evening or with-food dosing may reduce nausea/flushing. The FDA-approved SCENESSE route is instead a single 16 mg subcutaneous implant inserted every 60 days by a clinician — not self-injected.",
-      "isFdaApproved": true,
+      "timingNotes": "Injectable protocols use a daily loading phase (~1-2 weeks) until desired pigmentation, then 2-3x weekly maintenance; evening or with-food dosing may reduce nausea/flushing. The only FDA-approved formulation is afamelanotide (SCENESSE), a 16 mg subcutaneous implant for erythropoietic protoporphyria placed every 60 days by a clinician — the injectable peptide used for tanning is not an approved product. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false,
       "cycleRationale": "Injectable use follows loading-then-maintenance rather than fixed on/off cycles: ~1-2 week daily loading builds pigment (peaks ~1 week after dosing), then reduced dosing maintains color. For approved EPP therapy, dosing is an every-60-day implant aligned to the implant's release lifespan.",
       "restPeriodRationale": "No formal washout is established for injectable use; pigmentation regresses within ~3 weeks off-drug. Given melanoma/nevi concerns, periodic breaks with dermatologic skin checks are prudent."
     },
@@ -1224,7 +1224,7 @@
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "MORNING",
-      "timingNotes": "Once-daily timing is extrapolated from rodent protocols (once-daily ~4-day courses produced effects); the analog's ~23 h duration in animals loosely supports once-daily dosing. None of this is established for humans; no clinically validated timing exists.",
+      "timingNotes": "Once-daily timing is extrapolated from rodent protocols (once-daily ~4-day courses produced effects); the analog's ~23 h duration in animals loosely supports once-daily dosing. None of this is established for humans; no clinically validated timing exists. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Rodent efficacy studies used short (~4-day) courses; a 4-week cycle is a conservative research-use convention, not a clinically validated regimen.",
       "restPeriodRationale": "A rest period is precautionary given the complete absence of long-term human safety data; there is no validated continuous-use protocol."
@@ -1258,8 +1258,8 @@
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "ANYTIME",
-      "timingNotes": "Administered once daily by subcutaneous injection; timing was not strictly time-of-day dependent in trials. Choose a consistent daily time for adherence and rotate injection sites to reduce local reactions.",
-      "isFdaApproved": true,
+      "timingNotes": "Administered once daily by subcutaneous injection; timing was not strictly time-of-day dependent in trials. Choose a consistent daily time for adherence and rotate injection sites to reduce local reactions. The only FDA-approved formulation is elamipretide (FORZINITY) for Barth syndrome; use for general longevity or mitochondrial support is not an FDA-approved use. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false,
       "cycleRationale": "Trials used continuous daily dosing (28-week controlled phase plus open-label extension to 168 weeks) rather than cycling; benefits accrued with sustained administration, so a fixed cycle length is not applicable.",
       "restPeriodRationale": "No rest period was used in pivotal trials; the mechanism (continuous cardiolipin stabilization) and gradual cumulative benefit favor uninterrupted daily dosing."
     },
@@ -1292,7 +1292,7 @@
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "ANYTIME",
-      "timingNotes": "Timing is not critical; subcutaneous or intramuscular injection on a fixed twice-weekly schedule (the same two days each week). May be administered near the injury site for localized soft-tissue goals in anecdotal practice.",
+      "timingNotes": "Timing is not critical; subcutaneous or intramuscular injection on a fixed twice-weekly schedule (the same two days each week). May be administered near the injury site for localized soft-tissue goals in anecdotal practice. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "An acute loading block of roughly 4-6 weeks followed by a maintenance or off period is the common anecdotal pattern, mirroring how parent Tb4 was studied as a finite healing course; no validated human cycling protocol exists for the fragment.",
       "restPeriodRationale": "A rest period (~4 weeks) is used anecdotally to limit continuous exposure given the absence of long-term human safety data and theoretical concerns with chronic pro-angiogenic, pro-migratory signaling."
