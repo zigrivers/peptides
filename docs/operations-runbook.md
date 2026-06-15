@@ -29,6 +29,33 @@ manually before merge. Deploy stages run on Railway.
 | **Verify** | `pnpm playwright test tests/e2e/smoke.spec.ts --env=production` | Railway/manual | Production health check + critical paths green in < 2s page load |
 | **Rollback** | `railway rollback` | Railway | Triggered on Verify failure |
 
+### 1.1a Publishing reference-catalog updates to production
+
+The reference catalog (compounds, profiles, citations, pairings, adjuncts) is seeded
+from `prisma/seed.ts`. Schema migrations deploy automatically on push to `main`, but the
+**seed does not run automatically** — catalog content changes must be published explicitly.
+
+The seed is **production-safe**: when `NODE_ENV=production` it upserts the reference
+catalog ONLY and early-returns before the demo Power User / vendor / protocol / vial
+block, so it never writes test data to production. All reference upserts are idempotent
+(diff-only), so it is safe to re-run.
+
+To publish catalog changes to production after they merge to `main`:
+
+```bash
+# From a shell with the production DATABASE_URL (e.g. Railway):
+railway run pnpm db:seed:reference
+# or, if running directly against prod, ensure NODE_ENV=production:
+NODE_ENV=production pnpm db:seed
+```
+
+`db:seed:reference` = `NODE_ENV=production tsx prisma/seed.ts`. Expected output:
+`Seed complete — N reference compounds upserted (production: demo data skipped).`
+
+Optional: add `pnpm db:seed:reference` to the Railway start command (after
+`prisma migrate deploy`) to auto-publish catalog changes on every deploy — idempotent,
+adds a few seconds. Local/dev `pnpm db:seed` is unchanged and still seeds demo data.
+
 ### 1.2 Environment Strategy
 - **Preview**: Spin up ephemeral Railway environments for every PR. Used for automated E2E and visual review.
 - **Staging**: Always-on environment matching production specs. Target for `main` branch before production cutover.
