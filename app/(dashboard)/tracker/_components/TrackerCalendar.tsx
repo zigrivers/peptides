@@ -19,6 +19,7 @@ import { SitePicker, type SiteData, formatSiteLabel, formatSiteUseAgeForSentence
 import { toUTCDay, localDayAnchoredUTC } from '@/lib/shared/date';
 import { formatScheduleFrequency } from '@/lib/tracker/domain/schedule';
 import { CompoundInfoModal } from './CompoundInfoModal';
+import { AddActiveVialModal } from '@/app/(dashboard)/reconstitution/_components/AddActiveVialModal';
 
 type CalendarEvent = {
   id: string;
@@ -332,6 +333,15 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
   const [editSite, setEditSite] = useState<Record<string, InjectionSite | null>>({});
   const [isLogPending, startLogTransition] = useTransition();
   const [logErrors, setLogErrors] = useState<Record<string, string>>({});
+  // Friendly (non-blocking) warnings keyed by protocolId + scheduled date so they
+  // survive the event id changing after a successful log (scheduled -> logged).
+  const [logWarnings, setLogWarnings] = useState<Record<string, string>>({});
+  const [inventoryModalFor, setInventoryModalFor] = useState<{
+    compoundId: string;
+    protocolId: string;
+    eventKey: string;
+    eventId: string;
+  } | null>(null);
 
   // Drag-and-drop rescheduling state
   const [isRescheduling, startRescheduling] = useTransition();
@@ -830,6 +840,17 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
           scheduledDate: targetDateStr,
         });
         if (result.ok) {
+          const warningKey = `${event.protocolId}|${targetDateStr}`;
+          const invWarn = result.warnings?.find((w) => w.code === 'insufficient_inventory');
+          if (invWarn) {
+            setLogWarnings((p) => ({ ...p, [warningKey]: invWarn.message }));
+          } else {
+            setLogWarnings((p) => {
+              const c = { ...p };
+              delete c[warningKey];
+              return c;
+            });
+          }
           setEditingEventId(null);
           setExpandedEventId(null);
           setEditNotes((prev) => {
@@ -1362,6 +1383,29 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                           </div>
                         )}
 
+                        {logWarnings[`${e.protocolId}|${targetDateStr}`] && (
+                          <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                            <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                            <div className="space-y-1">
+                              <p>{logWarnings[`${e.protocolId}|${targetDateStr}`]}</p>
+                              <button
+                                type="button"
+                                className="font-semibold underline"
+                                onClick={() =>
+                                  setInventoryModalFor({
+                                    compoundId: e.compoundId,
+                                    protocolId: e.protocolId,
+                                    eventKey: `${e.protocolId}|${targetDateStr}`,
+                                    eventId: e.id,
+                                  })
+                                }
+                              >
+                                + Add inventory
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         {/* suggested site banner */}
                         {siteData && siteData.suggestion && !(editSite[e.id] ?? null) && (
                           <div className="text-[10px] text-indigo-700 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-950 rounded p-2 flex items-center justify-between">
@@ -1584,6 +1628,31 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
         isOpen={!!selectedCompoundInfo}
         onClose={() => setSelectedCompoundInfo(null)}
       />
+
+      {inventoryModalFor && (() => {
+        const single = compoundOptions.filter((c) => c.id === inventoryModalFor.compoundId);
+        return (
+          <AddActiveVialModal
+            compounds={single.length ? single : compoundOptions}
+            initialCompoundId={inventoryModalFor.compoundId}
+            dryVials={dryVials}
+            onClose={() => setInventoryModalFor(null)}
+            onSuccess={() => {
+              // Re-log the same dose so it binds + decrements the newly added vial.
+              // The event id may have changed after the first log, so fall back to
+              // locating the event by protocol + scheduled date.
+              const target =
+                selectedEvents.find((ev) => ev.id === inventoryModalFor.eventId) ??
+                selectedEvents.find(
+                  (ev) =>
+                    `${ev.protocolId}|${ev.scheduledDateStr ?? selectedDateStr}` === inventoryModalFor.eventKey
+                );
+              setInventoryModalFor(null);
+              if (target) handleInlineSave(target, 'LOGGED');
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

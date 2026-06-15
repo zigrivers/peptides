@@ -40,6 +40,11 @@ vi.mock('@/app/(dashboard)/dashboard/_components/ConfettiCanvas', () => ({
   ConfettiCanvas: () => null,
 }));
 
+vi.mock('@/app/actions/reconstitution/inventory-actions', () => ({
+  addReconstitutedVialAction: vi.fn(),
+  reconstituteDryVialAction: vi.fn(),
+}));
+
 describe('TrackerCalendar Component UI/UX with JSDOM', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
@@ -301,6 +306,82 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
       note: 'felt excellent',
       scheduledDate: '2026-05-24',
     });
+  });
+
+  const mockSiteSuggestionsForInventory = {
+    'proto-1': {
+      suggestion: { side: 'left' as const, bodyPart: 'abdomen' },
+      validSites: [
+        { side: 'left' as const, bodyPart: 'abdomen' },
+        { side: 'right' as const, bodyPart: 'abdomen' },
+      ],
+      siteMeta: [
+        { site: { side: 'left' as const, bodyPart: 'abdomen' }, daysSinceLastUse: 3, isRested: false, lastUsed: null },
+      ],
+      recentSites: [{ side: 'left' as const, bodyPart: 'abdomen' }],
+    },
+  };
+
+  async function triggerInsufficientInventoryWarning() {
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        siteSuggestions={mockSiteSuggestionsForInventory}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+        dryVials={[]}
+        compoundOptions={[
+          { id: 'compound-tirz', name: 'Tirzepatide', slug: 'tirzepatide', profile: null } as never,
+        ]}
+      />
+    );
+
+    // Expand the scheduled dose for proto-1 (Tirzepatide) on May 24
+    fireEvent.click(screen.getByLabelText(/May 24/));
+
+    // Select an injection site (required to log)
+    fireEvent.click(screen.getByText('Left Lower Abdomen'));
+
+    // Click Log Dose
+    fireEvent.click(screen.getByRole('button', { name: 'Log Dose' }));
+  }
+
+  it('shows a friendly insufficient-inventory warning with an Add inventory action', async () => {
+    vi.mocked(logDoseAction).mockResolvedValueOnce({
+      ok: true,
+      doseLog: { id: 'newlog' } as never,
+      warnings: [
+        {
+          code: 'insufficient_inventory',
+          message: "Your active vial couldn't cover this dose — inventory may be inaccurate.",
+        },
+      ],
+    });
+
+    await triggerInsufficientInventoryWarning();
+
+    expect(await screen.findByText(/inventory may be inaccurate/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /add inventory/i })).toBeDefined();
+  });
+
+  it('opens the Add Vial modal when Add inventory is clicked', async () => {
+    vi.mocked(logDoseAction).mockResolvedValueOnce({
+      ok: true,
+      doseLog: { id: 'newlog' } as never,
+      warnings: [
+        {
+          code: 'insufficient_inventory',
+          message: "Your active vial couldn't cover this dose — inventory may be inaccurate.",
+        },
+      ],
+    });
+
+    await triggerInsufficientInventoryWarning();
+
+    fireEvent.click(await screen.findByRole('button', { name: /add inventory/i }));
+
+    expect(await screen.findByRole('dialog', { name: /add .*vial/i })).toBeDefined();
   });
 
   it('logs an overridden dose amount and shows the planned hint', async () => {

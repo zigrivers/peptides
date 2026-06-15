@@ -11,12 +11,14 @@ interface Props {
   compounds: Pick<Compound, 'id' | 'name' | 'profile' | 'slug'>[];
   dryVials: SerializedVialData[];
   subjectUserId?: string;
+  /** Preselect a compound when the modal opens (e.g. opened from the tracker for a specific dose). */
+  initialCompoundId?: string;
   onSuccess?: () => void;
   onClose: () => void;
 }
 
-export function AddActiveVialModal({ compounds, dryVials, subjectUserId, onSuccess, onClose }: Props) {
-  const [compoundId, setCompoundId] = useState('');
+export function AddActiveVialModal({ compounds, dryVials, subjectUserId, initialCompoundId, onSuccess, onClose }: Props) {
+  const [compoundId, setCompoundId] = useState(initialCompoundId ?? '');
   const [totalMg, setTotalMg] = useState('');
   const [bacWaterMl, setBacWaterMl] = useState('');
   const [cost, setCost] = useState('');
