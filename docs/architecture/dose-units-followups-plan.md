@@ -43,8 +43,34 @@ other work.
   accepts a subject. Tests for the subject-scoped fetches + the selector. The PR A coverage gate
   guards the new `lib/reconstitution` branches.
 
+## PR D — Close remaining reconstitution coverage debt (OPEN)
+
+Logged 2026-06-15 while adding the reconstitution syringe-units preview. PR A added the
+`check:coverage` gate and 100% thresholds for `lib/reconstitution/domain/**`, but the gate is
+**currently red** and was confirmed pre-existing (not introduced by the preview work):
+
+- **`lib/reconstitution/domain/doseUnits.ts`** — an uncovered branch (~`loggedDoseMcg`, around
+  the mL/IU reconstruction path) leaves the domain below its 100% branch threshold. Add the
+  missing-branch test(s), or `/* c8 ignore */` the genuinely unreachable arm with a justifying
+  comment (same pattern as the `getInventorySummaryByCompound` guards).
+- **`lib/reconstitution/application/**`** — still floored at `branches: 80, functions/lines/
+  statements: 90` (see `vitest.config.ts`), i.e. the "ratchet toward 100%" from PR A is
+  incomplete. Cover the error paths in `InventoryService` / `VialExpiryService` / `VialService`
+  (e.g. divide-by-zero / not-found / depleted branches), then raise the thresholds.
+- Note: a `check:coverage` run also surfaces intentional `chk_*` CHECK-constraint errors from the
+  REF dosing-protocol negative tests — those are expected test output, not failures; don't chase
+  them. Confirm the integration DB is set up (`make db-setup`) so application coverage isn't
+  understated by skipped DB tests.
+
+**Goal:** `pnpm check:coverage` green with `lib/reconstitution/domain/**` at 100% and the
+`application/**` thresholds ratcheted up toward 100%. Its own verified PR; not bundled with
+feature work. (`check:coverage` is intentionally NOT in the pre-push `pnpm check`, so this debt
+does not block merges — but it should be paid down so the safety-net gate is trustworthy.)
+
 ## Sequencing & risk
 
 - **A → B → C.** A first (coverage safety net for B and C). B and C are independent; A precedes
   C so C's new aggregate branches are coverage-checked.
-- Lowest risk: A, C. Highest: B (dependency upgrade) — isolated so it can be reverted cleanly.
+- **D** is independent and low-risk (tests + threshold bumps only); do it whenever, ideally before
+  leaning on `check:coverage` as a release gate.
+- Lowest risk: A, C, D. Highest: B (dependency upgrade) — isolated so it can be reverted cleanly.
