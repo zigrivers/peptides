@@ -3,7 +3,10 @@
 import React, { useState, useTransition, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { Compound } from '@/lib/reference/domain/types';
+import type { DoseAmount } from '@/lib/tracker/domain/types';
 import type { SerializedVialData } from '@/lib/reconstitution/application/VialService';
+import type { SyringeStandard, SyringeSize } from '@/lib/reconstitution/domain/doseUnits';
+import { buildReconstitutionPreview } from '@/lib/reconstitution/domain/reconstitutionPreview';
 import { addReconstitutedVialAction, reconstituteDryVialAction } from '@/app/actions/reconstitution/inventory-actions';
 import { X, AlertTriangle, Thermometer, Plus, Droplet } from 'lucide-react';
 
@@ -13,11 +16,22 @@ interface Props {
   subjectUserId?: string;
   /** Preselect a compound when the modal opens (e.g. opened from the tracker for a specific dose). */
   initialCompoundId?: string;
+  syringeStandard?: SyringeStandard;
+  syringeSize?: SyringeSize;
   onSuccess?: () => void;
   onClose: () => void;
 }
 
-export function AddActiveVialModal({ compounds, dryVials, subjectUserId, initialCompoundId, onSuccess, onClose }: Props) {
+export function AddActiveVialModal({
+  compounds,
+  dryVials,
+  subjectUserId,
+  initialCompoundId,
+  syringeStandard = 'U100',
+  syringeSize,
+  onSuccess,
+  onClose,
+}: Props) {
   const [compoundId, setCompoundId] = useState(initialCompoundId ?? '');
   const [totalMg, setTotalMg] = useState('');
   const [bacWaterMl, setBacWaterMl] = useState('');
@@ -55,6 +69,25 @@ export function AddActiveVialModal({ compounds, dryVials, subjectUserId, initial
   const isRoomTemp = useMemo(() => {
     return profile?.fridgeShelfLifeMonths === null && profile?.freezerShelfLifeMonths === null;
   }, [profile]);
+
+  const preview = useMemo(
+    () =>
+      buildReconstitutionPreview({
+        ranges:
+          profile?.dosingLow && profile?.dosingTypical && profile?.dosingHigh
+            ? {
+                low: profile.dosingLow as DoseAmount,
+                typical: profile.dosingTypical as DoseAmount,
+                high: profile.dosingHigh as DoseAmount,
+              }
+            : null,
+        totalMg,
+        bacWaterMl,
+        syringeStandard,
+        syringeSize,
+      }),
+    [profile, totalMg, bacWaterMl, syringeStandard, syringeSize]
+  );
 
   useEffect(() => {
     if (profile) {
@@ -328,6 +361,29 @@ export function AddActiveVialModal({ compounds, dryVials, subjectUserId, initial
                 onChange={(e) => setBacWaterMl(e.target.value)}
                 className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
+
+              {preview.computable && (
+                <div aria-live="polite" className="mt-2 rounded-lg border border-input bg-background/50 p-3 text-xs">
+                  <p className="font-semibold text-foreground/80">
+                    Syringe preview — {preview.concentrationText} · {syringeStandard === 'U100' ? 'U-100' : 'U-40'}
+                  </p>
+                  <dl className="mt-1.5 space-y-0.5">
+                    {preview.rows.map((r) => (
+                      <div
+                        key={r.label}
+                        className={`flex items-baseline justify-between ${r.exceedsSyringe ? 'text-amber-600 dark:text-amber-400' : ''}`}
+                      >
+                        <dt className="text-foreground/70">
+                          {r.label} <span className="text-foreground/50">· {r.doseText}</span>
+                        </dt>
+                        <dd className="font-mono tabular-nums">{r.unitsText ?? '—'}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {preview.hint && <p className="mt-1.5 text-foreground/70">{preview.hint}</p>}
+                  {preview.warning && <p className="mt-1 text-amber-600 dark:text-amber-400">{preview.warning}</p>}
+                </div>
+              )}
             </div>
 
             {/* Optional custom expiration date */}
