@@ -83,7 +83,7 @@ export function buildReconstitutionPreview(input: {
   const vialConcentration = { totalMg, bacWaterMl };
 
   const mgPerMl = totalMgDec.dividedBy(bacWaterMlDec);
-  const concentrationText = `${totalMg} mg in ${bacWaterMl} mL (${formatMgPerMl(mgPerMl)} mg/mL)`;
+  const concentrationText = `${totalMgDec.toString()} mg in ${bacWaterMlDec.toString()} mL (${formatMgPerMl(mgPerMl)} mg/mL)`;
 
   const rowDefs: Array<{ label: ReconPreviewRow['label']; dose: DoseAmount }> = [
     { label: 'Conservative', dose: ranges.low },
@@ -113,6 +113,12 @@ function buildHint(
   bacWaterMlDec: Decimal,
   syringeStandard: SyringeStandard
 ): string | null {
+  // The "add more BAC water" suggestion only makes sense for mass doses (mcg/mg),
+  // where syringe units scale linearly with BAC volume. For IU and mL doses the units
+  // are independent of vial concentration, so diluting further would NOT change the
+  // units drawn — suggesting it would be actively wrong. Skip the hint for those.
+  if (typical.unit !== 'mcg' && typical.unit !== 'mg') return null;
+
   const result = doseToSyringeUnits(typical, vialConcentration, syringeStandard);
   if (!result.computable) return null;
 

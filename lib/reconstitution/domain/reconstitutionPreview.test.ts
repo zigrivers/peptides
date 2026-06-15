@@ -104,6 +104,17 @@ describe('buildReconstitutionPreview', () => {
       });
       expect(result.concentrationText).toBe('10 mg in 3 mL (3.33 mg/mL)');
     });
+
+    it('normalizes trailing-zero / unnormalized input strings in concentrationText', () => {
+      // Freezer vials surface sizes like "10.000"; the echo should read cleanly.
+      const result = buildReconstitutionPreview({
+        ranges: { low: mcg('250'), typical: mcg('500'), high: mcg('1000') },
+        totalMg: '10.000',
+        bacWaterMl: '2.0',
+        syringeStandard: 'U100',
+      });
+      expect(result.concentrationText).toBe('10 mg in 2 mL (5 mg/mL)');
+    });
   });
 
   describe('hint', () => {
@@ -159,6 +170,37 @@ describe('buildReconstitutionPreview', () => {
         ranges: { low: mcg('300'), typical: mcg('600'), high: mcg('1200') },
         totalMg: '10',
         bacWaterMl: '1',
+        syringeStandard: 'U100',
+      });
+      expect(result.hint).toBeNull();
+    });
+
+    it('returns null hint for IU-dosed compounds even when typical units < 5 (dilution would not change IU units)', () => {
+      // IU units are independent of vial concentration, so the "add more BAC water" hint is wrong here.
+      const result = buildReconstitutionPreview({
+        ranges: {
+          low: { amount: '1', unit: 'IU' },
+          typical: { amount: '2', unit: 'IU' },
+          high: { amount: '4', unit: 'IU' },
+        },
+        totalMg: '10',
+        bacWaterMl: '2',
+        syringeStandard: 'U100',
+      });
+      // typical = 2 IU = 2 units (< 5) — but no hint, because diluting does nothing for IU.
+      expect(result.computable).toBe(true);
+      expect(result.hint).toBeNull();
+    });
+
+    it('returns null hint for mL-dosed compounds even when typical units < 5', () => {
+      const result = buildReconstitutionPreview({
+        ranges: {
+          low: { amount: '0.01', unit: 'mL' },
+          typical: { amount: '0.02', unit: 'mL' },
+          high: { amount: '0.04', unit: 'mL' },
+        },
+        totalMg: '10',
+        bacWaterMl: '2',
         syringeStandard: 'U100',
       });
       expect(result.hint).toBeNull();
