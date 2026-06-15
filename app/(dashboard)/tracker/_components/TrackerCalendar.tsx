@@ -328,6 +328,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState<Record<string, string>>({});
+  const [editAmount, setEditAmount] = useState<Record<string, string>>({});
   const [editSite, setEditSite] = useState<Record<string, InjectionSite | null>>({});
   const [isLogPending, startLogTransition] = useTransition();
   const [logErrors, setLogErrors] = useState<Record<string, string>>({});
@@ -798,6 +799,11 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
             delete copy[event.id];
             return copy;
           });
+          setEditAmount((prev) => {
+            const copy = { ...prev };
+            delete copy[event.id];
+            return copy;
+          });
         } else {
           setLogErrors((prev) => ({ ...prev, [event.id]: res.error || 'Failed to queue dose offline.' }));
         }
@@ -817,7 +823,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
         const result = await logDoseAction({
           id: event.type !== 'SCHEDULED' && !event.id.startsWith('scheduled-') ? event.id : undefined,
           protocolId: event.protocolId,
-          amount: { amount: event.doseAmount, unit: event.doseUnit },
+          amount: { amount: (editAmount[event.id] ?? event.doseAmount), unit: event.doseUnit },
           status,
           injectionSite: status === 'LOGGED' ? (eventSite ?? undefined) : undefined,
           note: eventNote.trim(),
@@ -832,6 +838,11 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
             return copy;
           });
           setEditSite((prev) => {
+            const copy = { ...prev };
+            delete copy[event.id];
+            return copy;
+          });
+          setEditAmount((prev) => {
             const copy = { ...prev };
             delete copy[event.id];
             return copy;
@@ -1396,6 +1407,28 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                             />
                           </div>
                         )}
+
+                        {/* dose amount override */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <label htmlFor={`dose-${e.id}`} className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Dose</label>
+                            <span className="text-[10px] text-gray-400">Planned: {e.doseAmount} {e.doseUnit}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input id={`dose-${e.id}`} type="number" inputMode="decimal" min="0" step="any"
+                              value={editAmount[e.id] ?? e.doseAmount}
+                              onChange={(ev) => setEditAmount((p) => ({ ...p, [e.id]: ev.target.value }))}
+                              className="w-24 rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1 text-sm" />
+                            <span className="text-sm text-gray-500">{e.doseUnit}</span>
+                            {(editAmount[e.id] ?? e.doseAmount) !== e.doseAmount && (
+                              <button type="button" className="text-xs text-primary underline"
+                                onClick={() => setEditAmount((p) => { const c = { ...p }; delete c[e.id]; return c; })}>reset</button>
+                            )}
+                          </div>
+                          {(editAmount[e.id] ?? e.doseAmount) !== e.doseAmount && (
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400">Logging {editAmount[e.id]} {e.doseUnit} (planned {e.doseAmount} {e.doseUnit})</p>
+                          )}
+                        </div>
 
                         {/* note text input */}
                         <div className="space-y-1">

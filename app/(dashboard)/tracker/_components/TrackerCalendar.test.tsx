@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react';
 import { TrackerCalendar, getWeekInfo } from './TrackerCalendar';
 import type { Protocol, DoseLog } from '@/lib/tracker/domain/types';
 import { logDoseAction } from '@/app/actions/tracker/log-dose';
@@ -301,6 +301,63 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
       note: 'felt excellent',
       scheduledDate: '2026-05-24',
     });
+  });
+
+  it('logs an overridden dose amount and shows the planned hint', async () => {
+    const mockLogDoseAction = vi.mocked(logDoseAction);
+    mockLogDoseAction.mockResolvedValue({
+      ok: true,
+      doseLog: { id: 'new-log-1', status: 'LOGGED' } as unknown as DoseLog,
+      warnings: [],
+    });
+
+    const mockSiteSuggestions = {
+      'proto-1': {
+        suggestion: { side: 'left' as const, bodyPart: 'abdomen' },
+        validSites: [
+          { side: 'left' as const, bodyPart: 'abdomen' },
+          { side: 'right' as const, bodyPart: 'abdomen' },
+        ],
+        siteMeta: [
+          { site: { side: 'left' as const, bodyPart: 'abdomen' }, daysSinceLastUse: 3, isRested: false, lastUsed: null },
+        ],
+        recentSites: [
+          { side: 'left' as const, bodyPart: 'abdomen' },
+        ],
+      },
+    };
+
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={mockDoseLogs}
+        compounds={mockCompounds}
+        siteSuggestions={mockSiteSuggestions}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+
+    // Selecting cell for May 24 to reveal the inline log panel for proto-1
+    const cell24 = screen.getByLabelText(/May 24/);
+    fireEvent.click(cell24);
+
+    // Override the planned dose amount
+    const doseInput = await screen.findByLabelText(/^dose$/i);
+    fireEvent.change(doseInput, { target: { value: '12' } });
+    expect(screen.getByText(/Planned:/i)).toBeDefined();
+
+    // Select an injection site manually (required to log)
+    fireEvent.click(screen.getByText('Left Lower Abdomen'));
+
+    // Click Log Dose button
+    const logBtn = screen.getByRole('button', { name: 'Log Dose' });
+    fireEvent.click(logBtn);
+
+    await waitFor(() =>
+      expect(mockLogDoseAction).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: expect.objectContaining({ amount: '12' }) })
+      )
+    );
   });
 
   it('labels site history relative to the selected calendar date, not loggedAt or stale server metadata', () => {
