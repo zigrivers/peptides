@@ -13,6 +13,8 @@ import { convertDoseToMg } from '@/lib/reconstitution/application/InventoryServi
 import { Calendar, AlertTriangle, Snowflake, LayoutGrid, List } from 'lucide-react';
 import { getCapColor } from '@/lib/reconstitution/domain/syringe';
 import { isScheduledOn } from '@/lib/tracker/domain/ScheduleGenerator';
+import { formatScheduleFrequency } from '@/lib/tracker/domain/schedule';
+import type { Schedule as DomainSchedule } from '@/lib/tracker/domain/types';
 import { CATALOG_TAGS } from '@/lib/reference/domain/tags';
 
 interface Citation {
@@ -101,17 +103,7 @@ const CATALOG_TAG_LABELS: ReadonlyMap<string, string> = new Map(
 );
 
 function formatScheduleText(schedule: Schedule): string {
-  if (schedule.frequency === 'Daily') return 'Every day';
-  if (schedule.frequency === 'TwiceDaily') return 'Twice daily';
-  if (schedule.frequency === 'EOD') return 'Every other day';
-  if (schedule.frequency === 'CustomInterval') return `Every ${schedule.intervalDays} days`;
-  if (schedule.frequency === 'SpecificDaysOfWeek') {
-    return `On ${(schedule.daysOfWeek || []).join(', ')}`;
-  }
-  if (schedule.frequency === 'TwiceSpecificDaysOfWeek') {
-    return `Twice daily on ${(schedule.daysOfWeek || []).join(', ')}`;
-  }
-  return 'Custom schedule';
+  return formatScheduleFrequency(schedule as unknown as DomainSchedule);
 }
 
 function formatUTCDate(date: Date): string {
