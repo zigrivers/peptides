@@ -248,7 +248,10 @@ export async function logDose(
   if (input.status === 'LOGGED') {
     const vialCount = await countActiveVialsForCompound(tx, subjectUserId, protocol.compoundId);
     if (vialCount === 0) {
-      warnings.push({ code: 'insufficient_inventory', message: 'No reconstituted vials available for this compound.' });
+      warnings.push({
+        code: 'insufficient_inventory',
+        message: "Your active vial couldn't cover this dose — inventory may be inaccurate.",
+      });
     }
   }
 
@@ -271,12 +274,17 @@ export async function logDose(
       input.vialId !== undefined &&
       existing.vialId !== input.vialId;
 
+    // A LOGGED dose with no backing vial can later acquire one when inventory is added.
+    const canBindVial =
+      existing.status === 'LOGGED' && input.status === 'LOGGED' && existing.vialId === null;
+
     if (
       existing.status === input.status &&
       !injectionSiteChanged &&
       !siteNeedsClearing &&
       !noteChanged &&
-      !vialIdChanged
+      !vialIdChanged &&
+      !canBindVial
     ) {
       return { doseLog: existing, warnings };
     }
@@ -291,7 +299,7 @@ export async function logDose(
       const oldStatus = existing.status;
       const newStatus = input.status;
       const oldVialId = existing.vialId;
-      const newVialId = input.status === 'SKIPPED' ? null : (input.vialId ?? existing.vialId);
+      let newVialId = input.status === 'SKIPPED' ? null : (input.vialId ?? existing.vialId);
 
       const existingAmount = existing.amount as Record<string, unknown>;
       const doseAmountVal = parseDoseAmountSum(existingAmount.amount as string);
@@ -306,7 +314,28 @@ export async function logDose(
           await decrementVialInventory(innerTx, subjectUserId, newVialId, doseAmountVal, doseUnit, syringeStandard);
         }
       } else if (oldStatus === 'LOGGED' && newStatus === 'LOGGED') {
-        if (oldVialId !== newVialId) {
+        // Re-bind on retry: a LOGGED dose that was stored with no backing vial can acquire
+        // one now that inventory exists. This only fires when existing.vialId === null
+        // (guarded by canBindVial), so a second identical retry never decrements again.
+        if (canBindVial && newVialId === null) {
+          const activeVial = await resolveActiveVial(subjectUserId, protocol.compoundId, innerTx);
+          if (activeVial) {
+            try {
+              await decrementVialInventory(innerTx, subjectUserId, activeVial.id, doseAmountVal, doseUnit, syringeStandard);
+              newVialId = activeVial.id;
+            } catch (e) {
+              if (e instanceof Error && /^insufficient_inventory$/.test(e.message)) {
+                // Still short: leave the dose unbacked and surface a warning, no throw.
+                warnings.push({
+                  code: 'insufficient_inventory',
+                  message: "Your active vial couldn't cover this dose — inventory may be inaccurate.",
+                });
+              } else {
+                throw e;
+              }
+            }
+          }
+        } else if (oldVialId !== newVialId) {
           if (oldVialId) {
             await incrementVialInventory(innerTx, subjectUserId, oldVialId, doseAmountVal, doseUnit, syringeStandard);
           }
@@ -334,10 +363,10 @@ export async function logDose(
 
       const log = await updateDoseLog(innerTx, existing.id, subjectUserId, {
         status: input.status,
-        // Explicitly null for SKIPPED; preserve or override for LOGGED.
+        // Explicitly null for SKIPPED; preserve, re-bind, or override for LOGGED.
         injectionSite: input.status === 'SKIPPED' ? null : (injectionSite ?? existing.injectionSite),
         note: input.note !== undefined ? (input.note || null) : existing.note,
-        vialId: input.status === 'SKIPPED' ? null : (input.vialId ?? existing.vialId),
+        vialId: input.status === 'SKIPPED' ? null : newVialId,
         loggedByUserId: input.actorUserId,
         loggedAt: new Date(), // Update timestamp on actual logging action
         loggedCost,
@@ -360,8 +389,20 @@ export async function logDose(
     return { doseLog: updated, warnings };
   }
 
-  // Use the protocol's scheduled dose amount as the authoritative amount.
-  const amount = protocol.dose;
+  // Default to the protocol's planned dose, but honor a caller-supplied per-dose override.
+  // Override is amount-only: the unit must match the planned unit; the regimen is unchanged.
+  const plannedAmount = protocol.dose;
+  let amount = plannedAmount;
+  if (input.amount && input.amount.unit === plannedAmount.unit) {
+    const parsed = parseDoseAmountSum(input.amount.amount);
+    if (parsed.isFinite() && parsed.gt(0)) {
+      amount = input.amount;
+    } else {
+      throw new Error('invalid_input: dose amount must be a positive number');
+    }
+  } else if (input.amount && input.amount.unit !== plannedAmount.unit) {
+    throw new Error('invalid_input: dose unit must match the protocol unit');
+  }
 
   try {
     const doseLog = await runInTx<DoseLog>(tx, async (innerTx) => {
@@ -381,15 +422,25 @@ export async function logDose(
         if (activeVial) effectiveVialId = activeVial.id;
       }
 
+      let inventoryShort = false;
       if (input.status === 'LOGGED' && effectiveVialId) {
-        await decrementVialInventory(
-          innerTx,
-          subjectUserId,
-          effectiveVialId,
-          parseDoseAmountSum(amount.amount),
-          amount.unit,
-          syringeStandard
-        );
+        try {
+          await decrementVialInventory(
+            innerTx,
+            subjectUserId,
+            effectiveVialId,
+            parseDoseAmountSum(amount.amount),
+            amount.unit,
+            syringeStandard
+          );
+        } catch (e) {
+          if (e instanceof Error && /^insufficient_inventory$/.test(e.message)) {
+            inventoryShort = true;
+            effectiveVialId = undefined;
+          } else {
+            throw e;
+          }
+        }
       }
 
       let loggedCost: Decimal | null = null;
@@ -422,6 +473,13 @@ export async function logDose(
         loggedCost,
         loggedCurrency,
       });
+
+      if (inventoryShort) {
+        warnings.push({
+          code: 'insufficient_inventory',
+          message: "Your active vial couldn't cover this dose — inventory may be inaccurate.",
+        });
+      }
 
       await innerTx.auditEvent.create({
         data: {

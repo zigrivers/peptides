@@ -1222,7 +1222,9 @@ describe('US-TRK-03: Individual Dose Logging', () => {
   });
 
   it('idempotency: returns existing log on duplicate key with same status', async () => {
-    const existingLog = { ...baseDoseLogRow };
+    // A LOGGED dose that already has a backing vial is a true idempotent no-op.
+    // (A LOGGED dose with vialId === null is intentionally re-bindable, covered separately.)
+    const existingLog = { ...baseDoseLogRow, vialId: 'vial-existing' };
     mockDoseLogFindFirst.mockResolvedValue(existingLog);
     mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
     mockVialCount.mockResolvedValue(1);
@@ -1454,6 +1456,199 @@ describe('logDose — server-side active-vial resolution (units Phase 1)', () =>
     expect(mockDoseLogCreate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ vialId: null }) })
     );
+  });
+});
+
+/**
+ * Inventory shortfall handling, per-dose amount override, and vial re-bind on retry.
+ * See feature/dose-log-inventory-cadence-override.
+ */
+describe('logDose — inventory shortfall, amount override, re-bind', () => {
+  const FROZEN_NOW = new Date(Date.UTC(2026, 4, 21)); // 2026-05-21 (Thursday)
+  beforeEach(() => { vi.setSystemTime(FROZEN_NOW); });
+  afterAll(() => { vi.useRealTimers(); });
+
+  const uid = 'user-1';
+  const pid = 'proto-1';
+  const cid = 'compound-bpc157';
+  const scheduledDate = new Date(Date.UTC(2026, 4, 21));
+  const plannedDose = { amount: '1', unit: 'mg' as const };
+
+  const protocolRow = {
+    id: pid,
+    userId: uid,
+    compoundId: cid,
+    cycleId: null,
+    dose: plannedDose,
+    schedule: { frequency: 'Daily' },
+    administrationRoute: 'SubQ',
+    status: 'ACTIVE',
+    startDate: new Date(Date.UTC(2026, 4, 1)),
+    endDate: null,
+    notes: null,
+  };
+
+  const createdLogRow = {
+    id: 'log-rebind-1',
+    protocolId: pid,
+    userId: uid,
+    vialId: null,
+    idempotencyKey: `${uid}:${pid}:2026-05-21`,
+    loggedAt: new Date(),
+    scheduledDate,
+    amount: plannedDose,
+    status: 'LOGGED',
+    injectionSite: { bodyPart: 'thigh', side: 'left' },
+    isBatchLog: false,
+    note: null,
+    loggedByUserId: uid,
+  };
+
+  const reconstitutedVial = {
+    id: 'vial-cover', userId: uid, compoundId: cid, totalMg: 20, bacWaterMl: 2, remainingMg: 20, status: 'RECONSTITUTED',
+  };
+
+  beforeEach(() => {
+    mockDoseLogFindFirst.mockResolvedValue(null); // no existing log by default
+    mockProtocolFindFirst.mockResolvedValue(protocolRow);
+    mockVialCount.mockResolvedValue(1);
+    mockDoseLogCreate.mockResolvedValue(createdLogRow);
+    mockDoseLogUpdate.mockResolvedValue(createdLogRow);
+    mockAuditCreate.mockResolvedValue({});
+  });
+
+  // GOAL A
+  it('A: LOGGED with a covering vial → decrements normally, no insufficient_inventory warning', async () => {
+    mockVialFindFirst.mockResolvedValue(reconstitutedVial);
+    mockVialUpdateMany.mockResolvedValue({ count: 1 }); // covers the dose
+    mockVialFindUnique.mockResolvedValue({ remainingMg: 19, status: 'RECONSTITUTED' });
+
+    const result = await logDose({
+      actorUserId: uid, protocolId: pid, scheduledDate, amount: plannedDose, status: 'LOGGED',
+      injectionSite: { bodyPart: 'thigh', side: 'left' },
+    });
+
+    expect(mockVialUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: 'vial-cover' }) })
+    );
+    expect(mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ vialId: 'vial-cover' }) })
+    );
+    expect(result.warnings.find((w) => w.code === 'insufficient_inventory')).toBeUndefined();
+  });
+
+  // GOAL B
+  it('B: LOGGED where the resolved vial cannot cover → still logs, vialId null, pushes warning, no throw', async () => {
+    mockVialFindFirst.mockResolvedValue(reconstitutedVial); // resolve finds a vial
+    mockVialUpdateMany.mockResolvedValue({ count: 0 }); // decrement can't cover → insufficient_inventory
+
+    const result = await logDose({
+      actorUserId: uid, protocolId: pid, scheduledDate, amount: plannedDose, status: 'LOGGED',
+      injectionSite: { bodyPart: 'thigh', side: 'left' },
+    });
+
+    expect(result.doseLog).toBeDefined();
+    expect(mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ vialId: null }) })
+    );
+    expect(result.warnings.filter((w) => w.code === 'insufficient_inventory')).toHaveLength(1);
+  });
+
+  // GOAL C
+  it('C: per-dose amount override (same unit, positive) is honored for the logged amount and the decrement', async () => {
+    mockVialFindFirst.mockResolvedValue(reconstitutedVial);
+    mockVialUpdateMany.mockResolvedValue({ count: 1 });
+    mockVialFindUnique.mockResolvedValue({ remainingMg: 18, status: 'RECONSTITUTED' });
+
+    const override = { amount: '2', unit: 'mg' as const };
+    await logDose({
+      actorUserId: uid, protocolId: pid, scheduledDate, amount: override, status: 'LOGGED',
+      injectionSite: { bodyPart: 'thigh', side: 'left' },
+    });
+
+    // The logged amount is the override, not the planned dose.
+    expect(mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ amount: override }) })
+    );
+    // The decrement used the override amount (2 mg), not the planned 1 mg.
+    expect(mockVialUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ remainingMg: { gte: new Decimal('2') } }) })
+    );
+    // The protocol/regimen row was never mutated.
+    expect(mockProtocolUpdate).not.toHaveBeenCalled();
+    expect(mockProtocolUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('C: mismatched unit override → throws invalid_input', async () => {
+    mockVialFindFirst.mockResolvedValue(reconstitutedVial);
+    await expect(
+      logDose({
+        actorUserId: uid, protocolId: pid, scheduledDate,
+        amount: { amount: '500', unit: 'mcg' as const }, status: 'LOGGED',
+        injectionSite: { bodyPart: 'thigh', side: 'left' },
+      })
+    ).rejects.toThrow(/invalid_input/);
+  });
+
+  it('C: non-positive override → throws invalid_input', async () => {
+    mockVialFindFirst.mockResolvedValue(reconstitutedVial);
+    await expect(
+      logDose({
+        actorUserId: uid, protocolId: pid, scheduledDate,
+        amount: { amount: '0', unit: 'mg' as const }, status: 'LOGGED',
+        injectionSite: { bodyPart: 'thigh', side: 'left' },
+      })
+    ).rejects.toThrow(/invalid_input/);
+  });
+
+  // GOAL D
+  it('D: existing LOGGED dose with null vialId is re-bound on retry — decrements once and persists vialId', async () => {
+    // An existing dose log that was created without a backing vial (e.g. inventory short at the time).
+    const existingNullVial = { ...createdLogRow, vialId: null, status: 'LOGGED' };
+    // First findFirst (locate existing log) returns the null-vial log; the post-update
+    // findFirst inside updateDoseLog returns the re-bound row.
+    mockDoseLogFindFirst
+      .mockResolvedValueOnce(existingNullVial)
+      .mockResolvedValue({ ...existingNullVial, vialId: 'vial-cover' });
+    mockVialFindFirst.mockResolvedValue(reconstitutedVial); // inventory now available
+    mockVialUpdateMany.mockResolvedValue({ count: 1 }); // covers the dose now
+    mockVialFindUnique.mockResolvedValue({ remainingMg: 19, status: 'RECONSTITUTED' });
+    mockDoseLogUpdate.mockResolvedValue({ count: 1 }); // updateMany result
+
+    const result = await logDose({
+      actorUserId: uid, protocolId: pid, scheduledDate, amount: plannedDose, status: 'LOGGED',
+      injectionSite: { bodyPart: 'thigh', side: 'left' },
+    });
+
+    expect(result.doseLog).toBeDefined();
+    // It is NOT a no-op: a decrement happened and the vial id was persisted.
+    expect(mockVialUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: 'vial-cover' }) })
+    );
+    expect(mockDoseLogUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'log-rebind-1', userId: uid },
+        data: expect.objectContaining({ vialId: 'vial-cover' }),
+      })
+    );
+  });
+
+  it('D: a second identical retry (vialId already bound) does NOT decrement again', async () => {
+    // Now the existing dose already has the vial bound.
+    const existingBound = { ...createdLogRow, vialId: 'vial-cover', status: 'LOGGED' };
+    mockDoseLogFindFirst.mockResolvedValue(existingBound);
+    mockVialFindFirst.mockResolvedValue(reconstitutedVial);
+    mockVialUpdateMany.mockResolvedValue({ count: 1 });
+
+    const result = await logDose({
+      actorUserId: uid, protocolId: pid, scheduledDate, amount: plannedDose, status: 'LOGGED',
+      injectionSite: { bodyPart: 'thigh', side: 'left' },
+    });
+
+    // Idempotent no-op: no decrement, no update write.
+    expect(result.doseLog).toBeDefined();
+    expect(mockVialUpdateMany).not.toHaveBeenCalled();
+    expect(mockDoseLogUpdate).not.toHaveBeenCalled();
   });
 });
 
