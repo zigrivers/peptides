@@ -2275,6 +2275,277 @@ Think of an injury as a collapsed bridge in a remote town. BPC-157 acts as the l
         ],
       },
     },
+    {
+      name: 'AOD-9604',
+      iupacName: null,
+      synonyms: ['hGH Fragment 176-191', 'AOD9604', 'Anti-Obesity Drug 9604', 'Tyr-hGH 177-191'],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+AOD-9604 is a synthetic 16-amino-acid peptide corresponding to the C-terminal lipolytic domain (residues 176-191) of human growth hormone, with an added N-terminal tyrosine. In preclinical models it stimulates lipolysis and inhibits lipogenesis and is associated with restored/up-regulated beta-3 adrenergic receptor expression in adipose tissue, mobilizing free fatty acids and glycerol from triglyceride stores. Unlike intact hGH, in animal studies it does so without meaningfully raising IGF-1 or impairing insulin sensitivity.
+
+### The Analogy (The Layman Explanation)
+Think of growth hormone as a multi-tool with many blades; AOD-9604 is just the single 'fat-burning' blade snapped off and kept. It is meant to tell fat cells to release and burn their stored fat while skipping the growth and blood-sugar effects of the whole tool.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: No reliably documented human effect; injection-site tolerability assessed. Benefits are largely theoretical/preclinical.
+* **Week 2 (Days 8–14)**: No established clinical milestone; any change is anecdotal.
+* **Week 4 (Days 15–28)**: Human trials measured outcomes over months, not weeks; meaningful short-term change is not well-supported.
+* **Week 8 (Days 29–56)**: In the positive 12-week trial, separation from placebo was modest and emerged late.
+* **Week 12 (Days 57–84)**: A 12-week RCT reported ~2.6 kg loss at 1 mg/day vs ~0.8 kg placebo; the larger 24-week Phase IIb trial did NOT meet its primary endpoint. Treat efficacy as unproven.`,
+      administrationRoutes: ['SubQ', 'Oral'],
+      tags: ['weight-loss', 'fat-metabolism', 'metabolic'],
+      profile: {
+        dosingLow: { amount: '150', unit: 'mcg', researchBenefits: 'Lower end of commonly reported research ranges; used to assess tolerability with minimal exposure.', recommendedFrequency: 'Once daily' },
+        dosingTypical: { amount: '300', unit: 'mcg', researchBenefits: 'Commonly cited research dose for fat-metabolism studies.', recommendedFrequency: 'Once daily' },
+        dosingHigh: { amount: '600', unit: 'mcg', researchBenefits: 'Upper end of commonly reported ranges; not associated with proven additional benefit.', recommendedFrequency: 'Once daily' },
+        sideEffects: 'Generally reported as well tolerated in trials, with injection-site reactions, occasional headache, and mild GI upset most commonly noted. Safety Assessment: Long-term human safety data are limited; the FDA flagged peptide impurity and immunogenicity concerns, and clinical efficacy for weight loss is unproven (largest trial failed its primary endpoint). Not FDA-approved. Not a substitute for established obesity therapies.',
+        stackingNotes: 'Sometimes combined in research settings with GH secretagogues (e.g., CJC-1295/ipamorelin) or used standalone as a lipolytic; evidence for stacking benefit is anecdotal. Storage: reconstituted, refrigerate at 2-8C and use within ~30 days; lyophilized powder is stable refrigerated for months and frozen long-term (avoid repeated freeze-thaw).',
+        reconstitutedShelfLifeDays: 30,
+        fridgeShelfLifeMonths: 24,
+        freezerShelfLifeMonths: 36,
+        citations: [
+          {
+            title: 'Metabolic studies of a synthetic lipolytic domain (AOD9604) of human growth hormone',
+            doi: '10.1159/000053183',
+            pmid: '11146367',
+          },
+          {
+            title: 'Effects of human GH and its lipolytic fragment (AOD9604) on lipid metabolism in obese and beta3-AR knock-out mice',
+            doi: '10.1210/endo.142.12.8522',
+            pmid: '11713213',
+          },
+        ],
+      },
+    },
+    {
+      name: 'IGF-1 LR3',
+      iupacName: null,
+      synonyms: ['Long R3 IGF-1', 'Long [Arg3]-IGF-I', 'LR3-IGF-I', 'IGF-1 Long Arginine 3'],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+IGF-1 LR3 is an 83-amino-acid synthetic analogue of human IGF-1 with an Arg-for-Glu substitution at position 3 plus a 13-residue N-terminal extension. These changes sharply lower its affinity for IGF-binding proteins (IGFBPs), leaving far more peptide free and extending its functional half-life to roughly 20-30 hours. The free peptide binds the IGF-1 receptor (IGF-1R), activating the IRS-1/PI3K/Akt/mTOR cascade (protein synthesis, hypertrophy) and the RAS/RAF/MEK/ERK cascade (proliferation), and increases cellular glucose uptake. Human efficacy and safety are not established; the evidence base is animal and in-vitro.
+
+### The Analogy (The Layman Explanation)
+Native IGF-1 is like a worker handcuffed (to IGFBPs) the moment it enters the blood, so little is free and it vanishes within minutes. IGF-1 LR3 was redesigned so the handcuffs no longer fit — it stays free and active for many hours, pressing the cell's growth button (IGF-1R) much harder and longer. The trade-off: that same button is one cancers and other tissues also use, and its strong glucose pull can crash blood sugar.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: No validated human timeline. The most consistent acute effect is a transient post-injection drop in blood glucose; possible localized 'pump'/fullness. No real strength/size change.
+* **Week 2 (Days 8–14)**: Continued acute glucose-lowering; anecdotal recovery/fullness reports. No reliable tissue change this early.
+* **Week 4 (Days 15–28)**: Animal data support increased organ/tissue growth with sustained exposure; any human tissue adaptation is gradual and unproven.
+* **Week 8 (Days 29–56)**: Window in which anecdotal acromegaly-like complaints and visceral-organ-growth concerns are described; such changes, if real, may not reverse.
+* **Week 12 (Days 57–84)**: Most informal protocols stop here over cumulative growth-signaling and cancer-risk concerns. No FDA-approved indication, dose, or duration exists.`,
+      administrationRoutes: ['SubQ', 'IM'],
+      tags: ['muscle-growth', 'recovery', 'anabolic', 'tissue-repair'],
+      profile: {
+        dosingLow: { amount: '20', unit: 'mcg', researchBenefits: 'Lowest commonly reported research starting range, used to assess tolerability (especially blood-glucose response).', recommendedFrequency: 'Once daily' },
+        dosingTypical: { amount: '40', unit: 'mcg', researchBenefits: 'Mid-range commonly cited in informal protocols; balances reported effect against acute hypoglycemia risk.', recommendedFrequency: 'Once daily' },
+        dosingHigh: { amount: '80', unit: 'mcg', researchBenefits: 'Upper end of commonly reported ranges; markedly increases hypoglycemia and acromegaly/organ-growth concerns; unsupported by controlled human safety data.', recommendedFrequency: 'Once daily' },
+        sideEffects: 'Commonly reported: hypoglycemia (shakiness, sweating, dizziness, confusion, and in severe cases loss of consciousness), injection-site reactions, headache, water retention. Safety Assessment: HIGH RISK and not validated in humans. Hypoglycemia is the most immediate danger (insulin-like glucose uptake). Potent, persistent IGF-1R/PI3K-Akt and MEK/ERK activation raises serious animal-supported concerns for non-selective tissue/organ overgrowth (acromegaly-like changes; enlargement of heart, liver, kidneys) and for promoting growth of existing or occult tumors. Contraindicated with active or prior malignancy. Not FDA-approved; no established human dose, monitoring standard, or long-term safety profile.',
+        stackingNotes: 'In informal use it is sometimes combined with GH secretagogues or anabolic regimens to amplify hypertrophy/recovery signaling; such stacks compound the hypoglycemia and unchecked-growth risks and are unsupported by safety evidence. Storage: lyophilized powder most stable frozen; once reconstituted with bacteriostatic water keep refrigerated (2-8C) and use within ~2-3 weeks. Avoid repeated freeze-thaw; protect from heat/light.',
+        reconstitutedShelfLifeDays: 21,
+        fridgeShelfLifeMonths: 6,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Long R3 IGF-I stimulates organ growth but reduces plasma IGF-I, IGF-II and IGFBP in the guinea pig',
+            doi: '10.1677/joe.0.1460247',
+            pmid: '7561636',
+          },
+          {
+            title: 'Anabolic effects of IGF-I and an IGF-I variant in normal female rats',
+            doi: '10.1677/joe.0.1370413',
+            pmid: '8371075',
+          },
+        ],
+      },
+    },
+    {
+      name: 'Melanotan-1',
+      iupacName: null,
+      synonyms: ['Afamelanotide', 'MT-1', 'Scenesse', 'Melanotan I', 'CUV1647', '[Nle4-D-Phe7]-alpha-MSH', 'NDP-alpha-MSH'],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+Melanotan-1 (afamelanotide) is a synthetic 13-amino-acid analog of alpha-melanocyte-stimulating hormone (alpha-MSH), [Nle4-D-Phe7]-alpha-MSH. The Nle4/D-Phe7 substitutions resist enzymatic degradation and increase potency and duration versus native alpha-MSH. It is a selective agonist of the melanocortin-1 receptor (MC1R) on melanocytes; activation raises cAMP, upregulates MITF and melanogenic enzymes (tyrosinase, TRP-1/2), and drives synthesis of photoprotective eumelanin independent of UV exposure. The extra eumelanin absorbs/scatters light and scavenges reactive oxygen species, mitigating phototoxicity — the basis of its approved use in EPP.
+
+### The Analogy (The Layman Explanation)
+Your skin's pigment cells normally switch on their 'tanning' line only when sunlight presses the alarm button (MC1R). Melanotan-1 is a master key that presses that button directly, telling the cells to make brown pigment even with no sun. That pigment acts like built-in sunscreen and a sponge that mops up light damage — which is why it helps people with EPP tolerate far more light before pain starts.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: For injectable protocols, visible tanning of sun-exposed areas begins and typically peaks ~day 7 after a loading course; transient nausea and facial flushing are common early.
+* **Week 2 (Days 8–14)**: Pigmentation deepens and stabilizes; appetite/GI side effects usually subside.
+* **Week 4 (Days 15–28)**: Established pigmentation; in EPP, measurable increase in pain-free light exposure emerges.
+* **Week 8 (Days 29–56)**: Approximate lifespan of one SCENESSE implant (~60 days); EPP benefit sustained.
+* **Week 12 (Days 57–84)**: With continued dosing, photoprotection maintained; cosmetic tan from injectable use fades within ~3 weeks of stopping. Ongoing mole/nevi monitoring is essential.`,
+      administrationRoutes: ['SubQ'],
+      tags: ['tanning', 'photoprotection', 'skin'],
+      profile: {
+        dosingLow: { amount: '0.25', unit: 'mg', researchBenefits: 'Conservative starter/maintenance injectable dose to assess tolerance with reduced nausea risk.', recommendedFrequency: 'Daily during loading, then 2-3x weekly maintenance' },
+        dosingTypical: { amount: '0.5', unit: 'mg', researchBenefits: 'Commonly reported injectable loading dose for photoprotective pigmentation.', recommendedFrequency: 'Daily for ~1-2 week loading, then ~2x weekly' },
+        dosingHigh: { amount: '1', unit: 'mg', researchBenefits: 'Upper-range injectable daily dose for faster pigmentation; increases nausea/flushing. The approved implant delivers 16 mg over ~60 days (~0.27 mg/day average).', recommendedFrequency: 'Once daily loading (injectable)' },
+        sideEffects: 'Nausea and transient GI upset, vomiting, facial flushing, headache, fatigue, yawning. Generalized/uneven skin darkening and darkening, enlargement, or new appearance of moles/nevi. Safety Assessment: Melanotan-1 stimulates ALL melanocytes, so existing moles can change and new nevi can appear; because changing moles are a primary melanoma warning sign, this raises melanoma concern and can mask early detection. Case reports describe melanoma and eruptive/atypical nevi after melanotropic peptide use. Baseline and periodic dermatologic skin/mole exams are strongly advised. Only afamelanotide (SCENESSE implant, for EPP) has an FDA-reviewed safety profile; the injectable tanning product is unregulated with unknown purity.',
+        stackingNotes: 'Not an anabolic agent; no established beneficial stacks. Often confused with Melanotan-2 (broader melanocortin agonism, libido/appetite effects). Combining with deliberate UV to accelerate tanning increases photodamage and is discouraged. Storage: lyophilized powder frozen (<= -20C) is stable ~24 months; refrigerated lyophilized vials stable several months. Reconstituted with bacteriostatic water: refrigerate (2-8C), use within ~30 days, minimize light/heat, do not freeze.',
+        reconstitutedShelfLifeDays: 30,
+        fridgeShelfLifeMonths: 3,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Skin pigmentation and pharmacokinetics of melanotan-I in humans',
+            doi: '10.1002/(sici)1099-081x(199704)18:3<259::aid-bdd20>3.0.co;2-x',
+            pmid: '9113347',
+          },
+          {
+            title: 'Afamelanotide for Erythropoietic Protoporphyria',
+            doi: '10.1056/NEJMoa1411481',
+            pmid: '26132941',
+          },
+          {
+            title: 'An unhealthy glow? A review of melanotan use and associated clinical outcomes',
+            doi: '10.1016/j.pmedr.2015.01.006',
+          },
+        ],
+      },
+    },
+    {
+      name: 'PE-22-28',
+      iupacName: null,
+      synonyms: ['Spadin analog', 'Spadin-derived heptapeptide', 'PE22-28', 'GVSWGLR peptide'],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+PE-22-28 is a synthetic 7-residue peptide (GVSWGLR) derived from residues 22-28 of spadin, a fragment of the sortilin/NTSR3 propeptide. Its primary action is selective blockade of the TREK-1 (KCNK2) two-pore-domain potassium channel. TREK-1 is a background K+ channel that hyperpolarizes neurons and dampens excitability; TREK-1 knockout mice are depression-resistant. By inhibiting TREK-1 (reported IC50 ~0.12 nM in vitro), PE-22-28 raises excitability in serotonergic/hippocampal circuits and, in rodents, increases CREB phosphorylation, BDNF-associated signaling, neurogenesis, and synaptogenesis. All evidence is preclinical (rodent); the mechanism is not validated in humans.
+
+### The Analogy (The Layman Explanation)
+Think of certain mood neurons as having a 'pressure-release valve' (TREK-1) that keeps them quiet. In depression that valve may be stuck open, leaving cells under-active. PE-22-28 acts like a precise plug that closes this valve, letting the neurons fire again — and over days, the brain responds by sprouting new connections. The catch: this story has so far only been watched in mice, not people.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: In rodents, antidepressant-like effects appeared rapidly (after a single dose, clear by day 4 of once-daily dosing). Any human timeline is purely extrapolated and unproven.
+* **Week 2 (Days 8–14)**: Research-derived expectation of sustained TREK-1 blockade and pro-neurogenic signaling; no human data confirm onset or persistence.
+* **Week 4 (Days 15–28)**: Hypothesized consolidation of neurogenesis/synaptogenesis seen in animals; speculative in humans.
+* **Week 8 (Days 29–56)**: No preclinical or clinical data define effects at this horizon.
+* **Week 12 (Days 57–84)**: No long-term safety or efficacy data of any kind. All of the above are research-derived expectations from rodent models; human evidence is essentially absent.`,
+      administrationRoutes: ['SubQ', 'Intranasal'],
+      tags: ['cognitive', 'brain', 'mood', 'neuroprotection'],
+      profile: {
+        dosingLow: { amount: '100', unit: 'mcg', researchBenefits: 'Lowest commonly circulated research-use amount, EXTRAPOLATED from rodent ug/kg dosing; not validated in humans.', recommendedFrequency: 'Once daily (research extrapolation only)' },
+        dosingTypical: { amount: '250', unit: 'mcg', researchBenefits: 'Mid-point of circulated research-use ranges; UNVALIDATED in humans; based on extrapolation, not clinical trials.', recommendedFrequency: 'Once daily (research extrapolation only)' },
+        dosingHigh: { amount: '500', unit: 'mcg', researchBenefits: 'Upper end of circulated research-use ranges; NO human safety basis; not a validated ceiling.', recommendedFrequency: 'Once daily (research extrapolation only)' },
+        sideEffects: 'No human side-effect data exist. In rodents, spadin and shortened analogs reportedly lacked the cardiac/epileptogenic effects associated with broad TREK-1 modulation at studied doses, but this does not establish human safety. Safety Assessment: Human safety is UNKNOWN. All evidence is preclinical (rodent). Not approved by any regulator, never completed a human trial; unquantified risks including immunogenicity, off-target effects, and unknown long-term consequences. Research use only.',
+        stackingNotes: 'No human stacking data exist; combination use is unstudied and not advised outside controlled research. Theoretical caution with serotonergic agents given the proposed mood-circuit mechanism. Storage: keep reconstituted peptide refrigerated (2-8C) and use within days; lyophilized powder is most stable frozen, protected from light and moisture.',
+        reconstitutedShelfLifeDays: 21,
+        fridgeShelfLifeMonths: 3,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Shortened Spadin Analogs Display Better TREK-1 Inhibition, In Vivo Stability and Antidepressant Activity',
+            doi: '10.3389/fphar.2017.00643',
+            pmid: '28955242',
+          },
+          {
+            title: 'Spadin, a Sortilin-Derived Peptide, Targeting Rodent TREK-1 Channels: A New Concept in Antidepressant Drug Design',
+            doi: '10.1371/journal.pbio.1000355',
+            pmid: '20405001',
+          },
+          {
+            title: 'Fighting against depression with TREK-1 blockers: Past and future. A focus on spadin',
+            doi: '10.1016/j.pharmthera.2018.10.003',
+            pmid: '30291907',
+          },
+        ],
+      },
+    },
+    {
+      name: 'SS-31',
+      iupacName: null,
+      synonyms: ['Elamipretide', 'MTP-131', 'Bendavia', 'FORZINITY', 'D-Arg-Dmt-Lys-Phe-NH2'],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+SS-31 (elamipretide) is an aromatic-cationic, cell-permeable tetrapeptide (D-Arg-Dmt-Lys-Phe-NH2) that concentrates in the inner mitochondrial membrane and selectively binds cardiolipin, the signature phospholipid of that membrane. By associating with cardiolipin it stabilizes cristae architecture, protects cardiolipin from peroxidation, and supports assembly of electron transport chain supercomplexes — improving oxidative phosphorylation efficiency and ATP output while reducing reactive oxygen species leakage. Current evidence indicates the dominant action is modulation of membrane properties and ETC organization rather than simple direct ROS scavenging.
+
+### The Analogy (The Layman Explanation)
+Each cell's mitochondria are power plants whose inner walls fold like an accordion to pack in energy machinery. Cardiolipin is the glue holding those folds in shape. In aging/disease the glue degrades, the folds collapse, the machinery misfires and spews 'exhaust' (free radicals). SS-31 acts like reinforcing tape that sticks to the glue, holds the folds, lets the machinery line up, and lets the plant run cleaner with more power and less exhaust.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: No noticeable subjective change. Injection-site reactions (redness, mild pain, itching) often begin with the first dose; cellular/clinical effects lag.
+* **Week 2 (Days 8–14)**: Continued tolerability assessment; injection-site reactions may persist; typically no clear functional change yet.
+* **Week 4 (Days 15–28)**: Some report early subjective energy/exercise-tolerance changes; objective endpoints generally not yet significant. Asymptomatic eosinophil elevations have been observed starting ~day 28.
+* **Week 8 (Days 29–56)**: Possible early functional improvement in some; the controlled 12-week Barth phase did NOT show statistically significant benefit on primary endpoints — gains are gradual.
+* **Week 12 (Days 57–84)**: End of the typical short controlled window. Robust significant improvements (6-minute walk distance, muscle strength) appeared only over much longer open-label dosing (gains accruing through ~168 weeks); judge benefit over many months, not weeks.`,
+      administrationRoutes: ['SubQ'],
+      tags: ['longevity', 'mitochondrial', 'cardiovascular'],
+      profile: {
+        dosingLow: { amount: '10', unit: 'mg', researchBenefits: 'Lower exploratory dose for mitochondrial support, below the dose used in pivotal Barth-syndrome trials; limited efficacy data at this level.', recommendedFrequency: 'Once daily, subcutaneous' },
+        dosingTypical: { amount: '40', unit: 'mg', researchBenefits: 'Dose used in the TAZPOWER Barth-syndrome trial and FORZINITY label-aligned regimen; associated over long-term open-label dosing with improvements in 6-minute walk distance and knee-extensor strength.', recommendedFrequency: 'Once daily, subcutaneous' },
+        dosingHigh: { amount: '60', unit: 'mg', researchBenefits: 'Upper end of subcutaneous dosing explored in some studies; no clear added benefit over 40 mg and higher injection-site burden expected.', recommendedFrequency: 'Once daily, subcutaneous' },
+        sideEffects: 'Most common: injection-site reactions (erythema, induration, bruising, pruritus, pain, occasional urticaria), usually mild-to-moderate, often starting with the first dose and resolving after the last; rotating sites helps. Asymptomatic eosinophilia has been observed starting ~day 28 without reported systemic symptoms. Safety Assessment: Generally well tolerated across hundreds of patients with no serious systemic adverse events attributable to the drug in published trials; the main real-world limitation is local injection-site tolerability. FDA-approved only for Barth syndrome; all other uses are investigational and long-term safety outside studied populations is not established.',
+        stackingNotes: 'Conceptually paired in research with broader mitochondrial support (e.g., CoQ10, NAD+ precursors), though no controlled combination data exist; do not assume synergy. Avoid co-injecting irritants at the same site. Storage: lyophilized powder kept frozen or refrigerated and protected from light for long-term stability; once reconstituted, refrigerate (2-8C) and use within the short reconstituted window; do not freeze the solution.',
+        reconstitutedShelfLifeDays: 30,
+        fridgeShelfLifeMonths: 3,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Elamipretide: the first cardiolipin-directed mitochondrial therapeutic for Barth syndrome approved under accelerated approval',
+            doi: '10.5582/ddt.2025.01111',
+            pmid: '41260682',
+          },
+          {
+            title: 'Elamipretide: A Review of Its Structure, Mechanism of Action, and Therapeutic Potential',
+            doi: '10.3390/ijms26030944',
+            pmid: '39940712',
+          },
+          {
+            title: 'Long-term efficacy and safety of elamipretide in Barth syndrome: 168-week open-label extension of TAZPOWER',
+            doi: '10.1016/j.gim.2024.101138',
+            pmid: '38602181',
+          },
+        ],
+      },
+    },
+    {
+      name: 'TB-500 Fragment (889 Da)',
+      iupacName: null,
+      synonyms: ['Ac-LKKTETQ', 'TB4-Frag', 'Thymosin Beta-4 actin-binding fragment', 'LKKTETQ peptide'],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+TB-500 Fragment (889 Da) is the acetylated heptapeptide Ac-LKKTETQ, the isolated central actin-binding motif of full-length Thymosin Beta-4 (Tb4, 43 aa, ~4963 Da). It is chemically DISTINCT from full-length Tb4 — it is the 7-residue fragment, not the parent protein. The LKKTETQ motif binds monomeric G-actin (~1:1), buffering a pool of polymerization-ready actin. In wound models the fragment reproduces much of the parent molecule's activity: promoting keratinocyte and endothelial migration and driving angiogenesis (the seven-amino-acid motif is necessary and sufficient for Tb4's angiogenic activity) and accelerating dermal repair comparably to the full peptide. IMPORTANT: nearly all data are preclinical (rodent/in-vitro/topical) and EXTRAPOLATED from the parent Tb4 actin-binding domain; direct human trials of the isolated 889 Da fragment dosed parenterally are minimal to absent.
+
+### The Analogy (The Layman Explanation)
+Think of full-length Thymosin Beta-4 as a complete multi-tool and this fragment as just its single most-used blade snapped off and sold alone. That blade grabs loose actin 'building blocks' and hands them to the repair crew so cells can crawl into a wound, lay down tissue, and sprout new blood vessels. Because it is only the blade, we have far less proof it behaves the same way in people.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: No reliable human efficacy data; in animal/topical models, early increased local cell migration and reduced inflammation. Users typically report nothing definitive.
+* **Week 2 (Days 8–14)**: Preclinical models show angiogenesis and granulation; anecdotal human reports of subtle soft-tissue/joint relief. Unverified.
+* **Week 4 (Days 15–28)**: Animal wound-closure benefit established by this window; anecdotal recovery claims accumulate but are not from controlled human trials.
+* **Week 8 (Days 29–56)**: Putative cumulative tissue-repair window by extrapolation from parent Tb4 studies; no controlled human evidence for the isolated fragment.
+* **Week 12 (Days 57–84)**: Typical end of an anecdotal cycle. Benefit beyond this point is unsupported by human trial data for the 889 Da fragment specifically.`,
+      administrationRoutes: ['SubQ', 'IM'],
+      tags: ['healing', 'recovery', 'tissue-repair'],
+      profile: {
+        dosingLow: { amount: '2', unit: 'mg', researchBenefits: 'Conservative entry exposure used anecdotally for general soft-tissue recovery; minimal supporting human data.', recommendedFrequency: 'Split, e.g. 1 mg twice weekly' },
+        dosingTypical: { amount: '5', unit: 'mg', researchBenefits: 'Most commonly reported weekly research dose for systemic recovery/tissue repair; extrapolated from parent Tb4 healing models, not validated in human trials of the fragment.', recommendedFrequency: 'Split, e.g. 2-2.5 mg twice weekly' },
+        dosingHigh: { amount: '10', unit: 'mg', researchBenefits: 'Upper-bound weekly amount cited anecdotally during an acute loading phase; no added benefit in controlled data and unknown risk.', recommendedFrequency: 'Split, e.g. 5 mg twice weekly during a short loading block only' },
+        sideEffects: 'Reported (anecdotal/preclinical) effects are generally mild: transient injection-site redness, swelling or stinging, occasional fatigue or lightheadedness, rare flushing. Safety Assessment: Human safety data for the isolated 889 Da fragment are minimal — almost all evidence is preclinical (rodent/topical) or extrapolated from full-length Tb4. No established human dosing, long-term safety, immunogenicity, or oncologic-risk profile. Because actin-binding peptides promote angiogenesis and migration, a theoretical concern about effects on existing tumors cannot be excluded. Treat as an experimental research compound, not a therapeutic. WADA-prohibited.',
+        stackingNotes: 'Frequently paired anecdotally with BPC-157 in recovery/healing stacks (complementary tissue-repair rationale; no controlled human combination data). Storage: store lyophilized powder frozen (-20C) for long-term stability, protected from light; once reconstituted with bacteriostatic water keep refrigerated (2-8C) and use within ~2-4 weeks; do not repeatedly freeze the solution.',
+        reconstitutedShelfLifeDays: 28,
+        fridgeShelfLifeMonths: 3,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'Thymosin beta4 and a synthetic peptide containing its actin-binding domain promote dermal wound repair in db/db diabetic and aged mice',
+            doi: '10.1046/j.1524-475x.2003.11105.x',
+            pmid: '12581423',
+          },
+          {
+            title: 'The actin binding site on thymosin beta4 promotes angiogenesis',
+            doi: '10.1096/fj.03-0121fj',
+            pmid: '14500546',
+          },
+          {
+            title: 'Biological activities of thymosin beta4 defined by active sites in short peptide sequences',
+            doi: '10.1096/fj.09-142307',
+            pmid: '20179146',
+          },
+        ],
+      },
+    },
   ];
 
   const fixturesPath = path.join(__dirname, 'seed-data/dosing_fixtures.json');
@@ -3317,6 +3588,61 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 12, benefits: ['Deep restorative sleep integration, persistent resolution of chronic insomnia markers'] },
     ];
   }
+  // TB-500 Fragment (889 Da): match the isolated fragment BEFORE any broad tb-500/thymosin rule so it gets its own honest, fragment-specific timeline.
+  if (normName.includes('889') || (normName.includes('fragment') && (normName.includes('tb-500') || normName.includes('tb4') || normName.includes('lkktetq')))) {
+    return [
+      { week: 1, benefits: ['No reliable human efficacy data; animal/topical models show early local cell migration and reduced inflammation'] },
+      { week: 2, benefits: ['Preclinical angiogenesis and granulation; only anecdotal, unverified human soft-tissue/joint relief'] },
+      { week: 4, benefits: ['Animal wound-closure benefit established by this window; human recovery claims are anecdotal, not from controlled trials'] },
+      { week: 8, benefits: ['Putative cumulative tissue-repair window extrapolated from parent Tb4; no controlled human evidence for the isolated fragment'] },
+      { week: 12, benefits: ['Typical end of an anecdotal cycle; benefit beyond this is unsupported by human trial data for the 889 Da fragment specifically'] },
+    ];
+  }
+  if (normName.includes('aod-9604') || normName.includes('aod9604')) {
+    return [
+      { week: 1, benefits: ['No reliably documented human effect; injection-site tolerability assessed (benefits largely theoretical/preclinical)'] },
+      { week: 2, benefits: ['No established clinical milestone; any change is anecdotal'] },
+      { week: 4, benefits: ['Human trials measured outcomes over months, not weeks; meaningful short-term change is not well-supported'] },
+      { week: 8, benefits: ['In the one positive 12-week trial, separation from placebo was modest and emerged late'] },
+      { week: 12, benefits: ['A 12-week RCT reported ~2.6 kg loss at 1 mg/day vs ~0.8 kg placebo, but the larger 24-week Phase IIb trial missed its primary endpoint; treat efficacy as unproven'] },
+    ];
+  }
+  if (normName.includes('igf-1 lr3') || normName.includes('lr3')) {
+    return [
+      { week: 1, benefits: ['No validated human timeline; main acute effect is a transient post-injection blood-glucose drop (hypoglycemia risk), possible localized fullness; no real strength/size change'] },
+      { week: 2, benefits: ['Continued acute glucose-lowering; anecdotal recovery/fullness reports; no reliable tissue change this early'] },
+      { week: 4, benefits: ['Animal data support increased organ/tissue growth with sustained exposure; any human tissue adaptation is gradual and unproven'] },
+      { week: 8, benefits: ['Window for anecdotal acromegaly-like complaints and visceral-organ-growth concerns; such changes, if real, may not reverse'] },
+      { week: 12, benefits: ['Most informal protocols stop here over cumulative growth-signaling and cancer-risk concerns; no FDA-approved indication, dose, or duration exists'] },
+    ];
+  }
+  if (normName.includes('melanotan-1') || normName.includes('melanotan 1') || normName.includes('afamelanotide')) {
+    return [
+      { week: 1, benefits: ['Injectable protocols: visible tanning of sun-exposed areas begins and peaks ~day 7 after loading; transient nausea and facial flushing common early'] },
+      { week: 2, benefits: ['Pigmentation deepens and stabilizes; appetite/GI side effects usually subside'] },
+      { week: 4, benefits: ['Established pigmentation; in EPP, measurable increase in pain-free light exposure emerges'] },
+      { week: 8, benefits: ['Approximate lifespan of one SCENESSE implant (~60 days); EPP photoprotection sustained'] },
+      { week: 12, benefits: ['Photoprotection maintained with continued dosing; cosmetic tan fades within ~3 weeks of stopping; ongoing mole/nevi monitoring is essential'] },
+    ];
+  }
+  if (normName.includes('pe-22-28') || normName.includes('pe22-28') || normName.includes('spadin')) {
+    return [
+      { week: 1, benefits: ['Rodent antidepressant-like effects appeared rapidly (clear by ~day 4 of once-daily dosing); any human timeline is purely extrapolated and unproven'] },
+      { week: 2, benefits: ['Research-derived expectation of sustained TREK-1 blockade and pro-neurogenic signaling; no human data confirm onset or persistence'] },
+      { week: 4, benefits: ['Hypothesized consolidation of neurogenesis/synaptogenesis seen in animals; speculative in humans'] },
+      { week: 8, benefits: ['No preclinical or clinical data define effects at this horizon'] },
+      { week: 12, benefits: ['No long-term safety or efficacy data of any kind; all expectations are rodent-derived and human evidence is essentially absent'] },
+    ];
+  }
+  if (normName.includes('ss-31') || normName.includes('elamipretide')) {
+    return [
+      { week: 1, benefits: ['No noticeable subjective change; injection-site reactions (redness, mild pain, itching) often begin with the first dose while cellular effects lag'] },
+      { week: 2, benefits: ['Continued tolerability assessment; injection-site reactions may persist; typically no clear functional change yet'] },
+      { week: 4, benefits: ['Some report early subjective energy/exercise-tolerance changes; objective endpoints generally not yet significant; asymptomatic eosinophil elevations seen ~day 28'] },
+      { week: 8, benefits: ['Possible early functional improvement in some; the controlled 12-week Barth phase did NOT meet primary endpoints — gains are gradual'] },
+      { week: 12, benefits: ['End of the typical short controlled window; robust improvements (6-minute walk, strength) appeared only over much longer open-label dosing; judge over months, not weeks'] },
+    ];
+  }
 
   // Tag-based fallbacks
   if (tags.includes('healing') || tags.includes('recovery')) {
@@ -3387,6 +3713,9 @@ function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: st
   if (normName.includes('bpc-157') || normName.includes('bpc 157')) {
     return 'Typically tracked to support soft tissue repair, tendon healing, and gastrointestinal mucosal integrity. It is expected to assist in cellular migration and localized recovery processes.';
   }
+  if (normName.includes('889') || (normName.includes('fragment') && (normName.includes('tb-500') || normName.includes('tb4') || normName.includes('lkktetq')))) {
+    return 'The isolated 889 Da actin-binding fragment (Ac-LKKTETQ) of Thymosin Beta-4, tracked anecdotally for soft-tissue and wound recovery via cell migration and angiogenesis. Evidence is almost entirely preclinical or extrapolated from full-length Tb4; human efficacy and long-term safety for the fragment are unproven, and it is WADA-prohibited.';
+  }
   if (normName.includes('tb-500') || normName.includes('tb 500') || normName.includes('thymosin beta')) {
     return 'Expected to support angiogenesis, muscle cell migration, and soft tissue repair in wound healing. It is typically used to promote recovery from acute muscle strains or joint injuries.';
   }
@@ -3437,6 +3766,21 @@ function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: st
   }
   if (normName.includes('dsip')) {
     return 'Expected to support deep sleep induction and physiological stress regulation. It is a delta sleep-inducing peptide designed to support normal sleep architecture and rest.';
+  }
+  if (normName.includes('aod-9604') || normName.includes('aod9604')) {
+    return 'A growth-hormone-derived lipolytic fragment tracked for fat metabolism and weight management without the broader hGH/IGF-1 effects. Human efficacy is unproven — the largest trial missed its primary endpoint — and it is not FDA-approved.';
+  }
+  if (normName.includes('igf-1 lr3') || normName.includes('lr3')) {
+    return 'A long-acting IGF-1 analogue tracked anecdotally for muscle growth and recovery via potent, sustained IGF-1R signaling. HIGH RISK and not validated in humans: it can cause acute hypoglycemia and raises animal-supported concerns for organ overgrowth and tumor promotion; contraindicated with any history of cancer.';
+  }
+  if (normName.includes('melanotan-1') || normName.includes('melanotan 1') || normName.includes('afamelanotide')) {
+    return 'A melanocortin-1 receptor agonist that drives photoprotective skin pigmentation; the implant form (afamelanotide/SCENESSE) is FDA-approved for EPP, while injectable tanning use is unregulated. Because it stimulates all melanocytes, moles can change and new nevi appear, raising melanoma concern — baseline and periodic dermatologic skin checks are advised.';
+  }
+  if (normName.includes('pe-22-28') || normName.includes('pe22-28') || normName.includes('spadin')) {
+    return 'A spadin-derived TREK-1 channel blocker investigated as a fast-acting antidepressant candidate, tracked for mood and neuroprotection. All evidence is preclinical (rodent) — there is no human efficacy or safety data, and it is not approved by any regulator (research use only).';
+  }
+  if (normName.includes('ss-31') || normName.includes('elamipretide')) {
+    return 'A cardiolipin-targeting mitochondrial peptide tracked for cellular energy, longevity, and cardiovascular support; the FDA approved it (FORZINITY/elamipretide) specifically for Barth syndrome. Benefits accrue gradually over months of continuous dosing, and uses outside Barth syndrome remain investigational with the main reported issue being injection-site reactions.';
   }
 
   // Tag-based fallbacks
