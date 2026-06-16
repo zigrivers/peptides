@@ -13,6 +13,7 @@ import { batchLogDatesAction } from '@/app/actions/tracker/batch-log-dates';
 import { getCapColor } from '@/lib/reconstitution/domain/syringe';
 import { sitesEqualLegacy, getSitesForRoute, suggestNextSite, getSitesMeta } from '@/lib/tracker/domain/SiteRotation';
 import type { DoseUnitsDisplay } from '@/lib/reconstitution/domain/doseUnits';
+import { doseToSyringeUnits, syringeUnitsToDose } from '@/lib/reconstitution/domain/doseUnits';
 import { calculateStreak, type StreakResult } from '@/lib/tracker/domain/streak';
 import { ConfettiCanvas } from '@/app/(dashboard)/dashboard/_components/ConfettiCanvas';
 import { SitePicker, type SiteData, formatSiteLabel, formatSiteUseAgeForSentence } from './SitePicker';
@@ -74,6 +75,8 @@ interface Props {
   loggedDates?: string[];
   /** Server-computed "units to draw" per compound for SCHEDULED doses (no Decimals client-side). */
   doseUnitsByCompoundId?: Record<string, DoseUnitsDisplay>;
+  /** Active vial concentration per compound — enables logging a dose by syringe units. */
+  vialConcentrationByCompoundId?: Record<string, { totalMg: string; bacWaterMl: string | null }>;
   syringeStandard?: 'U100' | 'U40';
   cycles?: Record<string, { startDate: string; endDate: string | null }>;
   /** Dry (un-reconstituted) vials for the add-inventory modal. */
@@ -295,10 +298,11 @@ function getSundayOfWeek(d: Date): Date {
 
 const EMPTY_DATES: string[] = [];
 const EMPTY_DOSE_UNITS: Record<string, DoseUnitsDisplay> = {};
+const EMPTY_VIAL_CONCENTRATIONS: Record<string, { totalMg: string; bacWaterMl: string | null }> = {};
 const EMPTY_DRY_VIALS: NonNullable<Props['dryVials']> = [];
 const EMPTY_COMPOUND_OPTIONS: NonNullable<Props['compoundOptions']> = [];
 
-export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, compounds, siteSuggestions = {}, initialDateISO, followClientToday = false, loggedDates = EMPTY_DATES, doseUnitsByCompoundId = EMPTY_DOSE_UNITS, cycles = {}, dryVials = EMPTY_DRY_VIALS, compoundOptions = EMPTY_COMPOUND_OPTIONS }: Props) {
+export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, compounds, siteSuggestions = {}, initialDateISO, followClientToday = false, loggedDates = EMPTY_DATES, doseUnitsByCompoundId = EMPTY_DOSE_UNITS, vialConcentrationByCompoundId = EMPTY_VIAL_CONCENTRATIONS, syringeStandard = 'U100', cycles = {}, dryVials = EMPTY_DRY_VIALS, compoundOptions = EMPTY_COMPOUND_OPTIONS }: Props) {
   const protocols = React.useMemo(() => {
     return serializedProtocols.map((p) => ({
       ...p,
@@ -330,6 +334,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState<Record<string, string>>({});
   const [editAmount, setEditAmount] = useState<Record<string, string>>({});
+  const [editUnits, setEditUnits] = useState<Record<string, string>>({});
   const [editSite, setEditSite] = useState<Record<string, InjectionSite | null>>({});
   const [isLogPending, startLogTransition] = useTransition();
   const [logErrors, setLogErrors] = useState<Record<string, string>>({});
@@ -762,13 +767,30 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
 
     const targetDateStr = event.scheduledDateStr || selectedDateStr;
 
-    // Honor a per-dose amount override on both the online and offline paths.
+    // Honor a per-dose override on both the online and offline paths. When the compound
+    // has an active vial concentration, the field is "syringe units" and we derive the
+    // dose from the units drawn; otherwise it's the existing mcg amount override.
     // A blank field falls back to the planned dose (no empty round-trip to the server).
-    const trimmedOverride = (editAmount[event.id] ?? '').trim();
-    const effectiveAmount = {
-      amount: trimmedOverride !== '' ? trimmedOverride : event.doseAmount,
-      unit: event.doseUnit as 'mcg' | 'mg' | 'IU' | 'mL',
+    const eventUnit = event.doseUnit as 'mcg' | 'mg' | 'IU' | 'mL';
+    const conc = vialConcentrationByCompoundId[event.compoundId] ?? null;
+    const plannedRes = conc
+      ? doseToSyringeUnits({ amount: event.doseAmount, unit: eventUnit }, conc, syringeStandard)
+      : null;
+    let effectiveAmount: { amount: string; unit: typeof eventUnit } = {
+      amount: event.doseAmount,
+      unit: eventUnit,
     };
+    if (conc && plannedRes && plannedRes.computable) {
+      const unitsStr = (editUnits[event.id] ?? plannedRes.units.toFixed(1)).trim();
+      const drawn = unitsStr ? syringeUnitsToDose(unitsStr, conc, syringeStandard, eventUnit) : null;
+      if (drawn) effectiveAmount = drawn; // else keep planned
+    } else {
+      const trimmedOverride = (editAmount[event.id] ?? '').trim();
+      effectiveAmount = {
+        amount: trimmedOverride !== '' ? trimmedOverride : event.doseAmount,
+        unit: eventUnit,
+      };
+    }
 
     if (status === 'LOGGED' && requiresSite && !eventSite) {
       setLogErrors((prev) => ({ ...prev, [event.id]: 'Please select an injection site.' }));
@@ -818,6 +840,11 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
             return copy;
           });
           setEditAmount((prev) => {
+            const copy = { ...prev };
+            delete copy[event.id];
+            return copy;
+          });
+          setEditUnits((prev) => {
             const copy = { ...prev };
             delete copy[event.id];
             return copy;
@@ -872,6 +899,11 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
             return copy;
           });
           setEditAmount((prev) => {
+            const copy = { ...prev };
+            delete copy[event.id];
+            return copy;
+          });
+          setEditUnits((prev) => {
             const copy = { ...prev };
             delete copy[event.id];
             return copy;
@@ -1460,27 +1492,71 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                           </div>
                         )}
 
-                        {/* dose amount override */}
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <label htmlFor={`dose-${e.id}`} className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Dose</label>
-                            <span className="text-[10px] text-gray-400">Planned: {e.doseAmount} {e.doseUnit}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <input id={`dose-${e.id}`} type="number" inputMode="decimal" min="0" step="any"
-                              value={editAmount[e.id] ?? e.doseAmount}
-                              onChange={(ev) => setEditAmount((p) => ({ ...p, [e.id]: ev.target.value }))}
-                              className="w-24 rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1 text-sm" />
-                            <span className="text-sm text-gray-500">{e.doseUnit}</span>
-                            {(editAmount[e.id] ?? e.doseAmount) !== e.doseAmount && (
-                              <button type="button" className="text-xs text-primary underline"
-                                onClick={() => setEditAmount((p) => { const c = { ...p }; delete c[e.id]; return c; })}>reset</button>
-                            )}
-                          </div>
-                          {(editAmount[e.id] ?? e.doseAmount) !== e.doseAmount && (
-                            <p className="text-[10px] text-amber-600 dark:text-amber-400">Logging {editAmount[e.id]} {e.doseUnit} (planned {e.doseAmount} {e.doseUnit})</p>
-                          )}
-                        </div>
+                        {/* dose / units override */}
+                        {(() => {
+                          const conc = vialConcentrationByCompoundId[e.compoundId] ?? null;
+                          const eventUnit = e.doseUnit as 'mcg' | 'mg' | 'IU' | 'mL';
+                          const plannedRes = conc
+                            ? doseToSyringeUnits({ amount: e.doseAmount, unit: eventUnit }, conc, syringeStandard)
+                            : null;
+                          const plannedUnits =
+                            plannedRes && plannedRes.computable ? plannedRes.units.toFixed(1) : null;
+
+                          // Units mode: an active vial concentration lets the user enter
+                          // syringe units, with a live readout of the resulting actual dose.
+                          if (conc && plannedUnits != null) {
+                            const unitsValue = editUnits[e.id] ?? plannedUnits;
+                            const standardLabel = syringeStandard === 'U100' ? 'U-100' : 'U-40';
+                            const drawn = syringeUnitsToDose(unitsValue, conc, syringeStandard, eventUnit);
+                            const isOverridden = editUnits[e.id] !== undefined && editUnits[e.id] !== plannedUnits;
+                            return (
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <label htmlFor={`units-${e.id}`} className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Dose</label>
+                                  <span className="text-[10px] text-gray-400">Planned: {plannedUnits} units · {e.doseAmount} {e.doseUnit}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <input id={`units-${e.id}`} aria-label="Units" type="number" inputMode="decimal" min="0" step="0.5"
+                                    value={unitsValue}
+                                    onChange={(ev) => setEditUnits((p) => ({ ...p, [e.id]: ev.target.value }))}
+                                    className="w-24 rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1 text-sm" />
+                                  <span className="text-sm text-gray-500">units ({standardLabel})</span>
+                                  {isOverridden && (
+                                    <button type="button" className="text-xs text-primary underline"
+                                      onClick={() => setEditUnits((p) => { const c = { ...p }; delete c[e.id]; return c; })}>reset</button>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-gray-500 dark:text-gray-400" aria-live="polite">
+                                  → actual dose: {drawn ? `${drawn.amount} ${drawn.unit}` : '—'}
+                                </p>
+                              </div>
+                            );
+                          }
+
+                          // Dose mode (no active vial): unchanged mcg amount override.
+                          return (
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <label htmlFor={`dose-${e.id}`} className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Dose</label>
+                                <span className="text-[10px] text-gray-400">Planned: {e.doseAmount} {e.doseUnit}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <input id={`dose-${e.id}`} type="number" inputMode="decimal" min="0" step="any"
+                                  value={editAmount[e.id] ?? e.doseAmount}
+                                  onChange={(ev) => setEditAmount((p) => ({ ...p, [e.id]: ev.target.value }))}
+                                  className="w-24 rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1 text-sm" />
+                                <span className="text-sm text-gray-500">{e.doseUnit}</span>
+                                {(editAmount[e.id] ?? e.doseAmount) !== e.doseAmount && (
+                                  <button type="button" className="text-xs text-primary underline"
+                                    onClick={() => setEditAmount((p) => { const c = { ...p }; delete c[e.id]; return c; })}>reset</button>
+                                )}
+                              </div>
+                              {(editAmount[e.id] ?? e.doseAmount) !== e.doseAmount && (
+                                <p className="text-[10px] text-amber-600 dark:text-amber-400">Logging {editAmount[e.id]} {e.doseUnit} (planned {e.doseAmount} {e.doseUnit})</p>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* note text input */}
                         <div className="space-y-1">

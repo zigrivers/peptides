@@ -487,6 +487,108 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
     );
   });
 
+  const unitsModeProtocols: Protocol[] = [
+    {
+      id: 'proto-units',
+      userId: 'user-1',
+      compoundId: 'compound-units',
+      cycleId: null,
+      dose: { amount: '450', unit: 'mcg' as const },
+      schedule: { frequency: 'Daily' },
+      administrationRoute: 'SUBCUTANEOUS',
+      status: 'ACTIVE',
+      startDate: new Date('2026-05-01'),
+      endDate: null,
+      notes: null,
+    },
+  ];
+
+  const unitsModeCompounds = {
+    'compound-units': { name: 'BPC-157', slug: 'bpc-157' },
+  };
+
+  const unitsModeSiteSuggestions = {
+    'proto-units': {
+      suggestion: { side: 'left' as const, bodyPart: 'abdomen' },
+      validSites: [
+        { side: 'left' as const, bodyPart: 'abdomen' },
+        { side: 'right' as const, bodyPart: 'abdomen' },
+      ],
+      siteMeta: [
+        { site: { side: 'left' as const, bodyPart: 'abdomen' }, daysSinceLastUse: 3, isRested: false, lastUsed: null },
+      ],
+      recentSites: [{ side: 'left' as const, bodyPart: 'abdomen' }],
+    },
+  };
+
+  it('logs a dose by syringe units with a live actual-dose readout when a vial is active', async () => {
+    const mockLogDoseAction = vi.mocked(logDoseAction);
+    mockLogDoseAction.mockResolvedValue({
+      ok: true,
+      doseLog: { id: 'new-log-units', status: 'LOGGED' } as unknown as DoseLog,
+      warnings: [],
+    });
+
+    render(
+      <TrackerCalendar
+        protocols={unitsModeProtocols}
+        doseLogs={[]}
+        compounds={unitsModeCompounds}
+        siteSuggestions={unitsModeSiteSuggestions}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+        vialConcentrationByCompoundId={{ 'compound-units': { totalMg: '15', bacWaterMl: '1' } }}
+        syringeStandard="U100"
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/May 24/));
+
+    // 450 mcg of a 15 mg/mL vial drawn on a U-100 syringe = 3.0 units.
+    const unitsInput = (await screen.findByLabelText(/units/i)) as HTMLInputElement;
+    expect(unitsInput.value).toBe('3.0');
+    expect(screen.getByText(/actual dose: 450 mcg/)).toBeDefined();
+
+    // Reduce to 2.5 units → 375 mcg actual dose.
+    fireEvent.change(unitsInput, { target: { value: '2.5' } });
+    expect(screen.getByText(/actual dose: 375 mcg/)).toBeDefined();
+
+    fireEvent.click(screen.getByText('Left Lower Abdomen'));
+    fireEvent.click(screen.getByRole('button', { name: 'Log Dose' }));
+
+    await waitFor(() =>
+      expect(mockLogDoseAction).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: expect.objectContaining({ unit: 'mcg' }) })
+      )
+    );
+    const calls = mockLogDoseAction.mock.calls;
+    const loggedAmount = (calls[calls.length - 1][0] as { amount: { amount: string; unit: string } }).amount;
+    expect(loggedAmount.amount.startsWith('375')).toBe(true);
+    expect(loggedAmount.unit).toBe('mcg');
+  });
+
+  it('keeps the mcg dose field (no units input) when there is no active vial', async () => {
+    render(
+      <TrackerCalendar
+        protocols={unitsModeProtocols}
+        doseLogs={[]}
+        compounds={unitsModeCompounds}
+        siteSuggestions={unitsModeSiteSuggestions}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+        syringeStandard="U100"
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/May 24/));
+
+    // Dose-mode mcg field is shown...
+    const doseInput = (await screen.findByLabelText(/^dose$/i)) as HTMLInputElement;
+    expect(doseInput.value).toBe('450');
+    expect(screen.getByText('Planned: 450 mcg')).toBeDefined();
+
+    // ...and there is no syringe-units input.
+    expect(screen.queryByLabelText(/units/i)).toBeNull();
+  });
+
   it('labels site history relative to the selected calendar date, not loggedAt or stale server metadata', () => {
     const testosteroneProtocol: Protocol = {
       id: 'proto-test',

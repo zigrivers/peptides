@@ -226,12 +226,14 @@ export default async function TrackerPage() {
   }
 
   const doseUnitsByCompoundId: Record<string, DoseUnitsDisplay> = {};
+  const vialConcentrationByCompoundId: Record<string, { totalMg: string; bacWaterMl: string | null }> = {};
   await Promise.all(
     [...doseByCompound.entries()].map(async ([compoundId, dose]) => {
       const vial = await resolveActiveVial(userId, compoundId);
       const vialConcentration = vial
         ? { totalMg: vial.totalMg.toString(), bacWaterMl: vial.bacWaterMl?.toString() ?? null }
         : null;
+      if (vialConcentration) vialConcentrationByCompoundId[compoundId] = vialConcentration;
       doseUnitsByCompoundId[compoundId] = buildDoseUnitsDisplay(
         dose,
         vialConcentration,
@@ -287,6 +289,7 @@ export default async function TrackerPage() {
               followClientToday
               loggedDates={loggedDates}
               doseUnitsByCompoundId={doseUnitsByCompoundId}
+              vialConcentrationByCompoundId={vialConcentrationByCompoundId}
               syringeStandard={syringeStandard}
               cycles={cyclesMap}
               dryVials={dryVials}

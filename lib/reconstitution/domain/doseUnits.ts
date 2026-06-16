@@ -82,6 +82,48 @@ export function doseToSyringeUnits(
   }
 }
 
+/**
+ * Inverse of `doseToSyringeUnits`: given the syringe units a user actually drew, the
+ * vial concentration, and their syringe standard, return the real dose expressed in
+ * `targetUnit`. Total — never throws (returns null on invalid/insufficient input).
+ *
+ *  - mL  → injectionVolMl = units × volPerUnit (concentration-independent).
+ *  - IU  → 1 IU = 1 syringe unit in this app (concentration-independent).
+ *  - mcg / mg → needs the vial concentration: doseMg = injectionVolMl × totalMg / bacWaterMl.
+ */
+export function syringeUnitsToDose(
+  units: string,
+  vialConcentration: { totalMg: string; bacWaterMl: string | null } | null,
+  syringeStandard: SyringeStandard,
+  targetUnit: DoseAmount['unit']
+): { amount: string; unit: DoseAmount['unit'] } | null {
+  const u = parsePositive(units);
+  if (u === null) return null;
+  const injectionVolMl = u.times(getVolumePerUnit(syringeStandard));
+  switch (targetUnit) {
+    case 'mL':
+      return { amount: formatDecimalForDoseDisplay(injectionVolMl, 3), unit: 'mL' };
+    case 'IU':
+      // 1 IU = 1 syringe unit in this app (matches doseToSyringeUnits).
+      return { amount: formatDecimalForDoseDisplay(u, 2), unit: 'IU' };
+    case 'mcg':
+    case 'mg': {
+      if (!vialConcentration || vialConcentration.bacWaterMl === null) return null;
+      const totalMg = parsePositive(vialConcentration.totalMg);
+      const bacWaterMl = parsePositive(vialConcentration.bacWaterMl);
+      if (totalMg === null || bacWaterMl === null) return null;
+      const doseMg = injectionVolMl.times(totalMg).dividedBy(bacWaterMl);
+      const amountDec = targetUnit === 'mg' ? doseMg : doseMg.times(1000);
+      return {
+        amount: formatDecimalForDoseDisplay(amountDec, targetUnit === 'mg' ? 3 : 1),
+        unit: targetUnit,
+      };
+    }
+    default:
+      return null;
+  }
+}
+
 const STANDARD_LABEL: Record<SyringeStandard, string> = {
   U100: 'U-100',
   U40: 'U-40',

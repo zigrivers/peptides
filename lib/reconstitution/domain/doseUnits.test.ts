@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import Decimal from 'decimal.js';
-import { doseToSyringeUnits, buildDoseUnitsDisplay, buildLoggedDoseDisplay } from './doseUnits';
+import { doseToSyringeUnits, syringeUnitsToDose, buildDoseUnitsDisplay, buildLoggedDoseDisplay } from './doseUnits';
 import { ReconstitutionCalculator } from './ReconstitutionCalculator';
 import type { DoseAmount, DoseUnit } from '@/lib/tracker/domain/types';
 
@@ -182,5 +182,93 @@ describe('buildLoggedDoseDisplay — logged dose amount + syringe units', () => 
   it('returns null when the logged amount cannot be shown as both mcg and units', () => {
     const display = buildLoggedDoseDisplay({ amount: '500', unit: 'mcg' }, null, 'U100');
     expect(display).toBeNull();
+  });
+});
+
+describe('syringeUnitsToDose — inverse of doseToSyringeUnits', () => {
+  const conc15mg1ml = { totalMg: '15', bacWaterMl: '1' }; // 15 mg/mL
+
+  it('mcg target: 3.0 units from 15mg/mL on U-100 = 450 mcg', () => {
+    const r = syringeUnitsToDose('3.0', conc15mg1ml, 'U100', 'mcg');
+    expect(r).not.toBeNull();
+    if (r === null) return;
+    expect(r.unit).toBe('mcg');
+    expect(Number(r.amount)).toBeCloseTo(450, 6);
+  });
+
+  it('mcg target: 2.5 units from 15mg/mL on U-100 = 375 mcg', () => {
+    const r = syringeUnitsToDose('2.5', conc15mg1ml, 'U100', 'mcg');
+    expect(r).not.toBeNull();
+    if (r === null) return;
+    expect(r.unit).toBe('mcg');
+    expect(Number(r.amount)).toBeCloseTo(375, 6);
+  });
+
+  it('mg target: 3.0 units from 15mg/mL on U-100 = 0.45 mg', () => {
+    const r = syringeUnitsToDose('3.0', conc15mg1ml, 'U100', 'mg');
+    expect(r).not.toBeNull();
+    if (r === null) return;
+    expect(r.unit).toBe('mg');
+    expect(Number(r.amount)).toBeCloseTo(0.45, 6);
+  });
+
+  it('IU target: 2 units = 2 IU (concentration-independent)', () => {
+    const r = syringeUnitsToDose('2', null, 'U100', 'IU');
+    expect(r).not.toBeNull();
+    if (r === null) return;
+    expect(r.unit).toBe('IU');
+    expect(Number(r.amount)).toBeCloseTo(2, 6);
+  });
+
+  it('mL target: 3 units on U-100 = 0.03 mL (concentration-independent)', () => {
+    const r = syringeUnitsToDose('3', null, 'U100', 'mL');
+    expect(r).not.toBeNull();
+    if (r === null) return;
+    expect(r.unit).toBe('mL');
+    expect(Number(r.amount)).toBeCloseTo(0.03, 6);
+  });
+
+  it('returns null for mcg target when vialConcentration is null', () => {
+    expect(syringeUnitsToDose('3', null, 'U100', 'mcg')).toBeNull();
+  });
+
+  it('returns null for mg target when vialConcentration is null', () => {
+    expect(syringeUnitsToDose('3', null, 'U100', 'mg')).toBeNull();
+  });
+
+  it('returns null for mcg target when bacWaterMl is null', () => {
+    expect(syringeUnitsToDose('3', { totalMg: '15', bacWaterMl: null }, 'U100', 'mcg')).toBeNull();
+  });
+
+  it('returns null for mcg target when totalMg is non-positive', () => {
+    expect(syringeUnitsToDose('3', { totalMg: '0', bacWaterMl: '1' }, 'U100', 'mcg')).toBeNull();
+  });
+
+  it('returns null for mcg target when bacWaterMl is non-positive', () => {
+    expect(syringeUnitsToDose('3', { totalMg: '15', bacWaterMl: '0' }, 'U100', 'mcg')).toBeNull();
+  });
+
+  it('returns null for non-positive / non-numeric units', () => {
+    expect(syringeUnitsToDose('0', conc15mg1ml, 'U100', 'mcg')).toBeNull();
+    expect(syringeUnitsToDose('-1', conc15mg1ml, 'U100', 'mcg')).toBeNull();
+    expect(syringeUnitsToDose('abc', conc15mg1ml, 'U100', 'mcg')).toBeNull();
+  });
+
+  it('returns null for an unknown target unit (defensive default branch)', () => {
+    expect(
+      syringeUnitsToDose('3', conc15mg1ml, 'U100', 'foo' as DoseAmount['unit'])
+    ).toBeNull();
+  });
+
+  it('round-trips with doseToSyringeUnits: 450 mcg → ~3.0 units → 450 mcg', () => {
+    const fwd = doseToSyringeUnits({ amount: '450', unit: 'mcg' }, conc15mg1ml, 'U100');
+    expect(fwd.computable).toBe(true);
+    if (!fwd.computable) return;
+    expect(fwd.units.toNumber()).toBeCloseTo(3.0, 6);
+
+    const back = syringeUnitsToDose(fwd.units.toString(), conc15mg1ml, 'U100', 'mcg');
+    expect(back).not.toBeNull();
+    if (back === null) return;
+    expect(Number(back.amount)).toBeCloseTo(450, 6);
   });
 });
