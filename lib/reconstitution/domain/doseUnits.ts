@@ -198,6 +198,54 @@ function formatDecimalForDoseDisplay(value: Decimal, decimalPlaces: number): str
   return value.toDecimalPlaces(decimalPlaces, Decimal.ROUND_HALF_UP).toString();
 }
 
+/**
+ * Display shape for the regimen Summary table: an mg-normalized dose string (with the
+ * natural unit in parens) plus the syringe-units string from `buildDoseUnitsDisplay`.
+ */
+export type RegimenDoseDisplay = { doseText: string; unitsText: string | null };
+
+/**
+ * Builds the regimen Summary row's dose display. Total — never throws.
+ *
+ *  - mg            → shown as-is (already mg), no parenthetical.
+ *  - mcg           → mg = amount / 1000, shown as `{mg} mg ({amount} mcg)`.
+ *  - IU / mL       → mg derived from concentration via injection volume:
+ *                    mg = injectionVolMl × totalMg / bacWaterMl. When concentration is
+ *                    unavailable the dose degrades to its natural unit only.
+ *  - invalid/unnormalizable → natural unit string only.
+ *
+ * `unitsText` is whatever `buildDoseUnitsDisplay` produces for the same inputs.
+ */
+export function buildRegimenDoseDisplay(
+  dose: DoseAmount,
+  vialConcentration: { totalMg: string; bacWaterMl: string | null } | null,
+  syringeStandard: SyringeStandard
+): RegimenDoseDisplay {
+  const unitsText = buildDoseUnitsDisplay(dose, vialConcentration, syringeStandard).unitsText;
+  const amount = parsePositive(dose.amount);
+  const natural = `${dose.amount} ${dose.unit}`;
+  if (amount === null) return { doseText: natural, unitsText };
+  if (dose.unit === 'mg') return { doseText: natural, unitsText }; // already mg
+
+  let mg: Decimal | null = null;
+  if (dose.unit === 'mcg') {
+    mg = amount.dividedBy(1000);
+  } else {
+    // IU / mL → derive mg from concentration via injection volume.
+    const res = doseToSyringeUnits(dose, vialConcentration, syringeStandard);
+    const totalMg = vialConcentration ? parsePositive(vialConcentration.totalMg) : null;
+    const bac =
+      vialConcentration && vialConcentration.bacWaterMl
+        ? parsePositive(vialConcentration.bacWaterMl)
+        : null;
+    if (res.computable && totalMg !== null && bac !== null) {
+      mg = res.injectionVolMl.times(totalMg).dividedBy(bac);
+    }
+  }
+  if (mg === null) return { doseText: natural, unitsText }; // can't normalize → natural only
+  return { doseText: `${formatDecimalForDoseDisplay(mg, 2)} mg (${natural})`, unitsText };
+}
+
 function loggedDoseMcg(
   dose: DoseAmount,
   injectionVolMl: Decimal,
