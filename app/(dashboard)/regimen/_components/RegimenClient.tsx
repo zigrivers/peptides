@@ -15,6 +15,8 @@ import { getCapColor } from '@/lib/reconstitution/domain/syringe';
 import { isScheduledOn } from '@/lib/tracker/domain/ScheduleGenerator';
 import { formatScheduleFrequency } from '@/lib/tracker/domain/schedule';
 import type { Schedule as DomainSchedule } from '@/lib/tracker/domain/types';
+import { getWeekInfo } from '@/lib/tracker/domain/cycleProgress';
+import { getCompoundWhyStatement } from '@/lib/reference/domain/whyStatements';
 import { CATALOG_TAGS } from '@/lib/reference/domain/tags';
 
 interface Citation {
@@ -33,6 +35,8 @@ interface CompoundProfile {
   sideEffects: string | null;
   stackingNotes: string | null;
   reconstitutedShelfLifeDays: number | null;
+  cycleLengthWeeks?: number | null;
+  restPeriodWeeks?: number | null;
   citations: Citation[];
 }
 
@@ -91,12 +95,24 @@ interface SerializedProtocol extends Omit<Protocol, 'startDate' | 'endDate'> {
   endDate: string | Date | null;
 }
 
+type DoseDisplay = {
+  doseText: string;
+  unitsText: string | null;
+  frequencyText: string;
+  perDayNote: string | null;
+};
+
 interface RegimenClientProps {
   initialProtocols: SerializedProtocol[];
   vials: Vial[];
   users: User[];
   actorUserId: string;
+  cycles?: Record<string, { startDate: string; endDate: string | null }>;
+  doseDisplayByProtocolId?: Record<string, DoseDisplay>;
 }
+
+const EMPTY_CYCLES: Record<string, { startDate: string; endDate: string | null }> = {};
+const EMPTY_DOSE_DISPLAY: Record<string, DoseDisplay> = {};
 
 const CATALOG_TAG_LABELS: ReadonlyMap<string, string> = new Map(
   CATALOG_TAGS.map(({ value, label }) => [value, label])
@@ -113,6 +129,10 @@ function formatUTCDate(date: Date): string {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function formatUTCDateISO(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
 function formatCategoryLabel(tag: string): string {
@@ -377,11 +397,16 @@ function getRunoutBadgeLabel(runout: RunoutInfo): string {
 function RegimenSummaryView({
   protocols,
   runoutByProtocolId,
+  cycles,
+  doseDisplayByProtocolId,
 }: {
   protocols: Protocol[];
   runoutByProtocolId: Record<string, RunoutInfo>;
+  cycles: Record<string, { startDate: string; endDate: string | null }>;
+  doseDisplayByProtocolId: Record<string, DoseDisplay>;
 }) {
   const todayUTC = utcMidnightToday();
+  const todayISO = formatUTCDateISO(todayUTC);
 
   if (protocols.length === 0) {
     return (
@@ -400,22 +425,41 @@ function RegimenSummaryView({
         <thead className="hidden md:table-header-group bg-gray-50 dark:bg-gray-900/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
           <tr>
             <th scope="col" className="text-left font-semibold px-4 py-3">Compound</th>
-            <th scope="col" className="text-left font-semibold px-4 py-3">Dose / Frequency</th>
-            <th scope="col" className="text-left font-semibold px-4 py-3">Start</th>
+            <th scope="col" className="text-left font-semibold px-4 py-3">Dose</th>
+            <th scope="col" className="text-left font-semibold px-4 py-3">Units</th>
+            <th scope="col" className="text-left font-semibold px-4 py-3">Frequency</th>
+            <th scope="col" className="text-left font-semibold px-4 py-3">Cycle</th>
             <th scope="col" className="text-left font-semibold px-4 py-3">Runout</th>
-            <th scope="col" className="text-left font-semibold px-4 py-3">Categories</th>
           </tr>
         </thead>
         <tbody className="block md:table-row-group p-3 md:p-0">
           {protocols.map((p) => {
             const runout = runoutByProtocolId[p.id];
             const timingLabel = getSummaryTimingLabel(p, todayUTC);
+            const dd = doseDisplayByProtocolId[p.id];
+            const whyStatement = getCompoundWhyStatement(p.compound.name);
+            const doseText = dd?.doseText ?? `${p.dose.amount} ${p.dose.unit}`;
+            const unitsText = dd?.unitsText ?? '—';
+            const isReconstitutePrompt = unitsText.startsWith('·');
+            const frequencyText = dd?.frequencyText ?? formatScheduleText(p.schedule);
+
+            const wi = getWeekInfo(
+              { startDate: p.startDate, endDate: p.endDate, cycleId: p.cycleId },
+              {
+                cycleLengthWeeks: p.compound.profile?.cycleLengthWeeks ?? null,
+                restPeriodWeeks: p.compound.profile?.restPeriodWeeks ?? null,
+              },
+              todayISO,
+              cycles
+            );
+            const showCycle = wi !== null && !wi.isContinuous;
+
             return (
               <tr
                 key={p.id}
                 className="block md:table-row rounded-lg md:rounded-none border border-gray-100 dark:border-gray-800 md:border-0 bg-white dark:bg-gray-950 mb-3 md:mb-0 last:mb-0"
               >
-                <td className="block md:table-cell px-4 py-3 align-middle">
+                <td className="block md:table-cell px-4 py-3 align-top">
                   <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Compound</span>
                   <div className="flex flex-wrap items-center gap-2">
                     <Link href={`/tracker/protocols/${p.id}/edit`} className="font-semibold text-gray-950 dark:text-gray-100 hover:text-primary">
@@ -430,16 +474,69 @@ function RegimenSummaryView({
                       </span>
                     )}
                   </div>
+                  {whyStatement && (
+                    <p
+                      title={whyStatement}
+                      className="mt-1 max-w-[20rem] truncate text-xs text-gray-500 dark:text-gray-400"
+                    >
+                      {whyStatement}
+                    </p>
+                  )}
+                  {p.compound.tags.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {p.compound.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-primary/5 text-primary px-2 py-0.5 text-[10px] font-semibold"
+                        >
+                          {formatCategoryLabel(tag)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </td>
-                <td className="block md:table-cell px-4 py-3 align-middle text-gray-700 dark:text-gray-300">
-                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Dose / Frequency</span>
-                  <span>{p.dose.amount} {p.dose.unit} · {formatScheduleText(p.schedule)}</span>
+                <td className="block md:table-cell px-4 py-3 align-top text-gray-700 dark:text-gray-300">
+                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Dose</span>
+                  <span>{doseText}</span>
+                  {dd?.perDayNote && (
+                    <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">{dd.perDayNote}</span>
+                  )}
                 </td>
-                <td className="block md:table-cell px-4 py-3 align-middle text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Start</span>
-                  <span>{formatUTCDate(p.startDate)}</span>
+                <td className="block md:table-cell px-4 py-3 align-top">
+                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Units</span>
+                  <span
+                    className={
+                      isReconstitutePrompt
+                        ? 'text-xs font-medium text-amber-600 dark:text-amber-400'
+                        : 'text-gray-700 dark:text-gray-300'
+                    }
+                  >
+                    {unitsText}
+                  </span>
                 </td>
-                <td className="block md:table-cell px-4 py-3 align-middle">
+                <td className="block md:table-cell px-4 py-3 align-top text-gray-700 dark:text-gray-300">
+                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Frequency</span>
+                  <span>{frequencyText}</span>
+                </td>
+                <td className="block md:table-cell px-4 py-3 align-top text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Cycle</span>
+                  {showCycle && wi ? (
+                    <span>
+                      Week {wi.weekNumber} of {wi.totalWeeks}
+                      {wi.restStartDate && (
+                        <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">
+                          · rest ~{formatUTCDate(wi.restStartDate)}
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span>Continuous</span>
+                  )}
+                  <span className="block text-xs text-gray-400 dark:text-gray-500">
+                    Started {formatUTCDate(p.startDate)}
+                  </span>
+                </td>
+                <td className="block md:table-cell px-4 py-3 align-top">
                   <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Runout</span>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${getRunoutBadgeStyle(runout)}`}>
@@ -458,23 +555,6 @@ function RegimenSummaryView({
                     </span>
                   </div>
                 </td>
-                <td className="block md:table-cell px-4 py-3 align-middle">
-                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Categories</span>
-                  {p.compound.tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {p.compound.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full bg-primary/5 text-primary px-2 py-0.5 text-[10px] font-semibold"
-                        >
-                          {formatCategoryLabel(tag)}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-xs text-gray-400 dark:text-gray-500">None</span>
-                  )}
-                </td>
               </tr>
             );
           })}
@@ -485,7 +565,14 @@ function RegimenSummaryView({
 }
 
 
-export function RegimenClient({ initialProtocols, vials, users, actorUserId }: RegimenClientProps) {
+export function RegimenClient({
+  initialProtocols,
+  vials,
+  users,
+  actorUserId,
+  cycles = EMPTY_CYCLES,
+  doseDisplayByProtocolId = EMPTY_DOSE_DISPLAY,
+}: RegimenClientProps) {
   const parsedProtocols = React.useMemo(() => {
     return initialProtocols.map((p) => ({
       ...p,
@@ -824,7 +911,12 @@ export function RegimenClient({ initialProtocols, vials, users, actorUserId }: R
 
       {/* Protocols Grid / Summary */}
       {viewMode === 'summary' ? (
-        <RegimenSummaryView protocols={summaryProtocols} runoutByProtocolId={runoutByProtocolId} />
+        <RegimenSummaryView
+          protocols={summaryProtocols}
+          runoutByProtocolId={runoutByProtocolId}
+          cycles={cycles}
+          doseDisplayByProtocolId={doseDisplayByProtocolId}
+        />
       ) : filteredProtocols.length === 0 ? (
         <div className="text-center py-20 bg-white dark:bg-gray-950 border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
           <p className="text-gray-400 text-sm mb-4">No protocols configured for this selection.</p>

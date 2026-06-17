@@ -1,7 +1,14 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/shared/prisma';
+import { buildRegimenDoseDisplay } from '@/lib/reconstitution/domain/doseUnits';
+import { formatScheduleFrequency } from '@/lib/tracker/domain/schedule';
+import type { Schedule as DomainSchedule } from '@/lib/tracker/domain/types';
 import { RegimenClient } from './_components/RegimenClient';
+
+function isTwiceDaily(schedule: DomainSchedule): boolean {
+  return schedule.frequency === 'TwiceDaily' || schedule.frequency === 'TwiceSpecificDaysOfWeek';
+}
 
 export const metadata = {
   title: 'My Regimen | Peptides',
@@ -97,6 +104,8 @@ export default async function RegimenPage() {
             sideEffects: p.compound.profile.sideEffects,
             stackingNotes: p.compound.profile.stackingNotes,
             reconstitutedShelfLifeDays: p.compound.profile.reconstitutedShelfLifeDays,
+            cycleLengthWeeks: p.compound.profile.cycleLengthWeeks,
+            restPeriodWeeks: p.compound.profile.restPeriodWeeks,
             citations: p.compound.citations.map((c) => ({
               id: c.id,
               title: c.title,
@@ -114,6 +123,8 @@ export default async function RegimenPage() {
             sideEffects: null,
             stackingNotes: null,
             reconstitutedShelfLifeDays: null,
+            cycleLengthWeeks: null,
+            restPeriodWeeks: null,
             citations: p.compound.citations.map((c) => ({
               id: c.id,
               title: c.title,
@@ -142,6 +153,60 @@ export default async function RegimenPage() {
     syringeStandard: u.syringeStandard,
   }));
 
+  // Fetch cycle records for protocols' cycleIds (cycle-DB-accurate progress).
+  const cycleIds = [...new Set(rawProtocols.filter((p) => p.cycleId).map((p) => p.cycleId as string))];
+  const rawCycles = cycleIds.length
+    ? await prisma.cycle.findMany({
+        where: { id: { in: cycleIds }, userId: { in: allUserIds } },
+        select: { id: true, startDate: true, endDate: true },
+      })
+    : [];
+  const cycles: Record<string, { startDate: string; endDate: string | null }> = {};
+  for (const c of rawCycles) {
+    cycles[c.id] = {
+      startDate: c.startDate.toISOString(),
+      endDate: c.endDate ? c.endDate.toISOString() : null,
+    };
+  }
+
+  // Build the per-protocol dose display (mg-normalized dose + syringe units + frequency).
+  const doseDisplayByProtocolId: Record<
+    string,
+    { doseText: string; unitsText: string | null; frequencyText: string; perDayNote: string | null }
+  > = {};
+  for (const p of rawProtocols) {
+    const doseAmountStr =
+      p.dose && typeof p.dose === 'object' && 'amount' in p.dose
+        ? ((p.dose as Record<string, unknown>).amount as string)
+        : '0';
+    const doseUnitStr =
+      p.dose && typeof p.dose === 'object' && 'unit' in p.dose
+        ? ((p.dose as Record<string, unknown>).unit as string)
+        : 'mcg';
+
+    const vial = rawVials.find(
+      (v) => v.compoundId === p.compoundId && v.userId === p.userId && v.status === 'RECONSTITUTED'
+    );
+    const vialConcentration = vial
+      ? { totalMg: vial.totalMg.toString(), bacWaterMl: vial.bacWaterMl ? vial.bacWaterMl.toString() : null }
+      : null;
+    const owner = allUsers.find((u) => u.id === p.userId);
+    const syringeStandard = (owner?.syringeStandard ?? 'U100') as 'U100' | 'U40';
+
+    const dd = buildRegimenDoseDisplay(
+      { amount: doseAmountStr, unit: doseUnitStr as 'mcg' | 'mg' | 'IU' | 'mL' },
+      vialConcentration,
+      syringeStandard
+    );
+    const schedule = p.schedule as DomainSchedule;
+    doseDisplayByProtocolId[p.id] = {
+      doseText: dd.doseText,
+      unitsText: dd.unitsText,
+      frequencyText: formatScheduleFrequency(schedule),
+      perDayNote: isTwiceDaily(schedule) ? '×2/day' : null,
+    };
+  }
+
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
       <RegimenClient
@@ -149,6 +214,8 @@ export default async function RegimenPage() {
         vials={vials}
         users={users}
         actorUserId={userId}
+        cycles={cycles}
+        doseDisplayByProtocolId={doseDisplayByProtocolId}
       />
     </main>
   );
