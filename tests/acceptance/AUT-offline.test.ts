@@ -93,6 +93,59 @@ describe('US-AUT-05 / US-TRK-03: Offline Queue', () => {
       expect(r1.ok).toBe(true);
       expect(r2.ok).toBe(true);
     });
+
+    it('keeps both twice-daily doses (same protocol+date, different doseSlot)', async () => {
+      const { OfflineQueue } = await import('@/lib/offline/application/OfflineQueue');
+      const queue = new OfflineQueue();
+
+      const base = { protocolId: 'proto-1', scheduledDate: '2026-05-21', deviceId: 'd', amount: { amount: '250', unit: 'mcg' as const }, status: 'LOGGED' as const };
+
+      // The dedupe key now folds in doseSlot, so the two slots resolve to different
+      // store keys and BOTH find()s return null (no duplicate detected).
+      mockIdbGet.mockResolvedValue(null);
+      mockIdbAdd.mockResolvedValue('ok');
+
+      const morning = await queue.enqueue({ ...base, doseSlot: 0 });
+      const evening = await queue.enqueue({ ...base, doseSlot: 1 });
+
+      expect(morning.ok).toBe(true);
+      expect(evening.ok).toBe(true);
+      // Distinct store ids => evening did not overwrite morning on sync.
+      expect((morning as { ok: true; id: string }).id).not.toBe((evening as { ok: true; id: string }).id);
+      expect(mockIdbAdd).toHaveBeenCalledTimes(2);
+    });
+
+    it('dedupes the same doseSlot enqueued twice', async () => {
+      const { OfflineQueue } = await import('@/lib/offline/application/OfflineQueue');
+      const queue = new OfflineQueue();
+
+      const entry = { protocolId: 'proto-1', scheduledDate: '2026-05-21', deviceId: 'd', amount: { amount: '250', unit: 'mcg' as const }, status: 'LOGGED' as const, doseSlot: 1 };
+
+      mockIdbGet.mockResolvedValueOnce(null);
+      mockIdbAdd.mockResolvedValueOnce('ok');
+      const first = await queue.enqueue(entry);
+      expect(first.ok).toBe(true);
+
+      // Second enqueue of the same slot: existing check finds it.
+      mockIdbGet.mockResolvedValueOnce({ id: (first as { ok: true; id: string }).id, ...entry, synced: false });
+      const second = await queue.enqueue(entry);
+      expect(second.ok).toBe(false);
+      expect(mockIdbAdd).toHaveBeenCalledTimes(1);
+    });
+
+    it('defaults doseSlot to 0 when reading a legacy entry without the field', async () => {
+      const { OfflineQueue } = await import('@/lib/offline/application/OfflineQueue');
+      const queue = new OfflineQueue();
+
+      // Legacy entry persisted before twice-daily support: no doseSlot key.
+      mockIdbGetAll.mockResolvedValueOnce([
+        { id: 'legacy-1', protocolId: 'p1', scheduledDate: '2026-05-21', deviceId: 'd', synced: false, amount: { amount: '250', unit: 'mcg' }, status: 'LOGGED' },
+      ]);
+
+      const pending = await queue.getPending();
+      expect(pending).toHaveLength(1);
+      expect(pending[0].doseSlot).toBe(0);
+    });
   });
 
   describe('AC-3: offline sync replay', () => {
@@ -188,6 +241,57 @@ describe('US-AUT-05 / US-TRK-03: Sync API (/api/sync)', () => {
     const body = await res.json();
     expect(body.results).toHaveLength(1);
     expect(body.results[0]).toMatchObject({ id: 'queue-e1', ok: true });
+  });
+
+  it('AC-3: logs a synced entry to its doseSlot (twice-daily evening dose)', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: 'user-1' } } as never);
+    mockLogDose.mockResolvedValueOnce({ id: 'log-2', protocolId: 'proto-1' } as never);
+
+    const { POST } = await import('@/app/api/sync/route');
+    const req = new Request('http://localhost/api/sync', {
+      method: 'POST',
+      body: JSON.stringify({
+        entries: [{
+          id: 'queue-evening',
+          protocolId: 'proto-1',
+          scheduledDate: '2026-05-21',
+          doseSlot: 1,
+          amount: { amount: '250', unit: 'mcg' },
+          status: 'LOGGED',
+        }],
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.results[0]).toMatchObject({ id: 'queue-evening', ok: true });
+    expect(mockLogDose).toHaveBeenCalledWith(expect.objectContaining({ doseSlot: 1 }));
+  });
+
+  it('AC-3: defaults doseSlot to 0 for legacy synced entries without the field', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: 'user-1' } } as never);
+    mockLogDose.mockResolvedValueOnce({ id: 'log-3', protocolId: 'proto-1' } as never);
+
+    const { POST } = await import('@/app/api/sync/route');
+    const req = new Request('http://localhost/api/sync', {
+      method: 'POST',
+      body: JSON.stringify({
+        entries: [{
+          id: 'queue-legacy',
+          protocolId: 'proto-1',
+          scheduledDate: '2026-05-21',
+          amount: { amount: '250', unit: 'mcg' },
+          status: 'LOGGED',
+        }],
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(mockLogDose).toHaveBeenCalledWith(expect.objectContaining({ doseSlot: 0 }));
   });
 
   it('AC-3: returns per-entry error for an unknown protocol', async () => {

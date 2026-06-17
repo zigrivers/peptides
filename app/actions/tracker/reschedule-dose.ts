@@ -17,15 +17,16 @@ const InputSchema = z.object({
   protocolId: z.string().min(1),
   sourceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid source date format').optional(),
   targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid target date format'),
+  doseSlot: z.number().int().min(0).optional().default(0),
 });
 
 type RescheduleDoseResult =
   | { ok: true }
   | { ok: false; error: string; message: string };
 
-function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date): string {
+function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date, doseSlot: number): string {
   const dateStr = scheduledDate.toISOString().slice(0, 10);
-  return `${userId}:${protocolId}:${dateStr}`;
+  return `${userId}:${protocolId}:${dateStr}:${doseSlot}`;
 }
 
 export async function rescheduleDoseAction(input: unknown): Promise<RescheduleDoseResult> {
@@ -39,7 +40,7 @@ export async function rescheduleDoseAction(input: unknown): Promise<RescheduleDo
     return { ok: false, error: 'invalid_input', message: parsed.error.issues[0]?.message ?? 'Invalid input.' };
   }
 
-  const { doseLogId, protocolId, sourceDate: rawSourceDate, targetDate: rawTargetDate } = parsed.data;
+  const { doseLogId, protocolId, sourceDate: rawSourceDate, targetDate: rawTargetDate, doseSlot } = parsed.data;
   const actorUserId = session.user.id;
 
   const targetDate = parseStrictUTCDate(rawTargetDate);
@@ -65,7 +66,7 @@ export async function rescheduleDoseAction(input: unknown): Promise<RescheduleDo
 
     // Check if targetDate has an existing DoseLog
     const targetLog = await prisma.doseLog.findFirst({
-      where: { userId: subjectUserId, protocolId, scheduledDate: targetDate },
+      where: { userId: subjectUserId, protocolId, scheduledDate: targetDate, doseSlot },
     });
 
     // Check if protocol is scheduled on targetDate
@@ -100,7 +101,7 @@ export async function rescheduleDoseAction(input: unknown): Promise<RescheduleDo
         return { ok: false, error: 'invalid_source_date', message: 'The source date is not a scheduled occurrence for this protocol.' };
       }
       const sourceLog = await prisma.doseLog.findFirst({
-        where: { userId: subjectUserId, protocolId, scheduledDate: sourceDate },
+        where: { userId: subjectUserId, protocolId, scheduledDate: sourceDate, doseSlot },
       });
       if (sourceLog) {
         return { ok: false, error: 'source_date_not_empty', message: 'A dose log already exists on the source date.' };
@@ -114,7 +115,7 @@ export async function rescheduleDoseAction(input: unknown): Promise<RescheduleDo
       // 1. Delete move-back exception if exists, strictly scoped (F-001)
       if (targetLog && targetLog.status === 'RESCHEDULED') {
         await tx.doseLog.deleteMany({
-          where: { id: targetLog.id, userId: subjectUserId, protocolId, status: 'RESCHEDULED' },
+          where: { id: targetLog.id, userId: subjectUserId, protocolId, doseSlot, status: 'RESCHEDULED' },
         });
       }
 
@@ -132,8 +133,9 @@ export async function rescheduleDoseAction(input: unknown): Promise<RescheduleDo
 
         derivedOriginalDate = logToMove.scheduledDate;
 
-        // Update DoseLog scheduledDate and idempotencyKey
-        const newIdempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, targetDate);
+        // Update DoseLog scheduledDate and idempotencyKey (rebuilt with the dose slot
+        // so it matches the canonical `${userId}:${protocolId}:${date}:${slot}` format).
+        const newIdempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, targetDate, doseSlot);
         const updateResult = await tx.doseLog.updateMany({
           where: { id: doseLogId, userId: subjectUserId, protocolId },
           data: {
@@ -149,15 +151,16 @@ export async function rescheduleDoseAction(input: unknown): Promise<RescheduleDo
         const isVirtualScheduledOnOriginal = isScheduledOn(schedule, protocol.startDate, protocol.endDate, derivedOriginalDate);
         if (isVirtualScheduledOnOriginal) {
           const hasLogOnOriginal = await tx.doseLog.findFirst({
-            where: { userId: subjectUserId, protocolId, scheduledDate: derivedOriginalDate },
+            where: { userId: subjectUserId, protocolId, scheduledDate: derivedOriginalDate, doseSlot },
           });
           if (!hasLogOnOriginal) {
-            const originalIdempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, derivedOriginalDate);
+            const originalIdempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, derivedOriginalDate, doseSlot);
             await createDoseLog(tx, {
               protocolId,
               userId: subjectUserId,
               idempotencyKey: originalIdempotencyKey,
               scheduledDate: derivedOriginalDate,
+              doseSlot,
               amount: protocol.dose as unknown as DoseAmount,
               status: 'RESCHEDULED',
             });
@@ -165,22 +168,24 @@ export async function rescheduleDoseAction(input: unknown): Promise<RescheduleDo
         }
       } else if (sourceDate) {
         // 3. Rescheduling a virtual scheduled dose (no doseLogId exists yet)
-        const sourceIdempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, sourceDate);
+        const sourceIdempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, sourceDate, doseSlot);
         await createDoseLog(tx, {
           protocolId,
           userId: subjectUserId,
           idempotencyKey: sourceIdempotencyKey,
           scheduledDate: sourceDate,
+          doseSlot,
           amount: protocol.dose as unknown as DoseAmount,
           status: 'RESCHEDULED',
         });
 
-        const targetIdempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, targetDate);
+        const targetIdempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, targetDate, doseSlot);
         const newLog = await createDoseLog(tx, {
           protocolId,
           userId: subjectUserId,
           idempotencyKey: targetIdempotencyKey,
           scheduledDate: targetDate,
+          doseSlot,
           amount: protocol.dose as unknown as DoseAmount,
           status: 'PENDING',
         });

@@ -467,6 +467,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
       doseLogId: (event.type !== 'SCHEDULED' && !event.id.startsWith('scheduled-')) ? event.id : undefined,
       protocolId: event.protocolId,
       sourceDate: dateStr,
+      doseSlot: event.doseSlot,
     }));
     ev.dataTransfer.effectAllowed = 'move';
   };
@@ -476,7 +477,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
     try {
       const dataStr = ev.dataTransfer.getData('text/plain');
       if (!dataStr) return;
-      const { doseLogId, protocolId, sourceDate } = JSON.parse(dataStr);
+      const { doseLogId, protocolId, sourceDate, doseSlot } = JSON.parse(dataStr);
       if (sourceDate === targetDateStr) return;
 
       startRescheduling(async () => {
@@ -485,6 +486,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
           protocolId,
           sourceDate,
           targetDate: targetDateStr,
+          doseSlot: doseSlot ?? 0,
         });
         if (result.ok) {
           router.refresh();
@@ -726,6 +728,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
         const res = await q.enqueue({
           protocolId: event.protocolId,
           scheduledDate: targetDateStr,
+          doseSlot: event.doseSlot,
           deviceId: 'web-client',
           amount: effectiveAmount,
           status,
@@ -952,7 +955,11 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
               onDrop={(ev) => handleDrop(ev, dateStr)}
               tabIndex={0}
               role="button"
-              aria-label={`${date.toLocaleDateString(undefined, { timeZone: 'UTC', month: 'long', day: 'numeric' })}: ${totalCount} scheduled`}
+              aria-label={`${date.toLocaleDateString(undefined, { timeZone: 'UTC', month: 'long', day: 'numeric' })}: ${totalCount} ${totalCount === 1 ? 'dose' : 'doses'} scheduled${
+                events.some((e) => e.slotLabel)
+                  ? ` (${events.map((e) => e.slotLabel).filter(Boolean).join(', ')})`
+                  : ''
+              }`}
               aria-pressed={isSelected}
               onKeyDown={(e) => {
                 if (e.key === ' ' || e.key === 'Enter') {
