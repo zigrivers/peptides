@@ -51,6 +51,7 @@ describe('TRK-batch-log-dates', () => {
     userId: actorUserId,
     status: 'ACTIVE',
     dose: { amount: '5', unit: 'mg' },
+    schedule: { frequency: 'Daily' },
   };
 
   beforeEach(() => {
@@ -124,6 +125,47 @@ describe('TRK-batch-log-dates', () => {
     );
 
     expect(mocks.mockRevalidatePath).toHaveBeenCalled();
+  });
+
+  it('once-daily: logs exactly one slot 0 per date (backward-compatible)', async () => {
+    const result = await batchLogDatesAction({
+      protocolId,
+      dates: ['2026-05-10', '2026-05-12'],
+      status: 'LOGGED',
+    });
+
+    expect(result).toEqual({ ok: true });
+    // One slot per date → 2 calls, both doseSlot 0.
+    expect(mocks.mockLogDose).toHaveBeenCalledTimes(2);
+    expect(mocks.mockLogDose).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ protocolId, doseSlot: 0 }),
+      'mock-tx-client'
+    );
+    expect(mocks.mockLogDose).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ protocolId, doseSlot: 0 }),
+      'mock-tx-client'
+    );
+  });
+
+  it('twice-daily: logs both slots (0 and 1) per date', async () => {
+    mocks.mockFindProtocolByIdForActor.mockResolvedValue({
+      ...mockProtocol,
+      schedule: { frequency: 'TwiceDaily' },
+    });
+
+    const result = await batchLogDatesAction({
+      protocolId,
+      dates: ['2026-05-10', '2026-05-12'],
+      status: 'LOGGED',
+    });
+
+    expect(result).toEqual({ ok: true });
+    // 2 dates × 2 slots = 4 calls; slots alternate 0,1 per date.
+    expect(mocks.mockLogDose).toHaveBeenCalledTimes(4);
+    const slots = mocks.mockLogDose.mock.calls.map((c) => c[0].doseSlot);
+    expect(slots).toEqual([0, 1, 0, 1]);
   });
 
   it('rejects invalid calendar dates (e.g. rollover dates)', async () => {

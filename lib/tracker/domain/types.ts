@@ -154,6 +154,10 @@ export type CycleWeekInfo = {
 
 export type BatchDueItem = {
   protocol: Protocol;
+  // The per-day dose occurrence this item represents (0 for once-daily; 0|1 for twice-daily).
+  doseSlot: number;
+  // Display label for the slot ('' for once-daily; e.g. 'Morning'/'Evening' or '1st dose'/'2nd dose').
+  slotLabel: string;
   existingLog: DoseLog | null;
   availableVials: number;
   isAvailable: boolean; // false when no inventory prevents logging
@@ -168,8 +172,8 @@ export type BatchLogInput = {
 };
 
 export type BatchLogItemResult =
-  | { ok: true; protocolId: string; doseLog: DoseLog; warnings: SafetyWarning[] }
-  | { ok: false; protocolId: string; error: string };
+  | { ok: true; protocolId: string; doseSlot: number; doseLog: DoseLog; warnings: SafetyWarning[] }
+  | { ok: false; protocolId: string; doseSlot: number; error: string };
 
 export type BatchLogResult = {
   results: BatchLogItemResult[];

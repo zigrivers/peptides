@@ -1996,6 +1996,83 @@ describe('US-TRK-05: Batch Log', () => {
     expect(items).toHaveLength(0); // EOD not due today
   });
 
+  it('twice-daily: getDueTodayForBatch returns TWO items (slots 0 and 1) with labels; one logged leaves the other pending', async () => {
+    const twiceProto = { ...makeProtocolRow(proto1Id), schedule: { frequency: 'TwiceDaily' } };
+    mockProtocolFindMany.mockResolvedValue([twiceProto]);
+    mockVialCount.mockResolvedValue(1);
+    // Slot 0 already LOGGED; slot 1 has no log yet.
+    const slot0Log = { ...makeLogRow(proto1Id, 'log-slot-0'), doseSlot: 0 };
+    mockDoseLogFindMany.mockResolvedValue([slot0Log]);
+
+    const items = await getDueTodayForBatch(batchActorUserId);
+
+    expect(items).toHaveLength(2);
+    const slot0 = items.find((i) => i.doseSlot === 0)!;
+    const slot1 = items.find((i) => i.doseSlot === 1)!;
+    expect(slot0.slotLabel).toBe('1st dose');
+    expect(slot1.slotLabel).toBe('2nd dose');
+    expect(slot0.existingLog).not.toBeNull();
+    expect(slot0.existingLog!.status).toBe('LOGGED');
+    expect(slot1.existingLog).toBeNull(); // other slot still pending
+  });
+
+  it('twice-daily: batchLogDoses logs BOTH slots (two rows, distinct doseSlot, distinct idempotency keys)', async () => {
+    const twiceProto = { ...makeProtocolRow(proto1Id), schedule: { frequency: 'TwiceDaily' } };
+    mockProtocolFindFirst.mockResolvedValue(twiceProto); // single fetch reused for both slots
+    mockDoseLogFindFirst.mockResolvedValue(null); // no existing logs
+    mockVialCount.mockResolvedValue(2);
+    mockDoseLogCreate
+      .mockResolvedValueOnce({ ...makeLogRow(proto1Id, 'log-td-0'), doseSlot: 0 })
+      .mockResolvedValueOnce({ ...makeLogRow(proto1Id, 'log-td-1'), doseSlot: 1 });
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results).toHaveLength(2);
+    expect(result.results.every((r) => r.ok)).toBe(true);
+    expect(result.results.map((r) => r.doseSlot).sort()).toEqual([0, 1]);
+
+    // Two creates with distinct doseSlot and distinct idempotency keys.
+    expect(mockDoseLogCreate).toHaveBeenCalledTimes(2);
+    const creates = mockDoseLogCreate.mock.calls.map((c) => c[0].data);
+    expect(creates.map((d) => d.doseSlot).sort()).toEqual([0, 1]);
+    const keys = creates.map((d) => d.idempotencyKey);
+    expect(new Set(keys).size).toBe(2);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        `${batchActorUserId}:${proto1Id}:2026-05-21:0`,
+        `${batchActorUserId}:${proto1Id}:2026-05-21:1`,
+      ])
+    );
+  });
+
+  it('once-daily regression: batchLogDoses logs exactly one slot-0 row', async () => {
+    mockProtocolFindFirst.mockResolvedValue(makeProtocolRow(proto1Id)); // Daily schedule
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    mockVialCount.mockResolvedValue(1);
+    mockDoseLogCreate.mockResolvedValue(makeLogRow(proto1Id, 'log-od'));
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selectedProtocolIds: [proto1Id],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].ok).toBe(true);
+    expect(result.results[0].doseSlot).toBe(0);
+    expect(mockDoseLogCreate).toHaveBeenCalledTimes(1);
+    expect(mockDoseLogCreate.mock.calls[0][0].data.doseSlot).toBe(0);
+    expect(mockDoseLogCreate.mock.calls[0][0].data.idempotencyKey).toBe(
+      `${batchActorUserId}:${proto1Id}:2026-05-21:0`
+    );
+  });
+
   it('schedule filter: logOneInBatch rejects protocols not scheduled for the given date', async () => {
     const eodProtocol = {
       ...makeProtocolRow(proto1Id),

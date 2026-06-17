@@ -18,6 +18,8 @@ interface SerializedDoseLog extends Omit<DoseLog, 'loggedAt' | 'scheduledDate' |
 
 interface SerializedBatchDueItem {
   protocol: SerializedProtocol;
+  doseSlot: number;
+  slotLabel: string;
   existingLog: SerializedDoseLog | null;
   availableVials: number;
   isAvailable: boolean;
@@ -33,17 +35,22 @@ type Props = {
 
 type ItemState = 'pending' | 'logged' | 'skipped' | 'failed';
 
+// Items are keyed per (protocol, slot) so twice-daily protocols track each dose independently.
+function itemKey(item: { protocol: { id: string }; doseSlot: number }): string {
+  return `${item.protocol.id}:${item.doseSlot}`;
+}
+
 export function BatchLogReview({ items, compoundNames }: Props) {
   const [isPending, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(
-    // Only pre-select protocols with no existing log — SKIPPED items require explicit opt-in
-    // to avoid silently converting an intentional skip into a LOGGED dose.
-    () => new Set(items.filter((i) => i.isAvailable && !i.existingLog).map((i) => i.protocol.id))
+    // Only pre-select slots with no existing log — SKIPPED items require explicit opt-in
+    // to avoid silently converting an intentional skip into a LOGGED dose. Keyed per slot.
+    () => new Set(items.filter((i) => i.isAvailable && !i.existingLog).map((i) => itemKey(i)))
   );
   const [itemStates, setItemStates] = useState<Record<string, ItemState>>(() => {
     const s: Record<string, ItemState> = {};
     items.forEach((i) => {
-      s[i.protocol.id] = !i.existingLog
+      s[itemKey(i)] = !i.existingLog
         ? 'pending'
         : i.existingLog.status === 'LOGGED'
           ? 'logged'
@@ -59,10 +66,11 @@ export function BatchLogReview({ items, compoundNames }: Props) {
     setItemStates((prevStates) => {
       const nextStates: Record<string, ItemState> = {};
       items.forEach((i) => {
-        if (prevStates[i.protocol.id] === 'failed' && !i.existingLog) {
-          nextStates[i.protocol.id] = 'failed';
+        const key = itemKey(i);
+        if (prevStates[key] === 'failed' && !i.existingLog) {
+          nextStates[key] = 'failed';
         } else {
-          nextStates[i.protocol.id] = !i.existingLog
+          nextStates[key] = !i.existingLog
             ? 'pending'
             : i.existingLog.status === 'LOGGED'
               ? 'logged'
@@ -75,30 +83,34 @@ export function BatchLogReview({ items, compoundNames }: Props) {
     setSelected((prev) => {
       const next = new Set<string>();
       items.forEach((i) => {
-        if (i.isAvailable && !i.existingLog && prev.has(i.protocol.id)) {
-          next.add(i.protocol.id);
+        const key = itemKey(i);
+        if (i.isAvailable && !i.existingLog && prev.has(key)) {
+          next.add(key);
         }
       });
       return next;
     });
   }, [items]);
 
-  function toggleProtocol(protocolId: string) {
+  function toggleItem(key: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(protocolId)) next.delete(protocolId);
-      else next.add(protocolId);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }
 
   function handleConfirm() {
-    const selectedIds = Array.from(selected);
-    if (selectedIds.length === 0) return;
+    const selectedKeys = Array.from(selected);
+    if (selectedKeys.length === 0) return;
     setError(null);
 
+    // The action logs every slot of a selected protocol, so submit unique protocol IDs.
+    const selectedProtocolIds = Array.from(new Set(selectedKeys.map((k) => k.split(':')[0])));
+
     startTransition(async () => {
-      const result = await batchLogDosesAction({ selectedProtocolIds: selectedIds });
+      const result = await batchLogDosesAction({ selectedProtocolIds });
 
       if (!result.ok) {
         setError(result.message);
@@ -109,34 +121,35 @@ export function BatchLogReview({ items, compoundNames }: Props) {
       const nextWarnings = { ...warnings };
 
       result.results.forEach((r) => {
+        const key = `${r.protocolId}:${r.doseSlot}`;
         if (r.ok) {
-          nextStates[r.protocolId] = 'logged';
-          nextWarnings[r.protocolId] = r.warnings;
+          nextStates[key] = 'logged';
+          nextWarnings[key] = r.warnings;
         } else {
-          nextStates[r.protocolId] = 'failed';
+          nextStates[key] = 'failed';
         }
       });
 
       setItemStates(nextStates);
       setWarnings(nextWarnings);
 
-      // Remove successfully logged protocols from the selected set so the Confirm
+      // Remove successfully logged slots from the selected set so the Confirm
       // button count stays accurate if the user retries after partial failures.
       setSelected((prev) => {
         const next = new Set(prev);
-        result.results.forEach((r) => { if (r.ok) next.delete(r.protocolId); });
+        result.results.forEach((r) => { if (r.ok) next.delete(`${r.protocolId}:${r.doseSlot}`); });
         return next;
       });
 
-      const allDone = items.every((i) => nextStates[i.protocol.id] === 'logged' || nextStates[i.protocol.id] === 'skipped');
+      const allDone = items.every((i) => nextStates[itemKey(i)] === 'logged' || nextStates[itemKey(i)] === 'skipped');
       if (allDone) setDone(true);
     });
   }
 
-  const pendingCount = items.filter((i) => itemStates[i.protocol.id] === 'pending').length;
-  const skippedCount = items.filter((i) => itemStates[i.protocol.id] === 'skipped').length;
-  const failedCount = items.filter((i) => itemStates[i.protocol.id] === 'failed').length;
-  const loggedCount = items.filter((i) => itemStates[i.protocol.id] === 'logged').length;
+  const pendingCount = items.filter((i) => itemStates[itemKey(i)] === 'pending').length;
+  const skippedCount = items.filter((i) => itemStates[itemKey(i)] === 'skipped').length;
+  const failedCount = items.filter((i) => itemStates[itemKey(i)] === 'failed').length;
+  const loggedCount = items.filter((i) => itemStates[itemKey(i)] === 'logged').length;
 
   if (done || (pendingCount === 0 && skippedCount === 0 && failedCount === 0 && items.length > 0)) {
     return (
@@ -160,34 +173,37 @@ export function BatchLogReview({ items, compoundNames }: Props) {
 
       <ul className="space-y-2">
         {items.map((item) => {
-          const state = itemStates[item.protocol.id];
-          const isSelected = selected.has(item.protocol.id);
-          const itemWarnings = warnings[item.protocol.id] ?? [];
+          const key = itemKey(item);
+          const state = itemStates[key];
+          const isSelected = selected.has(key);
+          const itemWarnings = warnings[key] ?? [];
 
           if (state === 'logged') {
             return (
-              <li key={item.protocol.id} className="flex items-center gap-3 rounded-lg border border-green-100 bg-green-50 px-3 py-2">
+              <li key={key} className="flex items-center gap-3 rounded-lg border border-green-100 bg-green-50 px-3 py-2">
                 <span className="text-green-600 text-sm">&#10003;</span>
                 <span className="text-sm text-green-700">
                   {compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId} — <span className="font-mono">{item.protocol.dose.amount}</span> {item.protocol.dose.unit}
+                  {item.slotLabel && <span className="text-green-600"> · {item.slotLabel}</span>}
                 </span>
               </li>
             );
           }
 
           return (
-            <li key={item.protocol.id} className={`rounded-lg border px-3 py-2 ${state === 'failed' ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'}`}>
+            <li key={key} className={`rounded-lg border px-3 py-2 ${state === 'failed' ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'}`}>
               <label className="flex min-h-9 items-start gap-3 rounded-md px-1 py-1 cursor-pointer hover:bg-muted/40">
                 <input
                   type="checkbox"
                   className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                   checked={isSelected && item.isAvailable}
                   disabled={!item.isAvailable || isPending}
-                  onChange={() => item.isAvailable && toggleProtocol(item.protocol.id)}
+                  onChange={() => item.isAvailable && toggleItem(key)}
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-gray-900">
                     {compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId} — <span className="font-mono">{item.protocol.dose.amount}</span> {item.protocol.dose.unit}
+                    {item.slotLabel && <span className="text-gray-500"> · {item.slotLabel}</span>}
                     {item.doseUnits?.unitsText && (
                       <span className="text-gray-400"> {item.doseUnits.unitsText}</span>
                     )}

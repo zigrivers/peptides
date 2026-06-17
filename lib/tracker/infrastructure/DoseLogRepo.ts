@@ -117,6 +117,11 @@ export async function findDoseLogForDate(
   return raw ? mapDoseLog(raw as RawDoseLog) : null;
 }
 
+/**
+ * Bulk-fetch dose logs for the given protocols on a date, keyed by `${protocolId}:${doseSlot}`.
+ * Slot-aware so twice-daily protocols (slots 0 and 1) are both visible — keying by protocolId
+ * alone would collapse the two slots and hide the second dose.
+ */
 export async function findDoseLogsForDate(
   client: PrismaClient_,
   userId: string,
@@ -127,9 +132,12 @@ export async function findDoseLogsForDate(
   const rows = await client.doseLog.findMany({
     where: { userId, protocolId: { in: protocolIds }, scheduledDate },
   });
-  const byProtocol: Record<string, DoseLog | null> = Object.fromEntries(protocolIds.map((id) => [id, null]));
-  for (const row of rows) byProtocol[row.protocolId] = mapDoseLog(row as RawDoseLog);
-  return byProtocol;
+  const byProtocolSlot: Record<string, DoseLog | null> = {};
+  for (const row of rows) {
+    const r = row as RawDoseLog & { doseSlot?: number };
+    byProtocolSlot[`${r.protocolId}:${r.doseSlot ?? 0}`] = mapDoseLog(r);
+  }
+  return byProtocolSlot;
 }
 
 export async function updateDoseLog(
