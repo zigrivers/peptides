@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Check, Calendar, AlertCircle, Edit2, Info, C
 import type { Protocol, DoseLog, InjectionSite } from '@/lib/tracker/domain/types';
 import type { CompoundProfile, BenefitTimelineItem, CatalogItem, SupplementProfile } from '@/lib/reference/domain/types';
 import { getScheduledDatesInRange } from '@/lib/tracker/domain/ScheduleGenerator';
+import { getDoseSlots } from '@/lib/tracker/domain/doseSlots';
 import { logDoseAction } from '@/app/actions/tracker/log-dose';
 import { rescheduleDoseAction } from '@/app/actions/tracker/reschedule-dose';
 import { batchLogDatesAction } from '@/app/actions/tracker/batch-log-dates';
@@ -32,6 +33,8 @@ type CalendarEvent = {
   doseAmount: string;
   doseUnit: string;
   type: 'LOGGED' | 'SKIPPED' | 'SCHEDULED' | 'PENDING' | 'RESCHEDULED';
+  doseSlot: number;
+  slotLabel: string;
   loggedAt?: Date;
   injectionSite?: InjectionSite;
   note?: string;
@@ -54,6 +57,7 @@ interface Props {
     scheduledDate: string;
     loggedCost: string | null;
     loggedDoseDisplay?: string | null;
+    doseSlot?: number;
   })[];
   compounds: Record<
     string,
@@ -84,6 +88,11 @@ interface Props {
   dryVials?: import('@/lib/reconstitution/application/VialService').SerializedVialData[];
   /** Compounds list for the add-inventory modal. Shaped to match AddActiveVialModal's `compounds` prop. */
   compoundOptions?: Pick<CatalogItem, 'id' | 'name' | 'profile' | 'slug'>[];
+  /**
+   * Preferred administration time per compound, used to label twice-daily dose slots
+   * ("Morning"/"Evening" when MORNING_AND_NIGHT, else "1st dose"/"2nd dose").
+   */
+  preferredTimeByCompoundId?: Record<string, string | null>;
 }
 
 type SerializedDoseLog = Props['doseLogs'][number];
@@ -194,8 +203,9 @@ const EMPTY_DOSE_UNITS: Record<string, DoseUnitsDisplay> = {};
 const EMPTY_VIAL_CONCENTRATIONS: Record<string, { totalMg: string; bacWaterMl: string | null }> = {};
 const EMPTY_DRY_VIALS: NonNullable<Props['dryVials']> = [];
 const EMPTY_COMPOUND_OPTIONS: NonNullable<Props['compoundOptions']> = [];
+const EMPTY_PREFERRED_TIMES: Record<string, string | null> = {};
 
-export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, compounds, siteSuggestions = {}, initialDateISO, followClientToday = false, loggedDates = EMPTY_DATES, doseUnitsByCompoundId = EMPTY_DOSE_UNITS, vialConcentrationByCompoundId = EMPTY_VIAL_CONCENTRATIONS, syringeStandard = 'U100', cycles = {}, dryVials = EMPTY_DRY_VIALS, compoundOptions = EMPTY_COMPOUND_OPTIONS }: Props) {
+export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, compounds, siteSuggestions = {}, initialDateISO, followClientToday = false, loggedDates = EMPTY_DATES, doseUnitsByCompoundId = EMPTY_DOSE_UNITS, vialConcentrationByCompoundId = EMPTY_VIAL_CONCENTRATIONS, syringeStandard = 'U100', cycles = {}, dryVials = EMPTY_DRY_VIALS, compoundOptions = EMPTY_COMPOUND_OPTIONS, preferredTimeByCompoundId = EMPTY_PREFERRED_TIMES }: Props) {
   const protocols = React.useMemo(() => {
     return serializedProtocols.map((p) => ({
       ...p,
@@ -342,7 +352,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
       eventsByDateString[dateStr] = [];
     }
     const exists = eventsByDateString[dateStr].some(
-      (e) => e.protocolId === event.protocolId && e.type === event.type
+      (e) => e.protocolId === event.protocolId && e.type === event.type && e.doseSlot === event.doseSlot
     );
     if (!exists) {
       eventsByDateString[dateStr].push(event);
@@ -358,6 +368,13 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
     const slug = proto ? (compounds[proto.compoundId]?.slug ?? 'unknown') : 'unknown';
     const name = proto ? (compounds[proto.compoundId]?.name ?? 'Compound') : 'Compound';
 
+    const logSlot = log.doseSlot ?? 0;
+    const logSchedule = protocolsById[log.protocolId]?.schedule;
+    const logSlotLabel = logSchedule
+      ? getDoseSlots(logSchedule, preferredTimeByCompoundId[proto?.compoundId ?? ''])
+          .find((s) => s.slot === logSlot)?.label ?? ''
+      : '';
+
     addEvent(dateStr, {
       id: log.id,
       protocolId: log.protocolId,
@@ -367,6 +384,8 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
       doseAmount: log.amount.amount,
       doseUnit: log.amount.unit,
       type: log.status as 'LOGGED' | 'SKIPPED' | 'PENDING' | 'RESCHEDULED',
+      doseSlot: logSlot,
+      slotLabel: logSlotLabel,
       loggedAt: new Date(log.loggedAt),
       injectionSite: log.injectionSite ? (log.injectionSite as InjectionSite) : undefined,
       note: log.note || undefined,
@@ -388,28 +407,38 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
     const generationEnd = selectedDate > calendarEnd ? selectedDate : calendarEnd;
     const dates = getScheduledDatesInRange(p.schedule, p.startDate, p.endDate, generationStart, generationEnd);
     
+    const comp = compounds[p.compoundId] || { name: 'Compound', slug: 'unknown' };
+    const slots = getDoseSlots(p.schedule, preferredTimeByCompoundId[p.compoundId]);
+
     dates.forEach((d) => {
       const dateStr = d.toISOString().split('T')[0];
-      
-      const alreadyLogged = eventsByDateString[dateStr]?.some(
-        (e) => e.protocolId === p.id && (e.type === 'LOGGED' || e.type === 'SKIPPED' || e.type === 'PENDING' || e.type === 'RESCHEDULED')
-      );
-      if (alreadyLogged) return;
 
-      const comp = compounds[p.compoundId] || { name: 'Compound', slug: 'unknown' };
+      slots.forEach(({ slot, label }) => {
+        // Per-slot: a slot is "already processed" only if a non-scheduled event for
+        // the same (protocol, date, slot) exists. The other slot can still be pending.
+        const alreadyLogged = eventsByDateString[dateStr]?.some(
+          (e) =>
+            e.protocolId === p.id &&
+            e.doseSlot === slot &&
+            (e.type === 'LOGGED' || e.type === 'SKIPPED' || e.type === 'PENDING' || e.type === 'RESCHEDULED')
+        );
+        if (alreadyLogged) return;
 
-      addEvent(dateStr, {
-        id: `scheduled-${p.id}-${dateStr}`,
-        protocolId: p.id,
-        compoundId: p.compoundId,
-        compoundName: comp.name || 'Compound',
-        compoundSlug: comp.slug || 'unknown',
-        doseAmount: p.dose.amount,
-        doseUnit: p.dose.unit,
-        type: 'SCHEDULED',
-        scheduledDateStr: dateStr,
-        administrationRoute: p.administrationRoute,
-        scheduleSummary: formatScheduleFrequency(p.schedule),
+        addEvent(dateStr, {
+          id: `scheduled-${p.id}-${dateStr}-${slot}`,
+          protocolId: p.id,
+          compoundId: p.compoundId,
+          compoundName: comp.name || 'Compound',
+          compoundSlug: comp.slug || 'unknown',
+          doseAmount: p.dose.amount,
+          doseUnit: p.dose.unit,
+          type: 'SCHEDULED',
+          doseSlot: slot,
+          slotLabel: label,
+          scheduledDateStr: dateStr,
+          administrationRoute: p.administrationRoute,
+          scheduleSummary: formatScheduleFrequency(p.schedule),
+        });
       });
     });
   });
@@ -710,6 +739,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
             protocolId: event.protocolId,
             status,
             scheduledDate: new Date(targetDateStr + 'T00:00:00.000Z').toISOString(),
+            doseSlot: event.doseSlot,
             amount: effectiveAmount,
             loggedAt: new Date().toISOString(),
             isOffline: true,
@@ -717,7 +747,14 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
             injectionSite: status === 'LOGGED' ? eventSite : null,
           };
           setLocalLogs((prev) => [
-            ...prev.filter(l => !(l.protocolId === event.protocolId && l.scheduledDate.startsWith(targetDateStr))),
+            ...prev.filter(
+              (l) =>
+                !(
+                  l.protocolId === event.protocolId &&
+                  l.scheduledDate.startsWith(targetDateStr) &&
+                  (l.doseSlot ?? 0) === event.doseSlot
+                )
+            ),
             newLog as unknown as Props['doseLogs'][number]
           ]);
           setEditingEventId(null);
@@ -766,9 +803,10 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
           injectionSite: status === 'LOGGED' ? (eventSite ?? undefined) : undefined,
           note: eventNote.trim(),
           scheduledDate: targetDateStr,
+          doseSlot: event.doseSlot,
         });
         if (result.ok) {
-          const warningKey = `${event.protocolId}|${targetDateStr}`;
+          const warningKey = `${event.protocolId}|${targetDateStr}|${event.doseSlot}`;
           const invWarn = result.warnings?.find((w) => w.code === 'insufficient_inventory');
           if (invWarn) {
             setLogWarnings((p) => ({ ...p, [warningKey]: invWarn.message }));
@@ -1102,6 +1140,11 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                           >
                             {e.compoundName}
                           </span>
+                          {e.slotLabel && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 bg-primary/10 text-primary border border-primary/20">
+                              {e.slotLabel}
+                            </span>
+                          )}
                           <span className="text-xs font-normal text-gray-500">
                             {doseDisplay}
                             {!isProcessed && doseUnitsByCompoundId[e.compoundId]?.unitsText && (
@@ -1316,11 +1359,11 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                           </div>
                         )}
 
-                        {logWarnings[`${e.protocolId}|${targetDateStr}`] && (
+                        {logWarnings[`${e.protocolId}|${targetDateStr}|${e.doseSlot}`] && (
                           <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
                             <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                             <div className="space-y-1">
-                              <p>{logWarnings[`${e.protocolId}|${targetDateStr}`]}</p>
+                              <p>{logWarnings[`${e.protocolId}|${targetDateStr}|${e.doseSlot}`]}</p>
                               <button
                                 type="button"
                                 className="font-semibold underline"
@@ -1328,7 +1371,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                                   setInventoryModalFor({
                                     compoundId: e.compoundId,
                                     protocolId: e.protocolId,
-                                    eventKey: `${e.protocolId}|${targetDateStr}`,
+                                    eventKey: `${e.protocolId}|${targetDateStr}|${e.doseSlot}`,
                                     eventId: e.id,
                                   })
                                 }
@@ -1622,7 +1665,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                 selectedEvents.find((ev) => ev.id === inventoryModalFor.eventId) ??
                 selectedEvents.find(
                   (ev) =>
-                    `${ev.protocolId}|${ev.scheduledDateStr ?? selectedDateStr}` === inventoryModalFor.eventKey
+                    `${ev.protocolId}|${ev.scheduledDateStr ?? selectedDateStr}|${ev.doseSlot}` === inventoryModalFor.eventKey
                 );
               setInventoryModalFor(null);
               if (target) handleInlineSave(target, 'LOGGED');

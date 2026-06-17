@@ -548,6 +548,7 @@ export async function getRecentDoseLogsForUser(userId: string, limitDays = 60): 
     idempotencyKey: r.idempotencyKey,
     loggedAt: r.loggedAt,
     scheduledDate: r.scheduledDate,
+    doseSlot: r.doseSlot,
     amount: parseDoseAmount(r.amount),
     status: r.status as DoseLogStatus,
     injectionSite: parseInjectionSite(r.injectionSite),

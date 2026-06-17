@@ -201,6 +201,7 @@ export default async function TrackerPage() {
     ...log,
     loggedAt: log.loggedAt.toISOString(),
     scheduledDate: log.scheduledDate.toISOString(),
+    doseSlot: log.doseSlot,
     amount: log.amount,
     injectionSite: log.injectionSite,
     status: log.status,
@@ -241,6 +242,12 @@ export default async function TrackerPage() {
         syringeSize
       );
     })
+  );
+
+  // Slot labels for twice-daily protocols depend on the compound's preferred time
+  // (MORNING_AND_NIGHT → "Morning"/"Evening"; otherwise generic "1st/2nd dose").
+  const preferredTimeByCompoundId: Record<string, string | null> = Object.fromEntries(
+    Object.entries(compoundsMap).map(([id, c]) => [id, c.profile?.preferredTime ?? null])
   );
 
   const loggedDates = allDoseLogsForStreak
@@ -294,6 +301,7 @@ export default async function TrackerPage() {
               cycles={cyclesMap}
               dryVials={dryVials}
               compoundOptions={compoundOptions}
+              preferredTimeByCompoundId={preferredTimeByCompoundId}
             />
           </section>
 

@@ -305,6 +305,7 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
       injectionSite: { side: 'left', bodyPart: 'abdomen-lower' },
       note: 'felt excellent',
       scheduledDate: '2026-05-24',
+      doseSlot: 0,
     });
   });
 
@@ -1344,6 +1345,98 @@ describe('TrackerCalendar Component UI/UX with JSDOM', () => {
 
     expect(await screen.findByText(/Doses for Sunday, May 24/)).toBeDefined();
     expect(screen.queryByText(/Doses for Wednesday, May 20/)).toBeNull();
+  });
+
+  it('renders two labeled dose cards for a twice-daily protocol and logs each slot independently', async () => {
+    const mockLogDoseAction = vi.mocked(logDoseAction);
+    mockLogDoseAction.mockResolvedValue({
+      ok: true,
+      doseLog: { id: 'new-twice-log', status: 'LOGGED' } as unknown as DoseLog,
+      warnings: [],
+    });
+
+    const twiceDailyProtocols: Protocol[] = [
+      {
+        id: 'proto-twice',
+        userId: 'user-1',
+        compoundId: 'compound-tirz',
+        cycleId: null,
+        dose: { amount: '2.5', unit: 'mg' as const },
+        schedule: { frequency: 'TwiceDaily' },
+        administrationRoute: 'SUBCUTANEOUS',
+        status: 'ACTIVE',
+        startDate: new Date('2026-05-01'),
+        endDate: null,
+        notes: null,
+      },
+    ];
+
+    render(
+      <TrackerCalendar
+        protocols={twiceDailyProtocols}
+        doseLogs={[]}
+        compounds={mockCompounds}
+        siteSuggestions={{
+          'proto-twice': {
+            suggestion: { side: 'left' as const, bodyPart: 'abdomen' },
+            validSites: [
+              { side: 'left' as const, bodyPart: 'abdomen' },
+              { side: 'right' as const, bodyPart: 'abdomen' },
+            ],
+            siteMeta: [
+              { site: { side: 'left' as const, bodyPart: 'abdomen' }, daysSinceLastUse: 3, isRested: false, lastUsed: null },
+            ],
+            recentSites: [{ side: 'left' as const, bodyPart: 'abdomen' }],
+          },
+        }}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+        preferredTimeByCompoundId={{ 'compound-tirz': 'MORNING_AND_NIGHT' }}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/May 24/));
+
+    // Two slot cards, labeled Morning and Evening.
+    expect(screen.getByText('Morning')).toBeDefined();
+    expect(screen.getByText('Evening')).toBeDefined();
+    expect(screen.getAllByText('Tirzepatide').length).toBe(2);
+
+    // Both slots are pending → "0 of 2 Processed".
+    expect(screen.getByText(/0 of 2 Processed/)).toBeDefined();
+
+    // Logging the Morning slot calls logDoseAction with doseSlot: 0.
+    const siteButtons = screen.getAllByText('Left Lower Abdomen');
+    fireEvent.click(siteButtons[0]);
+    const logButtons = screen.getAllByRole('button', { name: 'Log Dose' });
+    fireEvent.click(logButtons[0]);
+
+    await waitFor(() =>
+      expect(mockLogDoseAction).toHaveBeenCalledWith(
+        expect.objectContaining({ protocolId: 'proto-twice', doseSlot: 0 })
+      )
+    );
+
+    // The Evening slot card remains rendered (pending).
+    expect(screen.getByText('Evening')).toBeDefined();
+  });
+
+  it('renders a single card with no slot label for a once-daily protocol', () => {
+    render(
+      <TrackerCalendar
+        protocols={mockProtocols}
+        doseLogs={[]}
+        compounds={mockCompounds}
+        initialDateISO="2026-05-24T00:00:00.000Z"
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/May 24/));
+
+    // Daily proto-1 (Tirzepatide) shows a single card, no Morning/Evening/1st/2nd labels.
+    expect(screen.getAllByText('Tirzepatide').length).toBe(1);
+    expect(screen.queryByText('Morning')).toBeNull();
+    expect(screen.queryByText('Evening')).toBeNull();
+    expect(screen.queryByText('1st dose')).toBeNull();
   });
 
   it('honors the pinned initialDateISO when followClientToday is not set', () => {

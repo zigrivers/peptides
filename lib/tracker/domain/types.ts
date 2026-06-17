@@ -81,6 +81,8 @@ export type DoseLog = {
   idempotencyKey: string;
   loggedAt: Date;
   scheduledDate: Date;
+  /** Per-day dose occurrence (0-based). Defaults to 0. Twice-daily schedules use 0 and 1. */
+  doseSlot?: number;
   amount: DoseAmount;
   status: DoseLogStatus;
   injectionSite: InjectionSite | null;
