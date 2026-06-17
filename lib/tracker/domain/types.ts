@@ -106,6 +106,8 @@ export type LogDoseInput = {
   injectionSite?: InjectionSite;
   note?: string;
   vialId?: string;
+  /** Per-day dose occurrence (0-based). Defaults to 0. Twice-daily schedules use 0 and 1. */
+  doseSlot?: number;
   /** When true, logDose enforces that a site is provided for injectable LOGGED doses. */
   requireInjectionSite?: boolean;
   /** When true, skips schedule validation checks (used for offline sync replay where current schedule might differ from the past schedule). */

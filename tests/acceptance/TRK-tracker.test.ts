@@ -1340,6 +1340,144 @@ describe('US-TRK-03: Individual Dose Logging', () => {
       })
     ).rejects.toThrow(/invalid_injection_site/i);
   });
+
+  describe('doseSlot — twice-daily slot-aware logging', () => {
+    const twiceDailyProtocol = { ...baseProtocolRow, schedule: { frequency: 'TwiceDaily' } };
+
+    it('logs two distinct rows for slot 0 then slot 1 on the same scheduledDate', async () => {
+      mockDoseLogFindFirst.mockResolvedValue(null); // no existing log for either slot
+      mockProtocolFindFirst.mockResolvedValue(twiceDailyProtocol);
+      mockVialCount.mockResolvedValue(1);
+      mockDoseLogCreate.mockImplementation(async (args: any) => ({
+        ...baseDoseLogRow,
+        idempotencyKey: args.data.idempotencyKey,
+        doseSlot: args.data.doseSlot,
+      }));
+      mockAuditCreate.mockResolvedValue({});
+
+      await logDose({
+        actorUserId: logActorUserId,
+        protocolId: logProtocolId,
+        scheduledDate,
+        amount,
+        status: 'LOGGED',
+        injectionSite,
+        doseSlot: 0,
+      });
+      await logDose({
+        actorUserId: logActorUserId,
+        protocolId: logProtocolId,
+        scheduledDate,
+        amount,
+        status: 'LOGGED',
+        injectionSite,
+        doseSlot: 1,
+      });
+
+      expect(mockDoseLogCreate).toHaveBeenCalledTimes(2);
+      const firstCall = mockDoseLogCreate.mock.calls[0][0];
+      const secondCall = mockDoseLogCreate.mock.calls[1][0];
+      expect(firstCall.data.doseSlot).toBe(0);
+      expect(secondCall.data.doseSlot).toBe(1);
+      expect(firstCall.data.idempotencyKey).toMatch(/:0$/);
+      expect(secondCall.data.idempotencyKey).toMatch(/:1$/);
+      expect(firstCall.data.idempotencyKey).not.toBe(secondCall.data.idempotencyKey);
+    });
+
+    it('rejects doseSlot 1 on a once-daily (Daily) protocol', async () => {
+      mockDoseLogFindFirst.mockResolvedValue(null);
+      mockProtocolFindFirst.mockResolvedValue(baseProtocolRow); // Daily → 1 dose/day
+
+      await expect(
+        logDose({
+          actorUserId: logActorUserId,
+          protocolId: logProtocolId,
+          scheduledDate,
+          amount,
+          status: 'LOGGED',
+          injectionSite,
+          doseSlot: 1,
+        })
+      ).rejects.toThrow(/invalid_dose_slot/);
+    });
+
+    it('rejects doseSlot 2 on a TwiceDaily protocol', async () => {
+      mockDoseLogFindFirst.mockResolvedValue(null);
+      mockProtocolFindFirst.mockResolvedValue(twiceDailyProtocol);
+
+      await expect(
+        logDose({
+          actorUserId: logActorUserId,
+          protocolId: logProtocolId,
+          scheduledDate,
+          amount,
+          status: 'LOGGED',
+          injectionSite,
+          doseSlot: 2,
+        })
+      ).rejects.toThrow(/invalid_dose_slot/);
+    });
+
+    it('is idempotent when re-logging the same (date, slot) — updates in place, no duplicate', async () => {
+      const existingSlot1 = {
+        ...baseDoseLogRow,
+        status: 'SKIPPED',
+        doseSlot: 1,
+        idempotencyKey: `${logActorUserId}:${logProtocolId}:2026-05-21:1`,
+      };
+      const updatedSlot1 = { ...existingSlot1, status: 'LOGGED' };
+      // First findFirst: slot-aware idempotency lookup; second: re-read after updateMany.
+      mockDoseLogFindFirst
+        .mockResolvedValueOnce(existingSlot1)
+        .mockResolvedValueOnce(updatedSlot1);
+      mockProtocolFindFirst.mockResolvedValue(twiceDailyProtocol);
+      mockVialCount.mockResolvedValue(1);
+      mockDoseLogUpdate.mockResolvedValue({ count: 1 });
+      mockAuditCreate.mockResolvedValue({});
+
+      const result = await logDose({
+        actorUserId: logActorUserId,
+        protocolId: logProtocolId,
+        scheduledDate,
+        amount,
+        status: 'LOGGED',
+        injectionSite,
+        doseSlot: 1,
+      });
+
+      // Slot-aware existing lookup keyed by the :1 idempotency key.
+      const lookupCall = mockDoseLogFindFirst.mock.calls[0][0];
+      expect(lookupCall.where.idempotencyKey).toBe(`${logActorUserId}:${logProtocolId}:2026-05-21:1`);
+      expect(result.doseLog.status).toBe('LOGGED');
+      expect(mockDoseLogCreate).not.toHaveBeenCalled();
+      expect(mockDoseLogUpdate).toHaveBeenCalledOnce();
+    });
+
+    it('omitting doseSlot logs slot 0 (backward-compatible once-daily)', async () => {
+      mockDoseLogFindFirst.mockResolvedValue(null);
+      mockProtocolFindFirst.mockResolvedValue(baseProtocolRow);
+      mockVialCount.mockResolvedValue(1);
+      mockDoseLogCreate.mockImplementation(async (args: any) => ({
+        ...baseDoseLogRow,
+        idempotencyKey: args.data.idempotencyKey,
+        doseSlot: args.data.doseSlot,
+      }));
+      mockAuditCreate.mockResolvedValue({});
+
+      await logDose({
+        actorUserId: logActorUserId,
+        protocolId: logProtocolId,
+        scheduledDate,
+        amount,
+        status: 'LOGGED',
+        injectionSite,
+      });
+
+      const call = mockDoseLogCreate.mock.calls[0][0];
+      expect(call.data.doseSlot).toBe(0);
+      expect(call.data.idempotencyKey).toMatch(/:0$/);
+    });
+  });
 });
 
 /**

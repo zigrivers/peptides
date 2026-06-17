@@ -19,12 +19,13 @@ import { findProtocolByIdForActor } from '../infrastructure/ProtocolRepo';
 import { getManagedUserIds } from './ProtocolService';
 import { getSitesForRoute, sitesEqual, sitesEqualLegacy } from '../domain/SiteRotation';
 import { isScheduledOn } from '../domain/ScheduleGenerator';
+import { dosesPerDay } from '@/lib/tracker/domain/doseSlots';
 import { parseSchedule, parseDoseAmount, parseInjectionSite } from '../domain/validation';
 import type { DoseLogStatus } from '../domain/types';
 
-function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date): string {
+function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date, doseSlot: number): string {
   const dateStr = scheduledDate.toISOString().slice(0, 10); // YYYY-MM-DD
-  return `${userId}:${protocolId}:${dateStr}`;
+  return `${userId}:${protocolId}:${dateStr}:${doseSlot}`;
 }
 
 function parseDoseAmountSum(amountStr: string): Decimal {
@@ -181,9 +182,19 @@ export async function logDose(
   // Dose log is stored under the protocol owner's userId.
   const subjectUserId = protocol.userId;
 
-  // Always derive idempotency key from the authoritative (subjectUserId, protocolId, scheduledDate) triple.
-  // This ensures one dose log per day per protocol regardless of which device or sync path calls logDose.
-  const idempotencyKey = buildIdempotencyKey(subjectUserId, input.protocolId, input.scheduledDate);
+  // Resolve and validate the per-day dose slot (default 0). Twice-daily schedules permit slots 0 and 1.
+  const doseSlot = input.doseSlot ?? 0;
+  const schedule = parseSchedule(protocol.schedule);
+  const slotsPerDay = dosesPerDay(schedule);
+  if (doseSlot < 0 || doseSlot >= slotsPerDay) {
+    throw new Error(
+      `invalid_dose_slot: slot ${doseSlot} is out of range for this schedule (expected 0..${slotsPerDay - 1})`
+    );
+  }
+
+  // Always derive idempotency key from the authoritative (subjectUserId, protocolId, scheduledDate, doseSlot) tuple.
+  // This ensures one dose log per day per protocol per slot regardless of which device or sync path calls logDose.
+  const idempotencyKey = buildIdempotencyKey(subjectUserId, input.protocolId, input.scheduledDate, doseSlot);
   let existing: DoseLog | null = null;
   if (input.id) {
     existing = await findDoseLogById(tx, input.id, subjectUserId);
@@ -206,7 +217,6 @@ export async function logDose(
   // If there is an existing log (e.g. updating an entry), we bypass the schedule check.
   // Otherwise, we must validate that the date matches the protocol's schedule (unless it is an offline sync replay).
   if (!existing && !input.isOffline) {
-    const schedule = parseSchedule(protocol.schedule);
     if (!isScheduledOn(schedule, protocol.startDate, protocol.endDate, input.scheduledDate)) {
       throw new Error('dose_log_off_schedule: Cannot log a dose for an off-schedule date');
     }
@@ -469,6 +479,7 @@ export async function logDose(
         userId: subjectUserId,
         idempotencyKey,
         scheduledDate: toUTCDay(input.scheduledDate),
+        doseSlot,
         amount,
         status: input.status,
         injectionSite: input.status === 'LOGGED' ? injectionSite : undefined,
@@ -508,10 +519,10 @@ export async function logDose(
 
     return { doseLog, warnings };
   } catch (err) {
-    // Concurrent create hit the @@unique([userId, protocolId, scheduledDate]) constraint.
+    // Concurrent create hit the @@unique([userId, protocolId, scheduledDate, doseSlot]) constraint.
     // Use findDoseLogForDate (not idempotencyKey) so we find the record regardless of who won.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      const winner = await findDoseLogForDate(tx, subjectUserId, input.protocolId, toUTCDay(input.scheduledDate));
+      const winner = await findDoseLogForDate(tx, subjectUserId, input.protocolId, toUTCDay(input.scheduledDate), doseSlot);
       if (winner) return { doseLog: winner, warnings };
     }
     throw err;

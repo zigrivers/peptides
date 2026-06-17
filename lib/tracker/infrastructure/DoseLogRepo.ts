@@ -55,6 +55,7 @@ export async function createDoseLog(
     injectionSite?: InjectionSite;
     note?: string;
     vialId?: string;
+    doseSlot?: number;
     loggedByUserId?: string;
     loggedCost?: Decimal | null;
     loggedCurrency?: string | null;
@@ -66,6 +67,7 @@ export async function createDoseLog(
       userId: data.userId,
       idempotencyKey: data.idempotencyKey,
       scheduledDate: data.scheduledDate,
+      doseSlot: data.doseSlot ?? 0,
       amount: data.amount as Prisma.InputJsonValue,
       status: data.status,
       injectionSite: data.injectionSite ? (data.injectionSite as Prisma.InputJsonValue) : Prisma.JsonNull,
@@ -106,10 +108,11 @@ export async function findDoseLogForDate(
   client: PrismaClient_,
   userId: string,
   protocolId: string,
-  scheduledDate: Date
+  scheduledDate: Date,
+  doseSlot = 0
 ): Promise<DoseLog | null> {
   const raw = await client.doseLog.findFirst({
-    where: { userId, protocolId, scheduledDate },
+    where: { userId, protocolId, scheduledDate, doseSlot },
   });
   return raw ? mapDoseLog(raw as RawDoseLog) : null;
 }
