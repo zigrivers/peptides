@@ -573,6 +573,7 @@ export async function getDoseLogsRange(userId: string, since: Date): Promise<Dos
     idempotencyKey: r.idempotencyKey,
     loggedAt: r.loggedAt,
     scheduledDate: r.scheduledDate,
+    doseSlot: r.doseSlot,
     amount: parseDoseAmount(r.amount),
     status: r.status as DoseLogStatus,
     injectionSite: parseInjectionSite(r.injectionSite),
