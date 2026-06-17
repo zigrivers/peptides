@@ -264,3 +264,40 @@ describe('RegimenClient summary view', () => {
     expect(screen.getByText('Continuous')).toBeTruthy();
   });
 });
+
+describe('RegimenClient runout forecast (twice-daily consumption)', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  // Shared deterministic setup: vial 10mg / 2mL = 5 mg/mL, 1.0 mg remaining.
+  // 250 mcg dose = 0.25 mg per dose. Protocol started well in the past so it is
+  // scheduled every relevant day. Day 0 (today) is also a scheduled/deducted day.
+  //
+  //   Daily      (0.25 mg/day): 1.0 -> ... runs out -> 4 days remaining
+  //   TwiceDaily (0.50 mg/day): 1.0 -> ... runs out -> 2 days remaining (half)
+  function setupRunout(frequency: 'Daily' | 'TwiceDaily') {
+    return renderRegimenClient({
+      initialProtocols: [
+        makeProtocol({
+          id: `protocol-${frequency}`,
+          dose: { amount: '250', unit: 'mcg' },
+          schedule: { frequency },
+          startDate: '2026-01-01T00:00:00.000Z',
+        }),
+      ],
+      vials: [makeVial({ remainingMg: '1' })],
+    });
+  }
+
+  it('depletes a vial in HALF the days for TwiceDaily vs Daily at the same dose', () => {
+    setupRunout('Daily');
+    fireEvent.click(screen.getByRole('button', { name: /summary/i }));
+    expect(screen.getByText(/\(4 days remaining\)/)).toBeTruthy();
+    cleanup();
+
+    setupRunout('TwiceDaily');
+    fireEvent.click(screen.getByRole('button', { name: /summary/i }));
+    expect(screen.getByText(/\(2 days remaining\)/)).toBeTruthy();
+  });
+});

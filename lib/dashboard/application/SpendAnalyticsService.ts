@@ -32,17 +32,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function getDosesPerDay(scheduleValue: unknown): Decimal {
   if (!isRecord(scheduleValue)) return new Decimal(0);
 
-  if (scheduleValue.frequency === 'Daily' || scheduleValue.frequency === 'TwiceDaily') {
+  if (scheduleValue.frequency === 'Daily') {
     return new Decimal(1);
+  }
+  // Twice-daily: two doses on every calendar day.
+  if (scheduleValue.frequency === 'TwiceDaily') {
+    return new Decimal(2);
   }
   if (scheduleValue.frequency === 'EOD') {
     return new Decimal(0.5);
   }
-  if (
-    (scheduleValue.frequency === 'SpecificDaysOfWeek' || scheduleValue.frequency === 'TwiceSpecificDaysOfWeek') &&
-    Array.isArray(scheduleValue.daysOfWeek)
-  ) {
+  if (scheduleValue.frequency === 'SpecificDaysOfWeek' && Array.isArray(scheduleValue.daysOfWeek)) {
     return new Decimal(scheduleValue.daysOfWeek.length).dividedBy(7);
+  }
+  // Twice-daily on specific weekdays: two doses per scheduled day.
+  if (scheduleValue.frequency === 'TwiceSpecificDaysOfWeek' && Array.isArray(scheduleValue.daysOfWeek)) {
+    return new Decimal(2).times(scheduleValue.daysOfWeek.length).dividedBy(7);
   }
   if (
     scheduleValue.frequency === 'CustomInterval' &&

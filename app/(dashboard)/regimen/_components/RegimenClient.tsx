@@ -13,6 +13,7 @@ import { convertDoseToMg } from '@/lib/reconstitution/application/InventoryServi
 import { Calendar, AlertTriangle, Snowflake, LayoutGrid, List } from 'lucide-react';
 import { getCapColor } from '@/lib/reconstitution/domain/syringe';
 import { isScheduledOn } from '@/lib/tracker/domain/ScheduleGenerator';
+import { dosesPerDay } from '@/lib/tracker/domain/doseSlots';
 import { formatScheduleFrequency } from '@/lib/tracker/domain/schedule';
 import type { Schedule as DomainSchedule } from '@/lib/tracker/domain/types';
 import { getWeekInfo } from '@/lib/tracker/domain/cycleProgress';
@@ -205,20 +206,23 @@ function calculateDailyEquivalentMg(
 
   if (doseMg.lte(0)) return new Decimal(0);
 
+  // Doses administered per scheduled day (2 for twice-daily schedules).
+  const perDay = dosesPerDay(protocol.schedule as unknown as DomainSchedule);
+
   if (protocol.schedule.frequency === 'Daily' || protocol.schedule.frequency === 'TwiceDaily') {
-    return doseMg;
+    return doseMg.times(perDay);
   }
   if (protocol.schedule.frequency === 'EOD') {
-    return doseMg.dividedBy(2);
+    return doseMg.times(perDay).dividedBy(2);
   }
   if (protocol.schedule.frequency === 'CustomInterval') {
     const interval = protocol.schedule.intervalDays || 1;
     if (interval <= 0) return new Decimal(0);
-    return doseMg.dividedBy(interval);
+    return doseMg.times(perDay).dividedBy(interval);
   }
   if (protocol.schedule.frequency === 'SpecificDaysOfWeek' || protocol.schedule.frequency === 'TwiceSpecificDaysOfWeek') {
     const days = protocol.schedule.daysOfWeek?.length || 0;
-    return doseMg.times(days).dividedBy(7);
+    return doseMg.times(perDay).times(days).dividedBy(7);
   }
   return new Decimal(0);
 }
@@ -327,11 +331,15 @@ function calculateCompoundRunout(
       const protocolEndDate = p.endDate ? new Date(p.endDate) : null;
 
       if (isScheduledOn(p.schedule as unknown as Parameters<typeof isScheduledOn>[0], protocolStartDate, protocolEndDate, checkDate)) {
-        dayDoses.push({
-          protocol: p,
-          amount: parseDoseAmountSum(p.dose.amount),
-          unit: p.dose.unit,
-        });
+        // Twice-daily schedules consume two doses on each scheduled day.
+        const perDay = dosesPerDay(p.schedule as unknown as DomainSchedule);
+        for (let i = 0; i < perDay; i++) {
+          dayDoses.push({
+            protocol: p,
+            amount: parseDoseAmountSum(p.dose.amount),
+            unit: p.dose.unit,
+          });
+        }
       }
     }
 
