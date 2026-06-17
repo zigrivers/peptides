@@ -24,6 +24,7 @@ const InputSchema = z.object({
   note: z.string().max(1000).optional(),
   vialId: z.string().optional(),
   scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (must be YYYY-MM-DD)').optional(),
+  doseSlot: z.number().int().min(0).max(1).optional(),
 });
 
 type LogDoseActionResult =
@@ -41,7 +42,7 @@ export async function logDoseAction(input: unknown): Promise<LogDoseActionResult
     return { ok: false, error: 'invalid_input', message: parsed.error.issues[0]?.message ?? 'Invalid input.' };
   }
 
-  const { id, protocolId, amount, status, injectionSite, note, vialId, scheduledDate: inputScheduledDate } = parsed.data;
+  const { id, protocolId, amount, status, injectionSite, note, vialId, scheduledDate: inputScheduledDate, doseSlot } = parsed.data;
   const actorUserId = session.user.id;
 
   let scheduledDate: Date;
@@ -66,6 +67,7 @@ export async function logDoseAction(input: unknown): Promise<LogDoseActionResult
       injectionSite,
       note,
       vialId,
+      doseSlot,
       requireInjectionSite: true,
     });
 
