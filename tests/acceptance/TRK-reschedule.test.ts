@@ -231,13 +231,120 @@ describe('TRK-reschedule', () => {
 
     expect(result).toEqual({ ok: true });
 
-    // Expect deletion of target exception log
+    // Expect deletion of target exception log (slot-scoped, defaults to 0)
     expect(mocks.mockDoseLogDeleteMany).toHaveBeenCalledWith({
       where: {
         id: 'log-exception',
         userId: actorUserId,
         protocolId,
+        doseSlot: 0,
         status: 'RESCHEDULED',
+      },
+    });
+  });
+
+  it('defaults doseSlot to 0 and scopes conflict check to slot 0 for once-daily', async () => {
+    mocks.mockDoseLogFindFirst.mockResolvedValue(null);
+
+    const result = await rescheduleDoseAction({
+      protocolId,
+      sourceDate: '2026-05-04',
+      targetDate: '2026-05-05',
+    });
+
+    expect(result).toEqual({ ok: true });
+
+    // Target conflict check is the first findFirst call: slot-scoped to 0.
+    expect(mocks.mockDoseLogFindFirst).toHaveBeenNthCalledWith(1, {
+      where: { userId: actorUserId, protocolId, scheduledDate: expect.any(Date), doseSlot: 0 },
+    });
+
+    // Created placeholder logs carry doseSlot 0 and the :0 idempotency suffix.
+    expect(mocks.mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          doseSlot: 0,
+          idempotencyKey: expect.stringMatching(/:2026-05-05:0$/),
+          status: 'PENDING',
+        }),
+      })
+    );
+  });
+
+  it('preserves doseSlot when rescheduling a twice-daily evening (slot 1) virtual dose', async () => {
+    // TwiceDaily => target day is virtually scheduled. Use a RESCHEDULED exception on
+    // the target slot so the conflict gate is bypassed (move-back scenario), exercising
+    // the slot-scoped predicates without a schedule-level virtual conflict.
+    const twiceDailyProtocol = { ...mockProtocol, schedule: { frequency: 'TwiceDaily' } };
+    mocks.mockProtocolFindFirst.mockResolvedValue(twiceDailyProtocol);
+    const targetException = {
+      id: 'log-target-exc',
+      protocolId,
+      userId: actorUserId,
+      status: 'RESCHEDULED',
+      doseSlot: 1,
+      scheduledDate: new Date('2026-05-05T00:00:00Z'),
+    };
+    mocks.mockDoseLogFindFirst.mockResolvedValueOnce(targetException); // target check (slot 1)
+    mocks.mockDoseLogFindFirst.mockResolvedValueOnce(null); // source-empty check
+
+    const result = await rescheduleDoseAction({
+      protocolId,
+      sourceDate: '2026-05-04',
+      targetDate: '2026-05-05',
+      doseSlot: 1,
+    });
+
+    expect(result).toEqual({ ok: true });
+
+    // Conflict check targets ONLY slot 1 (not "either slot").
+    expect(mocks.mockDoseLogFindFirst).toHaveBeenNthCalledWith(1, {
+      where: { userId: actorUserId, protocolId, scheduledDate: expect.any(Date), doseSlot: 1 },
+    });
+
+    // Deletion of the move-back exception is slot-scoped to 1.
+    expect(mocks.mockDoseLogDeleteMany).toHaveBeenCalledWith({
+      where: { id: 'log-target-exc', userId: actorUserId, protocolId, doseSlot: 1, status: 'RESCHEDULED' },
+    });
+
+    // Placeholder logs carry doseSlot 1 and the :1 idempotency suffix.
+    expect(mocks.mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          doseSlot: 1,
+          idempotencyKey: expect.stringMatching(/:1$/),
+        }),
+      })
+    );
+  });
+
+  it('rebuilds the idempotency key with the slot when moving an existing slot-1 log', async () => {
+    const existingLog = {
+      id: 'log-evening',
+      protocolId,
+      userId: actorUserId,
+      status: 'PENDING',
+      doseSlot: 1,
+      scheduledDate: new Date('2026-05-04T00:00:00Z'),
+    };
+    // Mon-only schedule so target (Tue 2026-05-05) is NOT virtually scheduled => no conflict.
+    mocks.mockDoseLogFindFirst.mockResolvedValueOnce(null); // target check empty
+    mocks.mockDoseLogFindFirst.mockResolvedValueOnce(existingLog); // fetch inside tx
+    mocks.mockDoseLogFindFirst.mockResolvedValueOnce(null); // original-day check inside tx
+
+    const result = await rescheduleDoseAction({
+      doseLogId: 'log-evening',
+      protocolId,
+      targetDate: '2026-05-05',
+      doseSlot: 1,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(mocks.mockDoseLogUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'log-evening', userId: actorUserId, protocolId },
+      data: {
+        scheduledDate: expect.any(Date),
+        idempotencyKey: expect.stringMatching(/:2026-05-05:1$/),
       },
     });
   });

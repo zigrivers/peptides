@@ -499,8 +499,10 @@ model DoseLog {
   loggedByUserId String?
   loggedCost     Decimal? @db.Decimal(10, 2)
   loggedCurrency String?
+  // Per-day dose occurrence (0-based). 0 for once-daily; 0/1 for twice-daily protocols.
+  doseSlot       Int      @default(0)
 
-  @@unique([userId, protocolId, scheduledDate])
+  @@unique([userId, protocolId, scheduledDate, doseSlot])
   @@index([userId, scheduledDate])
 }
 

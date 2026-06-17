@@ -159,6 +159,78 @@ describe('SpendAnalyticsService', () => {
     expect(result.projectedSpend.monthly).toBe('150.00');
   });
 
+  it('counts 2 doses/day for TwiceDaily protocols in run-rate projection', async () => {
+    mockDoseLogFindMany.mockResolvedValue([]); // YTD
+    mockDoseLogFindMany.mockResolvedValue([]); // Monthly
+
+    mockProtocolFindMany.mockResolvedValueOnce([
+      {
+        id: 'proto-1',
+        compoundId: 'comp-1',
+        dose: { amount: '250', unit: 'mcg' },
+        schedule: { frequency: 'TwiceDaily' },
+        compound: { name: 'Semaglutide' },
+      },
+    ]);
+
+    mockUserFindUnique.mockResolvedValueOnce({ syringeStandard: 'U100' });
+
+    mockVialFindMany.mockResolvedValueOnce([
+      {
+        compoundId: 'comp-1',
+        cost: new Decimal('100.00'),
+        totalMg: new Decimal('5.0'),
+        currency: 'USD',
+        bacWaterMl: new Decimal('2.0'),
+        isActiveForCompound: true,
+      },
+    ]);
+    mockVialFindMany.mockResolvedValueOnce([]); // historical vials
+
+    const result = await getSpendAnalytics('user-1');
+
+    // costPerDose = 0.25 mg * 20 USD/mg = 5.00 USD
+    // TwiceDaily = 2 doses/day => 10.00 USD/day (was 5.00 before the fix)
+    expect(result.projectedSpend.daily).toBe('10.00');
+    expect(result.projectedSpend.weekly).toBe('70.00');
+    expect(result.projectedSpend.monthly).toBe('300.00');
+  });
+
+  it('counts 2 doses per scheduled day for TwiceSpecificDaysOfWeek (2 days/wk => 2*2/7)', async () => {
+    mockDoseLogFindMany.mockResolvedValue([]); // YTD
+    mockDoseLogFindMany.mockResolvedValue([]); // Monthly
+
+    mockProtocolFindMany.mockResolvedValueOnce([
+      {
+        id: 'proto-1',
+        compoundId: 'comp-1',
+        dose: { amount: '250', unit: 'mcg' },
+        schedule: { frequency: 'TwiceSpecificDaysOfWeek', daysOfWeek: ['MON', 'THU'] },
+        compound: { name: 'Semaglutide' },
+      },
+    ]);
+
+    mockUserFindUnique.mockResolvedValueOnce({ syringeStandard: 'U100' });
+
+    mockVialFindMany.mockResolvedValueOnce([
+      {
+        compoundId: 'comp-1',
+        cost: new Decimal('100.00'),
+        totalMg: new Decimal('5.0'),
+        currency: 'USD',
+        bacWaterMl: new Decimal('2.0'),
+        isActiveForCompound: true,
+      },
+    ]);
+    mockVialFindMany.mockResolvedValueOnce([]); // historical vials
+
+    const result = await getSpendAnalytics('user-1');
+
+    // costPerDose = 5.00 USD; per-calendar-day frequency = 2 doses * (2 days / 7)
+    // = 4/7 doses/day => 5.00 * 4/7 = 2.857142... -> '2.86'
+    expect(result.projectedSpend.daily).toBe('2.86');
+  });
+
   it('correctly falls back to historical average cost when active vial is missing', async () => {
     mockDoseLogFindMany.mockResolvedValue([]); // YTD
     mockDoseLogFindMany.mockResolvedValue([]); // Monthly

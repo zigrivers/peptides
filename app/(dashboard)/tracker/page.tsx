@@ -20,6 +20,7 @@ import { BatchLogReview } from './_components/BatchLogReview';
 import { TrackerCalendar } from './_components/TrackerCalendar';
 import { BenefitsTimeline } from './_components/BenefitsTimeline';
 import { getSiteSuggestion } from '@/lib/tracker/application/SiteRotationService';
+import { computeAdheredDates } from '@/lib/tracker/domain/adherence';
 import type { SiteSuggestion } from '@/lib/tracker/domain/SiteRotation';
 import type { CompoundProfile } from '@/lib/reference/domain/types';
 
@@ -201,6 +202,7 @@ export default async function TrackerPage() {
     ...log,
     loggedAt: log.loggedAt.toISOString(),
     scheduledDate: log.scheduledDate.toISOString(),
+    doseSlot: log.doseSlot,
     amount: log.amount,
     injectionSite: log.injectionSite,
     status: log.status,
@@ -243,9 +245,31 @@ export default async function TrackerPage() {
     })
   );
 
-  const loggedDates = allDoseLogsForStreak
-    .filter((log) => log.status === 'LOGGED')
-    .map((log) => log.scheduledDate.toISOString().split('T')[0]);
+  // Slot labels for twice-daily protocols depend on the compound's preferred time
+  // (MORNING_AND_NIGHT → "Morning"/"Evening"; otherwise generic "1st/2nd dose").
+  const preferredTimeByCompoundId: Record<string, string | null> = Object.fromEntries(
+    Object.entries(compoundsMap).map(([id, c]) => [id, c.profile?.preferredTime ?? null])
+  );
+
+  // A day counts toward the streak only when EVERY active protocol scheduled that day has
+  // ALL of its dose slots LOGGED (twice-daily requires both slots). See computeAdheredDates.
+  const loggedDates = computeAdheredDates(
+    protocols
+      .filter((p) => p.status === 'ACTIVE')
+      .map((p) => ({
+        id: p.id,
+        schedule: p.schedule,
+        startDate: p.startDate,
+        endDate: p.endDate,
+        status: p.status,
+      })),
+    allDoseLogsForStreak.map((log) => ({
+      protocolId: log.protocolId,
+      scheduledDate: log.scheduledDate,
+      status: log.status,
+      doseSlot: log.doseSlot ?? 0,
+    }))
+  );
 
   // Fetch cycles for the user's protocols
   const cycleIds = [...new Set(protocols.map((p) => p.cycleId).filter(Boolean))] as string[];
@@ -294,6 +318,7 @@ export default async function TrackerPage() {
               cycles={cyclesMap}
               dryVials={dryVials}
               compoundOptions={compoundOptions}
+              preferredTimeByCompoundId={preferredTimeByCompoundId}
             />
           </section>
 

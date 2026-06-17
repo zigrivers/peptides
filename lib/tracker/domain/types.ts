@@ -81,6 +81,8 @@ export type DoseLog = {
   idempotencyKey: string;
   loggedAt: Date;
   scheduledDate: Date;
+  /** Per-day dose occurrence (0-based). Defaults to 0. Twice-daily schedules use 0 and 1. */
+  doseSlot?: number;
   amount: DoseAmount;
   status: DoseLogStatus;
   injectionSite: InjectionSite | null;
@@ -106,6 +108,8 @@ export type LogDoseInput = {
   injectionSite?: InjectionSite;
   note?: string;
   vialId?: string;
+  /** Per-day dose occurrence (0-based). Defaults to 0. Twice-daily schedules use 0 and 1. */
+  doseSlot?: number;
   /** When true, logDose enforces that a site is provided for injectable LOGGED doses. */
   requireInjectionSite?: boolean;
   /** When true, skips schedule validation checks (used for offline sync replay where current schedule might differ from the past schedule). */
@@ -150,6 +154,10 @@ export type CycleWeekInfo = {
 
 export type BatchDueItem = {
   protocol: Protocol;
+  // The per-day dose occurrence this item represents (0 for once-daily; 0|1 for twice-daily).
+  doseSlot: number;
+  // Display label for the slot ('' for once-daily; e.g. 'Morning'/'Evening' or '1st dose'/'2nd dose').
+  slotLabel: string;
   existingLog: DoseLog | null;
   availableVials: number;
   isAvailable: boolean; // false when no inventory prevents logging
@@ -164,8 +172,8 @@ export type BatchLogInput = {
 };
 
 export type BatchLogItemResult =
-  | { ok: true; protocolId: string; doseLog: DoseLog; warnings: SafetyWarning[] }
-  | { ok: false; protocolId: string; error: string };
+  | { ok: true; protocolId: string; doseSlot: number; doseLog: DoseLog; warnings: SafetyWarning[] }
+  | { ok: false; protocolId: string; doseSlot: number; error: string };
 
 export type BatchLogResult = {
   results: BatchLogItemResult[];

@@ -8,6 +8,7 @@ const syncEntrySchema = z.object({
   id: z.string(),
   protocolId: z.string(),
   scheduledDate: z.string().date(),
+  doseSlot: z.number().int().min(0).optional().default(0),
   amount: z.object({
     amount: z.string(),
     unit: z.enum(['mcg', 'mg', 'IU', 'mL']),
@@ -54,6 +55,7 @@ export async function POST(req: Request): Promise<NextResponse> {
           actorUserId,
           protocolId: entry.protocolId,
           scheduledDate: new Date(`${entry.scheduledDate}T00:00:00Z`),
+          doseSlot: entry.doseSlot,
           amount: entry.amount,
           status: entry.status,
           injectionSite: entry.injectionSite ?? undefined,

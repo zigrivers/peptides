@@ -7,6 +7,7 @@ import { prisma } from '@/lib/shared/prisma';
 import { logDose } from '@/lib/tracker/application/DoseLogService';
 import { getManagedUserIds } from '@/lib/tracker/application/ProtocolService';
 import { findProtocolByIdForActor } from '@/lib/tracker/infrastructure/ProtocolRepo';
+import { getDoseSlots } from '@/lib/tracker/domain/doseSlots';
 import { parseStrictUTCDate } from '@/lib/shared/date';
 import type { DoseAmount } from '@/lib/tracker/domain/types';
 
@@ -61,19 +62,27 @@ export async function batchLogDatesAction(input: unknown): Promise<BatchLogDates
       return { ok: false, error: 'protocol_not_active', message: 'Protocol is not active.' };
     }
 
+    // Each scheduled day may carry more than one dose slot (twice-daily protocols have slots
+    // 0 and 1); once-daily protocols have a single slot 0. Log every slot for every date so a
+    // twice-daily protocol records both doses per day rather than only the first.
+    const slots = getDoseSlots(protocol.schedule);
+
     // Run batch log inside transaction using transaction propagation
     await prisma.$transaction(async (tx) => {
       for (const date of dates) {
-        await logDose({
-          actorUserId,
-          protocolId,
-          scheduledDate: date,
-          amount: protocol.dose as unknown as DoseAmount,
-          status,
-          injectionSite,
-          note,
-          requireInjectionSite: false, // Disable required injection site check for batch actions
-        }, tx);
+        for (const slot of slots) {
+          await logDose({
+            actorUserId,
+            protocolId,
+            scheduledDate: date,
+            doseSlot: slot.slot,
+            amount: protocol.dose as unknown as DoseAmount,
+            status,
+            injectionSite,
+            note,
+            requireInjectionSite: false, // Disable required injection site check for batch actions
+          }, tx);
+        }
       }
     });
 

@@ -13,8 +13,12 @@ type QueueDB = {
   };
 };
 
-function dedupeKey(entry: Pick<EnqueueInput, 'protocolId' | 'scheduledDate' | 'deviceId'>): string {
-  return `${entry.protocolId}|${entry.scheduledDate}|${entry.deviceId}`;
+function dedupeKey(
+  entry: Pick<EnqueueInput, 'protocolId' | 'scheduledDate' | 'deviceId'> & { doseSlot?: number }
+): string {
+  // Default to slot 0 so legacy callers / entries (pre twice-daily) stay stable.
+  const doseSlot = entry.doseSlot ?? 0;
+  return `${entry.protocolId}|${entry.scheduledDate}|${entry.deviceId}|${doseSlot}`;
 }
 
 export class OfflineQueue {
@@ -40,6 +44,7 @@ export class OfflineQueue {
     const entry: QueuedDoseLog & { id: string } = {
       id: key,
       ...input,
+      doseSlot: input.doseSlot ?? 0,
       synced: false,
       queuedAt: Date.now(),
     };
@@ -63,7 +68,8 @@ export class OfflineQueue {
   async getPending(): Promise<(QueuedDoseLog & { id: string })[]> {
     const db = await this.dbPromise;
     const all = await db.getAll(STORE);
-    return all.filter((e) => !e.synced);
+    // Tolerate legacy entries persisted before twice-daily support: default doseSlot to 0.
+    return all.filter((e) => !e.synced).map((e) => ({ ...e, doseSlot: e.doseSlot ?? 0 }));
   }
 
   async markSynced(id: string): Promise<void> {

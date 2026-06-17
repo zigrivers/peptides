@@ -27,13 +27,39 @@ import {
 } from '../infrastructure/DoseLogRepo';
 import { getManagedUserIds } from './ProtocolService';
 import { isScheduledOn } from '../domain/ScheduleGenerator';
+import { dosesPerDay, getDoseSlots } from '../domain/doseSlots';
 import { Prisma } from '@prisma/client';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 
 
 
-function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date): string {
-  return `${userId}:${protocolId}:${scheduledDate.toISOString().slice(0, 10)}`;
+function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date, doseSlot: number): string {
+  return `${userId}:${protocolId}:${scheduledDate.toISOString().slice(0, 10)}:${doseSlot}`;
+}
+
+/**
+ * Resolve preferredTime per compound (catalogItemId) for the given compounds. Only used to choose
+ * twice-daily slot labels (Morning/Evening vs 1st/2nd dose). Defaults to null (→ "1st/2nd dose")
+ * when no profile exists. Guarded so once-daily-only batches never depend on profile tables.
+ */
+async function resolvePreferredTimeByCompound(compoundIds: string[]): Promise<Record<string, string | null>> {
+  const result: Record<string, string | null> = Object.fromEntries(compoundIds.map((id) => [id, null]));
+  if (compoundIds.length === 0) return result;
+  const [compoundProfiles, supplementProfiles] = await Promise.all([
+    prisma.compoundProfile?.findMany?.({
+      where: { catalogItemId: { in: compoundIds } },
+      select: { catalogItemId: true, preferredTime: true },
+    }) ?? Promise.resolve([]),
+    prisma.supplementProfile?.findMany?.({
+      where: { catalogItemId: { in: compoundIds } },
+      select: { catalogItemId: true, preferredTime: true },
+    }) ?? Promise.resolve([]),
+  ]);
+  for (const p of compoundProfiles ?? []) result[p.catalogItemId] = p.preferredTime ?? null;
+  for (const p of supplementProfiles ?? []) {
+    if (result[p.catalogItemId] == null) result[p.catalogItemId] = p.preferredTime ?? null;
+  }
+  return result;
 }
 
 function parseDoseAmountSum(amountStr: string): Decimal {
@@ -113,8 +139,16 @@ export async function getDueTodayForBatch(actorUserId: string): Promise<BatchDue
   const syringeStandard = (user?.syringeStandard ?? 'U100') as SyringeStandard;
   const syringeSize = (user?.syringeSize ?? '1.0') as SyringeSize;
 
-  return dueProtocols.map((protocol) => {
-    const existingLog = logsByProtocol[protocol.id] ?? null;
+  // Only resolve preferredTime for compounds that have a twice-daily protocol — once-daily
+  // slots carry an empty label and never depend on it.
+  const twiceDailyCompoundIds = [
+    ...new Set(dueProtocols.filter((p) => dosesPerDay(p.schedule) > 1).map((p) => p.compoundId)),
+  ];
+  const preferredTimeByCompound = await resolvePreferredTimeByCompound(twiceDailyCompoundIds);
+
+  // One BatchDueItem per (protocol, slot): twice-daily protocols emit two items (slots 0 and 1),
+  // each with its own existing-log status looked up per (protocolId, doseSlot).
+  return dueProtocols.flatMap((protocol) => {
     const availableVials = vialCountByCompound[protocol.compoundId] ?? 0;
     const doseUnits = buildDoseUnitsDisplay(
       protocol.dose,
@@ -122,17 +156,31 @@ export async function getDueTodayForBatch(actorUserId: string): Promise<BatchDue
       syringeStandard,
       syringeSize
     );
-    return { protocol, existingLog, availableVials, isAvailable: availableVials > 0, doseUnits };
+    const slots = getDoseSlots(protocol.schedule, preferredTimeByCompound[protocol.compoundId] ?? null);
+    return slots.map((slot) => ({
+      protocol,
+      doseSlot: slot.slot,
+      slotLabel: slot.label,
+      existingLog: logsByProtocol[`${protocol.id}:${slot.slot}`] ?? null,
+      availableVials,
+      isAvailable: availableVials > 0,
+      doseUnits,
+    }));
   });
 }
 
-async function logOneInBatch(
+type ResolvedBatchProtocol = NonNullable<Awaited<ReturnType<typeof findProtocolByIdForActor>>>;
+
+/**
+ * Fetch + validate a protocol once for the batch flow. Re-used across all of the protocol's
+ * dose slots so a twice-daily protocol incurs a single ownership/schedule check (one findFirst).
+ */
+async function resolveBatchProtocol(
   actorUserId: string,
   managedIds: string[],
   protocolId: string,
-  scheduledDate: Date,
-  vialCountCache: Record<string, number>
-): Promise<{ doseLog: DoseLog; warnings: SafetyWarning[] }> {
+  scheduledDate: Date
+): Promise<ResolvedBatchProtocol> {
   const protocol = await findProtocolByIdForActor(prisma, protocolId, actorUserId, managedIds);
   if (!protocol) throw new Error(`Protocol not found: ${protocolId}`);
   // Batch flow is scoped to the actor's own protocols — reject managed-user protocols.
@@ -143,9 +191,19 @@ async function logOneInBatch(
   if (!isScheduledOn(protocol.schedule, protocol.startDate, protocol.endDate, scheduledDate)) {
     throw new Error(`no_dose_scheduled: No dose scheduled for this protocol on ${scheduledDate.toISOString().slice(0, 10)}`);
   }
+  return protocol;
+}
 
+async function logOneSlotInBatch(
+  actorUserId: string,
+  protocol: ResolvedBatchProtocol,
+  scheduledDate: Date,
+  doseSlot: number,
+  vialCountCache: Record<string, number>
+): Promise<{ doseLog: DoseLog; warnings: SafetyWarning[] }> {
+  const protocolId = protocol.id;
   const subjectUserId = protocol.userId; // always === actorUserId in batch flow
-  const idempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, scheduledDate);
+  const idempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, scheduledDate, doseSlot);
   const existing = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, subjectUserId);
 
   // Already LOGGED → idempotent early return; no vial check needed.
@@ -241,6 +299,7 @@ async function logOneInBatch(
         userId: subjectUserId,
         idempotencyKey,
         scheduledDate: toUTCDay(scheduledDate),
+        doseSlot,
         amount,
         status: 'LOGGED',
         vialId: activeVial.id,
@@ -274,7 +333,7 @@ async function logOneInBatch(
     return { doseLog, warnings };
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      const winner = await findDoseLogForDate(prisma, subjectUserId, protocolId, toUTCDay(scheduledDate));
+      const winner = await findDoseLogForDate(prisma, subjectUserId, protocolId, toUTCDay(scheduledDate), doseSlot);
       if (winner) {
         if (winner.status === 'LOGGED') return { doseLog: winner, warnings };
         // Race: concurrent request wrote a SKIPPED log — update it to LOGGED to match batch intent.
@@ -336,18 +395,33 @@ export async function batchLogDoses(input: BatchLogInput): Promise<BatchLogResul
   const results: BatchLogItemResult[] = [];
 
   for (const protocolId of input.selectedProtocolIds) {
+    let protocol: ResolvedBatchProtocol;
     try {
-      const { doseLog, warnings } = await logOneInBatch(
-        input.actorUserId,
-        managedIds,
-        protocolId,
-        scheduledDate,
-        vialCountCache
-      );
-      results.push({ ok: true, protocolId, doseLog, warnings });
+      protocol = await resolveBatchProtocol(input.actorUserId, managedIds, protocolId, scheduledDate);
     } catch (err) {
       const error = err instanceof Error ? err.message : 'Unknown error';
-      results.push({ ok: false, protocolId, error });
+      // Protocol-level failure (not found / scope / schedule) → one failed result for slot 0.
+      results.push({ ok: false, protocolId, doseSlot: 0, error });
+      continue;
+    }
+
+    // Log every per-day dose slot the protocol represents (slot 0 for once-daily; 0 and 1 for
+    // twice-daily). Slot numbers come from the schedule; labels are irrelevant when logging.
+    const slots = getDoseSlots(protocol.schedule);
+    for (const slot of slots) {
+      try {
+        const { doseLog, warnings } = await logOneSlotInBatch(
+          input.actorUserId,
+          protocol,
+          scheduledDate,
+          slot.slot,
+          vialCountCache
+        );
+        results.push({ ok: true, protocolId, doseSlot: slot.slot, doseLog, warnings });
+      } catch (err) {
+        const error = err instanceof Error ? err.message : 'Unknown error';
+        results.push({ ok: false, protocolId, doseSlot: slot.slot, error });
+      }
     }
   }
 

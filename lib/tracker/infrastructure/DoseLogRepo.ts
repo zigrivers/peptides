@@ -55,6 +55,7 @@ export async function createDoseLog(
     injectionSite?: InjectionSite;
     note?: string;
     vialId?: string;
+    doseSlot?: number;
     loggedByUserId?: string;
     loggedCost?: Decimal | null;
     loggedCurrency?: string | null;
@@ -66,6 +67,7 @@ export async function createDoseLog(
       userId: data.userId,
       idempotencyKey: data.idempotencyKey,
       scheduledDate: data.scheduledDate,
+      doseSlot: data.doseSlot ?? 0,
       amount: data.amount as Prisma.InputJsonValue,
       status: data.status,
       injectionSite: data.injectionSite ? (data.injectionSite as Prisma.InputJsonValue) : Prisma.JsonNull,
@@ -106,14 +108,20 @@ export async function findDoseLogForDate(
   client: PrismaClient_,
   userId: string,
   protocolId: string,
-  scheduledDate: Date
+  scheduledDate: Date,
+  doseSlot = 0
 ): Promise<DoseLog | null> {
   const raw = await client.doseLog.findFirst({
-    where: { userId, protocolId, scheduledDate },
+    where: { userId, protocolId, scheduledDate, doseSlot },
   });
   return raw ? mapDoseLog(raw as RawDoseLog) : null;
 }
 
+/**
+ * Bulk-fetch dose logs for the given protocols on a date, keyed by `${protocolId}:${doseSlot}`.
+ * Slot-aware so twice-daily protocols (slots 0 and 1) are both visible — keying by protocolId
+ * alone would collapse the two slots and hide the second dose.
+ */
 export async function findDoseLogsForDate(
   client: PrismaClient_,
   userId: string,
@@ -124,9 +132,12 @@ export async function findDoseLogsForDate(
   const rows = await client.doseLog.findMany({
     where: { userId, protocolId: { in: protocolIds }, scheduledDate },
   });
-  const byProtocol: Record<string, DoseLog | null> = Object.fromEntries(protocolIds.map((id) => [id, null]));
-  for (const row of rows) byProtocol[row.protocolId] = mapDoseLog(row as RawDoseLog);
-  return byProtocol;
+  const byProtocolSlot: Record<string, DoseLog | null> = {};
+  for (const row of rows) {
+    const r = row as RawDoseLog & { doseSlot?: number };
+    byProtocolSlot[`${r.protocolId}:${r.doseSlot ?? 0}`] = mapDoseLog(r);
+  }
+  return byProtocolSlot;
 }
 
 export async function updateDoseLog(
