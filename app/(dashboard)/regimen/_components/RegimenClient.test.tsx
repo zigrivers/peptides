@@ -67,6 +67,8 @@ function renderRegimenClient(
         ]
       }
       actorUserId={overrides.actorUserId ?? 'user-1'}
+      cycles={overrides.cycles}
+      doseDisplayByProtocolId={overrides.doseDisplayByProtocolId}
     />
   );
 }
@@ -82,16 +84,18 @@ describe('RegimenClient summary view', () => {
     vi.useRealTimers();
   });
 
-  it('switches to Summary and renders compact active regimen details with category labels', () => {
+  it('switches to Summary and renders split dose, frequency, and category labels', () => {
     renderRegimenClient();
 
     fireEvent.click(screen.getByRole('button', { name: /summary/i }));
 
     expect(screen.getByRole('table', { name: /active regimen summary/i })).toBeTruthy();
     expect(screen.getByText('BPC-157')).toBeTruthy();
-    expect(screen.getByText('250 mcg · Daily')).toBeTruthy();
+    // Split cells: dose and frequency now render separately (fallback to natural unit when no dd entry).
+    expect(screen.getByText('250 mcg')).toBeTruthy();
+    expect(screen.getByText('Daily')).toBeTruthy();
     expect(screen.getByText('SUBCUTANEOUS')).toBeTruthy();
-    expect(screen.getByText('May 20, 2026')).toBeTruthy();
+    expect(screen.getByText('Started May 20, 2026')).toBeTruthy();
     expect(screen.getByText('Recovery')).toBeTruthy();
     expect(screen.getByText('Healing')).toBeTruthy();
     expect(screen.queryByText('Regimen Refill Planner')).toBeNull();
@@ -163,7 +167,8 @@ describe('RegimenClient summary view', () => {
     fireEvent.change(screen.getByLabelText(/subject/i), { target: { value: 'managed-1' } });
 
     expect(screen.getByText('Tirzepatide')).toBeTruthy();
-    expect(screen.getByText('2.5 mg · Every other day')).toBeTruthy();
+    expect(screen.getByText('2.5 mg')).toBeTruthy();
+    expect(screen.getByText('Every other day')).toBeTruthy();
     expect(screen.getByText('Weight Loss')).toBeTruthy();
     expect(screen.getByText('Metabolic')).toBeTruthy();
     expect(screen.queryByText('BPC-157')).toBeNull();
@@ -175,5 +180,87 @@ describe('RegimenClient summary view', () => {
     expect(screen.getByRole('heading', { name: 'BPC-157' })).toBeTruthy();
     expect(screen.getByText('Regimen Refill Planner')).toBeTruthy();
     expect(screen.queryByRole('table', { name: /active regimen summary/i })).toBeNull();
+  });
+
+  it('renders the server-built dose, units, and frequency display when provided', () => {
+    renderRegimenClient({
+      doseDisplayByProtocolId: {
+        'protocol-bpc': {
+          doseText: '0.45 mg (450 mcg)',
+          unitsText: '≈ 3.0 units (U-100)',
+          frequencyText: 'Daily',
+          perDayNote: null,
+        },
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /summary/i }));
+
+    expect(screen.getByText('0.45 mg (450 mcg)')).toBeTruthy();
+    expect(screen.getByText('≈ 3.0 units (U-100)')).toBeTruthy();
+    expect(screen.getByText('Daily')).toBeTruthy();
+  });
+
+  it('renders the reconstitute prompt when no vial concentration is available', () => {
+    renderRegimenClient({
+      doseDisplayByProtocolId: {
+        'protocol-bpc': {
+          doseText: '250 mcg',
+          unitsText: '· reconstitute to see units',
+          frequencyText: 'Daily',
+          perDayNote: null,
+        },
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /summary/i }));
+
+    expect(screen.getByText('· reconstitute to see units')).toBeTruthy();
+  });
+
+  it('renders cycle progress for cycled protocols and Continuous otherwise', () => {
+    renderRegimenClient({
+      initialProtocols: [
+        makeProtocol({
+          id: 'cycled',
+          cycleId: 'cycle-1',
+          startDate: '2026-05-20T00:00:00.000Z',
+          compound: {
+            ...makeProtocol().compound,
+            profile: {
+              id: 'profile-bpc',
+              dosingLow: null,
+              dosingTypical: null,
+              dosingHigh: null,
+              sideEffects: null,
+              stackingNotes: null,
+              reconstitutedShelfLifeDays: null,
+              cycleLengthWeeks: 8,
+              restPeriodWeeks: 4,
+              citations: [],
+            },
+          },
+        }),
+        makeProtocol({
+          id: 'continuous',
+          compoundId: 'compound-tb',
+          startDate: '2026-05-20T00:00:00.000Z',
+          compound: { ...makeProtocol().compound, id: 'compound-tb', name: 'TB-500', tags: [] },
+        }),
+      ],
+      vials: [
+        makeVial(),
+        makeVial({ id: 'vial-tb', compoundId: 'compound-tb', remainingMg: '5' }),
+      ],
+      cycles: {
+        'cycle-1': { startDate: '2026-05-20T00:00:00.000Z', endDate: null },
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /summary/i }));
+
+    // 2026-06-08 is in week 3 of an 8-week cycle that started 2026-05-20.
+    expect(screen.getByText(/Week 3 of 8/)).toBeTruthy();
+    expect(screen.getByText('Continuous')).toBeTruthy();
   });
 });

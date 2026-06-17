@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import Decimal from 'decimal.js';
-import { doseToSyringeUnits, syringeUnitsToDose, buildDoseUnitsDisplay, buildLoggedDoseDisplay } from './doseUnits';
+import { doseToSyringeUnits, syringeUnitsToDose, buildDoseUnitsDisplay, buildLoggedDoseDisplay, buildRegimenDoseDisplay } from './doseUnits';
 import { ReconstitutionCalculator } from './ReconstitutionCalculator';
 import type { DoseAmount, DoseUnit } from '@/lib/tracker/domain/types';
 
@@ -270,5 +270,57 @@ describe('syringeUnitsToDose — inverse of doseToSyringeUnits', () => {
     expect(back).not.toBeNull();
     if (back === null) return;
     expect(Number(back.amount)).toBeCloseTo(450, 6);
+  });
+});
+
+describe('buildRegimenDoseDisplay', () => {
+  const conc = { totalMg: '10', bacWaterMl: '2' }; // 5 mg/mL
+
+  it('mcg with vial → mg-normalized doseText + syringe units', () => {
+    const r = buildRegimenDoseDisplay({ amount: '450', unit: 'mcg' }, conc, 'U100');
+    expect(r.doseText).toBe('0.45 mg (450 mcg)'); // 450/1000 = 0.45
+    expect(r.unitsText).toContain('units (U-100)'); // 0.45mg / 5 = 0.09mL → 9.0u
+  });
+
+  it('mg → shown as-is, no parenthetical', () => {
+    const r = buildRegimenDoseDisplay({ amount: '5', unit: 'mg' }, conc, 'U100');
+    expect(r.doseText).toBe('5 mg');
+  });
+
+  it('mcg with NO vial → still mg-normalized; unitsText prompts reconstitution', () => {
+    const r = buildRegimenDoseDisplay({ amount: '450', unit: 'mcg' }, null, 'U100');
+    expect(r.doseText).toBe('0.45 mg (450 mcg)');
+    expect(r.unitsText).toBe('· reconstitute to see units');
+  });
+
+  it('IU with vial → mg derived via injection volume', () => {
+    const r = buildRegimenDoseDisplay({ amount: '2', unit: 'IU' }, conc, 'U100');
+    // 2 units → 0.02 mL × 5 mg/mL = 0.10 mg → trimmed to 0.1
+    expect(r.doseText).toBe('0.1 mg (2 IU)');
+    expect(r.unitsText).toContain('2.0 units');
+  });
+
+  it('IU with NO vial → mg not derivable, natural unit only', () => {
+    const r = buildRegimenDoseDisplay({ amount: '2', unit: 'IU' }, null, 'U100');
+    expect(r.doseText).toBe('2 IU');
+    // IU is computable without a vial, so units still render.
+    expect(r.unitsText).toContain('units (U-100)');
+  });
+
+  it('mL with vial → mg derived via injection volume', () => {
+    const r = buildRegimenDoseDisplay({ amount: '0.1', unit: 'mL' }, conc, 'U100');
+    // 0.1 mL × 5 mg/mL = 0.5 mg
+    expect(r.doseText).toBe('0.5 mg (0.1 mL)');
+  });
+
+  it('mL with NO vial → mg not derivable, natural unit only', () => {
+    const r = buildRegimenDoseDisplay({ amount: '0.1', unit: 'mL' }, null, 'U100');
+    expect(r.doseText).toBe('0.1 mL');
+  });
+
+  it('invalid amount never throws; doseText is the natural string', () => {
+    const r = buildRegimenDoseDisplay({ amount: 'abc', unit: 'mcg' }, conc, 'U100');
+    expect(typeof r.doseText).toBe('string');
+    expect(r.doseText).toBe('abc mcg');
   });
 });
