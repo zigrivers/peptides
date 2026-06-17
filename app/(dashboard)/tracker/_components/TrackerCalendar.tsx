@@ -15,7 +15,7 @@ import { sitesEqualLegacy, getSitesForRoute, suggestNextSite, getSitesMeta } fro
 import type { DoseUnitsDisplay } from '@/lib/reconstitution/domain/doseUnits';
 import { doseToSyringeUnits, syringeUnitsToDose } from '@/lib/reconstitution/domain/doseUnits';
 import { calculateStreak, type StreakResult } from '@/lib/tracker/domain/streak';
-import { getWeekInfo, parseAsUTCDay, type WeekInfo } from '@/lib/tracker/domain/cycleProgress';
+import { getWeekInfo, type WeekInfo } from '@/lib/tracker/domain/cycleProgress';
 import { ConfettiCanvas } from '@/app/(dashboard)/dashboard/_components/ConfettiCanvas';
 import { SitePicker, type SiteData, formatSiteLabel, formatSiteUseAgeForSentence } from './SitePicker';
 import { localDayAnchoredUTC } from '@/lib/shared/date';
