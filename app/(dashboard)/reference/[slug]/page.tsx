@@ -1,14 +1,15 @@
 import React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Info } from 'lucide-react';
+import { AlertTriangle, BookOpen } from 'lucide-react';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/shared/prisma';
 import { getCompoundBySlug } from '@/lib/reference/application/CompoundService';
-import type { Citation, BenefitTimelineItem } from '@/lib/reference/domain/types';
+import type { Citation, BenefitTimelineItem, CompoundProfile, SupplementProfile } from '@/lib/reference/domain/types';
 import { getSerializedVialsForCompound } from '@/lib/reconstitution/application/VialService';
 import { CompoundInventoryManager } from '../_components/CompoundInventoryManager';
 import { DosingReconstitutionPlanner } from '../_components/DosingReconstitutionPlanner';
+import { DosingGuidanceRanges, ProtocolSummaryGrid } from '../_components/DosingGuidanceRanges';
 import { CompoundPairingsSection } from '../_components/CompoundPairingsSection';
 import { CompoundAdjunctsSection } from '../_components/CompoundAdjunctsSection';
 import { CompoundStorageStabilityGuide } from '../_components/CompoundStorageStabilityGuide';
@@ -41,28 +42,6 @@ function CitationLink({ citation }: { citation: Citation }) {
       {citation.doi && <span className="ml-1 text-gray-400 dark:text-gray-500">DOI: {citation.doi}</span>}
       {citation.pmid && <span className="ml-1 text-gray-400 dark:text-gray-500">PMID: {citation.pmid}</span>}
     </li>
-  );
-}
-
-function InfoTooltip({ content }: { content: string }) {
-  return (
-    <div className="relative group inline-block ml-1">
-      <span
-        className="inline-flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary transition-colors cursor-help p-0.5"
-        aria-label="More information"
-      >
-        <Info className="h-3.5 w-3.5" />
-      </span>
-      
-      {/* Tooltip Card */}
-      <div className="absolute bottom-full right-[-8px] z-50 mb-2 w-64 scale-95 opacity-0 pointer-events-none group-hover:scale-100 group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 ease-out origin-bottom-right">
-        <div className="bg-gray-900/95 dark:bg-gray-800/95 text-white text-[11px] leading-relaxed p-2.5 rounded-lg shadow-xl border border-gray-700/50 dark:border-gray-600/50 backdrop-blur-sm normal-case font-normal text-left tracking-normal">
-          {content}
-          {/* Arrow */}
-          <div className="absolute top-full right-[15px] h-1.5 w-1.5 -translate-y-0.5 rotate-45 bg-gray-900/95 dark:bg-gray-800/95 border-r border-b border-gray-700/50 dark:border-gray-600/50" />
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -131,6 +110,78 @@ function formatPreferredTime(time: string | null): string {
   }
 }
 
+function formatProtocolSchedule(profile: CompoundProfile): string {
+  if (profile.dosingFrequency === 'CUSTOM') {
+    return profile.customFrequencyDescription || 'Custom Protocol';
+  }
+
+  if (profile.dosingFrequency === 'DAILY') {
+    if (profile.daysOn && profile.daysOff) {
+      return `${profile.dosesPerDay && profile.dosesPerDay > 1 ? `${profile.dosesPerDay}x Daily: ` : ''}${profile.daysOn} Days On / ${profile.daysOff} Off`;
+    }
+    return `${profile.dosesPerDay && profile.dosesPerDay > 1 ? `${profile.dosesPerDay}x ` : ''}Daily`;
+  }
+
+  return `${formatFrequency(profile.dosingFrequency)}${
+    profile.dosesPerDay && profile.dosesPerDay > 1 ? ` (${profile.dosesPerDay}x per admin day)` : ''
+  }`;
+}
+
+function formatSupplementSchedule(profile: SupplementProfile): string {
+  return `${formatFrequency(profile.dosingFrequency)}${
+    profile.dosesPerDay && profile.dosesPerDay > 1 ? ` (${profile.dosesPerDay}x daily)` : ''
+  }`;
+}
+
+function ProtocolNotes({ profile }: { profile: CompoundProfile }) {
+  const notes = [
+    profile.cycleRationale
+      ? { label: 'Cycle Rationale', text: profile.cycleRationale }
+      : null,
+    profile.restPeriodRationale
+      ? { label: 'Rest Rationale', text: profile.restPeriodRationale }
+      : null,
+    profile.timingNotes && profile.timingNotes.trim().length > 0
+      ? { label: 'Timing Protocol', text: profile.timingNotes }
+      : null,
+  ].filter((note): note is { label: string; text: string } => Boolean(note));
+
+  if (notes.length === 0) return null;
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-5 text-card-foreground shadow-sm" aria-labelledby="protocol-notes">
+      <div className="flex items-center gap-2">
+        <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" />
+        <h2 id="protocol-notes" className="text-lg font-bold text-foreground text-pretty">
+          Protocol Notes
+        </h2>
+      </div>
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        {notes.map((note) => (
+          <article key={note.label} className="rounded-lg border border-border bg-background p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{note.label}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{note.text}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function NonFdaDisclaimer() {
+  return (
+    <div className="rounded-xl border border-red-200 bg-red-50/70 p-4 text-red-800 dark:border-red-950/30 dark:bg-red-950/10 dark:text-red-300">
+      <div className="flex gap-3">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <div className="text-sm leading-relaxed" id="fda-disclaimer">
+          <strong className="font-semibold">DISCLAIMER:</strong> This compound is not FDA-approved for the uses described here. The protocols and doses shown are reported from scientific literature and community sources for your information - not medical advice or a prescription. You are responsible for your own decisions. See{' '}
+          <Link href="/about" className="underline hover:text-red-900 dark:hover:text-red-200">About</Link> for how this app frames regulatory status and what its labels mean.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default async function CompoundProfilePage({
   params,
 }: {
@@ -168,7 +219,7 @@ export default async function CompoundProfilePage({
   const timeline = (profile?.benefitTimeline || compound.supplementProfile?.benefitTimeline) as BenefitTimelineItem[] | null;
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-8 space-y-6 animate-page-enter">
+    <main className="max-w-5xl mx-auto px-4 py-8 space-y-6 animate-page-enter">
       <nav className="mb-4">
         <Link
           href="/reference"
@@ -178,38 +229,104 @@ export default async function CompoundProfilePage({
         </Link>
       </nav>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-          {isArchived ? `${compound.name} (archived)` : compound.name}
-        </h1>
-        {commonName && !isArchived && (
-          <span className="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary ring-1 ring-inset ring-primary/20">
-            {commonName}
-          </span>
-        )}
-      </div>
-
-      {compound.iupacName && (
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 font-mono break-all">{compound.iupacName}</p>
-      )}
-
-      {compound.synonyms.length > 0 && (
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          Also known as: {compound.synonyms.join(', ')}
-        </p>
-      )}
-
-      {compound.tags.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1">
-          {compound.tags.map((tag) => (
-            <span
-              key={tag}
-              className="text-xs bg-primary/5 text-primary rounded-full px-2 py-0.5"
-            >
-              {tag}
+      <section className="rounded-xl border border-border bg-card p-5 text-card-foreground shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 text-pretty dark:text-gray-100">
+            {isArchived ? `${compound.name} (archived)` : compound.name}
+          </h1>
+          {commonName && !isArchived && (
+            <span className="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary ring-1 ring-inset ring-primary/20">
+              {commonName}
             </span>
-          ))}
+          )}
         </div>
+
+        {compound.iupacName && (
+          <p className="mt-3 break-all font-mono text-xs leading-relaxed text-gray-500 dark:text-gray-400">{compound.iupacName}</p>
+        )}
+
+        {compound.synonyms.length > 0 && (
+          <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+            Also known as: {compound.synonyms.join(', ')}
+          </p>
+        )}
+
+        {compound.tags.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {compound.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary ring-1 ring-inset ring-primary/10"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {profile && (
+        <>
+          <DosingGuidanceRanges
+            ranges={{
+              low: profile.dosingLow,
+              typical: profile.dosingTypical,
+              high: profile.dosingHigh,
+            }}
+          />
+          <ProtocolSummaryGrid
+            cycleLabel={profile.cycleLengthWeeks ? `${profile.cycleLengthWeeks} Weeks` : 'Continuous'}
+            restLabel={profile.restPeriodWeeks ? `${profile.restPeriodWeeks} Weeks Washout` : 'N/A'}
+            scheduleLabel={formatProtocolSchedule(profile)}
+            preferredTimeLabel={formatPreferredTime(profile.preferredTime)}
+            routes={compound.administrationRoutes}
+          />
+          <ProtocolNotes profile={profile} />
+          {!profile.isFdaApproved && <NonFdaDisclaimer />}
+        </>
+      )}
+
+      {compound.kind === 'SUPPLEMENT' && compound.supplementProfile && (
+        <>
+          <DosingGuidanceRanges
+            ranges={{
+              low: compound.supplementProfile.dosingLow,
+              typical: compound.supplementProfile.dosingTypical,
+              high: compound.supplementProfile.dosingHigh,
+            }}
+          />
+          <section className="rounded-xl border border-border bg-card p-5 text-card-foreground shadow-sm">
+            <h2 className="text-lg font-bold text-foreground text-pretty">Supplement Profile</h2>
+            <dl className="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border md:grid-cols-3">
+              <div className="bg-background p-4">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Form & Serving</dt>
+                <dd className="mt-2 break-words text-sm font-bold text-foreground">
+                  {compound.supplementProfile.servingSize?.toString() ?? ''} {compound.supplementProfile.servingUnit} ({compound.supplementProfile.form})
+                </dd>
+              </div>
+              <div className="bg-background p-4">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Timing & Cadence</dt>
+                <dd className="mt-2 break-words text-sm font-bold text-foreground">
+                  {formatSupplementSchedule(compound.supplementProfile)}
+                </dd>
+              </div>
+              <div className="bg-background p-4">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Preferred Time</dt>
+                <dd className="mt-2 break-words text-sm font-bold text-foreground">
+                  {formatPreferredTime(compound.supplementProfile.preferredTime)}
+                </dd>
+              </div>
+            </dl>
+            {compound.supplementProfile.timingNotes && (
+              <div className="mt-4 rounded-lg border border-border bg-background p-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Timing Notes</h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                  {compound.supplementProfile.timingNotes}
+                </p>
+              </div>
+            )}
+          </section>
+        </>
       )}
 
       {compound.kind === 'PEPTIDE' && (
@@ -233,79 +350,6 @@ export default async function CompoundProfilePage({
         </div>
       )}
 
-      {compound.kind === 'SUPPLEMENT' && compound.supplementProfile && (
-        <section className="mt-8 border border-border bg-card text-card-foreground rounded-xl p-5 shadow-sm">
-          <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
-            <span>💊</span> Supplement Profile
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border border-border/50 bg-background/50 rounded-lg p-4">
-              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Form & Serving</span>
-              <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
-                {compound.supplementProfile.servingSize?.toString() ?? ''} {compound.supplementProfile.servingUnit} ({compound.supplementProfile.form})
-              </div>
-            </div>
-            <div className="border border-border/50 bg-background/50 rounded-lg p-4">
-              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timing & Cadence</span>
-              <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
-                {formatFrequency(compound.supplementProfile.dosingFrequency)}
-                {compound.supplementProfile.dosesPerDay && compound.supplementProfile.dosesPerDay > 1 ? ` (${compound.supplementProfile.dosesPerDay}x daily)` : ''}
-              </div>
-              {compound.supplementProfile.preferredTime && (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Preferred Time: {formatPreferredTime(compound.supplementProfile.preferredTime)}
-                </div>
-              )}
-            </div>
-          </div>
-          {compound.supplementProfile.timingNotes && (
-            <div className="mt-4 border-t border-border pt-4">
-              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timing Notes</h3>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300 italic">
-                &quot;{compound.supplementProfile.timingNotes}&quot;
-              </p>
-            </div>
-          )}
-
-          {/* Expected Dosing Tiers */}
-          <div className="mt-6 border-t border-border pt-4">
-            <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Expected Dosing Tiers</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Low */}
-              <div className="border border-border/50 bg-background/30 rounded-lg p-3">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Conservative / Low</span>
-                <div className="mt-1 text-sm font-bold text-gray-900 dark:text-gray-100">
-                  {compound.supplementProfile.dosingLow?.amount} {compound.supplementProfile.dosingLow?.unit}
-                </div>
-                {compound.supplementProfile.dosingLow?.researchBenefits && (
-                  <p className="mt-1 text-xs text-muted-foreground">{compound.supplementProfile.dosingLow.researchBenefits}</p>
-                )}
-              </div>
-              {/* Typical */}
-              <div className="border border-border/50 bg-background/30 rounded-lg p-3">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Moderate / Typical</span>
-                <div className="mt-1 text-sm font-bold text-gray-900 dark:text-gray-100">
-                  {compound.supplementProfile.dosingTypical?.amount} {compound.supplementProfile.dosingTypical?.unit}
-                </div>
-                {compound.supplementProfile.dosingTypical?.researchBenefits && (
-                  <p className="mt-1 text-xs text-muted-foreground">{compound.supplementProfile.dosingTypical.researchBenefits}</p>
-                )}
-              </div>
-              {/* High */}
-              <div className="border border-border/50 bg-background/30 rounded-lg p-3">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Aggressive / High</span>
-                <div className="mt-1 text-sm font-bold text-gray-900 dark:text-gray-100">
-                  {compound.supplementProfile.dosingHigh?.amount} {compound.supplementProfile.dosingHigh?.unit}
-                </div>
-                {compound.supplementProfile.dosingHigh?.researchBenefits && (
-                  <p className="mt-1 text-xs text-muted-foreground">{compound.supplementProfile.dosingHigh.researchBenefits}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
       {!(compound.profile || compound.supplementProfile) && (
         <div className="mt-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-950/30 dark:bg-yellow-950/20">
           <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">Profile in progress</p>
@@ -327,13 +371,13 @@ export default async function CompoundProfilePage({
       {timeline && timeline.length > 0 && (
         <section className="mt-8 border border-border bg-card text-card-foreground rounded-xl p-5 shadow-sm animate-[fadeIn_0.3s_ease-out]">
           <h2 className="text-lg font-bold flex items-center gap-2 mb-6">
-            <span>⏱️</span> Clinical Progression Timeline
+            Clinical Progression Timeline
           </h2>
           <div className="relative pl-6 border-l-2 border-primary/20 space-y-6">
             {timeline.map((item) => (
               <div key={item.week} className="relative group">
                 {/* Pulsing Timeline Node Indicator */}
-                <div className="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-card border-2 border-primary group-hover:scale-125 transition-all duration-200 shadow-sm">
+                <div className="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-card border-2 border-primary group-hover:scale-125 transition-transform duration-200 shadow-sm">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                 </div>
                 <div>
@@ -366,100 +410,7 @@ export default async function CompoundProfilePage({
         </section>
       )}
 
-      {profile && (
-        <section className="mt-8 border border-border bg-card text-card-foreground rounded-xl p-5 shadow-sm animate-[fadeIn_0.3s_ease-out]">
-          <h2 className="text-lg font-bold flex items-center gap-2 mb-4" id="dosing-protocol-header">
-            <span>⏱️</span> {"Protocol & Scheduling"}
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Cycle Duration */}
-            <div className="border border-border/50 bg-background/50 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">🗓️ Cycle Duration</span>
-                <InfoTooltip content={profile.cycleRationale || "The active duration of continuous administration. Restricting use to a defined cycle length prevents receptor downregulation and lets your body recover."} />
-              </div>
-              <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
-                {profile.cycleLengthWeeks ? `${profile.cycleLengthWeeks} Weeks` : 'Continuous'}
-              </div>
-            </div>
-
-            {/* Weekly Schedule */}
-            <div className="border border-border/50 bg-background/50 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">🔄 Weekly Schedule</span>
-                <InfoTooltip content="The weekly timing cadence. Some protocols include planned 'days off' per week to preserve receptor sensitivity and prevent habituation." />
-              </div>
-              <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
-                {profile.dosingFrequency === 'CUSTOM' ? (
-                  profile.customFrequencyDescription || 'Custom Protocol'
-                ) : profile.dosingFrequency === 'DAILY' ? (
-                  profile.daysOn && profile.daysOff ? (
-                    `${profile.dosesPerDay && profile.dosesPerDay > 1 ? `${profile.dosesPerDay}x Daily: ` : ''}${profile.daysOn} Days On / ${profile.daysOff} Off`
-                  ) : (
-                    `${profile.dosesPerDay && profile.dosesPerDay > 1 ? `${profile.dosesPerDay}x ` : ''}Daily`
-                  )
-                ) : (
-                  `${formatFrequency(profile.dosingFrequency)}${
-                    profile.dosesPerDay && profile.dosesPerDay > 1 
-                      ? ` (${profile.dosesPerDay}x per admin day)` 
-                      : ''
-                  }`
-                )}
-              </div>
-            </div>
-
-            {/* Rest Period */}
-            <div className="border border-border/50 bg-background/50 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">🛑 Rest Period</span>
-                <InfoTooltip content={profile.restPeriodRationale || "The recommended off-cycle washout period. Essential to clear active substances, restore baseline hormone production, and maintain long-term efficacy."} />
-              </div>
-              <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
-                {profile.restPeriodWeeks ? `${profile.restPeriodWeeks} Weeks Washout` : 'N/A'}
-              </div>
-            </div>
-
-            {/* Administration Time */}
-            <div className="border border-border/50 bg-background/50 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">⏰ Administration</span>
-                <InfoTooltip content="The optimal time of day to administer the dose. Timing is aligned with natural circadian rhythms, sleep cycles, or fasted states for maximum uptake." />
-              </div>
-              <div className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100">
-                {formatPreferredTime(profile.preferredTime)}
-              </div>
-            </div>
-          </div>
-
-          {/* Timing Protocol */}
-          {profile.timingNotes && profile.timingNotes.trim().length > 0 && (
-            <div className="mt-4 border-t border-border pt-4">
-              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <span>💡</span> Timing Protocol
-              </h3>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300 italic">
-                &quot;{profile.timingNotes}&quot;
-              </p>
-            </div>
-          )}
-
-          {/* Safety Disclaimer */}
-          {!profile.isFdaApproved && (
-            <div className="mt-4 border border-red-200 bg-red-50/50 p-4 rounded-lg dark:border-red-950/30 dark:bg-red-950/10">
-              <div className="flex gap-2 text-red-800 dark:text-red-300">
-                <span className="text-base shrink-0">⚠️</span>
-                <div className="text-sm leading-relaxed" id="fda-disclaimer">
-                  <strong className="font-semibold">DISCLAIMER:</strong> This compound is not FDA-approved for the uses described here. The protocols and doses shown are reported from scientific literature and community sources for your information — not medical advice or a prescription. You are responsible for your own decisions. See{' '}
-                  <Link href="/about" className="underline">About</Link> for how this app frames regulatory status and what its labels mean.
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {compound.administrationRoutes.length > 0 && (
+      {!profile && compound.administrationRoutes.length > 0 && (
         <section className="mt-6">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
             Administration Routes
