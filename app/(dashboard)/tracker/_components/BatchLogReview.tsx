@@ -30,6 +30,7 @@ interface SerializedBatchDueItem {
 type Props = {
   items: SerializedBatchDueItem[];
   compoundNames: Record<string, string>; // compoundId → name
+  variant?: 'default' | 'sidebar';
 };
 
 
@@ -40,7 +41,8 @@ function itemKey(item: { protocol: { id: string }; doseSlot: number }): string {
   return `${item.protocol.id}:${item.doseSlot}`;
 }
 
-export function BatchLogReview({ items, compoundNames }: Props) {
+export function BatchLogReview({ items, compoundNames, variant = 'default' }: Props) {
+  const isSidebar = variant === 'sidebar';
   const [isPending, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(
     // Only pre-select slots with no existing log — SKIPPED items require explicit opt-in
@@ -153,24 +155,36 @@ export function BatchLogReview({ items, compoundNames }: Props) {
   const completeCount = loggedCount;
   const readyCount = items.filter((i) => itemStates[itemKey(i)] === 'pending' && i.isAvailable).length;
   const unavailableCount = items.filter((i) => itemStates[itemKey(i)] === 'pending' && !i.isAvailable).length;
+  const panelClassName = `rounded-xl border border-gray-100 bg-white shadow-sm dark:border-gray-900 dark:bg-gray-950 ${
+    isSidebar ? 'p-4' : 'p-5'
+  }`;
+  const completeLabel = isSidebar
+    ? `${completeCount}/${items.length} complete`
+    : `${completeCount} of ${items.length} complete`;
+  const selectedLabel = isSidebar ? `${selected.size} selected` : selected.size;
+  const actionLabel = isSidebar
+    ? `Log Selected (${selected.size})`
+    : `Log ${selected.size} Selected`;
 
   if (items.length === 0) {
     return (
       <section
         role="region"
         aria-labelledby="today-dose-plan-heading"
-        className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-900 dark:bg-gray-950"
+        className={panelClassName}
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className={isSidebar ? 'space-y-3' : 'flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'}>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">Today</p>
             <h2 id="today-dose-plan-heading" className="mt-1 text-lg font-bold text-gray-950 dark:text-gray-100">
               Today&apos;s Dose Plan
             </h2>
-            <p className="mt-1 text-sm text-gray-500">Use the calendar below to review upcoming regimen days.</p>
+            <p className="mt-1 text-sm text-gray-500">
+              {isSidebar ? 'Review upcoming regimen days in the calendar.' : 'Use the calendar below to review upcoming regimen days.'}
+            </p>
           </div>
           <div className="rounded-lg border border-dashed border-gray-200 px-4 py-3 text-sm font-semibold text-gray-600 dark:border-gray-800 dark:text-gray-300">
-            No Doses Scheduled Today
+            {isSidebar ? 'No doses today' : 'No Doses Scheduled Today'}
           </div>
         </div>
       </section>
@@ -182,13 +196,13 @@ export function BatchLogReview({ items, compoundNames }: Props) {
       <section
         role="region"
         aria-labelledby="today-dose-plan-heading"
-        className="rounded-xl border border-success/20 bg-success/5 p-5 text-center"
+        className={`rounded-xl border border-success/20 bg-success/5 text-center ${isSidebar ? 'p-4' : 'p-5'}`}
       >
         <h2 id="today-dose-plan-heading" className="text-lg font-bold text-success">
           Today&apos;s Dose Plan
         </h2>
         <p className="mt-1 text-sm font-medium text-success">
-          Today: {loggedCount}/{items.length} complete
+          {isSidebar ? `${loggedCount}/${items.length} logged today` : `Today: ${loggedCount}/${items.length} complete`}
         </p>
       </section>
     );
@@ -198,9 +212,9 @@ export function BatchLogReview({ items, compoundNames }: Props) {
     <section
       role="region"
       aria-labelledby="today-dose-plan-heading"
-      className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-900 dark:bg-gray-950"
+      className={panelClassName}
     >
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div className={isSidebar ? 'space-y-3' : 'flex flex-col gap-4 md:flex-row md:items-start md:justify-between'}>
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Today</p>
           <h2 id="today-dose-plan-heading" className="mt-1 text-lg font-bold text-gray-950 text-pretty dark:text-gray-100">
@@ -208,20 +222,22 @@ export function BatchLogReview({ items, compoundNames }: Props) {
           </h2>
           <p className="mt-1 text-sm text-gray-500">
             {readyCount > 0
-              ? `${readyCount} dose${readyCount === 1 ? '' : 's'} ready to log`
+              ? isSidebar
+                ? `${readyCount} ready to log`
+                : `${readyCount} dose${readyCount === 1 ? '' : 's'} ready to log`
               : 'Review the remaining dose states before closing out today'}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-center sm:flex sm:text-left">
+        <div className={isSidebar ? 'grid grid-cols-2 gap-2 text-left' : 'grid grid-cols-2 gap-2 text-center sm:flex sm:text-left'}>
           <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Complete</p>
+            {!isSidebar && <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Complete</p>}
             <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
-              {completeCount} of {items.length} complete
+              {completeLabel}
             </p>
           </div>
           <div className="rounded-lg bg-primary/5 px-3 py-2">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-primary/70">Selected</p>
-            <p className="text-sm font-bold text-primary">{selected.size}</p>
+            {!isSidebar && <p className="text-[10px] font-bold uppercase tracking-wide text-primary/70">Selected</p>}
+            <p className="text-sm font-bold text-primary">{selectedLabel}</p>
           </div>
         </div>
       </div>
@@ -242,7 +258,7 @@ export function BatchLogReview({ items, compoundNames }: Props) {
         </p>
       )}
 
-      <ul className="mt-4 space-y-2">
+      <ul className={isSidebar ? 'mt-3 space-y-2' : 'mt-4 space-y-2'}>
         {items.map((item) => {
           const key = itemKey(item);
           const state = itemStates[key];
@@ -251,11 +267,16 @@ export function BatchLogReview({ items, compoundNames }: Props) {
 
           if (state === 'logged') {
             return (
-              <li key={key} className="flex min-h-12 items-center gap-3 rounded-lg border border-success/20 bg-success/5 px-3 py-2">
+              <li
+                key={key}
+                className={`flex items-center rounded-lg border border-success/20 bg-success/5 ${
+                  isSidebar ? 'min-h-11 gap-2 px-2.5 py-2' : 'min-h-12 gap-3 px-3 py-2'
+                }`}
+              >
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success text-xs font-bold text-success-foreground">
                   &#10003;
                 </span>
-                <span className="text-sm font-medium text-success">
+                <span className={`${isSidebar ? 'text-xs' : 'text-sm'} font-medium text-success`}>
                   <span className="font-semibold">{compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId}</span>
                   {' '}
                   <span className="text-success/80">
@@ -278,18 +299,20 @@ export function BatchLogReview({ items, compoundNames }: Props) {
                     : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950'
               }`}
             >
-              <label className="flex min-h-12 cursor-pointer items-start gap-3 rounded-md px-1 py-1 hover:bg-muted/40">
+              <label className={`flex cursor-pointer items-start rounded-md px-1 py-1 hover:bg-muted/40 ${
+                isSidebar ? 'min-h-11 gap-2' : 'min-h-12 gap-3'
+              }`}>
                 <input
                   type="checkbox"
-                  className="mt-1 h-5 w-5 rounded border-gray-300 text-primary focus-visible:ring-primary"
+                  className={`${isSidebar ? 'mt-0.5 h-4 w-4' : 'mt-1 h-5 w-5'} rounded border-gray-300 text-primary focus-visible:ring-primary`}
                   checked={isSelected && item.isAvailable}
                   disabled={!item.isAvailable || isPending}
                   onChange={() => item.isAvailable && toggleItem(key)}
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-950 dark:text-gray-100">
+                  <p className={`${isSidebar ? 'text-xs leading-snug' : 'text-sm'} font-semibold text-gray-950 dark:text-gray-100`}>
                     <span>{compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId}</span>
-                    <span className="font-normal text-gray-500">
+                    <span className={`${isSidebar ? 'block' : ''} font-normal text-gray-500`}>
                       {' '}
                       — <span className="font-mono">{item.protocol.dose.amount}</span> {item.protocol.dose.unit}
                       {item.slotLabel && <> · {item.slotLabel}</>}
@@ -322,7 +345,7 @@ export function BatchLogReview({ items, compoundNames }: Props) {
         onClick={handleConfirm}
         className="mt-4 min-h-12 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60"
       >
-        {isPending ? 'Logging…' : `Log ${selected.size} Selected`}
+        {isPending ? 'Logging…' : actionLabel}
       </button>
     </section>
   );

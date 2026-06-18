@@ -4,7 +4,6 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/shared/prisma';
 import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
 import { getDueTodayForBatch } from '@/lib/tracker/application/BatchLogService';
-import { getCurrentWeekInfo } from '@/lib/tracker/application/CycleService';
 import { findCompoundsByIds, listCompounds } from '@/lib/reference/infrastructure/CompoundRepo';
 import { getRecentDoseLogsForUser, getDoseLogsRange } from '@/lib/tracker/application/DoseLogService';
 import { resolveActiveVial, getDryVialsForUser, serializeVial } from '@/lib/reconstitution/application/VialService';
@@ -36,11 +35,10 @@ export default async function TrackerPage() {
   const streakSince = new Date();
   streakSince.setUTCDate(streakSince.getUTCDate() - streakLimitDays);
 
-  const [protocols, dueToday, weekInfo, doseLogs, compoundsList, allDoseLogsForStreak, dryVialsRaw] =
+  const [protocols, dueToday, doseLogs, compoundsList, allDoseLogsForStreak, dryVialsRaw] =
     await Promise.all([
       getProtocolsForUser(userId),
       getDueTodayForBatch(userId),
-      getCurrentWeekInfo(userId),
       getRecentDoseLogsForUser(userId),
       listCompounds({ includeArchived: true }),
       getDoseLogsRange(userId, streakSince),
@@ -287,11 +285,6 @@ export default async function TrackerPage() {
       },
     ])
   );
-  const activeProtocolCount = protocols.filter((p) => p.status === 'ACTIVE').length;
-  const processedDoseCount = serializedDueToday.filter((item) =>
-    item.existingLog?.status === 'LOGGED' || item.existingLog?.status === 'SKIPPED'
-  ).length;
-
   return (
     <main className="max-w-6xl mx-auto px-4 py-6 md:py-8 space-y-6 animate-page-enter">
       {/* Page Header */}
@@ -310,61 +303,9 @@ export default async function TrackerPage() {
         </Link>
       </header>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-8">
-          <BatchLogReview items={serializedDueToday} compoundNames={compoundNames} />
-        </div>
-
-        <aside className="grid gap-3 sm:grid-cols-3 lg:col-span-4 lg:grid-cols-1" aria-label="Tracker shortcuts">
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-900 dark:bg-gray-950">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Active Regimens</p>
-            <div className="mt-2 flex items-end justify-between gap-3">
-              <p className="text-2xl font-bold text-gray-950 dark:text-gray-100">{activeProtocolCount}</p>
-              <Link href="/regimen" className="text-sm font-semibold text-primary hover:underline">
-                Manage →
-              </Link>
-            </div>
-          </div>
-
-          {weekInfo ? (
-            <Link
-              href="/tracker/cycles"
-              className="rounded-xl border border-primary/20 bg-primary/5 p-4 shadow-sm transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:bg-primary/10 dark:hover:bg-primary/20"
-            >
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary/70">Active Cycle</p>
-              <p className="mt-2 text-sm font-bold text-primary">
-                {weekInfo.cycleName}
-                {' — '}
-                {weekInfo.totalWeeks
-                  ? `Week ${weekInfo.weekNumber} of ${weekInfo.totalWeeks}`
-                  : `Week ${weekInfo.weekNumber}`}
-              </p>
-            </Link>
-          ) : (
-            <Link
-              href="/tracker/cycles"
-              className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-gray-900 dark:bg-gray-950 dark:hover:bg-gray-900"
-            >
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Cycle</p>
-              <p className="mt-2 text-sm font-bold text-gray-900 dark:text-gray-100">Set up cycle tracking →</p>
-            </Link>
-          )}
-
-          <Link
-            href="/tracker/outcomes"
-            className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:hover:bg-emerald-900/30"
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Outcomes</p>
-            <p className="mt-2 text-sm font-bold text-emerald-800 dark:text-emerald-300">
-              {processedDoseCount > 0 ? 'Log ratings & notes →' : "Add today's ratings →"}
-            </p>
-          </Link>
-        </aside>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Calendar navigation and selected-day action panel */}
-        <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+        {/* Primary workspace: Calendar navigation and selected-day action panel */}
+        <div className="lg:col-span-8 space-y-6">
           <section>
             <TrackerCalendar
               protocols={serializedProtocols}
@@ -385,13 +326,18 @@ export default async function TrackerPage() {
           </section>
         </div>
 
-        {/* Right Column: Compact secondary preview */}
-        <div className="lg:col-span-5 xl:col-span-4">
+        {/* Right rail: compact daily batch logging and secondary preview */}
+        <aside className="space-y-4 lg:col-span-4" aria-label="Daily tracking tools">
+          <BatchLogReview
+            variant="sidebar"
+            items={serializedDueToday}
+            compoundNames={compoundNames}
+          />
           <BenefitsTimeline
             activeProtocols={serializedActiveProtocolsWithTimeline}
             currentDateISO={todayUTC.toISOString()}
           />
-        </div>
+        </aside>
       </div>
     </main>
   );
