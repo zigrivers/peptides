@@ -10,7 +10,22 @@ import {
   deactivateProtocolAction,
 } from '@/app/actions/tracker/protocol-lifecycle';
 import { convertDoseToMg } from '@/lib/reconstitution/application/InventoryService';
-import { Calendar, AlertTriangle, Snowflake, LayoutGrid, List } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  Calendar,
+  CheckCircle2,
+  ClipboardList,
+  Edit3,
+  LayoutGrid,
+  List,
+  Package,
+  Pause,
+  PauseCircle,
+  Play,
+  Plus,
+  Snowflake,
+} from 'lucide-react';
 import { getCapColor } from '@/lib/reconstitution/domain/syringe';
 import { isScheduledOn } from '@/lib/tracker/domain/ScheduleGenerator';
 import { dosesPerDay } from '@/lib/tracker/domain/doseSlots';
@@ -140,16 +155,72 @@ function formatCategoryLabel(tag: string): string {
   return CATALOG_TAG_LABELS.get(tag) ?? tag;
 }
 
-function isSummaryActiveProtocol(protocol: Protocol, todayUTC: Date): boolean {
-  if (protocol.status !== 'ACTIVE') return false;
-  const endDate = protocol.endDate ? utcMidnightOf(protocol.endDate) : null;
-  return !endDate || endDate >= todayUTC;
+function formatRouteLabel(route: string): string {
+  const normalized = route.trim().toLowerCase().replace(/[\s_-]+/g, '');
+  if (normalized === 'subq' || normalized === 'subcutaneous') return 'Subcutaneous';
+  if (normalized === 'im' || normalized === 'intramuscular') return 'Intramuscular';
+  if (normalized === 'iv' || normalized === 'intravenous') return 'IV';
+  return route
+    .trim()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 }
 
 function getSummaryTimingLabel(protocol: Protocol, todayUTC: Date): string | null {
   const startDate = utcMidnightOf(protocol.startDate);
   if (startDate > todayUTC) return `Starts ${formatUTCDate(protocol.startDate)}`;
   return null;
+}
+
+function formatCount(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function isEndedProtocol(protocol: Protocol, todayUTC: Date): boolean {
+  const endDate = protocol.endDate ? utcMidnightOf(protocol.endDate) : null;
+  return Boolean(endDate && endDate < todayUTC);
+}
+
+function isUpcomingProtocol(protocol: Protocol, todayUTC: Date): boolean {
+  return utcMidnightOf(protocol.startDate) > todayUTC;
+}
+
+function isDueToday(protocol: Protocol, todayUTC: Date): boolean {
+  if (protocol.status !== 'ACTIVE') return false;
+  if (isUpcomingProtocol(protocol, todayUTC) || isEndedProtocol(protocol, todayUTC)) return false;
+  return isScheduledOn(
+    protocol.schedule as unknown as Parameters<typeof isScheduledOn>[0],
+    protocol.startDate,
+    protocol.endDate,
+    todayUTC
+  );
+}
+
+function isWorkspaceProtocol(protocol: Protocol, todayUTC: Date): boolean {
+  if (protocol.status === 'DEACTIVATED' || protocol.status === 'COMPLETED') return false;
+  if (isEndedProtocol(protocol, todayUTC)) return false;
+  return protocol.status === 'ACTIVE' || protocol.status === 'PAUSED';
+}
+
+function getProtocolStatusLabel(protocol: Protocol, todayUTC: Date): string {
+  if (protocol.status === 'PAUSED') return 'Paused';
+  if (protocol.status === 'COMPLETED') return 'Completed';
+  if (protocol.status === 'DEACTIVATED') return 'Inactive';
+  if (isUpcomingProtocol(protocol, todayUTC)) return 'Upcoming';
+  return 'Taking now';
+}
+
+function getStatusBadgeStyle(label: string): string {
+  if (label === 'Taking now') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300';
+  }
+  if (label === 'Paused') {
+    return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300';
+  }
+  if (label === 'Upcoming') {
+    return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-300';
+  }
+  return 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-800 dark:bg-gray-900/60 dark:text-gray-300';
 }
 
 function getRunoutPriority(runout: { status: 'ok' | 'warning' | 'empty'; daysLeft: number | null }): number {
@@ -161,12 +232,27 @@ function getRunoutPriority(runout: { status: 'ok' | 'warning' | 'empty'; daysLef
 function compareSummaryProtocols(
   a: Protocol,
   b: Protocol,
-  runoutByProtocolId: Record<string, { status: 'ok' | 'warning' | 'empty'; daysLeft: number | null }>
+  runoutByProtocolId: Record<string, { status: 'ok' | 'warning' | 'empty'; daysLeft: number | null }>,
+  todayUTC: Date
 ): number {
+  const dueDiff = Number(isDueToday(b, todayUTC)) - Number(isDueToday(a, todayUTC));
+  if (dueDiff !== 0) return dueDiff;
+
   const runoutA = runoutByProtocolId[a.id];
   const runoutB = runoutByProtocolId[b.id];
   const priorityDiff = getRunoutPriority(runoutA) - getRunoutPriority(runoutB);
   if (priorityDiff !== 0) return priorityDiff;
+
+  const statusOrder: Record<string, number> = {
+    'Taking now': 0,
+    Paused: 1,
+    Upcoming: 2,
+    Completed: 3,
+    Inactive: 4,
+  };
+  const statusDiff =
+    statusOrder[getProtocolStatusLabel(a, todayUTC)] - statusOrder[getProtocolStatusLabel(b, todayUTC)];
+  if (statusDiff !== 0) return statusDiff;
 
   const daysA = runoutA.daysLeft ?? Infinity;
   const daysB = runoutB.daysLeft ?? Infinity;
@@ -402,25 +488,111 @@ function getRunoutBadgeLabel(runout: RunoutInfo): string {
   return 'OK';
 }
 
+function RegimenAttentionSummary({
+  protocols,
+  runoutByProtocolId,
+}: {
+  protocols: Protocol[];
+  runoutByProtocolId: Record<string, RunoutInfo>;
+}) {
+  const todayUTC = utcMidnightToday();
+  const dueDoseCount = protocols.reduce((total, protocol) => {
+    if (!isDueToday(protocol, todayUTC)) return total;
+    return total + dosesPerDay(protocol.schedule as unknown as DomainSchedule);
+  }, 0);
+  const inventoryIssueCount = protocols.filter((protocol) => {
+    if (protocol.status !== 'ACTIVE' || isUpcomingProtocol(protocol, todayUTC)) return false;
+    const runout = runoutByProtocolId[protocol.id];
+    return runout?.status === 'empty' || runout?.status === 'warning';
+  }).length;
+  const pausedCount = protocols.filter((protocol) => protocol.status === 'PAUSED').length;
+  const activeCount = protocols.filter(
+    (protocol) =>
+      protocol.status === 'ACTIVE' &&
+      !isUpcomingProtocol(protocol, todayUTC) &&
+      !isEndedProtocol(protocol, todayUTC)
+  ).length;
+
+  const metrics = [
+    {
+      label: 'Scheduled today',
+      value: formatCount(dueDoseCount, 'dose'),
+      note: dueDoseCount > 0 ? 'Log from the daily tracker' : 'No scheduled doses today',
+      icon: Activity,
+      className: 'border-sky-200 bg-sky-50/70 text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-300',
+    },
+    {
+      label: 'Inventory attention',
+      value: formatCount(inventoryIssueCount, 'issue'),
+      note: inventoryIssueCount > 0 ? 'Low or missing active vial' : 'No active inventory gaps',
+      icon: Package,
+      className:
+        inventoryIssueCount > 0
+          ? 'border-amber-200 bg-amber-50/80 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300'
+          : 'border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300',
+    },
+    {
+      label: 'Paused',
+      value: formatCount(pausedCount, 'paused', 'paused'),
+      note: pausedCount > 0 ? 'Review before resuming' : 'No paused regimens',
+      icon: PauseCircle,
+      className: 'border-gray-200 bg-white text-gray-700 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300',
+    },
+    {
+      label: 'Taking now',
+      value: formatCount(activeCount, 'active', 'active'),
+      note: activeCount > 0 ? 'Current active regimens' : 'No active regimens',
+      icon: CheckCircle2,
+      className: 'border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300',
+    },
+  ];
+
+  return (
+    <section aria-label="Regimen attention summary" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {metrics.map(({ label, value, note, icon: Icon, className }) => (
+        <div key={label} className={`rounded-lg border px-4 py-3 ${className}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide opacity-75">{label}</p>
+              <p className="mt-1 text-lg font-bold tabular-nums text-gray-950 dark:text-gray-100">{value}</p>
+            </div>
+            <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 opacity-80" />
+          </div>
+          <p className="mt-1 truncate text-xs opacity-75">{note}</p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function RegimenSummaryView({
   protocols,
   runoutByProtocolId,
   cycles,
   doseDisplayByProtocolId,
+  isPending,
+  onPause,
+  onResume,
 }: {
   protocols: Protocol[];
   runoutByProtocolId: Record<string, RunoutInfo>;
   cycles: Record<string, { startDate: string; endDate: string | null }>;
   doseDisplayByProtocolId: Record<string, DoseDisplay>;
+  isPending: boolean;
+  onPause: (id: string) => void;
+  onResume: (id: string) => void;
 }) {
   const todayUTC = utcMidnightToday();
   const todayISO = formatUTCDateISO(todayUTC);
 
   if (protocols.length === 0) {
     return (
-      <div className="text-center py-12 bg-white dark:bg-gray-950 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
-        <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">No active regimens for this subject.</p>
-        <Link href="/tracker/protocols/new" className="text-primary text-sm font-semibold hover:underline">
+      <div className="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center dark:border-gray-800 dark:bg-gray-950">
+        <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">No active regimens for this subject.</p>
+        <Link
+          href="/tracker/protocols/new"
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        >
           Create Protocol
         </Link>
       </div>
@@ -428,16 +600,17 @@ function RegimenSummaryView({
   }
 
   return (
-    <section className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-sm overflow-hidden">
-      <table aria-label="Active regimen summary" className="w-full border-separate border-spacing-0 text-sm">
-        <thead className="hidden md:table-header-group bg-gray-50 dark:bg-gray-900/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
+      <table aria-label="Regimen workspace" className="w-full border-separate border-spacing-0 text-sm md:table-fixed">
+        <thead className="hidden md:table-header-group bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-900/60 dark:text-gray-400">
           <tr>
-            <th scope="col" className="text-left font-semibold px-4 py-3">Compound</th>
-            <th scope="col" className="text-left font-semibold px-4 py-3">Dose</th>
-            <th scope="col" className="text-left font-semibold px-4 py-3">Units</th>
-            <th scope="col" className="text-left font-semibold px-4 py-3">Frequency</th>
-            <th scope="col" className="text-left font-semibold px-4 py-3">Cycle</th>
-            <th scope="col" className="text-left font-semibold px-4 py-3">Runout</th>
+            <th scope="col" className="w-[30%] px-4 py-3 text-left font-semibold">Compound</th>
+            <th scope="col" className="w-[9%] px-4 py-3 text-left font-semibold">Status</th>
+            <th scope="col" className="w-[10%] px-4 py-3 text-left font-semibold">Dose</th>
+            <th scope="col" className="w-[10%] px-4 py-3 text-left font-semibold">Schedule</th>
+            <th scope="col" className="w-[18%] px-4 py-3 text-left font-semibold">Cycle</th>
+            <th scope="col" className="w-[13%] px-4 py-3 text-left font-semibold">Inventory</th>
+            <th scope="col" className="w-[10%] px-4 py-3 text-left font-semibold">Actions</th>
           </tr>
         </thead>
         <tbody className="block md:table-row-group p-3 md:p-0">
@@ -450,6 +623,8 @@ function RegimenSummaryView({
             const unitsText = dd?.unitsText ?? '—';
             const isReconstitutePrompt = unitsText.startsWith('·');
             const frequencyText = dd?.frequencyText ?? formatScheduleText(p.schedule);
+            const statusLabel = getProtocolStatusLabel(p, todayUTC);
+            const dueToday = isDueToday(p, todayUTC);
 
             const wi = getWeekInfo(
               { startDate: p.startDate, endDate: p.endDate, cycleId: p.cycleId },
@@ -465,17 +640,25 @@ function RegimenSummaryView({
             return (
               <tr
                 key={p.id}
-                className="block md:table-row rounded-lg md:rounded-none border border-gray-100 dark:border-gray-800 md:border-0 bg-white dark:bg-gray-950 mb-3 md:mb-0 last:mb-0"
+                className="mb-3 block rounded-lg border border-gray-100 bg-white last:mb-0 dark:border-gray-800 dark:bg-gray-950 md:mb-0 md:table-row md:rounded-none md:border-0"
               >
                 <td className="block md:table-cell px-4 py-3 align-top">
                   <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Compound</span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Link href={`/tracker/protocols/${p.id}/edit`} className="font-semibold text-gray-950 dark:text-gray-100 hover:text-primary">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <Link
+                      href={`/tracker/protocols/${p.id}/edit`}
+                      className="font-semibold text-gray-950 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:text-gray-100"
+                    >
                       {p.compound.name}
                     </Link>
                     <span className="rounded-md bg-primary/10 dark:bg-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                      {p.administrationRoute}
+                      {formatRouteLabel(p.administrationRoute)}
                     </span>
+                    {dueToday && (
+                      <span className="rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-300">
+                        Today
+                      </span>
+                    )}
                     {timingLabel && (
                       <span className="rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-300">
                         {timingLabel}
@@ -503,27 +686,30 @@ function RegimenSummaryView({
                     </div>
                   )}
                 </td>
+                <td className="block px-4 py-3 align-top md:table-cell">
+                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-gray-400 md:hidden">Status</span>
+                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getStatusBadgeStyle(statusLabel)}`}>
+                    {statusLabel}
+                  </span>
+                </td>
                 <td className="block md:table-cell px-4 py-3 align-top text-gray-700 dark:text-gray-300">
                   <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Dose</span>
-                  <span>{doseText}</span>
+                  <span className="font-medium tabular-nums text-gray-900 dark:text-gray-100">{doseText}</span>
                   {dd?.perDayNote && (
                     <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">{dd.perDayNote}</span>
                   )}
-                </td>
-                <td className="block md:table-cell px-4 py-3 align-top">
-                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Units</span>
                   <span
-                    className={
+                    className={`mt-1 block text-xs ${
                       isReconstitutePrompt
-                        ? 'text-xs font-medium text-amber-600 dark:text-amber-400'
-                        : 'text-gray-700 dark:text-gray-300'
-                    }
+                        ? 'font-medium text-amber-600 dark:text-amber-400'
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`}
                   >
                     {unitsText}
                   </span>
                 </td>
                 <td className="block md:table-cell px-4 py-3 align-top text-gray-700 dark:text-gray-300">
-                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Frequency</span>
+                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Schedule</span>
                   <span>{frequencyText}</span>
                 </td>
                 <td className="block md:table-cell px-4 py-3 align-top text-gray-700 dark:text-gray-300 whitespace-nowrap">
@@ -545,7 +731,7 @@ function RegimenSummaryView({
                   </span>
                 </td>
                 <td className="block md:table-cell px-4 py-3 align-top">
-                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Runout</span>
+                  <span className="block md:hidden text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Inventory</span>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${getRunoutBadgeStyle(runout)}`}>
                       {getRunoutBadgeLabel(runout)}
@@ -561,6 +747,51 @@ function RegimenSummaryView({
                     >
                       {runout.display}
                     </span>
+                  </div>
+                </td>
+                <td className="block px-4 py-3 align-top md:table-cell">
+                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-gray-400 md:hidden">Actions</span>
+                  <div className="flex flex-wrap gap-2 md:flex-col">
+                    <Link
+                      href="/tracker"
+                      aria-label={`Log dose for ${p.compound.name}`}
+                      className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 md:w-full"
+                    >
+                      <ClipboardList aria-hidden="true" className="h-3.5 w-3.5" />
+                      Log dose
+                    </Link>
+                    <Link
+                      href={`/tracker/protocols/${p.id}/edit`}
+                      aria-label={`Edit ${p.compound.name}`}
+                      className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 md:w-full"
+                    >
+                      <Edit3 aria-hidden="true" className="h-3.5 w-3.5" />
+                      Edit
+                    </Link>
+                    {p.status === 'ACTIVE' && (
+                      <button
+                        type="button"
+                        aria-label={`Pause ${p.compound.name}`}
+                        onClick={() => onPause(p.id)}
+                        disabled={isPending}
+                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 disabled:opacity-50 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300 dark:hover:bg-amber-950/50 md:w-full"
+                      >
+                        <Pause aria-hidden="true" className="h-3.5 w-3.5" />
+                        Pause
+                      </button>
+                    )}
+                    {p.status === 'PAUSED' && (
+                      <button
+                        type="button"
+                        aria-label={`Resume ${p.compound.name}`}
+                        onClick={() => onResume(p.id)}
+                        disabled={isPending}
+                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:opacity-50 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300 dark:hover:bg-emerald-950/50 md:w-full"
+                      >
+                        <Play aria-hidden="true" className="h-3.5 w-3.5" />
+                        Resume
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -591,7 +822,7 @@ export function RegimenClient({
 
   const [selectedUserId, setSelectedUserId] = useState<string>(actorUserId);
   const [showDeactivated, setShowDeactivated] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<'cards' | 'summary'>('cards');
+  const [viewMode, setViewMode] = useState<'summary' | 'cards'>('summary');
   const [protocols, setProtocols] = useState<Protocol[]>(parsedProtocols);
 
   useEffect(() => {
@@ -637,8 +868,8 @@ export function RegimenClient({
   const summaryProtocols = useMemo(() => {
     const todayUTC = utcMidnightToday();
     return protocols
-      .filter((p) => p.userId === selectedUserId && isSummaryActiveProtocol(p, todayUTC))
-      .sort((a, b) => compareSummaryProtocols(a, b, runoutByProtocolId));
+      .filter((p) => p.userId === selectedUserId && isWorkspaceProtocol(p, todayUTC))
+      .sort((a, b) => compareSummaryProtocols(a, b, runoutByProtocolId, todayUTC));
   }, [protocols, selectedUserId, runoutByProtocolId]);
 
   const handlePause = async (id: string) => {
@@ -686,83 +917,38 @@ export function RegimenClient({
     });
   };
 
-  // Mocked PubMed Research Updates based on compounds being used
-  const activeCompounds = Array.from(
-    new Set(
-      protocols
-        .filter((p) => p.userId === selectedUserId && p.status === 'ACTIVE')
-        .map((p) => p.compound.name)
-    )
-  );
-
-  const getPubMedUpdates = (compName: string) => {
-    const cleanName = compName.toLowerCase();
-    if (cleanName.includes('bpc')) {
-      return [
-        {
-          title: 'Gastric pentadecapeptide BPC 157 accelerates tendon-to-bone healing after Achilles detachment.',
-          journal: 'Journal of Orthopaedic Research (2025)',
-          snippet: 'BPC 157 therapy demonstrated significant increases in fibroblast density and collagen organization, promoting faster biomechanical recovery compared to control groups.',
-        },
-        {
-          title: 'Stable gastric pentadecapeptide BPC 157 in clinical trials for inflammatory bowel disease.',
-          journal: 'Trends in Pharmacological Sciences (2025)',
-          snippet: 'Updates on oral and injectable formulations showing exceptional safety profiles and mucosal tissue protection mechanisms via nitric oxide regulation.',
-        }
-      ];
-    }
-    if (cleanName.includes('tb') || cleanName.includes('thymosin')) {
-      return [
-        {
-          title: 'Thymosin beta-4 promotes angiogenesis and tissue regeneration in ischemic muscle models.',
-          journal: 'Cardiovascular Research (2025)',
-          snippet: 'Researchers found TB-500 upregulated VEGF expression, triggering capillary sprouting and myofiber regeneration in compromised skeletal tissues.',
-        }
-      ];
-    }
-    if (cleanName.includes('semaglutide') || cleanName.includes('ozempic') || cleanName.includes('wegovy')) {
-      return [
-        {
-          title: 'Cardioprotective and anti-inflammatory properties of Semaglutide in patients with obesity.',
-          journal: 'New England Journal of Medicine (2026)',
-          snippet: 'Trial results indicate sustained improvements in systemic inflammatory biomarkers (CRP) alongside significant reductions in major adverse cardiovascular events.',
-        }
-      ];
-    }
-    return [
-      {
-        title: `Efficacy, pharmacokinetic pathways, and safety endpoints of ${compName} in regenerative medicine.`,
-        journal: 'International Journal of Molecular Sciences (2025)',
-        snippet: `Recent peer-reviewed analysis reviews local and systemic administration pathways for ${compName}, detailing cellular signaling transduction and dosage correlations.`,
-      }
-    ];
-  };
-
   return (
-    <div className="space-y-8 animate-page-enter">
+    <div className="space-y-6 animate-page-enter">
       {/* Top Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Regimen</h1>
-          <p className="text-sm text-gray-500 mt-1">Configure, track, and optimize your peptide regimens</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 text-pretty dark:text-gray-100">Regimen</h1>
+          <p className="mt-1 text-sm text-gray-500">Track current schedules, inventory gaps, and maintenance actions.</p>
         </div>
         <Link
           href="/tracker/protocols/new"
-          className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
-          + New Protocol
+          <Plus aria-hidden="true" className="h-4 w-4" />
+          New Protocol
         </Link>
       </div>
 
       {/* Error Banner */}
       {errorMsg && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-950/40 p-4 border border-red-200 dark:border-red-900/60 text-sm text-red-800 dark:text-red-300">
+        <div
+          role="alert"
+          aria-live="polite"
+          className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+        >
           {errorMsg}
         </div>
       )}
 
+      <RegimenAttentionSummary protocols={summaryProtocols} runoutByProtocolId={runoutByProtocolId} />
+
       {/* Filters Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50 dark:bg-gray-900/40 p-4 rounded-xl border border-gray-100 dark:border-gray-800/80">
+      <div className="flex flex-col justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800/80 dark:bg-gray-900/40 sm:flex-row sm:items-center">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex items-center gap-3">
             <label htmlFor="user-select" className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -772,7 +958,7 @@ export function RegimenClient({
               id="user-select"
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              className="min-h-9 rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:border-primary focus:ring-primary py-1.5 px-3"
+              className="min-h-10 rounded-md border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-primary focus:ring-primary dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100"
             >
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
@@ -782,32 +968,32 @@ export function RegimenClient({
             </select>
           </div>
 
-          <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-0.5 text-xs font-semibold self-start sm:self-auto">
-            <button
-              type="button"
-              aria-pressed={viewMode === 'cards'}
-              onClick={() => setViewMode('cards')}
-              className={`min-h-9 flex items-center gap-1.5 rounded-md px-3 py-2 transition-colors ${
-                viewMode === 'cards'
-                  ? 'bg-primary/10 text-primary shadow-sm'
-                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
-              }`}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              Cards
-            </button>
+          <div className="inline-flex self-start rounded-md border border-gray-200 bg-white p-0.5 text-xs font-semibold dark:border-gray-800 dark:bg-gray-950 sm:self-auto">
             <button
               type="button"
               aria-pressed={viewMode === 'summary'}
               onClick={() => setViewMode('summary')}
-              className={`min-h-9 flex items-center gap-1.5 rounded-md px-3 py-2 transition-colors ${
+              className={`flex min-h-10 items-center gap-1.5 rounded px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                 viewMode === 'summary'
                   ? 'bg-primary/10 text-primary shadow-sm'
                   : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
               }`}
             >
-              <List className="h-3.5 w-3.5" />
+              <List aria-hidden="true" className="h-3.5 w-3.5" />
               Summary
+            </button>
+            <button
+              type="button"
+              aria-pressed={viewMode === 'cards'}
+              onClick={() => setViewMode('cards')}
+              className={`flex min-h-10 items-center gap-1.5 rounded px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                viewMode === 'cards'
+                  ? 'bg-primary/10 text-primary shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+              }`}
+            >
+              <LayoutGrid aria-hidden="true" className="h-3.5 w-3.5" />
+              Cards
             </button>
           </div>
         </div>
@@ -830,7 +1016,7 @@ export function RegimenClient({
       {viewMode === 'cards' && refillProjections.length > 0 && (
         <div className="rounded-2xl border border-sky-100/25 bg-sky-500/[0.03] dark:bg-sky-950/10 p-5 backdrop-blur-md space-y-4">
           <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-sky-400" />
+            <Calendar aria-hidden="true" className="h-5 w-5 text-sky-400" />
             <div>
               <h2 className="text-sm font-bold text-foreground">Regimen Refill Planner</h2>
               <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -877,7 +1063,7 @@ export function RegimenClient({
                     {/* Timeline bar */}
                     <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className={`h-full ${trackColor} transition-all duration-500`}
+                        className={`h-full ${trackColor} transition-[width] duration-500`}
                         style={{ width: `${percent}%` }}
                       />
                     </div>
@@ -890,7 +1076,7 @@ export function RegimenClient({
                   {isCriticallyLow && (
                     <div className="pt-2 border-t border-dashed border-border flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 text-[9px] text-amber-600 dark:text-amber-400 font-medium">
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
                         <span>Low Stock Alert</span>
                       </div>
                       {hasDryVials ? (
@@ -899,7 +1085,7 @@ export function RegimenClient({
                             href={`/reconstitution?reconstitute=${compound.id}`}
                             className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold bg-sky-500 hover:bg-sky-600 text-white rounded transition-colors"
                           >
-                            <Snowflake className="h-2.5 w-2.5" />
+                            <Snowflake aria-hidden="true" className="h-2.5 w-2.5" />
                             Mix Reserve
                           </Link>
                         ) : (
@@ -924,6 +1110,9 @@ export function RegimenClient({
           runoutByProtocolId={runoutByProtocolId}
           cycles={cycles}
           doseDisplayByProtocolId={doseDisplayByProtocolId}
+          isPending={isPending}
+          onPause={handlePause}
+          onResume={handleResume}
         />
       ) : filteredProtocols.length === 0 ? (
         <div className="text-center py-20 bg-white dark:bg-gray-950 border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
@@ -961,7 +1150,7 @@ export function RegimenClient({
                   borderColor: p.status === 'ACTIVE' ? `${capColor}25` : undefined,
                   boxShadow: p.status === 'ACTIVE' ? `0 4px 20px -6px ${capColor}15` : undefined,
                 }}
-                className={`relative flex flex-col justify-between overflow-hidden rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-md ${
+                className={`relative flex flex-col justify-between overflow-hidden rounded-lg border shadow-sm transition-shadow duration-200 hover:shadow-md ${
                   p.status === 'PAUSED'
                     ? 'border-yellow-200 dark:border-yellow-900 bg-yellow-50/20 dark:bg-yellow-950/5'
                     : p.status === 'DEACTIVATED'
@@ -974,7 +1163,7 @@ export function RegimenClient({
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <span className="inline-flex items-center rounded-md bg-primary/10 dark:bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary mb-2">
-                        {p.administrationRoute}
+                        {formatRouteLabel(p.administrationRoute)}
                       </span>
                       <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                         {p.compound.name}
@@ -994,7 +1183,7 @@ export function RegimenClient({
                             : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
                         }`}
                       >
-                        {p.status}
+                        {getProtocolStatusLabel(p, utcMidnightToday())}
                       </span>
                     </div>
                   </div>
@@ -1131,53 +1320,6 @@ export function RegimenClient({
         </div>
       )}
 
-      {/* PubMed Research Updates Card */}
-      {viewMode === 'cards' && activeCompounds.length > 0 && (
-        <section className="bg-white dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-900 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="h-8 w-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold">
-              PM
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">PubMed Research Feed</h3>
-              <p className="text-xs text-gray-500">Live clinical studies for your active compounds</p>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            {activeCompounds.map((comp) => {
-              const updates = getPubMedUpdates(comp);
-              return (
-                <div key={comp} className="space-y-4">
-                  <h4 className="text-xs font-bold tracking-wider uppercase text-gray-400">{comp} Literature</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {updates.map((up, idx) => (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-900 flex flex-col justify-between hover:scale-[1.01] transition-transform"
-                      >
-                        <div>
-                          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{up.journal}</p>
-                          <h5 className="text-sm font-bold text-gray-900 dark:text-gray-100 mt-1 leading-snug">
-                            {up.title}
-                          </h5>
-                          <p className="text-xs text-gray-500 mt-2 leading-relaxed italic">
-                            &quot;{up.snippet}&quot;
-                          </p>
-                        </div>
-                        <div className="mt-4 flex items-center justify-between text-[10px] text-gray-400">
-                          <span>Status: Peer Reviewed</span>
-                          <span className="text-primary cursor-pointer hover:underline">View Article →</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
     </div>
   );
 }
