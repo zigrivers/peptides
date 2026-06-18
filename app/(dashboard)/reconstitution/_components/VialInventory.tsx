@@ -122,11 +122,12 @@ export function VialInventory({ vials, isRoomTemp = false, subjectUserId }: Prop
       )}
 
       {/* Cabinet shelf structure */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         {localVials.map((vial, index) => {
           const remaining = parseFloat(vial.remainingMg);
           const total = parseFloat(vial.totalMg);
           const fillPercent = total > 0 ? Math.max(0, Math.min(100, (remaining / total) * 100)) : 0;
+          const roundedFillPercent = Math.round(fillPercent);
 
           const isExpired = vial.badges.includes('EXPIRED');
           const isLow = vial.badges.includes('LOW_INVENTORY');
@@ -194,12 +195,12 @@ export function VialInventory({ vials, isRoomTemp = false, subjectUserId }: Prop
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={(e) => handleDrop(e)}
               onDragEnd={handleDragEnd}
-              className={`relative rounded-xl border p-5 bg-card/65 dark:bg-card/45 backdrop-blur-md hover:scale-[1.02] hover:shadow-lg transition-all duration-300 flex flex-col justify-between group cursor-move ${cardBorderClass} ${glowStyle} ${
+              className={`relative flex cursor-move flex-col justify-between rounded-lg border bg-card/65 p-5 backdrop-blur-md transition-[border-color,box-shadow,transform] duration-200 hover:scale-[1.01] hover:shadow-md dark:bg-card/45 ${cardBorderClass} ${glowStyle} ${
                 draggedIndex === index ? 'opacity-40 scale-95 border-dashed border-primary/45' : ''
               }`}
             >
               {/* Actions in top-right */}
-              <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute right-3 top-3 flex items-center gap-1">
                 {deletingVialId === vial.id ? (
                   <div className="flex items-center gap-1 bg-background/90 dark:bg-slate-900/90 border border-border rounded-md px-1.5 py-0.5">
                     <button
@@ -232,8 +233,9 @@ export function VialInventory({ vials, isRoomTemp = false, subjectUserId }: Prop
                         setDeletingVialId(vial.id);
                       }}
                       disabled={isPending}
-                      className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                      title="Discard vial"
+                      aria-label={`Discard ${vial.compoundName} vial`}
+                      className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      title={`Discard ${vial.compoundName} vial`}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -253,7 +255,7 @@ export function VialInventory({ vials, isRoomTemp = false, subjectUserId }: Prop
 
               <div className="flex items-start gap-4">
                 {/* Visual SVG Vial */}
-                <div className="w-12 h-16 shrink-0 flex items-center justify-center select-none filter drop-shadow group-hover:drop-shadow-md transition-all duration-300" aria-hidden="true">
+                <div className="flex h-16 w-12 shrink-0 select-none items-center justify-center drop-shadow transition-[filter] duration-200 group-hover:drop-shadow-md" aria-hidden="true">
                   <svg viewBox="0 0 30 52" className="w-full h-full" role="img" aria-label={`Vial fill: ${fillPercent.toFixed(0)}%`}>
                     {/* Cap (style-bound HSL color fill) */}
                     <rect
@@ -278,7 +280,7 @@ export function VialInventory({ vials, isRoomTemp = false, subjectUserId }: Prop
                         y={fluidY}
                         width="20"
                         height={fluidHeight}
-                        className={`${fluidColorClass} transition-all duration-300`}
+                        className={`${fluidColorClass} transition-[filter,fill,stroke] duration-300`}
                         style={{
                           filter: filterStyle,
                           willChange: displayAgeFactor > 0.3 ? 'filter' : 'auto',
@@ -377,24 +379,30 @@ export function VialInventory({ vials, isRoomTemp = false, subjectUserId }: Prop
                 )}
                 
                 {/* Fill Percentage Deck */}
+                <div className="space-y-1.5">
+                  <div
+                    role="progressbar"
+                    aria-label={`${vial.compoundName} remaining amount`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={roundedFillPercent}
+                    className="h-2 overflow-hidden rounded-full bg-muted"
+                  >
+                    <div
+                      className={`h-full rounded-full ${roundedFillPercent <= 20 ? 'bg-warning' : 'bg-primary'}`}
+                      style={{ width: `${roundedFillPercent}%` }}
+                    />
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between text-[10px] font-semibold text-primary/80 dark:text-primary/70 mt-2">
                   <span>Shelf Pos #{index + 1}</span>
-                  <span>{fillPercent.toFixed(0)}% Filled</span>
+                  <span>{roundedFillPercent}% Filled</span>
                 </div>
               </div>
             </div>
           );
         })}
-      </div>
-
-      {/* Visual cabinet shelf shadow deck (wood/metal look with soft lighting) */}
-      <div className="relative h-4 w-full -mt-2 rounded-lg overflow-hidden border-t border-white/20 shadow-md">
-        {/* Wooden top/face of shelf */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#8b5a2b] via-[#a0522d] to-[#8b5a2b] dark:from-[#3e2723] dark:via-[#4e342e] dark:to-[#3e2723] opacity-90" />
-        {/* Glass highlight overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
-        {/* Polished metal edge trim */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-400 via-slate-200 to-slate-400 dark:from-slate-700 dark:via-slate-500 dark:to-slate-700" />
       </div>
     </div>
   );

@@ -58,6 +58,14 @@ describe('VialInventory Component UI/UX', () => {
     expect(html).toContain('filter:none');
   });
 
+  it('exposes remaining amount as a progressbar and names the discard action', () => {
+    render(<VialInventory vials={[baseVial]} />);
+
+    const progress = screen.getByRole('progressbar', { name: /BPC-157 remaining amount/i });
+    expect(progress.getAttribute('aria-valuenow')).toBe('100');
+    expect(screen.getByRole('button', { name: /discard BPC-157 vial/i })).toBeTruthy();
+  });
+
   it('applies progressive CSS blur and grayscale filters as vial ages past 30%', () => {
     // 80% aged (elapsed = 8 days, total = 10 days) -> ageFactor = 0.8
     // ageFactor = 0.8 > 0.3 -> blurAmount = (0.8 - 0.3) * 3 = 1.5px

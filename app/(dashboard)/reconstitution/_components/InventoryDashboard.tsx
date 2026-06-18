@@ -42,37 +42,40 @@ export function InventoryDashboard({
   return (
     <div className="space-y-6">
       {/* Action header */}
-      <div className="flex flex-col justify-between items-start gap-4 bg-white/5 dark:bg-black/10 backdrop-blur-md border border-white/10 p-5 rounded-2xl shadow-sm lg:flex-row lg:items-center">
+      <div className="flex flex-col justify-between items-start gap-4 rounded-lg border border-border bg-card p-5 shadow-sm lg:flex-row lg:items-center">
         <div className="min-w-0">
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Compound Inventory</h1>
           <p className="text-xs text-muted-foreground mt-1 max-w-md">
             {hasRoomTemp
-              ? 'Manage your freezer, refrigerator, and room temperature storage vials.'
-              : 'Manage your freezer storage (dry powder) and refrigerator storage (active reconstituted vials).'}
+              ? 'Track ready vials, dry reserves, room-temperature stock, and stability alerts.'
+              : 'Track ready reconstituted vials, dry reserves, and stability alerts.'}
           </p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto">
           <button
             onClick={onToggleSound}
             type="button"
-            className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-xl border border-border bg-white/5 p-2 text-muted-foreground transition-all duration-200 hover:text-foreground dark:bg-black/10"
+            aria-label={soundEnabled ? 'Mute sound effects' : 'Unmute sound effects'}
+            className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border bg-background p-2 text-muted-foreground transition-colors duration-200 hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             title={soundEnabled ? 'Mute sound effects' : 'Unmute sound effects'}
           >
             {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </button>
           <button
             onClick={onAddDry}
-            className="flex min-h-9 min-w-[10rem] flex-1 items-center justify-center gap-1.5 rounded-xl border border-sky-400/30 bg-sky-500/10 px-4 py-2 text-xs font-bold text-sky-700 transition-all duration-200 hover:bg-sky-500/20 dark:text-sky-300 lg:flex-none"
+            type="button"
+            className="flex min-h-9 min-w-[10rem] flex-1 items-center justify-center gap-1.5 rounded-md border border-sky-400/30 bg-sky-500/10 px-4 py-2 text-xs font-bold text-sky-700 transition-colors duration-200 hover:bg-sky-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-sky-300 lg:flex-none"
           >
             <Snowflake className="h-3.5 w-3.5" />
-            + Add Dry Vials
+            Add dry vials
           </button>
           <button
             onClick={onAddActive}
-            className="flex min-h-9 min-w-[10rem] flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-md transition-all duration-200 hover:bg-primary/95 lg:flex-none"
+            type="button"
+            className="flex min-h-9 min-w-[10rem] flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-md transition-colors duration-200 hover:bg-primary/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex-none"
           >
             <Beaker className="h-3.5 w-3.5" />
-            + Add Reconstituted
+            Add reconstituted
           </button>
         </div>
       </div>
@@ -80,37 +83,37 @@ export function InventoryDashboard({
       {/* Grid of Stats */}
       <div className={`grid grid-cols-1 ${hasRoomTemp ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'} gap-4`}>
         {/* Freezer Stat */}
-        <div className="relative overflow-hidden rounded-2xl border border-sky-200/20 bg-sky-500/[0.03] dark:bg-sky-950/10 p-5 backdrop-blur-md flex items-center gap-4 group hover:scale-[1.01] transition-transform duration-200">
-          <div className="p-3 bg-sky-500/10 text-sky-500 rounded-xl border border-sky-400/20">
+        <div className="relative flex items-center gap-4 overflow-hidden rounded-lg border border-sky-200/20 bg-sky-500/[0.03] p-5 backdrop-blur-md transition-shadow duration-200 hover:shadow-md dark:bg-sky-950/10">
+          <div className="rounded-md border border-sky-400/20 bg-sky-500/10 p-3 text-sky-500">
             <Snowflake className="h-6 w-6 animate-pulse" />
           </div>
           <div>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Freezer Storage</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Dry reserves</span>
             <div className="text-2xl font-black text-foreground mt-0.5">{totalColdDry}</div>
-            <p className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold mt-0.5">Dry Lyophilized Vials</p>
+            <p className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold mt-0.5">Freezer vials ready to mix</p>
           </div>
         </div>
 
         {/* Refrigerator Stat */}
-        <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.03] dark:bg-emerald-950/10 p-5 backdrop-blur-md flex items-center gap-4 group hover:scale-[1.01] transition-transform duration-200">
-          <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl border border-emerald-400/20">
+        <div className="relative flex items-center gap-4 overflow-hidden rounded-lg border border-emerald-500/20 bg-emerald-500/[0.03] p-5 backdrop-blur-md transition-shadow duration-200 hover:shadow-md dark:bg-emerald-950/10">
+          <div className="rounded-md border border-emerald-400/20 bg-emerald-500/10 p-3 text-emerald-500">
             <Thermometer className="h-6 w-6" />
           </div>
           <div>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Refrigerator Storage</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Ready vials</span>
             <div className="text-2xl font-black text-foreground mt-0.5">{totalColdActive}</div>
-            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">Active Reconstituted Vials</p>
+            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">Reconstituted and tracked</p>
           </div>
         </div>
 
         {/* Room Temp Storage Stat */}
         {hasRoomTemp && (
-          <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/[0.03] dark:bg-amber-950/10 p-5 backdrop-blur-md flex items-center gap-4 group hover:scale-[1.01] transition-transform duration-200 animate-fade-in">
-            <div className="p-3 bg-amber-500/10 text-amber-500 rounded-xl border border-amber-400/20">
+          <div className="relative flex animate-fade-in items-center gap-4 overflow-hidden rounded-lg border border-amber-500/20 bg-amber-500/[0.03] p-5 backdrop-blur-md transition-shadow duration-200 hover:shadow-md dark:bg-amber-950/10">
+            <div className="rounded-md border border-amber-400/20 bg-amber-500/10 p-3 text-amber-500">
               <Thermometer className="h-6 w-6 text-amber-500" />
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Room Temp Storage</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Room temp</span>
               <div className="text-2xl font-black text-foreground mt-0.5">
                 {totalRoomTempDry + totalRoomTempActive}
               </div>
@@ -122,12 +125,12 @@ export function InventoryDashboard({
         )}
 
         {/* Alerts Stat */}
-        <div className="relative overflow-hidden rounded-2xl border border-warning/20 bg-warning/[0.03] dark:bg-amber-950/10 p-5 backdrop-blur-md flex items-center gap-4 group hover:scale-[1.01] transition-transform duration-200">
-          <div className={`p-3 rounded-xl border ${expiredCount > 0 ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
+        <div className="relative flex items-center gap-4 overflow-hidden rounded-lg border border-warning/20 bg-warning/[0.03] p-5 backdrop-blur-md transition-shadow duration-200 hover:shadow-md dark:bg-amber-950/10">
+          <div className={`rounded-md border p-3 ${expiredCount > 0 ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
             <AlertCircle className="h-6 w-6" />
           </div>
           <div>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Stability Alerts</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Needs attention</span>
             <div className="text-2xl font-black text-foreground mt-0.5">
               {expiredCount + expiringSoonCount + lowInventoryCount}
             </div>

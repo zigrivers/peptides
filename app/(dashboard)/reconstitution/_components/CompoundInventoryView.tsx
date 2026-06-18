@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type {
   CompoundInventorySummary,
@@ -20,6 +21,9 @@ import {
 
 type PrimaryFilter = 'all' | 'in' | 'not';
 type AttentionChip = 'ready' | 'dryOnly' | 'expiring' | 'low';
+
+const COUNT_FORMATTER = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+const MG_FORMATTER = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
 
 const BADGE_SEVERITY: Record<string, number> = {
   EXPIRED: 3,
@@ -41,7 +45,27 @@ interface Props {
 }
 
 function formatMg(mg: string): string {
-  return `${parseFloat(mg)}`;
+  return MG_FORMATTER.format(Number(mg));
+}
+
+function formatMgWithUnit(mg: string): string {
+  return `${formatMg(mg)} mg`;
+}
+
+function formatPercent(remainingMg: string, totalMg: string): number {
+  const total = Number(totalMg);
+  if (!Number.isFinite(total) || total <= 0) return 0;
+  const remaining = Number(remainingMg);
+  if (!Number.isFinite(remaining)) return 0;
+  return Math.max(0, Math.min(100, Math.round((remaining / total) * 100)));
+}
+
+function formatExpiry(vial: SerializedVialData | null): string {
+  if (!vial?.expiresAt) return 'No expiry set';
+  if (vial.daysUntilExpiry === null) return 'Expiry set';
+  if (vial.daysUntilExpiry < 0) return `${Math.abs(vial.daysUntilExpiry)} days expired`;
+  if (vial.daysUntilExpiry === 0) return 'Expires today';
+  return `${vial.daysUntilExpiry} days left`;
 }
 
 function BadgePill({ badge }: { badge: string }) {
@@ -136,6 +160,17 @@ export function CompoundInventoryView({
 
   const showInStock = primary === 'all' || primary === 'in';
   const showNotInStock = primary === 'all' || primary === 'not';
+  const visibleRowCount =
+    (showInStock ? inStockRows.length : 0) + (showNotInStock ? notInStockRows.length : 0);
+  const visibleCompoundLabel =
+    visibleRowCount === 1 ? '1 compound shown' : `${COUNT_FORMATTER.format(visibleRowCount)} compounds shown`;
+  const hasActiveFilters = primary !== 'in' || chips.size > 0 || searchLower.length > 0;
+
+  const clearFilters = () => {
+    setPrimary('in');
+    setChips(new Set());
+    setSearch('');
+  };
 
   const handleSelectActiveVial = (compoundId: string, vialId: string) => {
     setPendingCompound(compoundId);
@@ -161,7 +196,7 @@ export function CompoundInventoryView({
 
   if (!hasAnyInventory && primary === 'in') {
     return (
-      <div className="rounded-xl border border-border bg-card p-8 text-center space-y-3">
+      <div className="space-y-3 rounded-lg border border-border bg-card p-8 text-center">
         <Beaker className="mx-auto h-8 w-8 text-muted-foreground/60" />
         <p className="text-sm font-medium text-foreground">No inventory yet</p>
         <p className="text-xs text-muted-foreground">
@@ -173,69 +208,108 @@ export function CompoundInventoryView({
 
   return (
     <div className="space-y-4">
-      {/* Filter bar */}
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5 text-xs font-semibold">
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-foreground">Inventory by compound</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              <span>{visibleCompoundLabel}</span>
+              {hasActiveFilters ? ' with current filters' : ' in the current view'}
+            </p>
+          </div>
+
+          <div className="relative w-full lg:max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              aria-label="Search compounds"
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search compounds…"
+              className="w-full rounded-md border border-border bg-background py-2 pl-9 pr-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="inline-flex w-fit rounded-lg border border-border bg-muted/30 p-0.5 text-xs font-semibold">
             <button
               type="button"
               onClick={() => setPrimary('all')}
-              className={`px-3 py-1 rounded-md transition-colors ${primary === 'all' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+              aria-pressed={primary === 'all'}
+              className={`min-h-9 rounded-md px-3 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${primary === 'all' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               All
             </button>
             <button
               type="button"
               onClick={() => setPrimary('in')}
-              className={`px-3 py-1 rounded-md transition-colors ${primary === 'in' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+              aria-pressed={primary === 'in'}
+              className={`min-h-9 rounded-md px-3 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${primary === 'in' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               In inventory
             </button>
             <button
               type="button"
               onClick={() => setPrimary('not')}
-              className={`px-3 py-1 rounded-md transition-colors ${primary === 'not' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+              aria-pressed={primary === 'not'}
+              className={`min-h-9 rounded-md px-3 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${primary === 'not' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Not in inventory
             </button>
           </div>
 
-          <div className="relative flex-1 min-w-[140px]">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search compounds…"
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border bg-background"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            {(
+              [
+                ['ready', 'Ready'],
+                ['dryOnly', 'Dry only'],
+                ['expiring', 'Expiring soon'],
+                ['low', 'Low'],
+              ] as [AttentionChip, string][]
+            ).map(([chip, label]) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => toggleChip(chip)}
+                aria-pressed={chips.has(chip)}
+                className={`min-h-8 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  chips.has(chip)
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'border-border bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            {hasActiveFilters && visibleRowCount > 0 && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="min-h-8 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         </div>
-
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              ['ready', 'Ready'],
-              ['dryOnly', 'Dry only'],
-              ['expiring', 'Expiring soon'],
-              ['low', 'Low'],
-            ] as [AttentionChip, string][]
-          ).map(([chip, label]) => (
-            <button
-              key={chip}
-              type="button"
-              onClick={() => toggleChip(chip)}
-              className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
-                chips.has(chip)
-                  ? 'bg-foreground text-background border-foreground'
-                  : 'bg-background text-muted-foreground border-border hover:bg-muted/50'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
       </div>
+
+      {visibleRowCount === 0 && (
+        <div className="rounded-lg border border-dashed border-border bg-muted/10 p-6 text-center">
+          <p className="text-sm font-semibold text-foreground">No compounds match this view</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Clear search and filters to return to your inventory list.
+          </p>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="mt-3 min-h-9 rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
 
       {/* In-inventory rows */}
       {showInStock && (
@@ -243,22 +317,21 @@ export function CompoundInventoryView({
           {inStockRows.map((s) => {
             const reconList = reconstitutedVialsByCompound?.[s.compoundId] ?? [];
             const showSelector = s.reconstitutedCount >= 2 && reconList.length >= 2;
+            const activePercent = s.activeVial
+              ? formatPercent(s.activeVial.remainingMg, s.activeVial.totalMg)
+              : 0;
             return (
               <div
                 key={s.compoundId}
                 data-compound-name={s.compoundName}
-                className="rounded-xl border border-border bg-card text-card-foreground p-4 hover:shadow-md transition-shadow"
+                className="rounded-lg border border-border bg-card text-card-foreground p-4 shadow-sm transition-shadow hover:shadow-md"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/reference/${s.compoundSlug}`)}
-                    className="text-left min-w-0 flex-1"
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_0.85fr_0.85fr_minmax(0,1.25fr)_0.95fr_auto] lg:items-start">
+                  <Link
+                    href={`/reference/${s.compoundSlug}`}
+                    className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
                   >
                     <h3 className="font-bold text-sm text-foreground">{s.compoundName}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {s.reconstitutedCount} ready · {s.dryCount} dry · ~{formatMg(s.totalReconstitutedRemainingMg)} mg
-                    </p>
                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       {s.worstBadge && <BadgePill badge={s.worstBadge} />}
                       {s.expiredCount > 0 && (
@@ -267,33 +340,75 @@ export function CompoundInventoryView({
                         </span>
                       )}
                     </div>
-                    {s.dosesLeft !== null && (
+                  </Link>
+
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Ready</p>
+                    <p className="mt-1 text-sm font-bold text-foreground">{s.reconstitutedCount} ready</p>
+                    <p className="text-xs text-muted-foreground">~{formatMgWithUnit(s.totalReconstitutedRemainingMg)}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Dry reserve</p>
+                    <p className="mt-1 text-sm font-bold text-foreground">{s.dryCount} dry</p>
+                    <p className="text-xs text-muted-foreground">~{formatMgWithUnit(s.totalDryMg)}</p>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Active vial</p>
+                    {s.activeVial ? (
+                      <div className="mt-1 space-y-1.5">
+                        <p className="text-xs text-foreground">
+                          {formatMgWithUnit(s.activeVial.remainingMg)} of {formatMgWithUnit(s.activeVial.totalMg)}
+                        </p>
+                        <div
+                          role="progressbar"
+                          aria-label={`${s.compoundName} active vial remaining`}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={activePercent}
+                          className="h-2 overflow-hidden rounded-full bg-muted"
+                        >
+                          <div
+                            className={`h-full rounded-full ${activePercent <= 20 ? 'bg-warning' : 'bg-primary'}`}
+                            style={{ width: `${activePercent}%` }}
+                          />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">{formatExpiry(s.activeVial)}</p>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground">No ready vial</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Doses left</p>
+                    {s.dosesLeft !== null ? (
                       <p
-                        className="text-[11px] text-muted-foreground mt-1.5"
+                        className="mt-1 text-sm font-bold text-foreground"
                         title="estimate from your active vial — use the Tracker for the exact draw"
                       >
-                        ≈ {s.dosesLeft} doses left{' '}
-                        {s.unitsEach === 'varies'
-                          ? '(units vary by vial — see tracker)'
-                          : s.unitsEach
-                            ? `(≈ ${s.unitsEach} units each)`
-                            : ''}{' '}
-                        <span className="italic opacity-70">· planning estimate</span>
+                        {s.dosesLeft} doses left
                       </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground">Not estimated</p>
                     )}
-                    {s.dosesLeft === null && s.unitsEach === 'varies' && (
-                      <p className="text-[11px] text-muted-foreground mt-1.5">
-                        units vary by vial — see tracker
-                      </p>
+                    {s.unitsEach === 'varies' ? (
+                      <p className="text-[11px] text-muted-foreground">units vary by vial — see tracker</p>
+                    ) : s.unitsEach ? (
+                      <p className="text-[11px] text-muted-foreground">~{s.unitsEach} units each</p>
+                    ) : null}
+                    {s.dosesLeft !== null && (
+                      <p className="text-[11px] italic text-muted-foreground">planning estimate</p>
                     )}
-                  </button>
+                  </div>
 
-                  <div className="flex flex-col gap-1.5 shrink-0">
+                  <div className="flex flex-col gap-1.5 lg:items-end">
                     {s.dryCount > 0 && (
                       <button
                         type="button"
                         onClick={() => handleReconstitute(s)}
-                        className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-sky-500 hover:bg-sky-600 text-white rounded-lg"
+                        className="flex min-h-9 items-center justify-center gap-1 rounded-md bg-sky-500 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <Beaker className="h-3 w-3" /> Reconstitute
                       </button>
@@ -301,7 +416,7 @@ export function CompoundInventoryView({
                     <button
                       type="button"
                       onClick={() => onAddVials(s.compoundId)}
-                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold border border-border hover:bg-muted/50 rounded-lg"
+                      className="flex min-h-9 items-center justify-center gap-1 rounded-md border border-border px-2.5 py-1 text-[11px] font-semibold transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <Plus className="h-3 w-3" /> Add vials
                     </button>
@@ -310,12 +425,13 @@ export function CompoundInventoryView({
 
                 {showSelector && (
                   <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
-                    <label className="text-[11px] font-medium text-muted-foreground">Drawing from</label>
+                    <label className="text-[11px] font-medium text-muted-foreground" htmlFor={`active-vial-${s.compoundId}`}>Drawing from</label>
                     <select
+                      id={`active-vial-${s.compoundId}`}
                       value={s.activeVial?.id ?? ''}
                       disabled={pendingCompound === s.compoundId}
                       onChange={(e) => handleSelectActiveVial(s.compoundId, e.target.value)}
-                      className="text-[11px] rounded-md border border-border bg-background px-2 py-1"
+                      className="rounded-md border border-border bg-background px-2 py-1 text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {reconList.map((v) => (
                         <option key={v.id} value={v.id}>
@@ -338,20 +454,19 @@ export function CompoundInventoryView({
             <div
               key={c.id}
               data-compound-name={c.name}
-              className="flex items-center justify-between rounded-lg border border-dashed border-border bg-muted/10 px-4 py-2.5"
+              className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border bg-muted/10 px-4 py-3"
             >
-              <button
-                type="button"
-                onClick={() => router.push(`/reference/${c.slug}`)}
-                className="text-left"
+              <Link
+                href={`/reference/${c.slug}`}
+                className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
               >
                 <span className="text-sm font-medium text-muted-foreground">{c.name}</span>
                 <span className="text-xs text-muted-foreground/70"> — none in stock</span>
-              </button>
+              </Link>
               <button
                 type="button"
                 onClick={() => onAddVials(c.id)}
-                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                className="flex min-h-9 shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Plus className="h-3 w-3" /> Add
               </button>

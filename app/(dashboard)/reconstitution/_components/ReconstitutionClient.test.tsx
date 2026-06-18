@@ -101,20 +101,20 @@ beforeAll(() => {
 describe('ReconstitutionClient view toggle', () => {
   afterEach(() => cleanup());
 
-  it('defaults to By storage (shows the Refrigerator/Freezer sections)', () => {
-    const { getByRole, queryByPlaceholderText } = renderClient();
-    expect(getByRole('heading', { name: /Refrigerator \(Active Vials\)/i })).toBeTruthy();
-    expect(getByRole('heading', { name: /Freezer \(Dry Vials\)/i })).toBeTruthy();
-    // the by-compound search box is not rendered in storage mode
-    expect(queryByPlaceholderText(/search compounds/i)).toBeNull();
+  it('defaults to By compound so users first see the operating inventory list', () => {
+    const { getByRole, getByLabelText, queryByRole } = renderClient();
+    expect(getByRole('button', { name: /by compound/i }).getAttribute('aria-pressed')).toBe('true');
+    expect(getByLabelText(/search compounds/i)).toBeTruthy();
+    // storage shelf sections are still available, but not the default first screen
+    expect(queryByRole('heading', { name: /Refrigerator \(Active Vials\)/i })).toBeNull();
   });
 
-  it('switches to By compound and shows the compound inventory view', () => {
-    const { getByRole, getByPlaceholderText, queryByRole } = renderClient();
-    fireEvent.click(getByRole('button', { name: /by compound/i }));
-    expect(getByPlaceholderText(/search compounds/i)).toBeTruthy();
-    // the storage sections are hidden
-    expect(queryByRole('heading', { name: /Refrigerator \(Active Vials\)/i })).toBeNull();
+  it('switches to By storage and shows the refrigerator/freezer sections', () => {
+    const { getByRole, queryByLabelText } = renderClient();
+    fireEvent.click(getByRole('button', { name: /by storage/i }));
+    expect(getByRole('heading', { name: /Refrigerator \(Active Vials\)/i })).toBeTruthy();
+    expect(getByRole('heading', { name: /Freezer \(Dry Vials\)/i })).toBeTruthy();
+    expect(queryByLabelText(/search compounds/i)).toBeNull();
   });
 
   it('keeps the InventoryDashboard visible in both modes', () => {
@@ -323,6 +323,8 @@ describe('ReconstitutionClient room temperature storage partitioning', () => {
       />
     );
 
+    fireEvent.click(getByRole('button', { name: /by storage/i }));
+
     // Verify all 4 headings are rendered
     expect(getByRole('heading', { name: /Refrigerator \(Active Vials\)/i })).toBeTruthy();
     expect(getByRole('heading', { name: /Freezer \(Dry Vials\)/i })).toBeTruthy();
@@ -356,6 +358,8 @@ describe('ReconstitutionClient room temperature storage partitioning', () => {
         syringeSize="1.0"
       />
     );
+
+    fireEvent.click(getByRole('button', { name: /by storage/i }));
 
     expect(getByRole('heading', { name: /Refrigerator \(Active Vials\)/i })).toBeTruthy();
     expect(getByRole('heading', { name: /Freezer \(Dry Vials\)/i })).toBeTruthy();
@@ -407,6 +411,8 @@ describe('ReconstitutionClient room temperature storage partitioning', () => {
         syringeSize="1.0"
       />
     );
+
+    fireEvent.click(getByRole('button', { name: /by storage/i }));
 
     // Initial state (All tab) shows all 4 sections
     expect(getByRole('heading', { name: /Refrigerator \(Active Vials\)/i })).toBeTruthy();
