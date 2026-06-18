@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { RegimenClient } from './RegimenClient';
 
 vi.mock('@/app/actions/tracker/protocol-lifecycle', () => ({
@@ -84,24 +84,51 @@ describe('RegimenClient summary view', () => {
     vi.useRealTimers();
   });
 
-  it('switches to Summary and renders split dose, frequency, and category labels', () => {
+  it('uses Summary as the default workspace and renders split dose, frequency, status, and actions', () => {
     renderRegimenClient();
 
-    fireEvent.click(screen.getByRole('button', { name: /summary/i }));
-
-    expect(screen.getByRole('table', { name: /active regimen summary/i })).toBeTruthy();
+    expect(screen.getByRole('table', { name: /regimen workspace/i })).toBeTruthy();
     expect(screen.getByText('BPC-157')).toBeTruthy();
     // Split cells: dose and frequency now render separately (fallback to natural unit when no dd entry).
     expect(screen.getByText('250 mcg')).toBeTruthy();
     expect(screen.getByText('Daily')).toBeTruthy();
-    expect(screen.getByText('SUBCUTANEOUS')).toBeTruthy();
+    expect(screen.getByText('Subcutaneous')).toBeTruthy();
     expect(screen.getByText('Started May 20, 2026')).toBeTruthy();
+    expect(screen.getAllByText('Taking now').length).toBeGreaterThan(0);
     expect(screen.getByText('Recovery')).toBeTruthy();
     expect(screen.getByText('Healing')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /log dose for bpc-157/i })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /edit bpc-157/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /pause bpc-157/i })).toBeTruthy();
     expect(screen.queryByText('Regimen Refill Planner')).toBeNull();
+    expect(screen.queryByText('PubMed Research Feed')).toBeNull();
   });
 
-  it('includes upcoming active protocols and excludes inactive and ended protocols from Summary', () => {
+  it('summarizes today, inventory, paused, and active counts for the selected subject', () => {
+    renderRegimenClient({
+      initialProtocols: [
+        makeProtocol(),
+        makeProtocol({
+          id: 'paused',
+          status: 'PAUSED',
+          compoundId: 'compound-tb',
+          compound: { ...makeProtocol().compound, id: 'compound-tb', name: 'TB-500', tags: ['recovery'] },
+        }),
+      ],
+    });
+
+    const attention = screen.getByLabelText(/regimen attention summary/i);
+    expect(within(attention).getByText('Scheduled today')).toBeTruthy();
+    expect(within(attention).getByText('1 dose')).toBeTruthy();
+    expect(within(attention).getByText('Inventory attention')).toBeTruthy();
+    expect(within(attention).getByText('1 issue')).toBeTruthy();
+    expect(within(attention).getByText('Paused')).toBeTruthy();
+    expect(within(attention).getByText('1 paused')).toBeTruthy();
+    expect(within(attention).getByText('Taking now')).toBeTruthy();
+    expect(within(attention).getByText('1 active')).toBeTruthy();
+  });
+
+  it('includes upcoming and paused protocols and excludes ended protocols from Summary', () => {
     renderRegimenClient({
       initialProtocols: [
         makeProtocol({ id: 'active-current', compound: { ...makeProtocol().compound, name: 'BPC-157' } }),
@@ -126,12 +153,12 @@ describe('RegimenClient summary view', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /summary/i }));
-
     expect(screen.getByText('BPC-157')).toBeTruthy();
+    expect(screen.getByText('TB-500')).toBeTruthy();
+    expect(screen.getAllByText('Paused').length).toBeGreaterThan(0);
     expect(screen.getByText('Tesamorelin')).toBeTruthy();
+    expect(screen.getByText('Upcoming')).toBeTruthy();
     expect(screen.getByText('Starts Jun 20, 2026')).toBeTruthy();
-    expect(screen.queryByText('TB-500')).toBeNull();
     expect(screen.queryByText('GHK-Cu')).toBeNull();
   });
 
@@ -160,7 +187,6 @@ describe('RegimenClient summary view', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /summary/i }));
     expect(screen.getByText('BPC-157')).toBeTruthy();
     expect(screen.queryByText('Tirzepatide')).toBeNull();
 
@@ -174,12 +200,18 @@ describe('RegimenClient summary view', () => {
     expect(screen.queryByText('BPC-157')).toBeNull();
   });
 
-  it('keeps Cards as the default view with the existing protocol cards', () => {
+  it('keeps Cards as a secondary details view with the existing protocol cards', () => {
     renderRegimenClient();
+
+    expect(screen.queryByText('Regimen Refill Planner')).toBeNull();
+    expect(screen.getByRole('table', { name: /regimen workspace/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /cards/i }));
 
     expect(screen.getByRole('heading', { name: 'BPC-157' })).toBeTruthy();
     expect(screen.getByText('Regimen Refill Planner')).toBeTruthy();
-    expect(screen.queryByRole('table', { name: /active regimen summary/i })).toBeNull();
+    expect(screen.queryByRole('table', { name: /regimen workspace/i })).toBeNull();
+    expect(screen.queryByText('PubMed Research Feed')).toBeNull();
   });
 
   it('renders the server-built dose, units, and frequency display when provided', () => {
@@ -193,8 +225,6 @@ describe('RegimenClient summary view', () => {
         },
       },
     });
-
-    fireEvent.click(screen.getByRole('button', { name: /summary/i }));
 
     expect(screen.getByText('0.45 mg (450 mcg)')).toBeTruthy();
     expect(screen.getByText('≈ 3.0 units (U-100)')).toBeTruthy();
@@ -212,8 +242,6 @@ describe('RegimenClient summary view', () => {
         },
       },
     });
-
-    fireEvent.click(screen.getByRole('button', { name: /summary/i }));
 
     expect(screen.getByText('· reconstitute to see units')).toBeTruthy();
   });
@@ -256,8 +284,6 @@ describe('RegimenClient summary view', () => {
         'cycle-1': { startDate: '2026-05-20T00:00:00.000Z', endDate: null },
       },
     });
-
-    fireEvent.click(screen.getByRole('button', { name: /summary/i }));
 
     // 2026-06-08 is in week 3 of an 8-week cycle that started 2026-05-20.
     expect(screen.getByText(/Week 3 of 8/)).toBeTruthy();
