@@ -47,7 +47,7 @@ export function ReconstitutionClient({
   syringeSize,
   autoReconstituteCompoundId,
 }: Props) {
-  const [viewMode, setViewMode] = useState<'storage' | 'compound'>('storage');
+  const [viewMode, setViewMode] = useState<'storage' | 'compound'>('compound');
   const [storageFilter, setStorageFilter] = useState<'all' | 'fridge' | 'freezer' | 'room_temp'>('all');
   const [calculatorExpanded, setCalculatorExpanded] = useState(false);
   const [showAddDryModal, setShowAddDryModal] = useState(false);
@@ -151,14 +151,16 @@ export function ReconstitutionClient({
           <button
             type="button"
             onClick={() => setViewMode('storage')}
-            className={`min-h-9 flex items-center gap-1.5 px-3 py-2 rounded-md transition-colors ${viewMode === 'storage' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+            aria-pressed={viewMode === 'storage'}
+            className={`min-h-9 flex items-center gap-1.5 rounded-md px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${viewMode === 'storage' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <LayoutGrid className="h-4 w-4" /> By storage
           </button>
           <button
             type="button"
             onClick={() => setViewMode('compound')}
-            className={`min-h-9 flex items-center gap-1.5 px-3 py-2 rounded-md transition-colors ${viewMode === 'compound' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+            aria-pressed={viewMode === 'compound'}
+            className={`min-h-9 flex items-center gap-1.5 rounded-md px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${viewMode === 'compound' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <Boxes className="h-4 w-4" /> By compound
           </button>
@@ -189,21 +191,24 @@ export function ReconstitutionClient({
               <button
                 type="button"
                 onClick={() => setStorageFilter('all')}
-                className={`min-h-9 px-3 py-2 rounded-md transition-colors ${storageFilter === 'all' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
+                aria-pressed={storageFilter === 'all'}
+                className={`min-h-9 px-3 py-2 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${storageFilter === 'all' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 All
               </button>
               <button
                 type="button"
                 onClick={() => setStorageFilter('fridge')}
-                className={`min-h-9 px-3 py-2 rounded-md transition-colors ${storageFilter === 'fridge' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
+                aria-pressed={storageFilter === 'fridge'}
+                className={`min-h-9 px-3 py-2 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${storageFilter === 'fridge' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Fridge ({coldActiveVials.length})
               </button>
               <button
                 type="button"
                 onClick={() => setStorageFilter('freezer')}
-                className={`min-h-9 px-3 py-2 rounded-md transition-colors ${storageFilter === 'freezer' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
+                aria-pressed={storageFilter === 'freezer'}
+                className={`min-h-9 px-3 py-2 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${storageFilter === 'freezer' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Freezer ({coldDryVials.length})
               </button>
@@ -211,7 +216,8 @@ export function ReconstitutionClient({
                 <button
                   type="button"
                   onClick={() => setStorageFilter('room_temp')}
-                  className={`min-h-9 px-3 py-2 rounded-md transition-colors ${storageFilter === 'room_temp' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
+                  aria-pressed={storageFilter === 'room_temp'}
+                  className={`min-h-9 px-3 py-2 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${storageFilter === 'room_temp' ? 'bg-background shadow text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   Room Temp ({roomTempActiveVials.length + roomTempDryVials.length})
                 </button>
@@ -294,10 +300,12 @@ export function ReconstitutionClient({
       )}
 
       {/* Standalone Calculator Section */}
-      <section className="rounded-xl border border-border bg-card text-card-foreground shadow-sm overflow-hidden transition-all duration-300">
-        <div
+      <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+        <button
+          type="button"
           onClick={() => setCalculatorExpanded(!calculatorExpanded)}
-          className="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-muted/10 select-none transition-colors"
+          aria-expanded={calculatorExpanded}
+          className="flex w-full items-center justify-between px-6 py-4 text-left transition-colors hover:bg-muted/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="flex items-center gap-2">
             <Calculator className="h-5 w-5 text-indigo-500" />
@@ -311,7 +319,7 @@ export function ReconstitutionClient({
           <div className="text-muted-foreground">
             {calculatorExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </div>
-        </div>
+        </button>
 
         {calculatorExpanded && (
           <div className="px-6 pb-6 border-t border-border pt-4 animate-fade-in">

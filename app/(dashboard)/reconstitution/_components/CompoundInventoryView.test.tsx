@@ -64,6 +64,16 @@ describe('CompoundInventoryView', () => {
     expect(queryByText('TB-500')).toBeNull();
   });
 
+  it('shows how many compounds match the current view', () => {
+    const { getByText } = renderView({
+      summaries: [
+        summary({ compoundId: 'c1', compoundName: 'BPC-157' }),
+        summary({ compoundId: 'c2', compoundName: 'TB-500' }),
+      ],
+    });
+    expect(getByText('2 compounds shown')).toBeTruthy();
+  });
+
   it('shows ready/dry counts and total mg in the row', () => {
     const { getByText } = renderView();
     expect(getByText(/1 ready/)).toBeTruthy();
@@ -96,6 +106,23 @@ describe('CompoundInventoryView', () => {
     fireEvent.change(search, { target: { value: 'tb' } });
     expect(getByText('TB-500')).toBeTruthy();
     expect(queryByText('BPC-157')).toBeNull();
+  });
+
+  it('shows a recoverable empty state when filters hide every row', () => {
+    const { getByLabelText, getByRole, getByText } = renderView();
+    fireEvent.change(getByLabelText(/search compounds/i), { target: { value: 'no match' } });
+    expect(getByText(/no compounds match/i)).toBeTruthy();
+
+    fireEvent.click(getByRole('button', { name: /clear filters/i }));
+    expect(getByText('BPC-157')).toBeTruthy();
+  });
+
+  it('marks active filter chips with aria-pressed', () => {
+    const { getByRole } = renderView();
+    const lowChip = getByRole('button', { name: /^low$/i });
+    expect(lowChip.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(lowChip);
+    expect(lowChip.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('"Dry only" chip keeps compounds with dry but no reconstituted', () => {

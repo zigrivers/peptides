@@ -73,4 +73,22 @@ describe('DryInventoryList', () => {
       });
     });
   });
+
+  it('uses a semantic expandable button for each dry vial group', () => {
+    render(
+      <DryInventoryList
+        vials={[dryVial]}
+        compounds={[{ id: 'comp-1', name: 'BPC-157', slug: 'bpc-157', profile: null }]}
+        syringeStandard="U100"
+        syringeSize="1.0"
+        onReconstitute={vi.fn()}
+      />
+    );
+
+    const groupButton = screen.getByRole('button', { name: /BPC-157/i });
+    expect(groupButton.getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.click(groupButton);
+    expect(groupButton.getAttribute('aria-expanded')).toBe('true');
+  });
 });

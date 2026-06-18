@@ -131,7 +131,7 @@ export function DryInventoryList({
           return (
             <div
               key={group.key}
-              className={`rounded-xl border backdrop-blur-md hover:shadow-lg transition-all duration-300 overflow-hidden ${
+              className={`overflow-hidden rounded-lg border backdrop-blur-md transition-shadow duration-200 hover:shadow-md ${
                 isRoomTemp 
                   ? 'border-amber-200/20 bg-amber-400/5 dark:bg-amber-950/10' 
                   : 'border-sky-200/20 bg-sky-400/5 dark:bg-sky-950/10'
@@ -139,14 +139,18 @@ export function DryInventoryList({
             >
               {/* Header card summary */}
               <div
-                onClick={() => toggleGroup(group.key)}
-                className={`p-5 flex items-center justify-between cursor-pointer transition-colors duration-200 select-none ${
+                className={`grid gap-3 p-4 transition-colors duration-200 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
                   isRoomTemp 
                     ? 'hover:bg-amber-500/5 dark:hover:bg-amber-500/10' 
                     : 'hover:bg-sky-500/5 dark:hover:bg-sky-500/10'
                 }`}
               >
-                <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.key)}
+                  aria-expanded={isExpanded}
+                  className="flex min-w-0 items-center gap-4 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
                   {/* Frosted dry vial display icon */}
                   <div className={`w-10 h-12 shrink-0 flex items-center justify-center relative rounded-md border shadow-inner ${
                     isRoomTemp 
@@ -175,23 +179,20 @@ export function DryInventoryList({
                     </svg>
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="font-bold text-sm tracking-tight text-foreground">{group.compoundName}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5 font-medium">
                       {parseFloat(group.totalMg)} mg vials • <span className="text-foreground">{count} vial{count > 1 ? 's' : ''}</span> ({parseFloat(totalContentMg.toFixed(3))} mg total)
                     </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="text-right hidden sm:block">
                     {earliestExpiry && (
-                      <p className={`text-[10px] ${isExpired ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
-                        {isExpired ? 'Expired' : 'Earliest Expiration'}: {formatDate(earliestExpiry.toISOString())}
+                      <p className={`mt-1 text-[10px] ${isExpired ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+                        {isExpired ? 'Expired' : 'Earliest expiration'}: {formatDate(earliestExpiry.toISOString())}
                       </p>
                     )}
                   </div>
-                  
+                </button>
+
+                <div className="flex items-center justify-between gap-2 sm:justify-end">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -200,7 +201,7 @@ export function DryInventoryList({
                         onReconstitute(activeVialsSorted[0]);
                       }
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white rounded-lg shadow transition-all duration-200 ${
+                    className={`flex min-h-9 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-white shadow transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       isRoomTemp 
                         ? 'bg-amber-500 hover:bg-amber-600 active:bg-amber-700' 
                         : 'bg-sky-500 hover:bg-sky-600 active:bg-sky-700'
@@ -210,7 +211,7 @@ export function DryInventoryList({
                     {isRoomTemp ? 'Open / Puncture' : 'Reconstitute'}
                   </button>
 
-                  <div className="text-muted-foreground">
+                  <div className="text-muted-foreground" aria-hidden="true">
                     {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </div>
                 </div>
@@ -236,7 +237,7 @@ export function DryInventoryList({
                       return (
                         <div
                           key={v.id}
-                          className={`flex items-center justify-between p-3 rounded-lg border bg-white/5 dark:bg-slate-900/40 transition-all duration-150 ${
+                          className={`flex items-center justify-between p-3 rounded-lg border bg-white/5 dark:bg-slate-900/40 transition-colors duration-150 ${
                             isRoomTemp 
                               ? 'border-amber-200/10 hover:bg-amber-500/5 dark:hover:bg-amber-500/10' 
                               : 'border-sky-200/10 hover:bg-sky-500/5 dark:hover:bg-sky-500/10'
@@ -295,7 +296,8 @@ export function DryInventoryList({
                                 onClick={() => setDeletingVialId(v.id)}
                                 disabled={isPending}
                                 className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                                title="Discard vial"
+                                aria-label={`Discard ${v.compoundName} vial #${idx + 1}`}
+                                title={`Discard ${v.compoundName} vial #${idx + 1}`}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
