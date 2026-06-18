@@ -150,28 +150,99 @@ export function BatchLogReview({ items, compoundNames }: Props) {
   const skippedCount = items.filter((i) => itemStates[itemKey(i)] === 'skipped').length;
   const failedCount = items.filter((i) => itemStates[itemKey(i)] === 'failed').length;
   const loggedCount = items.filter((i) => itemStates[itemKey(i)] === 'logged').length;
+  const completeCount = loggedCount;
+  const readyCount = items.filter((i) => itemStates[itemKey(i)] === 'pending' && i.isAvailable).length;
+  const unavailableCount = items.filter((i) => itemStates[itemKey(i)] === 'pending' && !i.isAvailable).length;
+
+  if (items.length === 0) {
+    return (
+      <section
+        role="region"
+        aria-labelledby="today-dose-plan-heading"
+        className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-900 dark:bg-gray-950"
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Today</p>
+            <h2 id="today-dose-plan-heading" className="mt-1 text-lg font-bold text-gray-950 dark:text-gray-100">
+              Today&apos;s Dose Plan
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">Use the calendar below to review upcoming regimen days.</p>
+          </div>
+          <div className="rounded-lg border border-dashed border-gray-200 px-4 py-3 text-sm font-semibold text-gray-600 dark:border-gray-800 dark:text-gray-300">
+            No Doses Scheduled Today
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   if (done || (pendingCount === 0 && skippedCount === 0 && failedCount === 0 && items.length > 0)) {
     return (
-      <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center">
-        <p className="text-sm font-medium text-green-700">
+      <section
+        role="region"
+        aria-labelledby="today-dose-plan-heading"
+        className="rounded-xl border border-success/20 bg-success/5 p-5 text-center"
+      >
+        <h2 id="today-dose-plan-heading" className="text-lg font-bold text-success">
+          Today&apos;s Dose Plan
+        </h2>
+        <p className="mt-1 text-sm font-medium text-success">
           Today: {loggedCount}/{items.length} complete
         </p>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-sm font-semibold text-gray-700">Log All Scheduled</h2>
+    <section
+      role="region"
+      aria-labelledby="today-dose-plan-heading"
+      className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-900 dark:bg-gray-950"
+    >
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Today</p>
+          <h2 id="today-dose-plan-heading" className="mt-1 text-lg font-bold text-gray-950 text-pretty dark:text-gray-100">
+            Today&apos;s Dose Plan
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            {readyCount > 0
+              ? `${readyCount} dose${readyCount === 1 ? '' : 's'} ready to log`
+              : 'Review the remaining dose states before closing out today'}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-center sm:flex sm:text-left">
+          <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Complete</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
+              {completeCount} of {items.length} complete
+            </p>
+          </div>
+          <div className="rounded-lg bg-primary/5 px-3 py-2">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-primary/70">Selected</p>
+            <p className="text-sm font-bold text-primary">{selected.size}</p>
+          </div>
+        </div>
+      </div>
 
       {error && (
-        <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+        <p
+          role="alert"
+          aria-live="polite"
+          className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+        >
           {error}
         </p>
       )}
 
-      <ul className="space-y-2">
+      {unavailableCount > 0 && (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+          {unavailableCount} dose{unavailableCount === 1 ? '' : 's'} need reconstituted inventory before batch logging.
+        </p>
+      )}
+
+      <ul className="mt-4 space-y-2">
         {items.map((item) => {
           const key = itemKey(item);
           const state = itemStates[key];
@@ -180,45 +251,64 @@ export function BatchLogReview({ items, compoundNames }: Props) {
 
           if (state === 'logged') {
             return (
-              <li key={key} className="flex items-center gap-3 rounded-lg border border-green-100 bg-green-50 px-3 py-2">
-                <span className="text-green-600 text-sm">&#10003;</span>
-                <span className="text-sm text-green-700">
-                  {compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId} — <span className="font-mono">{item.protocol.dose.amount}</span> {item.protocol.dose.unit}
-                  {item.slotLabel && <span className="text-green-600"> · {item.slotLabel}</span>}
+              <li key={key} className="flex min-h-12 items-center gap-3 rounded-lg border border-success/20 bg-success/5 px-3 py-2">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success text-xs font-bold text-success-foreground">
+                  &#10003;
+                </span>
+                <span className="text-sm font-medium text-success">
+                  <span className="font-semibold">{compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId}</span>
+                  {' '}
+                  <span className="text-success/80">
+                    <span className="font-mono">{item.protocol.dose.amount}</span> {item.protocol.dose.unit}
+                    {item.slotLabel && <> · {item.slotLabel}</>}
+                  </span>
                 </span>
               </li>
             );
           }
 
           return (
-            <li key={key} className={`rounded-lg border px-3 py-2 ${state === 'failed' ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'}`}>
-              <label className="flex min-h-9 items-start gap-3 rounded-md px-1 py-1 cursor-pointer hover:bg-muted/40">
+            <li
+              key={key}
+              className={`rounded-lg border px-3 py-2 ${
+                state === 'failed'
+                  ? 'border-red-200 bg-red-50'
+                  : state === 'skipped'
+                    ? 'border-amber-200 bg-amber-50/70'
+                    : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950'
+              }`}
+            >
+              <label className="flex min-h-12 cursor-pointer items-start gap-3 rounded-md px-1 py-1 hover:bg-muted/40">
                 <input
                   type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  className="mt-1 h-5 w-5 rounded border-gray-300 text-primary focus-visible:ring-primary"
                   checked={isSelected && item.isAvailable}
                   disabled={!item.isAvailable || isPending}
                   onChange={() => item.isAvailable && toggleItem(key)}
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900">
-                    {compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId} — <span className="font-mono">{item.protocol.dose.amount}</span> {item.protocol.dose.unit}
-                    {item.slotLabel && <span className="text-gray-500"> · {item.slotLabel}</span>}
+                  <p className="text-sm font-semibold text-gray-950 dark:text-gray-100">
+                    <span>{compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId}</span>
+                    <span className="font-normal text-gray-500">
+                      {' '}
+                      — <span className="font-mono">{item.protocol.dose.amount}</span> {item.protocol.dose.unit}
+                      {item.slotLabel && <> · {item.slotLabel}</>}
+                    </span>
                     {item.doseUnits?.unitsText && (
-                      <span className="text-gray-400"> {item.doseUnits.unitsText}</span>
+                      <span className="ml-1 text-xs font-normal text-gray-400">{item.doseUnits.unitsText}</span>
                     )}
                   </p>
                   {state === 'skipped' && item.isAvailable && (
-                    <p className="text-xs text-yellow-700 mt-0.5">Previously skipped — log now?</p>
+                    <p className="mt-0.5 text-xs text-amber-700">Previously skipped — log now?</p>
                   )}
                   {!item.isAvailable && (
-                    <p className="text-xs text-yellow-700 mt-0.5">No vials available — cannot batch-log</p>
+                    <p className="mt-0.5 text-xs text-amber-700">No vials available — cannot batch-log</p>
                   )}
                   {itemWarnings.map((w) => (
-                    <p key={w.code} className="text-xs text-yellow-700 mt-0.5">{w.message}</p>
+                    <p key={w.code} className="mt-0.5 text-xs text-amber-700">{w.message}</p>
                   ))}
                   {state === 'failed' && (
-                    <p className="text-xs text-red-700 mt-0.5">Failed to log</p>
+                    <p className="mt-0.5 text-xs text-red-700">Failed to log</p>
                   )}
                 </div>
               </label>
@@ -230,10 +320,10 @@ export function BatchLogReview({ items, compoundNames }: Props) {
       <button
         disabled={isPending || selected.size === 0}
         onClick={handleConfirm}
-        className="w-full rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors"
+        className="mt-4 min-h-12 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60"
       >
-        {isPending ? 'Logging...' : `Confirm (${selected.size} dose${selected.size !== 1 ? 's' : ''})`}
+        {isPending ? 'Logging…' : `Log ${selected.size} Selected`}
       </button>
-    </div>
+    </section>
   );
 }

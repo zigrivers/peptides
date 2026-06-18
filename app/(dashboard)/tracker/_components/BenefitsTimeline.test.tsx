@@ -101,7 +101,7 @@ describe('BenefitsTimeline Component UI/UX with JSDOM', () => {
     },
   ];
 
-  it('renders unified benefits timeline grouped by sorted weeks', () => {
+  it('renders a compact benefits preview instead of a full vertical timeline', () => {
     render(
       <BenefitsTimeline
         activeProtocols={mockActiveProtocols}
@@ -109,14 +109,22 @@ describe('BenefitsTimeline Component UI/UX with JSDOM', () => {
       />
     );
 
-    // Verify milestones are present, including Week 3 which is dynamically added due to TB-500
-    expect(screen.getByText('Week 1 Milestone')).toBeDefined();
-    expect(screen.getByText('Week 2 Milestone')).toBeDefined();
-    expect(screen.getByText('Week 3 Milestone')).toBeDefined();
-    expect(screen.getByText('Week 4 Milestone')).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'What To Expect Next' })).toBeDefined();
+    expect(screen.getByText('Compact preview from active regimens.')).toBeDefined();
+
+    // Current phases and next milestones should be visible at a glance.
+    expect(screen.getByText('Tirzepatide')).toBeDefined();
+    expect(screen.getAllByText('BPC-157').length).toBeGreaterThan(0);
+    expect(screen.getByText('TB-500')).toBeDefined();
+    expect(screen.getAllByText('Current').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Starts in 7 days').length).toBeGreaterThan(0);
+
+    // The old component rendered every milestone as a long timeline.
+    expect(screen.queryByText('Week 1 Milestone')).toBeNull();
+    expect(screen.queryByText('Week 4 Milestone')).toBeNull();
   });
 
-  it('calculates compound-specific status and countdowns correctly', () => {
+  it('keeps full benefit review available behind a details disclosure', () => {
     render(
       <BenefitsTimeline
         activeProtocols={mockActiveProtocols}
@@ -124,32 +132,16 @@ describe('BenefitsTimeline Component UI/UX with JSDOM', () => {
       />
     );
 
-    // Tirzepatide started on May 18 (elapsed weeks is 2).
-    // BPC-157 started on May 25 (elapsed weeks is 1).
-    // TB-500 started on May 11 (elapsed weeks is 3).
+    expect(screen.getByText('Review observed benefits')).toBeDefined();
 
-    // Let's verify statuses of Tirzepatide & TB-500
-    const experiencedBadges = screen.getAllByText('Experienced');
-    expect(experiencedBadges.length).toBeGreaterThan(0);
+    const disclosure = screen.getByText('Review observed benefits');
+    fireEvent.click(disclosure);
 
-    // Week 3 TB-500 (Current Phase), Week 2 Tirzepatide (Current Phase), Week 1 BPC-157 (Current Phase)
-    const currentPhaseBadges = screen.getAllByText('Current Phase');
-    expect(currentPhaseBadges.length).toBe(6);
-
-    // BPC-157 Week 2 milestone countdown:
-    // Started May 25. Week 2 starts June 1. Diff is 7 days.
-    // Also TB-500 Week 4 starts June 1. Diff is 7 days.
-    expect(screen.getAllByText('Starts in 7 days').length).toBe(2);
-
-    // TB-500 Week 3 displays the ongoing benefits of Week 2:
-    expect(screen.getByText('Ongoing from Week 2 milestone')).toBeDefined();
-    expect(screen.getAllByText('Flexibility improvement').length).toBe(2);
-
-    // Tirzepatide Week 4: starts June 8 (14 days from May 25). Displays "Starts in 2 weeks".
-    expect(screen.getByText('Starts in 2 weeks')).toBeDefined();
-
-    // BPC-157 Week 4: starts June 15 (21 days from May 25). Displays "Starts in 3 weeks".
-    expect(screen.getByText('Starts in 3 weeks')).toBeDefined();
+    // Experienced and current items remain available for benefit observation tracking,
+    // but they no longer dominate the default Tracker view.
+    expect(screen.getAllByText('Experienced').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Current').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Flexibility improvement').length).toBeGreaterThan(0);
   });
 
   it('allows checking an observed benefit and updates state optimistically, then handles success', async () => {
