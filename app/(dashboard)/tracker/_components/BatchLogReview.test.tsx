@@ -78,6 +78,34 @@ describe('BatchLogReview', () => {
     expect(screen.getByRole('button', { name: 'Log 2 Selected' })).toBeDefined();
   });
 
+  it("renders today's dose plan in a compact sidebar variant", () => {
+    render(
+      <BatchLogReview
+        variant="sidebar"
+        items={[
+          dueItem(),
+          dueItem({
+            protocol: {
+              ...baseProtocol,
+              id: 'proto-2',
+              compoundId: 'compound-tb',
+              dose: { amount: '2', unit: 'mg' },
+            },
+            doseSlot: 1,
+            slotLabel: 'Evening',
+          }),
+        ]}
+        compoundNames={{ 'compound-bpc': 'BPC-157', 'compound-tb': 'TB-500' }}
+      />
+    );
+
+    const panel = screen.getByRole('region', { name: "Today's Dose Plan" });
+    expect(within(panel).getByText('0/2 complete')).toBeDefined();
+    expect(within(panel).getByText('2 selected')).toBeDefined();
+    expect(within(panel).queryByText('0 of 2 complete')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Log Selected (2)' })).toBeDefined();
+  });
+
   it('renders a calm empty state when no doses are scheduled today', () => {
     render(<BatchLogReview items={[]} compoundNames={{}} />);
 
