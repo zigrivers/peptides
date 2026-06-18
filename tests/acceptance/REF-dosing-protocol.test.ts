@@ -438,7 +438,7 @@ describe('REF Dosing Protocol Acceptances', () => {
       const html = renderToString(component);
 
       // Verify header and components
-      expect(html).toContain('Protocol &amp; Scheduling');
+      expect(html).toContain('Protocol Snapshot');
       expect(html).toContain('Continuous');
       expect(html).toContain('Daily');
       expect(html).toContain('Inject subcutaneously once daily into the abdomen');
