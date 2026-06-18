@@ -7,8 +7,19 @@ import { batchLogDoses } from '@/lib/tracker/application/BatchLogService';
 import type { BatchLogItemResult } from '@/lib/tracker/domain/types';
 
 const InputSchema = z.object({
-  selectedProtocolIds: z.array(z.string().min(1)).min(1),
-});
+  selectedProtocolIds: z.array(z.string().min(1)).optional(),
+  selections: z.array(z.object({
+    protocolId: z.string().min(1),
+    doseSlot: z.number().int().min(0).optional(),
+    injectionSite: z.object({
+      bodyPart: z.string().min(1),
+      side: z.enum(['left', 'right']),
+    }).nullable().optional(),
+  })).optional(),
+}).refine(
+  (value) => (value.selectedProtocolIds?.length ?? 0) > 0 || (value.selections?.length ?? 0) > 0,
+  { message: 'Select at least one dose to log.' }
+);
 
 type BatchLogActionResult =
   | { ok: true; results: BatchLogItemResult[] }
@@ -25,7 +36,7 @@ export async function batchLogDosesAction(input: unknown): Promise<BatchLogActio
     return { ok: false, error: 'invalid_input', message: parsed.error.issues[0]?.message ?? 'Invalid input.' };
   }
 
-  const { selectedProtocolIds } = parsed.data;
+  const { selectedProtocolIds, selections } = parsed.data;
   const actorUserId = session.user.id;
 
   // Always log for today — derived server-side; client cannot override the date.
@@ -33,7 +44,7 @@ export async function batchLogDosesAction(input: unknown): Promise<BatchLogActio
   const scheduledDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
   try {
-    const result = await batchLogDoses({ actorUserId, selectedProtocolIds, scheduledDate });
+    const result = await batchLogDoses({ actorUserId, selectedProtocolIds, selections, scheduledDate });
 
     revalidatePath('/tracker');
     revalidatePath('/dashboard');

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import type { Protocol, DoseLog, SafetyWarning } from '@/lib/tracker/domain/types';
+import type { Protocol, DoseLog, InjectionSite, SafetyWarning } from '@/lib/tracker/domain/types';
 import type { DoseUnitsDisplay } from '@/lib/reconstitution/domain/doseUnits';
 import { batchLogDosesAction } from '@/app/actions/tracker/batch-log-doses';
+import { formatSiteLabel } from './SitePicker';
 
 interface SerializedProtocol extends Omit<Protocol, 'startDate' | 'endDate'> {
   startDate: string;
@@ -16,6 +17,18 @@ interface SerializedDoseLog extends Omit<DoseLog, 'loggedAt' | 'scheduledDate' |
   loggedCost: string | null;
 }
 
+type SerializedSiteSuggestion = {
+  suggestion: InjectionSite | null;
+  validSites: InjectionSite[];
+  siteMeta: Array<{
+    site: InjectionSite;
+    lastUsed: string | null;
+    daysSinceLastUse: number | null;
+    isRested: boolean;
+  }>;
+  recentSites: InjectionSite[];
+};
+
 interface SerializedBatchDueItem {
   protocol: SerializedProtocol;
   doseSlot: number;
@@ -25,6 +38,7 @@ interface SerializedBatchDueItem {
   isAvailable: boolean;
   safetyWarnings?: SafetyWarning[];
   doseUnits: DoseUnitsDisplay | null;
+  siteSuggestion?: SerializedSiteSuggestion | null;
 }
 
 type Props = {
@@ -41,13 +55,55 @@ function itemKey(item: { protocol: { id: string }; doseSlot: number }): string {
   return `${item.protocol.id}:${item.doseSlot}`;
 }
 
+function siteValue(site: InjectionSite): string {
+  return `${site.side}|${site.bodyPart}`;
+}
+
+function sitesEqual(a: InjectionSite | null | undefined, b: InjectionSite | null | undefined): boolean {
+  return Boolean(a && b && a.side === b.side && a.bodyPart === b.bodyPart);
+}
+
+function normalizeSite(site: InjectionSite | null | undefined): InjectionSite | null {
+  if (!site) return null;
+  return {
+    ...site,
+    bodyPart: site.bodyPart === 'abdomen' ? 'abdomen-lower' : site.bodyPart,
+  };
+}
+
+function findSiteByValue(validSites: InjectionSite[], value: string): InjectionSite | null {
+  const [side, bodyPart] = value.split('|');
+  if ((side !== 'left' && side !== 'right') || !bodyPart) return null;
+  return validSites.find((site) => site.side === side && site.bodyPart === bodyPart) ?? null;
+}
+
+function getRecommendedSite(item: SerializedBatchDueItem): InjectionSite | null {
+  return item.siteSuggestion?.suggestion ?? item.siteSuggestion?.validSites[0] ?? null;
+}
+
+function getInitialSite(item: SerializedBatchDueItem): InjectionSite | null {
+  const existingSite = normalizeSite(item.existingLog?.injectionSite);
+  const validSites = item.siteSuggestion?.validSites ?? [];
+  if (existingSite && (validSites.length === 0 || validSites.some((site) => sitesEqual(site, existingSite)))) {
+    return existingSite;
+  }
+  return getRecommendedSite(item);
+}
+
+function buildInitialSiteSelections(items: SerializedBatchDueItem[]): Record<string, InjectionSite | null> {
+  const selections: Record<string, InjectionSite | null> = {};
+  items.forEach((item) => {
+    selections[itemKey(item)] = getInitialSite(item);
+  });
+  return selections;
+}
+
 export function BatchLogReview({ items, compoundNames, variant = 'default' }: Props) {
   const isSidebar = variant === 'sidebar';
   const [isPending, startTransition] = useTransition();
-  const [selected, setSelected] = useState<Set<string>>(
-    // Only pre-select slots with no existing log — SKIPPED items require explicit opt-in
-    // to avoid silently converting an intentional skip into a LOGGED dose. Keyed per slot.
-    () => new Set(items.filter((i) => i.isAvailable && !i.existingLog).map((i) => itemKey(i)))
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [selectedSites, setSelectedSites] = useState<Record<string, InjectionSite | null>>(
+    () => buildInitialSiteSelections(items)
   );
   const [itemStates, setItemStates] = useState<Record<string, ItemState>>(() => {
     const s: Record<string, ItemState> = {};
@@ -92,6 +148,18 @@ export function BatchLogReview({ items, compoundNames, variant = 'default' }: Pr
       });
       return next;
     });
+
+    setSelectedSites((prev) => {
+      const next: Record<string, InjectionSite | null> = {};
+      items.forEach((item) => {
+        const key = itemKey(item);
+        const validSites = item.siteSuggestion?.validSites ?? [];
+        const previous = prev[key];
+        const previousStillValid = previous && (validSites.length === 0 || validSites.some((site) => sitesEqual(site, previous)));
+        next[key] = previousStillValid ? previous : getInitialSite(item);
+      });
+      return next;
+    });
   }, [items]);
 
   function toggleItem(key: string) {
@@ -103,16 +171,32 @@ export function BatchLogReview({ items, compoundNames, variant = 'default' }: Pr
     });
   }
 
+  function updateSelectedSite(key: string, site: InjectionSite | null) {
+    setSelectedSites((prev) => ({
+      ...prev,
+      [key]: site,
+    }));
+  }
+
   function handleConfirm() {
     const selectedKeys = Array.from(selected);
     if (selectedKeys.length === 0) return;
     setError(null);
 
-    // The action logs every slot of a selected protocol, so submit unique protocol IDs.
-    const selectedProtocolIds = Array.from(new Set(selectedKeys.map((k) => k.split(':')[0])));
+    const itemsByKey = new Map(items.map((item) => [itemKey(item), item]));
+    const selections = selectedKeys.flatMap((key) => {
+      const item = itemsByKey.get(key);
+      if (!item) return [];
+      return [{
+        protocolId: item.protocol.id,
+        doseSlot: item.doseSlot,
+        injectionSite: selectedSites[key] ?? getRecommendedSite(item),
+      }];
+    });
+    if (selections.length === 0) return;
 
     startTransition(async () => {
-      const result = await batchLogDosesAction({ selectedProtocolIds });
+      const result = await batchLogDosesAction({ selections });
 
       if (!result.ok) {
         setError(result.message);
@@ -264,6 +348,11 @@ export function BatchLogReview({ items, compoundNames, variant = 'default' }: Pr
           const state = itemStates[key];
           const isSelected = selected.has(key);
           const itemWarnings = warnings[key] ?? [];
+          const compoundName = compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId;
+          const recommendedSite = getRecommendedSite(item);
+          const validSites = item.siteSuggestion?.validSites ?? [];
+          const selectedSite = selectedSites[key] ?? recommendedSite;
+          const siteSelectId = `dose-site-${item.protocol.id}-${item.doseSlot}`;
 
           if (state === 'logged') {
             return (
@@ -277,7 +366,7 @@ export function BatchLogReview({ items, compoundNames, variant = 'default' }: Pr
                   &#10003;
                 </span>
                 <span className={`${isSidebar ? 'text-xs' : 'text-sm'} font-medium text-success`}>
-                  <span className="font-semibold">{compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId}</span>
+                  <span className="font-semibold">{compoundName}</span>
                   {' '}
                   <span className="text-success/80">
                     <span className="font-mono">{item.protocol.dose.amount}</span> {item.protocol.dose.unit}
@@ -311,7 +400,7 @@ export function BatchLogReview({ items, compoundNames, variant = 'default' }: Pr
                 />
                 <div className="flex-1 min-w-0">
                   <p className={`${isSidebar ? 'text-xs leading-snug' : 'text-sm'} font-semibold text-gray-950 dark:text-gray-100`}>
-                    <span>{compoundNames[item.protocol.compoundId] ?? item.protocol.compoundId}</span>
+                    <span>{compoundName}</span>
                     <span className={`${isSidebar ? 'block' : ''} font-normal text-gray-500`}>
                       {' '}
                       — <span className="font-mono">{item.protocol.dose.amount}</span> {item.protocol.dose.unit}
@@ -335,6 +424,33 @@ export function BatchLogReview({ items, compoundNames, variant = 'default' }: Pr
                   )}
                 </div>
               </label>
+              {validSites.length > 0 && (
+                <div className={`${isSidebar ? 'mt-2 pl-7' : 'mt-2 pl-9'} space-y-1.5`}>
+                  {recommendedSite && (
+                    <p className="text-[11px] font-medium text-gray-500">
+                      Recommended: {formatSiteLabel(recommendedSite)}
+                    </p>
+                  )}
+                  <label htmlFor={siteSelectId} className="sr-only">
+                    Injection site for {compoundName}
+                  </label>
+                  <select
+                    id={siteSelectId}
+                    aria-label={`Injection site for ${compoundName}`}
+                    value={selectedSite ? siteValue(selectedSite) : ''}
+                    disabled={!item.isAvailable || isPending}
+                    onChange={(event) => updateSelectedSite(key, findSiteByValue(validSites, event.target.value))}
+                    className="min-h-9 w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-900 shadow-sm outline-none transition-colors focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 disabled:bg-gray-50 disabled:text-gray-400 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100"
+                  >
+                    {!selectedSite && <option value="">Choose site</option>}
+                    {validSites.map((site) => (
+                      <option key={siteValue(site)} value={siteValue(site)}>
+                        {formatSiteLabel(site)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </li>
           );
         })}

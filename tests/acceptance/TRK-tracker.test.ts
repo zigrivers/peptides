@@ -1873,6 +1873,39 @@ describe('US-TRK-05: Batch Log', () => {
     expect(succeeded.every((r) => r.doseLog.isBatchLog)).toBe(true);
   });
 
+  it('selection payload: logs only the selected dose slot with its injection-site override', async () => {
+    const injectionSite = { bodyPart: 'glute', side: 'left' as const };
+    const twiceProto = { ...makeProtocolRow(proto1Id), schedule: { frequency: 'TwiceDaily' } };
+    mockProtocolFindFirst.mockResolvedValue(twiceProto);
+    mockDoseLogFindFirst.mockResolvedValue(null);
+    mockVialCount.mockResolvedValue(1);
+    mockDoseLogCreate.mockResolvedValue({
+      ...makeLogRow(proto1Id, 'log-selected-slot'),
+      doseSlot: 1,
+      injectionSite,
+    });
+    mockAuditCreate.mockResolvedValue({});
+
+    const result = await batchLogDoses({
+      actorUserId: batchActorUserId,
+      selections: [{ protocolId: proto1Id, doseSlot: 1, injectionSite }],
+      scheduledDate: FROZEN_BATCH,
+    });
+
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].ok).toBe(true);
+    expect(result.results[0].doseSlot).toBe(1);
+    expect(mockDoseLogCreate).toHaveBeenCalledTimes(1);
+    expect(mockDoseLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          doseSlot: 1,
+          injectionSite,
+        }),
+      })
+    );
+  });
+
   it('records logged cost and currency for batch-logged doses when the active vial has cost data', async () => {
     mockProtocolFindFirst.mockResolvedValue(makeProtocolRow(proto1Id));
     mockDoseLogFindFirst.mockResolvedValue(null);
@@ -2141,21 +2174,25 @@ describe('US-TRK-04: Injection Site Rotation', () => {
   const rightDeltoid = { bodyPart: 'deltoid', side: 'right' as const };
   const leftVG = { bodyPart: 'ventrogluteal', side: 'left' as const };
   const rightVG = { bodyPart: 'ventrogluteal', side: 'right' as const };
+  const leftGlute = { bodyPart: 'glute', side: 'left' as const };
+  const rightGlute = { bodyPart: 'glute', side: 'right' as const };
 
   describe('getSitesForRoute', () => {
-    it('AC-4: SubQ route returns abdomen quadrants + thigh sites', () => {
+    it('AC-4: SubQ route returns abdomen quadrants + thigh + glute sites', () => {
       const sites = getSitesForRoute('SubQ');
       expect(sites.some((s) => s.bodyPart === 'abdomen-upper')).toBe(true);
       expect(sites.some((s) => s.bodyPart === 'abdomen-lower')).toBe(true);
       expect(sites.some((s) => s.bodyPart === 'thigh')).toBe(true);
+      expect(sites).toEqual(expect.arrayContaining([leftGlute, rightGlute]));
       expect(sites.every((s) => s.bodyPart !== 'deltoid')).toBe(true);
     });
 
-    it('AC-4: IM route returns thigh + deltoid + ventrogluteal sites', () => {
+    it('AC-4: IM route returns thigh + deltoid + ventrogluteal + glute sites', () => {
       const sites = getSitesForRoute('IM');
       expect(sites.some((s) => s.bodyPart === 'thigh')).toBe(true);
       expect(sites.some((s) => s.bodyPart === 'deltoid')).toBe(true);
       expect(sites.some((s) => s.bodyPart === 'ventrogluteal')).toBe(true);
+      expect(sites).toEqual(expect.arrayContaining([leftGlute, rightGlute]));
     });
 
     it('AC-4: non-injection routes (Oral, Nasal) return empty array', () => {
@@ -2163,12 +2200,12 @@ describe('US-TRK-04: Injection Site Rotation', () => {
       expect(getSitesForRoute('Nasal')).toHaveLength(0);
     });
 
-    it('AC-3: SubQ returns exactly 6 sites (upper/lower left/right abdomen + left/right thigh)', () => {
-      expect(getSitesForRoute('SubQ')).toHaveLength(6);
+    it('AC-3: SubQ returns exactly 8 sites (upper/lower left/right abdomen + thigh + glute)', () => {
+      expect(getSitesForRoute('SubQ')).toHaveLength(8);
     });
 
-    it('AC-3: IM returns exactly 6 sites', () => {
-      expect(getSitesForRoute('IM')).toHaveLength(6);
+    it('AC-3: IM returns exactly 8 sites', () => {
+      expect(getSitesForRoute('IM')).toHaveLength(8);
     });
   });
 
