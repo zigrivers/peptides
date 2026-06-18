@@ -287,21 +287,83 @@ export default async function TrackerPage() {
       },
     ])
   );
+  const activeProtocolCount = protocols.filter((p) => p.status === 'ACTIVE').length;
+  const processedDoseCount = serializedDueToday.filter((item) =>
+    item.existingLog?.status === 'LOGGED' || item.existingLog?.status === 'SKIPPED'
+  ).length;
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-8 space-y-6 animate-page-enter">
+    <main className="max-w-6xl mx-auto px-4 py-6 md:py-8 space-y-6 animate-page-enter">
       {/* Page Header */}
-      <header className="flex items-center justify-between">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Daily Tracker</h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Log your daily protocol doses, rotation sites, and track adaptation timelines.
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Tracker</h1>
+          <p className="mt-1 max-w-2xl text-sm text-gray-500">
+            Log today&apos;s regimen doses first, then use the calendar to review schedule, sites, and history.
           </p>
         </div>
+        <Link
+          href="/tracker/protocols/new"
+          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          Add Regimen
+        </Link>
       </header>
 
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-8">
+          <BatchLogReview items={serializedDueToday} compoundNames={compoundNames} />
+        </div>
+
+        <aside className="grid gap-3 sm:grid-cols-3 lg:col-span-4 lg:grid-cols-1" aria-label="Tracker shortcuts">
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-900 dark:bg-gray-950">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Active Regimens</p>
+            <div className="mt-2 flex items-end justify-between gap-3">
+              <p className="text-2xl font-bold text-gray-950 dark:text-gray-100">{activeProtocolCount}</p>
+              <Link href="/regimen" className="text-sm font-semibold text-primary hover:underline">
+                Manage →
+              </Link>
+            </div>
+          </div>
+
+          {weekInfo ? (
+            <Link
+              href="/tracker/cycles"
+              className="rounded-xl border border-primary/20 bg-primary/5 p-4 shadow-sm transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:bg-primary/10 dark:hover:bg-primary/20"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary/70">Active Cycle</p>
+              <p className="mt-2 text-sm font-bold text-primary">
+                {weekInfo.cycleName}
+                {' — '}
+                {weekInfo.totalWeeks
+                  ? `Week ${weekInfo.weekNumber} of ${weekInfo.totalWeeks}`
+                  : `Week ${weekInfo.weekNumber}`}
+              </p>
+            </Link>
+          ) : (
+            <Link
+              href="/tracker/cycles"
+              className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-gray-900 dark:bg-gray-950 dark:hover:bg-gray-900"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Cycle</p>
+              <p className="mt-2 text-sm font-bold text-gray-900 dark:text-gray-100">Set up cycle tracking →</p>
+            </Link>
+          )}
+
+          <Link
+            href="/tracker/outcomes"
+            className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:hover:bg-emerald-900/30"
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Outcomes</p>
+            <p className="mt-2 text-sm font-bold text-emerald-800 dark:text-emerald-300">
+              {processedDoseCount > 0 ? 'Log ratings & notes →' : "Add today's ratings →"}
+            </p>
+          </Link>
+        </aside>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Calendar navigation and action panel */}
+        {/* Left Column: Calendar navigation and selected-day action panel */}
         <div className="lg:col-span-7 xl:col-span-8 space-y-6">
           <section>
             <TrackerCalendar
@@ -321,52 +383,10 @@ export default async function TrackerPage() {
               preferredTimeByCompoundId={preferredTimeByCompoundId}
             />
           </section>
-
-          {/* Batch Log review for pending / skipped (if any) */}
-          {dueToday.length > 0 && (
-            <section>
-              <BatchLogReview items={serializedDueToday} compoundNames={compoundNames} />
-            </section>
-          )}
         </div>
 
-        {/* Right Column: Sidebar utilities and adaptaion timeline */}
-        <div className="lg:col-span-5 xl:col-span-4 space-y-6">
-          {/* Utilities: Active Cycle & Outcomes links */}
-          <div className="flex flex-col gap-4">
-            {weekInfo && (
-              <Link
-                href="/tracker/cycles"
-                className="flex items-center justify-between rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 px-4 py-3 hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors"
-              >
-                <div>
-                  <p className="text-xs text-primary/70 font-semibold uppercase tracking-wider">Active Cycle</p>
-                  <p className="text-sm font-bold text-primary mt-0.5">
-                    {weekInfo.cycleName}
-                    {' — '}
-                    {weekInfo.totalWeeks
-                      ? `Week ${weekInfo.weekNumber} of ${weekInfo.totalWeeks}`
-                      : `Week ${weekInfo.weekNumber}`}
-                  </p>
-                </div>
-                <span className="text-primary/60 text-sm">→</span>
-              </Link>
-            )}
-
-            <Link
-              href="/tracker/outcomes"
-              className="flex items-center justify-between rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 px-4 py-3 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
-            >
-              <div>
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">Outcomes</p>
-                <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mt-0.5">
-                  Log ratings & correlation →
-                </p>
-              </div>
-            </Link>
-          </div>
-
-          {/* Expected Benefits Timeline */}
+        {/* Right Column: Compact secondary preview */}
+        <div className="lg:col-span-5 xl:col-span-4">
           <BenefitsTimeline
             activeProtocols={serializedActiveProtocolsWithTimeline}
             currentDateISO={todayUTC.toISOString()}
@@ -376,4 +396,3 @@ export default async function TrackerPage() {
     </main>
   );
 }
-
