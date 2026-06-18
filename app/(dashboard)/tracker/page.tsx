@@ -118,6 +118,19 @@ export default async function TrackerPage() {
       })
   );
 
+  const serializeSiteSuggestion = (suggestion: SiteSuggestion | undefined) =>
+    suggestion
+      ? {
+          suggestion: suggestion.suggestion,
+          validSites: suggestion.validSites,
+          siteMeta: suggestion.siteMeta.map((meta) => ({
+            ...meta,
+            lastUsed: meta.lastUsed ? meta.lastUsed.toISOString() : null,
+          })),
+          recentSites: suggestion.recentSites,
+        }
+      : null;
+
   const serializedDueToday = dueToday.map((item) => ({
     ...item,
     protocol: {
@@ -134,6 +147,7 @@ export default async function TrackerPage() {
         }
       : null,
     safetyWarnings: item.safetyWarnings || [],
+    siteSuggestion: serializeSiteSuggestion(siteSuggestions[item.protocol.id]),
   }));
 
   // Prepare active protocols with compound profiles for the Expected Benefits Timeline

@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BatchLogReview } from './BatchLogReview';
 import { batchLogDosesAction } from '@/app/actions/tracker/batch-log-doses';
+import type { InjectionSite } from '@/lib/tracker/domain/types';
 
 vi.mock('@/app/actions/tracker/batch-log-doses', () => ({
   batchLogDosesAction: vi.fn(),
@@ -25,7 +26,21 @@ const baseProtocol = {
   notes: null,
 };
 
-function dueItem(overrides: Partial<Parameters<typeof BatchLogReview>[0]['items'][number]> = {}) {
+const defaultSiteSuggestion = {
+  suggestion: { bodyPart: 'abdomen-upper', side: 'left' } as InjectionSite,
+  validSites: [
+    { bodyPart: 'abdomen-upper', side: 'left' },
+    { bodyPart: 'abdomen-lower', side: 'right' },
+  ] as InjectionSite[],
+  siteMeta: [],
+  recentSites: [],
+};
+
+type TestBatchDueItem = Parameters<typeof BatchLogReview>[0]['items'][number] & {
+  siteSuggestion?: typeof defaultSiteSuggestion | null;
+};
+
+function dueItem(overrides: Partial<TestBatchDueItem> = {}): TestBatchDueItem {
   return {
     protocol: baseProtocol,
     doseSlot: 0,
@@ -38,6 +53,7 @@ function dueItem(overrides: Partial<Parameters<typeof BatchLogReview>[0]['items'
       computable: true,
       unitsText: '5.0 units',
     },
+    siteSuggestion: defaultSiteSuggestion,
     ...overrides,
   };
 }
@@ -75,7 +91,9 @@ describe('BatchLogReview', () => {
     const panel = screen.getByRole('region', { name: "Today's Dose Plan" });
     expect(within(panel).getByText('BPC-157')).toBeDefined();
     expect(within(panel).getByText('TB-500')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Log 2 Selected' })).toBeDefined();
+    expect(screen.getAllByRole('checkbox').every((input) => !(input as HTMLInputElement).checked)).toBe(true);
+    const button = screen.getByRole('button', { name: 'Log 0 Selected' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
   });
 
   it("renders today's dose plan in a compact sidebar variant", () => {
@@ -101,9 +119,10 @@ describe('BatchLogReview', () => {
 
     const panel = screen.getByRole('region', { name: "Today's Dose Plan" });
     expect(within(panel).getByText('0/2 complete')).toBeDefined();
-    expect(within(panel).getByText('2 selected')).toBeDefined();
+    expect(within(panel).getByText('0 selected')).toBeDefined();
     expect(within(panel).queryByText('0 of 2 complete')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Log Selected (2)' })).toBeDefined();
+    const button = screen.getByRole('button', { name: 'Log Selected (0)' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
   });
 
   it('renders a calm empty state when no doses are scheduled today', () => {
@@ -115,7 +134,7 @@ describe('BatchLogReview', () => {
     expect(screen.queryByRole('button', { name: /Log/i })).toBeNull();
   });
 
-  it('uses a specific action label and sends selected protocols to the batch action', () => {
+  it('lets the user select a dose and sends the chosen injection site to the batch action', async () => {
     const mockAction = vi.mocked(batchLogDosesAction);
     mockAction.mockResolvedValue({
       ok: true,
@@ -154,8 +173,24 @@ describe('BatchLogReview', () => {
       />
     );
 
+    expect(screen.getByText('Recommended: Left Upper Abdomen')).toBeDefined();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Injection site for BPC-157' }), {
+      target: { value: 'right|abdomen-lower' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Log 1 Selected' }));
 
-    expect(mockAction).toHaveBeenCalledWith({ selectedProtocolIds: ['proto-1'] });
+    await waitFor(() => {
+      expect(mockAction).toHaveBeenCalledWith({
+        selections: [
+          {
+            protocolId: 'proto-1',
+            doseSlot: 0,
+            injectionSite: { bodyPart: 'abdomen-lower', side: 'right' },
+          },
+        ],
+      });
+    });
   });
 });

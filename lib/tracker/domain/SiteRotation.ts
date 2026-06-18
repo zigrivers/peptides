@@ -7,6 +7,8 @@ const SUBQ_SITES: InjectionSite[] = [
   { bodyPart: 'abdomen-lower', side: 'right' },
   { bodyPart: 'thigh', side: 'left' },
   { bodyPart: 'thigh', side: 'right' },
+  { bodyPart: 'glute', side: 'left' },
+  { bodyPart: 'glute', side: 'right' },
 ];
 
 const IM_SITES: InjectionSite[] = [
@@ -16,6 +18,8 @@ const IM_SITES: InjectionSite[] = [
   { bodyPart: 'deltoid', side: 'right' },
   { bodyPart: 'ventrogluteal', side: 'left' },
   { bodyPart: 'ventrogluteal', side: 'right' },
+  { bodyPart: 'glute', side: 'left' },
+  { bodyPart: 'glute', side: 'right' },
 ];
 
 export const SITES_BY_ROUTE: Record<string, InjectionSite[]> = {

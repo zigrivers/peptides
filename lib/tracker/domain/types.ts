@@ -165,9 +165,19 @@ export type BatchDueItem = {
   doseUnits: DoseUnitsDisplay | null;
 };
 
+export type BatchLogSelection = {
+  protocolId: string;
+  /** Per-day dose occurrence (0-based). Defaults to 0 for once-daily protocols. */
+  doseSlot?: number;
+  injectionSite?: InjectionSite | null;
+};
+
 export type BatchLogInput = {
   actorUserId: string;
-  selectedProtocolIds: string[];
+  /** Legacy protocol-level selection. Logs all slots for each selected protocol. */
+  selectedProtocolIds?: string[];
+  /** Slot-level selection used by Today's Dose Plan so each dose can carry its own site. */
+  selections?: BatchLogSelection[];
   scheduledDate: Date;
 };
 

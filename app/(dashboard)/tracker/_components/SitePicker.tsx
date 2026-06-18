@@ -67,6 +67,8 @@ export function getSiteCoordinates(bodyPart: string, side: 'left' | 'right'): { 
       return side === 'left' ? { cx: 120, cy: 135 } : { cx: 80, cy: 135 };
     case 'ventrogluteal':
       return side === 'left' ? { cx: 130, cy: 175 } : { cx: 70, cy: 175 };
+    case 'glute':
+      return side === 'left' ? { cx: 118, cy: 190 } : { cx: 82, cy: 190 };
     case 'thigh':
       return side === 'left' ? { cx: 115, cy: 225 } : { cx: 85, cy: 225 };
     default:
@@ -83,6 +85,8 @@ const ALL_POSSIBLE_SITES: InjectionSite[] = [
   { bodyPart: 'abdomen-lower', side: 'left' },
   { bodyPart: 'ventrogluteal', side: 'right' },
   { bodyPart: 'ventrogluteal', side: 'left' },
+  { bodyPart: 'glute', side: 'right' },
+  { bodyPart: 'glute', side: 'left' },
   { bodyPart: 'thigh', side: 'right' },
   { bodyPart: 'thigh', side: 'left' },
 ];

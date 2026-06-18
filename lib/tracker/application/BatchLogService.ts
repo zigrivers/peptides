@@ -14,6 +14,7 @@ import type {
   BatchLogItemResult,
   BatchLogResult,
   DoseLog,
+  InjectionSite,
   SafetyWarning,
 } from '../domain/types';
 import { listProtocolsForUser, findProtocolByIdForActor } from '../infrastructure/ProtocolRepo';
@@ -28,6 +29,7 @@ import {
 import { getManagedUserIds } from './ProtocolService';
 import { isScheduledOn } from '../domain/ScheduleGenerator';
 import { dosesPerDay, getDoseSlots } from '../domain/doseSlots';
+import { getSitesForRoute, sitesEqualLegacy } from '../domain/SiteRotation';
 import { Prisma } from '@prisma/client';
 import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 
@@ -35,6 +37,23 @@ import type { JsonValue } from '@/lib/audit/domain/AuditEvent';
 
 function buildIdempotencyKey(userId: string, protocolId: string, scheduledDate: Date, doseSlot: number): string {
   return `${userId}:${protocolId}:${scheduledDate.toISOString().slice(0, 10)}:${doseSlot}`;
+}
+
+function normalizeInjectionSite(site: InjectionSite | null | undefined): InjectionSite | undefined {
+  if (!site) return undefined;
+  return {
+    ...site,
+    bodyPart: site.bodyPart === 'abdomen' ? 'abdomen-lower' : site.bodyPart,
+  };
+}
+
+function validateInjectionSiteForProtocol(protocol: ResolvedBatchProtocol, site: InjectionSite | undefined): void {
+  if (!site) return;
+  const validSites = getSitesForRoute(protocol.administrationRoute);
+  if (validSites.length === 0) return;
+  if (!validSites.some((validSite) => sitesEqualLegacy(validSite, site))) {
+    throw new Error(`invalid_injection_site: ${site.side} ${site.bodyPart} is not valid for ${protocol.administrationRoute}`);
+  }
 }
 
 /**
@@ -199,10 +218,13 @@ async function logOneSlotInBatch(
   protocol: ResolvedBatchProtocol,
   scheduledDate: Date,
   doseSlot: number,
-  vialCountCache: Record<string, number>
+  vialCountCache: Record<string, number>,
+  injectionSite?: InjectionSite | null
 ): Promise<{ doseLog: DoseLog; warnings: SafetyWarning[] }> {
   const protocolId = protocol.id;
   const subjectUserId = protocol.userId; // always === actorUserId in batch flow
+  const normalizedInjectionSite = normalizeInjectionSite(injectionSite);
+  validateInjectionSiteForProtocol(protocol, normalizedInjectionSite);
   const idempotencyKey = buildIdempotencyKey(subjectUserId, protocolId, scheduledDate, doseSlot);
   const existing = await findDoseLogByIdempotencyKey(prisma, idempotencyKey, subjectUserId);
 
@@ -244,14 +266,17 @@ async function logOneSlotInBatch(
 
       await decrementVialInventory(tx, subjectUserId, activeVial.id, doseAmountVal, doseUnit, syringeStandard);
 
-      const log = await updateDoseLog(tx, existing.id, subjectUserId, {
+      const updates: Parameters<typeof updateDoseLog>[3] = {
         status: 'LOGGED',
         isBatchLog: true,
         vialId: activeVial.id,
         loggedByUserId: actorUserId,
         loggedCost,
         loggedCurrency,
-      });
+      };
+      if (normalizedInjectionSite !== undefined) updates.injectionSite = normalizedInjectionSite;
+
+      const log = await updateDoseLog(tx, existing.id, subjectUserId, updates);
       await tx.auditEvent.create({
         data: {
           actorUserId,
@@ -267,6 +292,7 @@ async function logOneSlotInBatch(
             status: 'LOGGED',
             isBatchLog: true,
             loggedByUserId: actorUserId,
+            ...(normalizedInjectionSite ? { injectionSite: normalizedInjectionSite as unknown as JsonValue } : {}),
           },
         },
       });
@@ -304,6 +330,7 @@ async function logOneSlotInBatch(
         status: 'LOGGED',
         vialId: activeVial.id,
         isBatchLog: true,
+        injectionSite: normalizedInjectionSite,
         loggedByUserId: actorUserId,
         loggedCost,
         loggedCurrency,
@@ -323,6 +350,7 @@ async function logOneSlotInBatch(
             status: 'LOGGED',
             isBatchLog: true,
             amount: amount as unknown as JsonValue,
+            ...(normalizedInjectionSite ? { injectionSite: normalizedInjectionSite as unknown as JsonValue } : {}),
           },
         },
       });
@@ -358,14 +386,17 @@ async function logOneSlotInBatch(
 
           await decrementVialInventory(tx, subjectUserId, activeVial.id, doseAmountVal, doseUnit, syringeStandard);
 
-          const log = await updateDoseLog(tx, winner.id, subjectUserId, {
+          const updates: Parameters<typeof updateDoseLog>[3] = {
             status: 'LOGGED',
             isBatchLog: true,
             vialId: activeVial.id,
             loggedByUserId: actorUserId,
             loggedCost,
             loggedCurrency,
-          });
+          };
+          if (normalizedInjectionSite !== undefined) updates.injectionSite = normalizedInjectionSite;
+
+          const log = await updateDoseLog(tx, winner.id, subjectUserId, updates);
           await tx.auditEvent.create({
             data: {
               actorUserId,
@@ -375,7 +406,13 @@ async function logOneSlotInBatch(
               resourceId: log.id,
               resourceType: 'DoseLog',
               oldValues: { status: 'SKIPPED' },
-              newValues: { protocolId, scheduledDate: scheduledDate.toISOString(), status: 'LOGGED', isBatchLog: true },
+              newValues: {
+                protocolId,
+                scheduledDate: scheduledDate.toISOString(),
+                status: 'LOGGED',
+                isBatchLog: true,
+                ...(normalizedInjectionSite ? { injectionSite: normalizedInjectionSite as unknown as JsonValue } : {}),
+              },
             },
           });
           return log;
@@ -393,34 +430,70 @@ export async function batchLogDoses(input: BatchLogInput): Promise<BatchLogResul
   const vialCountCache: Record<string, number> = {};
 
   const results: BatchLogItemResult[] = [];
+  const requestedByProtocol = new Map<string, Array<{ doseSlot: number; injectionSite?: InjectionSite | null }> | null>();
 
-  for (const protocolId of input.selectedProtocolIds) {
+  if (input.selections && input.selections.length > 0) {
+    for (const selection of input.selections) {
+      const doseSlot = selection.doseSlot ?? 0;
+      const selectionsForProtocol = requestedByProtocol.get(selection.protocolId) ?? [];
+      if (selectionsForProtocol !== null) {
+        const existingIndex = selectionsForProtocol.findIndex((entry) => entry.doseSlot === doseSlot);
+        const nextSelection = { doseSlot, injectionSite: selection.injectionSite };
+        if (existingIndex >= 0) {
+          selectionsForProtocol[existingIndex] = nextSelection;
+        } else {
+          selectionsForProtocol.push(nextSelection);
+        }
+        requestedByProtocol.set(selection.protocolId, selectionsForProtocol);
+      }
+    }
+  } else {
+    for (const protocolId of input.selectedProtocolIds ?? []) {
+      requestedByProtocol.set(protocolId, null);
+    }
+  }
+
+  for (const [protocolId, requestedSelections] of requestedByProtocol.entries()) {
     let protocol: ResolvedBatchProtocol;
     try {
       protocol = await resolveBatchProtocol(input.actorUserId, managedIds, protocolId, scheduledDate);
     } catch (err) {
       const error = err instanceof Error ? err.message : 'Unknown error';
-      // Protocol-level failure (not found / scope / schedule) → one failed result for slot 0.
-      results.push({ ok: false, protocolId, doseSlot: 0, error });
+      const failedSlots = requestedSelections ?? [{ doseSlot: 0 }];
+      for (const slot of failedSlots) {
+        results.push({ ok: false, protocolId, doseSlot: slot.doseSlot, error });
+      }
       continue;
     }
 
-    // Log every per-day dose slot the protocol represents (slot 0 for once-daily; 0 and 1 for
-    // twice-daily). Slot numbers come from the schedule; labels are irrelevant when logging.
-    const slots = getDoseSlots(protocol.schedule);
+    const scheduleSlots = getDoseSlots(protocol.schedule);
+    const validSlotNumbers = new Set(scheduleSlots.map((slot) => slot.slot));
+    const slots: Array<{ doseSlot: number; injectionSite?: InjectionSite | null }> =
+      requestedSelections ?? scheduleSlots.map((slot) => ({ doseSlot: slot.slot }));
     for (const slot of slots) {
+      if (!validSlotNumbers.has(slot.doseSlot)) {
+        results.push({
+          ok: false,
+          protocolId,
+          doseSlot: slot.doseSlot,
+          error: `invalid_dose_slot: Slot ${slot.doseSlot} is not scheduled for this protocol`,
+        });
+        continue;
+      }
+
       try {
         const { doseLog, warnings } = await logOneSlotInBatch(
           input.actorUserId,
           protocol,
           scheduledDate,
-          slot.slot,
-          vialCountCache
+          slot.doseSlot,
+          vialCountCache,
+          slot.injectionSite
         );
-        results.push({ ok: true, protocolId, doseSlot: slot.slot, doseLog, warnings });
+        results.push({ ok: true, protocolId, doseSlot: slot.doseSlot, doseLog, warnings });
       } catch (err) {
         const error = err instanceof Error ? err.message : 'Unknown error';
-        results.push({ ok: false, protocolId, doseSlot: slot.slot, error });
+        results.push({ ok: false, protocolId, doseSlot: slot.doseSlot, error });
       }
     }
   }
