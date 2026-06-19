@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
+import { parseStrictUTCDate, utcMidnightToday } from '@/lib/shared/date';
 import { batchLogDoses } from '@/lib/tracker/application/BatchLogService';
 import type { BatchLogItemResult } from '@/lib/tracker/domain/types';
 
@@ -16,6 +17,7 @@ const InputSchema = z.object({
       side: z.enum(['left', 'right']),
     }).nullable().optional(),
   })).optional(),
+  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (must be YYYY-MM-DD)').optional(),
 }).refine(
   (value) => (value.selectedProtocolIds?.length ?? 0) > 0 || (value.selections?.length ?? 0) > 0,
   { message: 'Select at least one dose to log.' }
@@ -36,12 +38,16 @@ export async function batchLogDosesAction(input: unknown): Promise<BatchLogActio
     return { ok: false, error: 'invalid_input', message: parsed.error.issues[0]?.message ?? 'Invalid input.' };
   }
 
-  const { selectedProtocolIds, selections } = parsed.data;
+  const { selectedProtocolIds, selections, scheduledDate: scheduledDateInput } = parsed.data;
   const actorUserId = session.user.id;
 
-  // Always log for today — derived server-side; client cannot override the date.
-  const now = new Date();
-  const scheduledDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const scheduledDate = scheduledDateInput
+    ? parseStrictUTCDate(scheduledDateInput)
+    : utcMidnightToday();
+
+  if (!scheduledDate) {
+    return { ok: false, error: 'invalid_input', message: 'Invalid scheduled date value.' };
+  }
 
   try {
     const result = await batchLogDoses({ actorUserId, selectedProtocolIds, selections, scheduledDate });
