@@ -6,17 +6,36 @@ export interface VialInfo {
   bacWaterMl: Prisma.Decimal | Decimal | null;
 }
 
+type DoseInputAmount = Decimal | string;
+
+function parseDoseAmountParts(amount: DoseInputAmount): Decimal[] {
+  const raw = typeof amount === 'string' ? amount : amount.toString();
+  const parts = raw.includes('/') ? raw.split('/') : [raw];
+  return parts.map((part) => new Decimal(part.trim()));
+}
+
+function sumDoseAmountParts(amount: DoseInputAmount): Decimal {
+  return parseDoseAmountParts(amount).reduce((sum, part) => sum.plus(part), new Decimal(0));
+}
+
 export function convertDoseToMg(
-  amount: Decimal,
+  amount: DoseInputAmount,
   unit: string,
   vial: VialInfo,
   syringeStandard?: string
 ): Decimal {
   if (unit === 'mcg') {
-    return amount.dividedBy(1000);
+    return sumDoseAmountParts(amount).dividedBy(1000);
   }
   if (unit === 'mg') {
-    return amount;
+    return sumDoseAmountParts(amount);
+  }
+  if (unit === 'mcg/mg') {
+    const parts = parseDoseAmountParts(amount);
+    if (parts.length !== 2) {
+      throw new Error('invalid_dose_amount: mcg/mg doses must use mcg/mg amount components');
+    }
+    return parts[0].dividedBy(1000).plus(parts[1]);
   }
 
   if (!vial.bacWaterMl || new Decimal(vial.bacWaterMl.toString()).lte(0)) {
@@ -31,11 +50,11 @@ export function convertDoseToMg(
   const concentration = totalMg.dividedBy(bacWaterMl);
 
   if (unit === 'mL') {
-    return amount.times(concentration);
+    return sumDoseAmountParts(amount).times(concentration);
   }
   if (unit === 'IU') {
     const conversionFactor = syringeStandard === 'U40' ? new Decimal('0.025') : new Decimal('0.01');
-    const doseMl = amount.times(conversionFactor);
+    const doseMl = sumDoseAmountParts(amount).times(conversionFactor);
     return doseMl.times(concentration);
   }
 
@@ -46,7 +65,7 @@ export async function decrementVialInventory(
   tx: Prisma.TransactionClient,
   userId: string,
   vialId: string,
-  amount: Decimal,
+  amount: DoseInputAmount,
   unit: string,
   syringeStandard?: string
 ): Promise<void> {
@@ -83,7 +102,7 @@ export async function incrementVialInventory(
   tx: Prisma.TransactionClient,
   userId: string,
   vialId: string,
-  amount: Decimal,
+  amount: DoseInputAmount,
   unit: string,
   syringeStandard?: string
 ): Promise<void> {

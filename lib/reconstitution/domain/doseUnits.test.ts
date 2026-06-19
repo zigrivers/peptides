@@ -33,6 +33,14 @@ describe('doseToSyringeUnits — mcg/mg (needs vial concentration)', () => {
     expect(r.computable && r.units.equals(expected.syringeUnitsPerDose)).toBe(true);
   });
 
+  it('converts a stacked mcg/mg amount using both components', () => {
+    const r = doseToSyringeUnits({ amount: '1000/10.0', unit: 'mcg/mg' }, vial20mg2ml, 'U100');
+    expect(r.computable).toBe(true);
+    if (!r.computable) return;
+    expect(r.units.toString()).toBe('110');
+    expect(r.injectionVolMl.toString()).toBe('1.1');
+  });
+
   it('returns needs_vial for a mcg/mg dose with no vial concentration', () => {
     const r = doseToSyringeUnits({ amount: '500', unit: 'mcg' }, null, 'U100');
     expect(r).toEqual({ computable: false, reason: 'needs_vial' });
@@ -84,6 +92,11 @@ describe('buildDoseUnitsDisplay — formatting', () => {
   it('computable mcg/mg → ≈ {1 decimal} units (U-100)', () => {
     const d = buildDoseUnitsDisplay({ amount: '1', unit: 'mg' }, vial20mg2ml, 'U100');
     expect(d).toEqual({ computable: true, unitsText: '≈ 10.0 units (U-100)' });
+  });
+
+  it('formats stacked mcg/mg units with the combined syringe pull', () => {
+    const d = buildDoseUnitsDisplay({ amount: '1000/10.0', unit: 'mcg/mg' }, vial20mg2ml, 'U100');
+    expect(d).toEqual({ computable: true, unitsText: '≈ 110.0 units (U-100)' });
   });
 
   it('maps U40 standard to (U-40) label', () => {

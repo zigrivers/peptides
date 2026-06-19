@@ -67,7 +67,7 @@ async function runInTx<T>(
 async function resolveDoseCost(
   tx: Prisma.TransactionClient,
   vialId: string | null,
-  doseAmount: Decimal,
+  doseAmount: Decimal | string,
   doseUnit: string,
   syringeStandard: string,
   userId: string,
@@ -312,7 +312,7 @@ export async function logDose(
       let newVialId = input.status === 'SKIPPED' ? null : (input.vialId ?? existing.vialId);
 
       const existingAmount = existing.amount as Record<string, unknown>;
-      const doseAmountVal = parseDoseAmountSum(existingAmount.amount as string);
+      const doseAmountVal = existingAmount.amount as string;
       const doseUnit = existingAmount.unit as string;
 
       if (oldStatus === 'LOGGED' && newStatus === 'SKIPPED') {
@@ -444,7 +444,7 @@ export async function logDose(
             innerTx,
             subjectUserId,
             effectiveVialId,
-            parseDoseAmountSum(amount.amount),
+            amount.amount,
             amount.unit,
             syringeStandard
           );
@@ -464,7 +464,7 @@ export async function logDose(
         const costRes = await resolveDoseCost(
           innerTx,
           effectiveVialId ?? null,
-          parseDoseAmountSum(amount.amount),
+          amount.amount,
           amount.unit,
           syringeStandard,
           subjectUserId,

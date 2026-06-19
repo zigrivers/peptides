@@ -81,13 +81,6 @@ async function resolvePreferredTimeByCompound(compoundIds: string[]): Promise<Re
   return result;
 }
 
-function parseDoseAmountSum(amountStr: string): Decimal {
-  if (amountStr.includes('/')) {
-    return amountStr.split('/').reduce((sum, part) => sum.plus(new Decimal(part.trim())), new Decimal(0));
-  }
-  return new Decimal(amountStr);
-}
-
 function calculateLoggedCost(
   vial: {
     cost: Prisma.Decimal | Decimal | number | string | null;
@@ -104,7 +97,7 @@ function calculateLoggedCost(
 
   try {
     const doseMg = convertDoseToMg(
-      parseDoseAmountSum(amount.amount),
+      amount.amount,
       amount.unit,
       { totalMg: new Decimal(vial.totalMg.toString()), bacWaterMl: vial.bacWaterMl ? new Decimal(vial.bacWaterMl.toString()) : null },
       syringeStandard
@@ -260,7 +253,7 @@ async function logOneSlotInBatch(
       });
       const syringeStandard = user?.syringeStandard ?? 'U100';
 
-      const doseAmountVal = parseDoseAmountSum(amount.amount);
+      const doseAmountVal = amount.amount;
       const doseUnit = amount.unit;
       const { loggedCost, loggedCurrency } = calculateLoggedCost(activeVial, amount, syringeStandard);
 
@@ -314,7 +307,7 @@ async function logOneSlotInBatch(
       });
       const syringeStandard = user?.syringeStandard ?? 'U100';
 
-      const doseAmountVal = parseDoseAmountSum(amount.amount);
+      const doseAmountVal = amount.amount;
       const doseUnit = amount.unit;
       const { loggedCost, loggedCurrency } = calculateLoggedCost(activeVial, amount, syringeStandard);
 
@@ -380,7 +373,7 @@ async function logOneSlotInBatch(
           });
           const syringeStandard = user?.syringeStandard ?? 'U100';
 
-          const doseAmountVal = parseDoseAmountSum(amount.amount);
+          const doseAmountVal = amount.amount;
           const doseUnit = amount.unit;
           const { loggedCost, loggedCurrency } = calculateLoggedCost(activeVial, amount, syringeStandard);
 

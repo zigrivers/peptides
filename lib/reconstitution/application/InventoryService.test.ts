@@ -24,6 +24,11 @@ describe('InventoryService', () => {
       expect(res.toNumber()).toBe(2.5);
     });
 
+    it('converts stacked mcg/mg doses to total mg', () => {
+      const res = convertDoseToMg('1000/10.0', 'mcg/mg', mockVial);
+      expect(res.toNumber()).toBe(11);
+    });
+
     it('converts mL to mg using vial concentration', () => {
       // concentration is 10mg / 2mL = 5mg/mL.
       // 0.5 mL should be 0.5 * 5 = 2.5 mg.
@@ -82,6 +87,26 @@ describe('InventoryService', () => {
       expect(mockTx.vial.updateMany).toHaveBeenCalledWith({
         where: { id: 'vial-1', userId: 'user-1', remainingMg: { gte: new Decimal('0.5') } },
         data: { remainingMg: { decrement: new Decimal('0.5') } },
+      });
+    });
+
+    it('decrements inventory for stacked mcg/mg doses using the total mg equivalent', async () => {
+      mockTx.vial.findFirst.mockResolvedValue({
+        id: 'vial-1',
+        userId: 'user-1',
+        totalMg: new Decimal('20'),
+        bacWaterMl: new Decimal('2'),
+        remainingMg: new Decimal('20'),
+        status: 'RECONSTITUTED',
+      });
+      mockTx.vial.updateMany.mockResolvedValue({ count: 1 });
+      mockTx.vial.findUnique.mockResolvedValue({ remainingMg: new Decimal('9') });
+
+      await decrementVialInventory(mockTx, 'user-1', 'vial-1', '1000/10.0', 'mcg/mg', 'U100');
+
+      expect(mockTx.vial.updateMany).toHaveBeenCalledWith({
+        where: { id: 'vial-1', userId: 'user-1', remainingMg: { gte: new Decimal('11') } },
+        data: { remainingMg: { decrement: new Decimal('11') } },
       });
     });
 

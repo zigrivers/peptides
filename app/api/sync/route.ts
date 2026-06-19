@@ -11,7 +11,7 @@ const syncEntrySchema = z.object({
   doseSlot: z.number().int().min(0).optional().default(0),
   amount: z.object({
     amount: z.string(),
-    unit: z.enum(['mcg', 'mg', 'IU', 'mL']),
+    unit: z.enum(['mcg', 'mg', 'mcg/mg', 'IU', 'mL']),
   }),
   status: z.enum(['LOGGED', 'SKIPPED']),
   injectionSite: InjectionSiteSchema.optional().nullable(),

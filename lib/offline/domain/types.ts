@@ -1,4 +1,4 @@
-export type DoseUnit = 'mcg' | 'mg' | 'IU' | 'mL';
+export type DoseUnit = 'mcg' | 'mg' | 'mcg/mg' | 'IU' | 'mL';
 
 export interface QueuedDoseLog {
   id?: string;
@@ -22,4 +22,3 @@ export type EnqueueInput = Omit<QueuedDoseLog, 'synced' | 'id' | 'queuedAt' | 'd
 };
 
 export type EnqueueResult = { ok: true; id: string } | { ok: false; error: string };
-

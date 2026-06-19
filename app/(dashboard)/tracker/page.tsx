@@ -21,6 +21,7 @@ import { BenefitsTimeline } from './_components/BenefitsTimeline';
 import { getSiteSuggestion } from '@/lib/tracker/application/SiteRotationService';
 import { computeAdheredDates } from '@/lib/tracker/domain/adherence';
 import type { SiteSuggestion } from '@/lib/tracker/domain/SiteRotation';
+import type { DoseAmount } from '@/lib/tracker/domain/types';
 import type { CompoundProfile } from '@/lib/reference/domain/types';
 
 export default async function TrackerPage() {
@@ -231,7 +232,7 @@ export default async function TrackerPage() {
 
   // One representative dose per compound (active protocols + due-today). Keyed by compoundId
   // to match how the calendar renders units next to a SCHEDULED event.
-  const doseByCompound = new Map<string, { amount: string; unit: 'mcg' | 'mg' | 'IU' | 'mL' }>();
+  const doseByCompound = new Map<string, DoseAmount>();
   for (const p of protocols) {
     if (p.status === 'ACTIVE') doseByCompound.set(p.compoundId, p.dose);
   }

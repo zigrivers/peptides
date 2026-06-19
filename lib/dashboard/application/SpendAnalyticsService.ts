@@ -60,13 +60,6 @@ function getDosesPerDay(scheduleValue: unknown): Decimal {
   return new Decimal(0);
 }
 
-function parseDoseAmountSum(amountStr: string): Decimal {
-  if (amountStr.includes('/')) {
-    return amountStr.split('/').reduce((sum, part) => sum.plus(new Decimal(part.trim())), new Decimal(0));
-  }
-  return new Decimal(amountStr);
-}
-
 function parseDoseAmount(value: unknown): { amount: string; unit: string } | null {
   if (!isRecord(value)) return null;
   if (typeof value.amount !== 'string' || typeof value.unit !== 'string') return null;
@@ -246,7 +239,7 @@ export async function getSpendAnalytics(userId: string): Promise<SpendAnalytics>
     if (doseObj) {
       try {
         const doseMg = convertDoseToMg(
-          parseDoseAmountSum(doseObj.amount),
+          doseObj.amount,
           doseObj.unit,
           vialForConversion || { totalMg: new Decimal(10), bacWaterMl: new Decimal(2) },
           syringeStandard

@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/shared/prisma';
 import { buildRegimenDoseDisplay } from '@/lib/reconstitution/domain/doseUnits';
 import { formatScheduleFrequency } from '@/lib/tracker/domain/schedule';
-import type { Schedule as DomainSchedule } from '@/lib/tracker/domain/types';
+import type { DoseAmount, Schedule as DomainSchedule } from '@/lib/tracker/domain/types';
 import { RegimenClient } from './_components/RegimenClient';
 
 function isTwiceDaily(schedule: DomainSchedule): boolean {
@@ -194,7 +194,7 @@ export default async function RegimenPage() {
     const syringeStandard = (owner?.syringeStandard ?? 'U100') as 'U100' | 'U40';
 
     const dd = buildRegimenDoseDisplay(
-      { amount: doseAmountStr, unit: doseUnitStr as 'mcg' | 'mg' | 'IU' | 'mL' },
+      { amount: doseAmountStr, unit: doseUnitStr as DoseAmount['unit'] },
       vialConcentration,
       syringeStandard
     );

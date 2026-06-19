@@ -278,7 +278,7 @@ function calculateDailyEquivalentMg(
   let doseMg: Decimal;
   try {
     doseMg = convertDoseToMg(
-      parseDoseAmountSum(protocol.dose.amount),
+      protocol.dose.amount,
       protocol.dose.unit,
       {
         totalMg: new Decimal(referenceVial.totalMg),
@@ -369,36 +369,68 @@ function calculateCompoundRunout(
   }));
 
   // Iterative helper to deduct dose from simulated vials sequentially
-  const deductDose = (initialDoseAmount: Decimal, doseUnit: string): boolean => {
-    let remainingDoseAmount = initialDoseAmount;
-    for (const v of simulatedVials) {
-      if (v.remainingMg.lte(0)) continue;
+  const deductDose = (initialDoseAmount: string, doseUnit: string): boolean => {
+    if (doseUnit === 'mL' || doseUnit === 'IU') {
+      let remainingDoseAmount = parseDoseAmountSum(initialDoseAmount);
+      for (const v of simulatedVials) {
+        if (v.remainingMg.lte(0)) continue;
 
-      let doseMg: Decimal;
-      try {
-        doseMg = convertDoseToMg(
-          remainingDoseAmount,
-          doseUnit,
-          {
-            totalMg: v.totalMg,
-            bacWaterMl: v.bacWaterMl,
-          },
-          syringeStandard
-        );
-      } catch {
-        doseMg = new Decimal(0);
-      }
+        let doseMg: Decimal;
+        try {
+          doseMg = convertDoseToMg(
+            remainingDoseAmount,
+            doseUnit,
+            {
+              totalMg: v.totalMg,
+              bacWaterMl: v.bacWaterMl,
+            },
+            syringeStandard
+          );
+        } catch {
+          doseMg = new Decimal(0);
+        }
 
-      if (doseMg.lte(0)) return true;
+        if (doseMg.lte(0)) return true;
 
-      if (v.remainingMg.gte(doseMg)) {
-        v.remainingMg = v.remainingMg.minus(doseMg);
-        return true;
-      } else {
+        if (v.remainingMg.gte(doseMg)) {
+          v.remainingMg = v.remainingMg.minus(doseMg);
+          return true;
+        }
+
         const fractionLeft = new Decimal(1).minus(v.remainingMg.div(doseMg));
         v.remainingMg = new Decimal(0);
         remainingDoseAmount = remainingDoseAmount.mul(fractionLeft);
       }
+      return false;
+    }
+
+    let remainingDoseMg: Decimal;
+    try {
+      remainingDoseMg = convertDoseToMg(
+        initialDoseAmount,
+        doseUnit,
+        {
+          totalMg: simulatedVials[0]?.totalMg ?? new Decimal(0),
+          bacWaterMl: simulatedVials[0]?.bacWaterMl ?? null,
+        },
+        syringeStandard
+      );
+    } catch {
+      return true;
+    }
+
+    for (const v of simulatedVials) {
+      if (v.remainingMg.lte(0)) continue;
+
+      if (remainingDoseMg.lte(0)) return true;
+
+      if (v.remainingMg.gte(remainingDoseMg)) {
+        v.remainingMg = v.remainingMg.minus(remainingDoseMg);
+        return true;
+      }
+
+      remainingDoseMg = remainingDoseMg.minus(v.remainingMg);
+      v.remainingMg = new Decimal(0);
     }
     return false;
   };
@@ -411,7 +443,7 @@ function calculateCompoundRunout(
     const checkDate = new Date(today);
     checkDate.setUTCDate(today.getUTCDate() + daysLeft);
 
-    const dayDoses: { protocol: Protocol; amount: Decimal; unit: string }[] = [];
+    const dayDoses: { protocol: Protocol; amount: string; unit: string }[] = [];
     for (const p of activeProtocols) {
       const protocolStartDate = new Date(p.startDate);
       const protocolEndDate = p.endDate ? new Date(p.endDate) : null;
@@ -422,7 +454,7 @@ function calculateCompoundRunout(
         for (let i = 0; i < perDay; i++) {
           dayDoses.push({
             protocol: p,
-            amount: parseDoseAmountSum(p.dose.amount),
+            amount: p.dose.amount,
             unit: p.dose.unit,
           });
         }

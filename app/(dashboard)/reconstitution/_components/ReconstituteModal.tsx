@@ -46,6 +46,11 @@ type SyringeSize = '0.3' | '0.5' | '1.0';
 function doseAmountToMcg(dose: { amount: string; unit: string } | null | undefined): Decimal | null {
   if (!dose) return null;
   try {
+    if (dose.unit === 'mcg/mg') {
+      const parts = dose.amount.split('/').map((part) => part.trim());
+      if (parts.length !== 2 || parts.some((part) => part === '')) return null;
+      return new Decimal(parts[0]).plus(new Decimal(parts[1]).times(1000));
+    }
     const amount = new Decimal(dose.amount);
     if (dose.unit === 'mcg') return amount;
     if (dose.unit === 'mg') return amount.times(1000);
