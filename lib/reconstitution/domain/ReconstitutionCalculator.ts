@@ -16,6 +16,17 @@ export interface ReconstitutionResult {
   syringeUnitsPerDose: Decimal;
 }
 
+export interface ReconstitutionWaterForSyringeInput {
+  totalMg: Decimal;
+  targetDoseMcg: Decimal;
+  targetSyringeUnits: Decimal;
+  syringeStandard?: string;
+}
+
+export interface ReconstitutionWaterForSyringeResult extends ReconstitutionResult {
+  bacWaterMl: Decimal;
+}
+
 /**
  * Pure reconstitution calculator — no DB or UI dependencies (Task 1.3).
  * All math uses Decimal to prevent floating-point errors (safety-math rule).
@@ -49,5 +60,35 @@ export const ReconstitutionCalculator = {
     const syringeUnitsPerDose = injectionVolMl.dividedBy(volPerUnit);
 
     return { concentrationMgPerMl, concentrationMcgPerMl, injectionVolMl, syringeUnitsPerDose };
+  },
+
+  calculateWaterForSyringeUnits(
+    input: ReconstitutionWaterForSyringeInput
+  ): ReconstitutionWaterForSyringeResult {
+    const { totalMg, targetDoseMcg, targetSyringeUnits, syringeStandard } = input;
+
+    if (totalMg.lte(0)) {
+      throw new Error('vial_total_must_be_positive');
+    }
+    if (targetDoseMcg.lte(0)) {
+      throw new Error('target_dose_must_be_positive');
+    }
+    if (targetSyringeUnits.lte(0)) {
+      throw new Error('target_syringe_units_must_be_positive');
+    }
+
+    const volPerUnit = getVolumePerUnit(syringeStandard);
+    const injectionVolMl = targetSyringeUnits.times(volPerUnit);
+    const concentrationMcgPerMl = targetDoseMcg.dividedBy(injectionVolMl);
+    const concentrationMgPerMl = concentrationMcgPerMl.dividedBy(1000);
+    const bacWaterMl = totalMg.times(1000).times(injectionVolMl).dividedBy(targetDoseMcg);
+
+    return {
+      bacWaterMl,
+      concentrationMgPerMl,
+      concentrationMcgPerMl,
+      injectionVolMl,
+      syringeUnitsPerDose: targetSyringeUnits,
+    };
   },
 };
