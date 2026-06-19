@@ -42,7 +42,7 @@ function validateDoseAmount(amount: string): void {
 }
 
 // Strict Zod schemas for JSON fields to prevent type system bypasses (F-003, F-004)
-export const DoseUnitSchema = z.enum(['mcg', 'mg', 'IU', 'mL']);
+export const DoseUnitSchema = z.enum(['mcg', 'mg', 'mcg/mg', 'IU', 'mL']);
 
 export const DoseAmountSchema = z.object({
   amount: z.string(),
@@ -88,4 +88,3 @@ export function parseInjectionSite(val: unknown): InjectionSite | null {
 export function parseSchedule(val: unknown): Schedule {
   return ScheduleSchema.parse(val) as Schedule;
 }
-

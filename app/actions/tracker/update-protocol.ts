@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache';
 
 const DoseAmountSchema = z.object({
   amount: z.string().min(1),
-  unit: z.enum(['mcg', 'mg', 'IU', 'mL']),
+  unit: z.enum(['mcg', 'mg', 'mcg/mg', 'IU', 'mL']),
 });
 
 const ScheduleSchema = z.discriminatedUnion('frequency', [

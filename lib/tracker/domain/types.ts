@@ -1,7 +1,7 @@
 import type { DoseUnitsDisplay } from '@/lib/reconstitution/domain/doseUnits';
 import Decimal from 'decimal.js';
 
-export type DoseUnit = 'mcg' | 'mg' | 'IU' | 'mL';
+export type DoseUnit = 'mcg' | 'mg' | 'mcg/mg' | 'IU' | 'mL';
 
 export type DoseAmount = {
   amount: string; // Decimal-serialized string

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Snowflake, Thermometer, AlertCircle, Beaker, Volume2, VolumeX } from 'lucide-react';
+import { Snowflake, Thermometer, AlertCircle, Beaker } from 'lucide-react';
 import type { SerializedVialData } from '@/lib/reconstitution/application/VialService';
 
 interface Props {
@@ -11,8 +11,6 @@ interface Props {
   roomTempActiveVials: SerializedVialData[];
   onAddDry: () => void;
   onAddActive: () => void;
-  soundEnabled: boolean;
-  onToggleSound: () => void;
 }
 
 export function InventoryDashboard({
@@ -22,8 +20,6 @@ export function InventoryDashboard({
   roomTempActiveVials,
   onAddDry,
   onAddActive,
-  soundEnabled,
-  onToggleSound,
 }: Props) {
   // Count stats
   const totalColdDry = coldDryVials.length;
@@ -51,20 +47,11 @@ export function InventoryDashboard({
               : 'Track ready reconstituted vials, dry reserves, and stability alerts.'}
           </p>
         </div>
-        <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto">
-          <button
-            onClick={onToggleSound}
-            type="button"
-            aria-label={soundEnabled ? 'Mute sound effects' : 'Unmute sound effects'}
-            className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border bg-background p-2 text-muted-foreground transition-colors duration-200 hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            title={soundEnabled ? 'Mute sound effects' : 'Unmute sound effects'}
-          >
-            {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-          </button>
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto">
           <button
             onClick={onAddDry}
             type="button"
-            className="flex min-h-9 min-w-[10rem] flex-1 items-center justify-center gap-1.5 rounded-md border border-sky-400/30 bg-sky-500/10 px-4 py-2 text-xs font-bold text-sky-700 transition-colors duration-200 hover:bg-sky-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-sky-300 lg:flex-none"
+            className="flex min-h-10 min-w-[11rem] items-center justify-center gap-1.5 rounded-md border border-sky-400/30 bg-sky-500/10 px-4 py-2 text-xs font-bold text-sky-700 transition-colors duration-200 hover:bg-sky-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-sky-300"
           >
             <Snowflake className="h-3.5 w-3.5" />
             Add dry vials
@@ -72,10 +59,10 @@ export function InventoryDashboard({
           <button
             onClick={onAddActive}
             type="button"
-            className="flex min-h-9 min-w-[10rem] flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-md transition-colors duration-200 hover:bg-primary/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex-none"
+            className="flex min-h-10 min-w-[11rem] items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-md transition-colors duration-200 hover:bg-primary/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Beaker className="h-3.5 w-3.5" />
-            Add reconstituted
+            Add ready vial
           </button>
         </div>
       </div>

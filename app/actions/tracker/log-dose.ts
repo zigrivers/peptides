@@ -17,7 +17,7 @@ const InputSchema = z.object({
   protocolId: z.string().uuid(),
   amount: z.object({
     amount: z.string(),
-    unit: z.enum(['mcg', 'mg', 'IU', 'mL']),
+    unit: z.enum(['mcg', 'mg', 'mcg/mg', 'IU', 'mL']),
   }),
   status: z.enum(['LOGGED', 'SKIPPED']),
   injectionSite: InjectionSiteSchema.optional(),

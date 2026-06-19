@@ -38,6 +38,17 @@ function isPositiveDecimalString(s: string): boolean {
   }
 }
 
+function profileDoseToMcg(d: { amount: string; unit: string }): Decimal | undefined {
+  if (d.unit === 'mcg/mg') {
+    const parts = d.amount.split('/').map((part) => part.trim());
+    if (parts.length !== 2 || parts.some((part) => part === '')) return undefined;
+    return new Decimal(parts[0]).plus(new Decimal(parts[1]).times(1000));
+  }
+  if (d.unit === 'mcg') return new Decimal(d.amount);
+  if (d.unit === 'mg') return new Decimal(d.amount).times(1000);
+  return undefined;
+}
+
 export function ReconstitutionCalculatorForm({
   compounds,
   initialCompoundId = '',
@@ -73,18 +84,12 @@ export function ReconstitutionCalculatorForm({
 
   const profileHighMcg = useMemo(() => {
     if (!profile?.dosingHigh) return undefined;
-    const d = profile.dosingHigh;
-    if (d.unit === 'mcg') return new Decimal(d.amount);
-    if (d.unit === 'mg') return new Decimal(d.amount).times(1000);
-    return undefined;
+    return profileDoseToMcg(profile.dosingHigh);
   }, [profile]);
 
   const profileTypicalMcg = useMemo(() => {
     if (!profile?.dosingTypical) return undefined;
-    const d = profile.dosingTypical;
-    if (d.unit === 'mcg') return new Decimal(d.amount);
-    if (d.unit === 'mg') return new Decimal(d.amount).times(1000);
-    return undefined;
+    return profileDoseToMcg(profile.dosingTypical);
   }, [profile]);
 
   // Derived state — recomputed each render so it's never stale

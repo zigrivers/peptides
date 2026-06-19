@@ -299,6 +299,17 @@ describe('ORD-order-builder: Depletion Rate Calculations', () => {
     expect(rateMg.toFixed(2)).toBe('1.00'); // 3.5 * 2 / 7
   });
 
+  it('calculates daily protocol rates for stacked mcg/mg doses', async () => {
+    const protocol = {
+      compoundId,
+      dose: { amount: '1000/10.0', unit: 'mcg/mg' as const } as DoseAmount,
+      schedule: { frequency: 'SpecificDaysOfWeek' as const, daysOfWeek: ['Tue', 'Fri'] } as Schedule,
+      administrationRoute: 'SUBCUTANEOUS',
+    };
+    const { rateMg } = await getProtocolDailyRateMg(userId, protocol, 'U100');
+    expect(rateMg.toFixed(2)).toBe('3.14'); // (1mg + 10mg) * 2 / 7
+  });
+
   it('calculates daily protocol rates for TwiceDaily schedule', async () => {
     const protocol = {
       compoundId,
@@ -451,4 +462,3 @@ describe('ORD-order-builder: getCompoundNameForProduct', () => {
     expect(getCompoundNameForProduct(product, compoundsList)).toBe('Standard');
   });
 });
-

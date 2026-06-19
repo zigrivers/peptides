@@ -11,6 +11,38 @@ import { formatScheduleFrequency } from '@/lib/tracker/domain/schedule';
 
 type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 const DAYS: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+type ProtocolDoseUnit = 'mcg' | 'mg' | 'mcg/mg' | 'IU' | 'mL';
+
+function parseStackedDoseMcg(amount: string): number | null {
+  const parts = amount.split('/').map((part) => part.trim());
+  if (parts.length !== 2 || parts.some((part) => part === '')) return null;
+  const firstMcg = Number(parts[0]);
+  const secondMg = Number(parts[1]);
+  if (!Number.isFinite(firstMcg) || !Number.isFinite(secondMg) || firstMcg <= 0 || secondMg <= 0) {
+    return null;
+  }
+  return firstMcg + secondMg * 1000;
+}
+
+function doseAmountAsMcg(
+  amount: string,
+  unit: ProtocolDoseUnit,
+  concentrationMcgPerMl?: number,
+  unitVolumeMl?: number
+): number | null {
+  if (unit === 'mcg/mg') return parseStackedDoseMcg(amount);
+
+  const singleAmount = amount.includes('/') ? amount.split('/')[0].trim() : amount;
+  const doseVal = Number(singleAmount);
+  if (!Number.isFinite(doseVal) || doseVal <= 0) return null;
+  if (unit === 'mcg') return doseVal;
+  if (unit === 'mg') return doseVal * 1000;
+  if (unit === 'mL' && concentrationMcgPerMl) return doseVal * concentrationMcgPerMl;
+  if (unit === 'IU' && concentrationMcgPerMl && unitVolumeMl) {
+    return doseVal * unitVolumeMl * concentrationMcgPerMl;
+  }
+  return null;
+}
 
 type CycleOption = { id: string; name: string };
 
@@ -81,8 +113,8 @@ export function CreateProtocolForm({
   const [adminRoute, setAdminRoute] = useState(cloneSource?.administrationRoute ?? 'SubQ');
   
   const [doseAmount, setDoseAmount] = useState(cloneSource?.dose.amount ?? '');
-  const [doseUnit, setDoseUnit] = useState<'mcg' | 'mg' | 'IU' | 'mL'>(
-    (cloneSource?.dose.unit as 'mcg' | 'mg' | 'IU' | 'mL') ?? 'mcg'
+  const [doseUnit, setDoseUnit] = useState<ProtocolDoseUnit>(
+    (cloneSource?.dose.unit as ProtocolDoseUnit) ?? 'mcg'
   );
   
   const cloneSchedule = cloneSource?.schedule as { frequency?: 'Daily' | 'TwiceDaily' | 'EOD' | 'SpecificDaysOfWeek' | 'TwiceSpecificDaysOfWeek' | 'CustomInterval'; daysOfWeek?: DayOfWeek[]; intervalDays?: number } | undefined;
@@ -160,20 +192,14 @@ export function CreateProtocolForm({
 
   const activeGuidanceDose = useMemo(() => {
     if (!doseAmount) return null;
-    try {
-      const singleAmount = doseAmount.includes('/') ? doseAmount.split('/')[0].trim() : doseAmount;
-      const currentVal = new Decimal(singleAmount);
-      if (dosingTypical && currentVal.equals(new Decimal(dosingTypical.amount)) && doseUnit === dosingTypical.unit) {
-        return { tierName: 'Typical Range', dose: dosingTypical };
-      }
-      if (dosingLow && currentVal.equals(new Decimal(dosingLow.amount)) && doseUnit === dosingLow.unit) {
-        return { tierName: 'Conservative', dose: dosingLow };
-      }
-      if (dosingHigh && currentVal.equals(new Decimal(dosingHigh.amount)) && doseUnit === dosingHigh.unit) {
-        return { tierName: 'Aggressive', dose: dosingHigh };
-      }
-    } catch {
-      // ignore
+    if (dosingTypical && doseAmount === dosingTypical.amount && doseUnit === dosingTypical.unit) {
+      return { tierName: 'Typical Range', dose: dosingTypical };
+    }
+    if (dosingLow && doseAmount === dosingLow.amount && doseUnit === dosingLow.unit) {
+      return { tierName: 'Conservative', dose: dosingLow };
+    }
+    if (dosingHigh && doseAmount === dosingHigh.amount && doseUnit === dosingHigh.unit) {
+      return { tierName: 'Aggressive', dose: dosingHigh };
     }
     return null;
   }, [doseAmount, doseUnit, dosingLow, dosingTypical, dosingHigh]);
@@ -186,9 +212,14 @@ export function CreateProtocolForm({
       return;
     }
     try {
-      const singleAmount = doseAmount.includes('/') ? doseAmount.split('/')[0].trim() : doseAmount;
-      const amountVal = new Decimal(singleAmount);
-      const highVal = new Decimal(dosingHigh.amount);
+      const amountMcg = doseAmountAsMcg(doseAmount, doseUnit);
+      const highMcg = doseAmountAsMcg(dosingHigh.amount, dosingHigh.unit as ProtocolDoseUnit);
+      if (amountMcg === null || highMcg === null) {
+        setDoseWarning(null);
+        return;
+      }
+      const amountVal = new Decimal(amountMcg);
+      const highVal = new Decimal(highMcg);
       if (amountVal.gt(highVal)) {
         setDoseWarning(`Note: This dose exceeds the typical upper research threshold (${dosingHigh.amount} ${dosingHigh.unit}). Confirm with study references.`);
       } else {
@@ -197,7 +228,7 @@ export function CreateProtocolForm({
     } catch {
       setDoseWarning(null);
     }
-  }, [doseAmount, dosingHigh]);
+  }, [doseAmount, doseUnit, dosingHigh]);
 
   // Automatically calculate default expiration date if seeding inventory
   useEffect(() => {
@@ -242,20 +273,8 @@ export function CreateProtocolForm({
         mcgPerUnit = concentrationMcgPerMl * unitVolumeMl;
 
         if (doseAmount) {
-          const singleAmount = doseAmount.includes('/') ? doseAmount.split('/')[0].trim() : doseAmount;
-          const doseVal = parseFloat(singleAmount);
-          if (doseVal > 0) {
-            let doseMcg = 0;
-            if (doseUnit === 'mcg') {
-              doseMcg = doseVal;
-            } else if (doseUnit === 'mg') {
-              doseMcg = doseVal * 1000;
-            } else if (doseUnit === 'mL') {
-              doseMcg = doseVal * concentrationMcgPerMl;
-            } else if (doseUnit === 'IU') {
-              doseMcg = doseVal * unitVolumeMl * concentrationMcgPerMl;
-            }
-
+          const doseMcg = doseAmountAsMcg(doseAmount, doseUnit, concentrationMcgPerMl, unitVolumeMl);
+          if (doseMcg !== null) {
             if (mcgPerUnit > 0) {
               unitsToPull = doseMcg / mcgPerUnit;
             }
@@ -326,7 +345,7 @@ export function CreateProtocolForm({
   function applyDoseTile(doseInfo: DoseAmount) {
     if (!doseInfo) return;
     setDoseAmount(doseInfo.amount);
-    setDoseUnit(doseInfo.unit as 'mcg' | 'mg' | 'IU' | 'mL');
+    setDoseUnit(doseInfo.unit as ProtocolDoseUnit);
     if (doseInfo.recommendedFrequency) {
       applyFrequencyString(doseInfo.recommendedFrequency);
     }
@@ -604,11 +623,12 @@ export function CreateProtocolForm({
               <select
                 aria-label="Dose unit"
                 value={doseUnit}
-                onChange={(e) => setDoseUnit(e.target.value as typeof doseUnit)}
+                onChange={(e) => setDoseUnit(e.target.value as ProtocolDoseUnit)}
                 className="rounded-lg border-gray-300 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:border-primary focus:ring-primary py-2 px-3"
               >
                 <option value="mcg">mcg</option>
                 <option value="mg">mg</option>
+                <option value="mcg/mg">mcg/mg</option>
                 <option value="IU">IU</option>
                 <option value="mL">mL</option>
               </select>

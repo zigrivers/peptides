@@ -3,13 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { DoseOutcomeChart } from './DoseOutcomeChart';
 import { ConfettiCanvas } from './ConfettiCanvas';
+import type { DoseAmount } from '@/lib/tracker/domain/types';
 
 type SerializedDoseLog = {
   id: string;
   protocolId: string;
   compoundId: string;
   scheduledDate: string;
-  amount: { amount: string; unit: 'mcg' | 'mg' | 'IU' | 'mL' };
+  amount: DoseAmount;
   status: 'LOGGED' | 'SKIPPED' | 'PENDING' | 'RESCHEDULED';
 };
 

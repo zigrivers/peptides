@@ -77,6 +77,36 @@ describe('updateProtocolAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith(`/tracker/protocols/45a13798-41d4-46e8-9fdd-3812e6f0982a`);
   });
 
+  it('should accept stacked BPC/TB-500 dose units', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-123' } } as never);
+    const updatedProtocol: Protocol = {
+      id: '45a13798-41d4-46e8-9fdd-3812e6f0982a',
+      userId: 'user-123',
+      compoundId: 'bpc-tb500',
+      cycleId: null,
+      dose: { amount: '1000/10.0', unit: 'mcg/mg' },
+      schedule: { frequency: 'SpecificDaysOfWeek', daysOfWeek: ['Tue', 'Fri'] },
+      administrationRoute: 'SubQ',
+      status: 'ACTIVE',
+      startDate: new Date('2026-06-01T00:00:00.000Z'),
+      endDate: null,
+      notes: null,
+    };
+    vi.mocked(updateProtocol).mockResolvedValue(updatedProtocol);
+
+    const result = await updateProtocolAction({
+      protocolId: '45a13798-41d4-46e8-9fdd-3812e6f0982a',
+      dose: { amount: '1000/10.0', unit: 'mcg/mg' },
+    });
+
+    expect(result).toEqual({ ok: true, protocolId: '45a13798-41d4-46e8-9fdd-3812e6f0982a' });
+    expect(updateProtocol).toHaveBeenCalledWith({
+      actorUserId: 'user-123',
+      protocolId: '45a13798-41d4-46e8-9fdd-3812e6f0982a',
+      dose: { amount: '1000/10.0', unit: 'mcg/mg' },
+    });
+  });
+
   it('should handle system errors and not found cases', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'user-123' } } as never);
     vi.mocked(updateProtocol).mockRejectedValue(new Error('Protocol not found: x'));

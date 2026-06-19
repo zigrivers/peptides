@@ -103,6 +103,7 @@ export function EditProtocolForm({ protocol }: Props) {
             >
               <option value="mcg">mcg</option>
               <option value="mg">mg</option>
+              <option value="mcg/mg">mcg/mg</option>
               <option value="IU">IU</option>
               <option value="mL">mL</option>
             </select>

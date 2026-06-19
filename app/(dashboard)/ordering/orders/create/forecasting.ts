@@ -9,6 +9,14 @@ function parseDoseAmountSum(amountStr: string): Decimal {
   return new Decimal(amountStr);
 }
 
+function parseStackedMcgMgDoseMg(amountStr: string): Decimal {
+  const parts = amountStr.split('/').map((part) => part.trim());
+  if (parts.length !== 2 || parts.some((part) => part === '')) {
+    throw new Error('invalid stacked dose amount');
+  }
+  return new Decimal(parts[0]).dividedBy(1000).plus(new Decimal(parts[1]));
+}
+
 export function getProtocolFormCategory(administrationRoute: string): 'Injectable' | 'Non-Injectable' {
   const route = administrationRoute.toUpperCase();
   if (route === 'SUBCUTANEOUS' || route === 'INTRAMUSCULAR') {
@@ -87,6 +95,8 @@ export async function getProtocolDailyRateMg(
     doseMg = amt.dividedBy(1000);
   } else if (unit === 'mg') {
     doseMg = amt;
+  } else if (unit === 'mcg/mg') {
+    doseMg = parseStackedMcgMgDoseMg(protocol.dose.amount);
   } else if (unit === 'mL' || unit === 'IU') {
     const formCategory = getProtocolFormCategory(protocol.administrationRoute);
     const { concentration, isDefault } = await getConcentrationForCompoundForm(

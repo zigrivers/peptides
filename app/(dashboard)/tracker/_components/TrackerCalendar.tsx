@@ -695,7 +695,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
     // has an active vial concentration, the field is "syringe units" and we derive the
     // dose from the units drawn; otherwise it's the existing mcg amount override.
     // A blank field falls back to the planned dose (no empty round-trip to the server).
-    const eventUnit = event.doseUnit as 'mcg' | 'mg' | 'IU' | 'mL';
+    const eventUnit = event.doseUnit as 'mcg' | 'mg' | 'mcg/mg' | 'IU' | 'mL';
     const conc = vialConcentrationByCompoundId[event.compoundId] ?? null;
     const plannedRes = conc
       ? doseToSyringeUnits({ amount: event.doseAmount, unit: eventUnit }, conc, syringeStandard)
@@ -1438,7 +1438,7 @@ export function TrackerCalendar({ protocols: serializedProtocols, doseLogs, comp
                         {/* dose / units override */}
                         {(() => {
                           const conc = vialConcentrationByCompoundId[e.compoundId] ?? null;
-                          const eventUnit = e.doseUnit as 'mcg' | 'mg' | 'IU' | 'mL';
+                          const eventUnit = e.doseUnit as 'mcg' | 'mg' | 'mcg/mg' | 'IU' | 'mL';
                           const plannedRes = conc
                             ? doseToSyringeUnits({ amount: e.doseAmount, unit: eventUnit }, conc, syringeStandard)
                             : null;

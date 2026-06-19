@@ -14,7 +14,6 @@ import { AddDryVialsModal } from './AddDryVialsModal';
 import { AddActiveVialModal } from './AddActiveVialModal';
 import { ReconstituteModal } from './ReconstituteModal';
 import { Snowflake, Thermometer, Calculator, Boxes, LayoutGrid, ChevronDown, ChevronUp } from 'lucide-react';
-import { getAudioPlayer } from '@/lib/reconstitution/domain/audioSynth';
 import { ReconstitutionCalculatorForm } from './ReconstitutionCalculatorForm';
 import { SubjectSelector, type SubjectOption } from './SubjectSelector';
 
@@ -27,7 +26,6 @@ interface Props {
   dryVials: SerializedVialData[];
   activeVials: SerializedVialData[];
   inventorySummary: CompoundInventorySummary[];
-  reconstitutedVialsByCompound: Record<string, SerializedVialData[]>;
   syringeStandard: 'U100' | 'U40';
   syringeSize: '0.3' | '0.5' | '1.0';
   autoReconstituteCompoundId?: string;
@@ -42,7 +40,6 @@ export function ReconstitutionClient({
   dryVials,
   activeVials,
   inventorySummary,
-  reconstitutedVialsByCompound,
   syringeStandard,
   syringeSize,
   autoReconstituteCompoundId,
@@ -54,10 +51,6 @@ export function ReconstitutionClient({
   const [addDryCompoundId, setAddDryCompoundId] = useState<string | undefined>(undefined);
   const [showAddActiveModal, setShowAddActiveModal] = useState(false);
   const [reconstitutingVial, setReconstitutingVial] = useState<SerializedVialData | null>(null);
-  
-  // Persistent sound effects active state (safely hydrated on mount to avoid Next.js hydration differences)
-  const [isMounted, setIsMounted] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Helper to determine if a compound is room temp only
   const isRoomTempCompound = React.useCallback((compoundId: string) => {
@@ -74,32 +67,6 @@ export function ReconstitutionClient({
       roomTempActiveVials: activeVials.filter((v) => isRoomTempCompound(v.compoundId)),
     };
   }, [dryVials, activeVials, isRoomTempCompound]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('peptides_sound_effects_enabled');
-    if (saved === 'false') {
-      setSoundEnabled(false);
-    }
-    setIsMounted(true);
-  }, []);
-
-  const toggleSound = () => {
-    setSoundEnabled((prev) => {
-      const nextVal = !prev;
-      localStorage.setItem('peptides_sound_effects_enabled', String(nextVal));
-      return nextVal;
-    });
-  };
-
-  const playSoundEffect = (type: 'swoosh' | 'chime') => {
-    if (!isMounted || !soundEnabled) return;
-    const player = getAudioPlayer();
-    if (type === 'swoosh') {
-      player.playSwoosh();
-    } else if (type === 'chime') {
-      player.playSwirlChime();
-    }
-  };
 
   // Auto-focus reconstitution if triggered from Refill Planner URL link
   const [autoTriggered, setAutoTriggered] = useState(false);
@@ -141,8 +108,6 @@ export function ReconstitutionClient({
           setShowAddDryModal(true);
         }}
         onAddActive={() => setShowAddActiveModal(true)}
-        soundEnabled={isMounted ? soundEnabled : true}
-        onToggleSound={toggleSound}
       />
 
       {/* View toggle: By storage ↔ By compound */}
@@ -169,11 +134,9 @@ export function ReconstitutionClient({
 
       {viewMode === 'compound' && (
         <CompoundInventoryView
-          userId={userId}
           summaries={inventorySummary}
           compounds={compoundsMinimal}
           dryVials={dryVials}
-          reconstitutedVialsByCompound={reconstitutedVialsByCompound}
           onReconstitute={setReconstitutingVial}
           onAddVials={(compoundId) => {
             setAddDryCompoundId(compoundId);
@@ -339,7 +302,6 @@ export function ReconstitutionClient({
           compounds={compounds}
           initialCompoundId={addDryCompoundId}
           subjectUserId={userId}
-          onSuccess={() => playSoundEffect('swoosh')}
           onClose={() => setShowAddDryModal(false)}
         />
       )}
@@ -351,7 +313,6 @@ export function ReconstitutionClient({
           subjectUserId={userId}
           syringeStandard={syringeStandard}
           syringeSize={syringeSize}
-          onSuccess={() => playSoundEffect('chime')}
           onClose={() => setShowAddActiveModal(false)}
         />
       )}
@@ -363,7 +324,6 @@ export function ReconstitutionClient({
           initialSyringeStandard={syringeStandard}
           initialSyringeSize={syringeSize}
           subjectUserId={userId}
-          onSuccess={() => playSoundEffect('chime')}
           onClose={() => setReconstitutingVial(null)}
         />
       )}

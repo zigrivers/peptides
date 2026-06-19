@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useMemo, useState, useTransition } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import type {
   CompoundInventorySummary,
   SerializedVialData,
 } from '@/lib/reconstitution/application/VialService';
 import type { Compound } from '@/lib/reference/domain/types';
-import { setActiveVialAction } from '@/app/actions/reconstitution/set-active-vial';
 import {
   Beaker,
   Plus,
@@ -32,14 +30,11 @@ const BADGE_SEVERITY: Record<string, number> = {
 };
 
 interface Props {
-  userId: string;
   summaries: CompoundInventorySummary[];
   /** Global catalog (published, non-archived) for not-in-inventory rows. */
   compounds: Pick<Compound, 'id' | 'name' | 'slug'>[];
   /** Full serialized vials (dry + reconstituted) so a row can resolve a concrete vial. */
   dryVials: SerializedVialData[];
-  /** Reconstituted vials per compound, for the drawing-from selector (≥2 vials). */
-  reconstitutedVialsByCompound?: Record<string, SerializedVialData[]>;
   onReconstitute: (vial: SerializedVialData) => void;
   onAddVials: (compoundId: string) => void;
 }
@@ -91,20 +86,15 @@ function BadgePill({ badge }: { badge: string }) {
 }
 
 export function CompoundInventoryView({
-  userId,
   summaries,
   compounds,
   dryVials,
-  reconstitutedVialsByCompound,
   onReconstitute,
   onAddVials,
 }: Props) {
-  const router = useRouter();
   const [primary, setPrimary] = useState<PrimaryFilter>('in');
   const [chips, setChips] = useState<Set<AttentionChip>>(new Set());
   const [search, setSearch] = useState('');
-  const [, startTransition] = useTransition();
-  const [pendingCompound, setPendingCompound] = useState<string | null>(null);
 
   const hasAnyInventory = summaries.length > 0;
   const inStockIds = useMemo(() => new Set(summaries.map((s) => s.compoundId)), [summaries]);
@@ -170,17 +160,6 @@ export function CompoundInventoryView({
     setPrimary('in');
     setChips(new Set());
     setSearch('');
-  };
-
-  const handleSelectActiveVial = (compoundId: string, vialId: string) => {
-    setPendingCompound(compoundId);
-    startTransition(async () => {
-      const res = await setActiveVialAction(userId, compoundId, vialId);
-      setPendingCompound(null);
-      if (res.ok) {
-        router.refresh();
-      }
-    });
   };
 
   const handleReconstitute = (s: CompoundInventorySummary) => {
@@ -315,8 +294,6 @@ export function CompoundInventoryView({
       {showInStock && (
         <div className="space-y-3">
           {inStockRows.map((s) => {
-            const reconList = reconstitutedVialsByCompound?.[s.compoundId] ?? [];
-            const showSelector = s.reconstitutedCount >= 2 && reconList.length >= 2;
             const activePercent = s.activeVial
               ? formatPercent(s.activeVial.remainingMg, s.activeVial.totalMg)
               : 0;
@@ -423,24 +400,6 @@ export function CompoundInventoryView({
                   </div>
                 </div>
 
-                {showSelector && (
-                  <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
-                    <label className="text-[11px] font-medium text-muted-foreground" htmlFor={`active-vial-${s.compoundId}`}>Drawing from</label>
-                    <select
-                      id={`active-vial-${s.compoundId}`}
-                      value={s.activeVial?.id ?? ''}
-                      disabled={pendingCompound === s.compoundId}
-                      onChange={(e) => handleSelectActiveVial(s.compoundId, e.target.value)}
-                      className="rounded-md border border-border bg-background px-2 py-1 text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      {reconList.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {formatMg(v.totalMg)}mg · {formatMg(v.remainingMg)}mg left
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
               </div>
             );
           })}

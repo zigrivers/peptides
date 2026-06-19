@@ -254,27 +254,16 @@ export function serializeVial(
     );
     if (compoundProtocols.length > 0) {
       const dosesMg = compoundProtocols.map((p) => {
-        const amt = parseSingleDoseDecimal(p.dose.amount);
-        if (p.dose.unit === 'mcg') {
-          return amt.dividedBy(1000);
+        try {
+          return convertDoseToMg(
+            p.dose.amount,
+            p.dose.unit,
+            { totalMg: v.totalMg, bacWaterMl: v.bacWaterMl },
+            syringeStandard
+          );
+        } catch {
+          return parseSingleDoseDecimal(p.dose.amount);
         }
-        if (p.dose.unit === 'mg') {
-          return amt;
-        }
-        if (v.bacWaterMl && v.bacWaterMl.gt(0)) {
-          const concentration = v.totalMg.dividedBy(v.bacWaterMl);
-          if (p.dose.unit === 'mL') {
-            return amt.times(concentration);
-          }
-          if (p.dose.unit === 'IU') {
-            // 100 IU = 1 mL => 1 IU = 0.01 mL for U-100 syringe preference
-            // 40 IU = 1 mL => 1 IU = 0.025 mL for U-40 syringe preference
-            const conversionFactor = syringeStandard === 'U40' ? '0.025' : '0.01';
-            const doseMl = amt.times(conversionFactor);
-            return doseMl.times(concentration);
-          }
-        }
-        return amt;
       });
 
       const maxDoseMg = Decimal.max(...dosesMg);
@@ -289,9 +278,17 @@ export function serializeVial(
       }
 
       const maxProto = compoundProtocols.find((p) => {
-        const amt = parseSingleDoseDecimal(p.dose.amount);
-        const mg = p.dose.unit === 'mcg' ? amt.dividedBy(1000) : amt;
-        return mg.eq(maxDoseMg);
+        try {
+          const mg = convertDoseToMg(
+            p.dose.amount,
+            p.dose.unit,
+            { totalMg: v.totalMg, bacWaterMl: v.bacWaterMl },
+            syringeStandard
+          );
+          return mg.eq(maxDoseMg);
+        } catch {
+          return false;
+        }
       });
       if (maxProto) {
         maxDoseFormatted = `${maxProto.dose.amount} ${maxProto.dose.unit}`;
@@ -787,7 +784,7 @@ export async function getInventorySummaryByCompound(
     const compoundActiveProtocols = activeProtocols.filter((p) => p.compoundId === compoundId);
     const representative = compoundActiveProtocols.length === 1 ? compoundActiveProtocols[0] : null;
     const isMassUnit = representative
-      ? representative.dose.unit === 'mcg' || representative.dose.unit === 'mg'
+      ? representative.dose.unit === 'mcg' || representative.dose.unit === 'mg' || representative.dose.unit === 'mcg/mg'
       : false;
 
     if (representative && activeVial) {
@@ -797,7 +794,7 @@ export async function getInventorySummaryByCompound(
 
       if (canConvert) {
         const doseMg = convertDoseToMg(
-          parseSingleDoseDecimal(dose.amount),
+          dose.amount,
           dose.unit,
           { totalMg: new Decimal(activeVial.totalMg), bacWaterMl },
           syringeStandard

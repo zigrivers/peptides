@@ -28,6 +28,20 @@ function parsePositive(value: string): Decimal | null {
   return d;
 }
 
+function parseStackedMcgMgDoseMcg(value: string): Decimal | null {
+  const parts = value.split('/').map((part) => part.trim());
+  if (parts.length !== 2 || parts.some((part) => part === '')) return null;
+
+  try {
+    const mcg = new Decimal(parts[0]);
+    const mg = new Decimal(parts[1]);
+    if (!mcg.isFinite() || !mg.isFinite() || mcg.lte(0) || mg.lte(0)) return null;
+    return mcg.plus(mg.times(1000));
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Canonical dose → syringe-units conversion. The ONLY place new code computes units.
  *
@@ -57,7 +71,8 @@ export function doseToSyringeUnits(
       return { computable: true, units: amount, injectionVolMl: amount.times(volPerUnit) };
 
     case 'mcg':
-    case 'mg': {
+    case 'mg':
+    case 'mcg/mg': {
       if (!vialConcentration || vialConcentration.bacWaterMl === null) {
         return { computable: false, reason: 'needs_vial' };
       }
@@ -66,7 +81,13 @@ export function doseToSyringeUnits(
       if (totalMg === null || bacWaterMl === null) {
         return { computable: false, reason: 'invalid_input' };
       }
-      const targetDoseMcg = dose.unit === 'mg' ? amount.times(1000) : amount;
+      const targetDoseMcg =
+        dose.unit === 'mg'
+          ? amount.times(1000)
+          : dose.unit === 'mcg/mg'
+            ? parseStackedMcgMgDoseMcg(dose.amount)
+            : amount;
+      if (targetDoseMcg === null) return { computable: false, reason: 'invalid_input' };
       const { syringeUnitsPerDose, injectionVolMl } = ReconstitutionCalculator.calculate({
         totalMg,
         bacWaterMl,
@@ -106,6 +127,8 @@ export function syringeUnitsToDose(
     case 'IU':
       // 1 IU = 1 syringe unit in this app (matches doseToSyringeUnits).
       return { amount: formatDecimalForDoseDisplay(u, 2), unit: 'IU' };
+    case 'mcg/mg':
+      return null;
     case 'mcg':
     case 'mg': {
       if (!vialConcentration || vialConcentration.bacWaterMl === null) return null;
@@ -225,6 +248,12 @@ export function buildRegimenDoseDisplay(
   const amount = parsePositive(dose.amount);
   const natural = `${dose.amount} ${dose.unit}`;
   if (amount === null) return { doseText: natural, unitsText };
+  if (dose.unit === 'mcg/mg') {
+    const stackedMcg = parseStackedMcgMgDoseMcg(dose.amount);
+    if (stackedMcg === null) return { doseText: natural, unitsText };
+    const mg = stackedMcg.dividedBy(1000);
+    return { doseText: `${formatDecimalForDoseDisplay(mg, 2)} mg (${natural})`, unitsText };
+  }
   if (dose.unit === 'mg') return { doseText: natural, unitsText }; // already mg
 
   let mg: Decimal | null = null;
@@ -259,6 +288,8 @@ function loggedDoseMcg(
       return amount;
     case 'mg':
       return amount.times(1000);
+    case 'mcg/mg':
+      return parseStackedMcgMgDoseMcg(dose.amount);
     case 'mL':
     case 'IU': {
       if (!vialConcentration || vialConcentration.bacWaterMl === null) return null;

@@ -10,10 +10,6 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
 }));
 
-vi.mock('@/app/actions/reconstitution/set-active-vial', () => ({
-  setActiveVialAction: vi.fn().mockResolvedValue({ ok: true }),
-}));
-
 function summary(overrides: Partial<CompoundInventorySummary> = {}): CompoundInventorySummary {
   return {
     compoundId: 'c1',
@@ -43,7 +39,6 @@ const compounds: Pick<Compound, 'id' | 'name' | 'slug'>[] = [
 function renderView(props: Partial<React.ComponentProps<typeof CompoundInventoryView>> = {}) {
   return render(
     <CompoundInventoryView
-      userId="user-1"
       summaries={[summary()]}
       compounds={compounds}
       dryVials={[]}
@@ -244,7 +239,7 @@ describe('CompoundInventoryView', () => {
     expect(onAddVials).toHaveBeenCalledWith('c1');
   });
 
-  it('renders the drawing-from selector only when reconstitutedCount >= 2', () => {
+  it('does not expose a drawing-from selector in the compound inventory card', () => {
     const { queryByRole, rerender } = renderView({
       summaries: [summary({ reconstitutedCount: 1 })],
     });
@@ -252,7 +247,6 @@ describe('CompoundInventoryView', () => {
 
     rerender(
       <CompoundInventoryView
-        userId="user-1"
         summaries={[
           summary({
             reconstitutedCount: 2,
@@ -289,43 +283,11 @@ describe('CompoundInventoryView', () => {
             badges: [],
           },
         ]}
-        reconstitutedVialsByCompound={{
-          c1: [
-            {
-              id: 'r1',
-              compoundId: 'c1',
-              compoundName: 'BPC-157',
-              compoundSlug: 'bpc-157',
-              totalMg: '10.000',
-              bacWaterMl: '2.000',
-              remainingMg: '8.000',
-              status: 'RECONSTITUTED',
-              reconstitutedAt: null,
-              expiresAt: null,
-              daysUntilExpiry: null,
-              badges: [],
-            },
-            {
-              id: 'r2',
-              compoundId: 'c1',
-              compoundName: 'BPC-157',
-              compoundSlug: 'bpc-157',
-              totalMg: '20.000',
-              bacWaterMl: '4.000',
-              remainingMg: '12.000',
-              status: 'RECONSTITUTED',
-              reconstitutedAt: null,
-              expiresAt: null,
-              daysUntilExpiry: null,
-              badges: [],
-            },
-          ],
-        }}
         onReconstitute={vi.fn()}
         onAddVials={vi.fn()}
       />
     );
-    expect(queryByRole('combobox')).toBeTruthy();
+    expect(queryByRole('combobox')).toBeNull();
   });
 
   it('shows an empty state when there are no vials at all', () => {
