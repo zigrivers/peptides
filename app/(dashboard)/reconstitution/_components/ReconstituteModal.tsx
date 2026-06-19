@@ -8,6 +8,7 @@ import type { Compound } from '@/lib/reference/domain/types';
 import { ReconstitutionCalculator } from '@/lib/reconstitution/domain/ReconstitutionCalculator';
 import { WarningPolicy, type WarningType } from '@/lib/reconstitution/domain/WarningPolicy';
 import { reconstituteDryVialAction } from '@/app/actions/reconstitution/inventory-actions';
+import { saveSyringePreferencesAction } from '@/app/actions/reconstitution/save-syringe-preferences';
 import { SyringePreview } from './SyringePreview';
 import { X, AlertTriangle, Calendar, Droplet, Beaker } from 'lucide-react';
 import { getVolumePerUnit } from '@/lib/reconstitution/domain/syringe';
@@ -38,6 +39,30 @@ function isPositiveDecimalString(s: string): boolean {
   }
 }
 
+type CalculationMode = 'water' | 'units';
+type SyringeStandard = 'U100' | 'U40';
+type SyringeSize = '0.3' | '0.5' | '1.0';
+
+function doseAmountToMcg(dose: { amount: string; unit: string } | null | undefined): Decimal | null {
+  if (!dose) return null;
+  try {
+    const amount = new Decimal(dose.amount);
+    if (dose.unit === 'mcg') return amount;
+    if (dose.unit === 'mg') return amount.times(1000);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function formatDoseAmount(dose: { amount: string; unit: string }): string {
+  return `${dose.amount} ${dose.unit}`;
+}
+
+function formatDecimalInput(value: Decimal): string {
+  return value.toDecimalPlaces(3, Decimal.ROUND_HALF_UP).toString();
+}
+
 export function ReconstituteModal({
   vial,
   compounds,
@@ -49,6 +74,10 @@ export function ReconstituteModal({
 }: Props) {
   const [bacWaterMl, setBacWaterMl] = useState('');
   const [targetDoseMcg, setTargetDoseMcg] = useState('');
+  const [calculationMode, setCalculationMode] = useState<CalculationMode>('water');
+  const [targetSyringeUnits, setTargetSyringeUnits] = useState('');
+  const [syringeStandard, setSyringeStandard] = useState<SyringeStandard>(initialSyringeStandard);
+  const [syringeSize, setSyringeSize] = useState<SyringeSize>(initialSyringeSize);
   const [expiresAt, setExpiresAt] = useState('');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -81,19 +110,20 @@ export function ReconstituteModal({
   }, [isMounted, profile, isRoomTemp, shelfLifeDays]);
 
   const profileHighMcg = useMemo(() => {
-    if (!profile?.dosingHigh) return undefined;
-    const d = profile.dosingHigh as { amount: string; unit: string };
-    if (d.unit === 'mcg') return new Decimal(d.amount);
-    if (d.unit === 'mg') return new Decimal(d.amount).times(1000);
-    return undefined;
+    return doseAmountToMcg(profile?.dosingHigh) ?? undefined;
   }, [profile]);
 
   const profileTypicalMcg = useMemo(() => {
-    if (!profile?.dosingTypical) return undefined;
-    const d = profile.dosingTypical as { amount: string; unit: string };
-    if (d.unit === 'mcg') return new Decimal(d.amount);
-    if (d.unit === 'mg') return new Decimal(d.amount).times(1000);
-    return undefined;
+    return doseAmountToMcg(profile?.dosingTypical) ?? undefined;
+  }, [profile]);
+
+  const doseRanges = useMemo(() => {
+    if (!profile) return [];
+    return [
+      { label: 'Low', dose: profile.dosingLow },
+      { label: 'Typical', dose: profile.dosingTypical },
+      { label: 'High', dose: profile.dosingHigh },
+    ];
   }, [profile]);
 
   // Set default expiration date when BAC Water is entered
@@ -134,9 +164,65 @@ export function ReconstituteModal({
     }
   };
 
+  const applyDoseRange = (dose: { amount: string; unit: string }) => {
+    if (isRoomTemp) {
+      setTargetDoseMcg(String(dose.amount));
+      return;
+    }
+    const doseMcg = doseAmountToMcg(dose);
+    if (doseMcg) setTargetDoseMcg(doseMcg.toString());
+  };
+
+  const handleSyringePrefsChange = async (std: SyringeStandard, sz: SyringeSize) => {
+    try {
+      await saveSyringePreferencesAction(std, sz);
+    } catch {
+      // Preference saving should not block reconstitution math.
+    }
+  };
+
+  const reverseCalcResult = useMemo(() => {
+    if (isRoomTemp || calculationMode !== 'units') return null;
+    if (!isPositiveDecimalString(targetDoseMcgComputed) || !isPositiveDecimalString(targetSyringeUnits)) {
+      return null;
+    }
+
+    try {
+      return ReconstitutionCalculator.calculateWaterForSyringeUnits({
+        totalMg: new Decimal(vial.totalMg),
+        targetDoseMcg: new Decimal(targetDoseMcgComputed),
+        targetSyringeUnits: new Decimal(targetSyringeUnits),
+        syringeStandard,
+      });
+    } catch {
+      return null;
+    }
+  }, [calculationMode, isRoomTemp, syringeStandard, targetDoseMcgComputed, targetSyringeUnits, vial.totalMg]);
+
+  const effectiveBacWaterMl = reverseCalcResult ? formatDecimalInput(reverseCalcResult.bacWaterMl) : bacWaterMl;
+
   // Live calculations
   const { calcResult, warnings } = useMemo(() => {
-    const mlOk = isPositiveDecimalString(bacWaterMl);
+    if (reverseCalcResult) {
+      const w = WarningPolicy.evaluate({
+        injectionVolMl: reverseCalcResult.injectionVolMl,
+        bacWaterMl: reverseCalcResult.bacWaterMl,
+        targetDoseMcg: new Decimal(targetDoseMcgComputed),
+        profileHighMcg,
+      });
+
+      return {
+        calcResult: {
+          concentrationMgPerMl: reverseCalcResult.concentrationMgPerMl,
+          concentrationMcgPerMl: reverseCalcResult.concentrationMcgPerMl,
+          injectionVolMl: reverseCalcResult.injectionVolMl,
+          syringeUnitsPerDose: reverseCalcResult.syringeUnitsPerDose,
+        },
+        warnings: w,
+      };
+    }
+
+    const mlOk = isPositiveDecimalString(effectiveBacWaterMl);
     const mcgOk = isPositiveDecimalString(targetDoseMcgComputed);
 
     if (!mlOk || !mcgOk) return { calcResult: null, warnings: [] };
@@ -144,14 +230,14 @@ export function ReconstituteModal({
     try {
       const calc = ReconstitutionCalculator.calculate({
         totalMg: new Decimal(vial.totalMg),
-        bacWaterMl: new Decimal(bacWaterMl),
+        bacWaterMl: new Decimal(effectiveBacWaterMl),
         targetDoseMcg: new Decimal(targetDoseMcgComputed),
-        syringeStandard: initialSyringeStandard,
+        syringeStandard,
       });
 
       const w = WarningPolicy.evaluate({
         injectionVolMl: calc.injectionVolMl,
-        bacWaterMl: new Decimal(bacWaterMl),
+        bacWaterMl: new Decimal(effectiveBacWaterMl),
         targetDoseMcg: new Decimal(targetDoseMcgComputed),
         profileHighMcg,
       });
@@ -168,7 +254,7 @@ export function ReconstituteModal({
     } catch {
       return { calcResult: null, warnings: [] };
     }
-  }, [vial.totalMg, bacWaterMl, targetDoseMcg, profileHighMcg, initialSyringeStandard]);
+  }, [vial.totalMg, effectiveBacWaterMl, targetDoseMcgComputed, profileHighMcg, syringeStandard, reverseCalcResult]);
 
   const displayedUnits = useMemo(() => {
     if (!calcResult) return 0;
@@ -176,24 +262,37 @@ export function ReconstituteModal({
   }, [calcResult]);
 
   const maxUnits = useMemo(() => {
-    if (initialSyringeStandard === 'U100') {
-      if (initialSyringeSize === '0.3') return 30;
-      if (initialSyringeSize === '0.5') return 50;
+    if (syringeStandard === 'U100') {
+      if (syringeSize === '0.3') return 30;
+      if (syringeSize === '0.5') return 50;
       return 100;
     } else {
-      if (initialSyringeSize === '0.3') return 12;
-      if (initialSyringeSize === '0.5') return 20;
+      if (syringeSize === '0.3') return 12;
+      if (syringeSize === '0.5') return 20;
       return 40;
     }
-  }, [initialSyringeStandard, initialSyringeSize]);
+  }, [syringeStandard, syringeSize]);
 
   const capacityExceeded = !!(calcResult && displayedUnits > maxUnits);
 
-  const handleDragUnits = (draggedUnits: number) => {
-    if (!isPositiveDecimalString(bacWaterMl)) return;
+  const estimatedDosesPerVial = useMemo(() => {
+    if (!isPositiveDecimalString(targetDoseMcgComputed)) return null;
     try {
-      const conversionFactor = getVolumePerUnit(initialSyringeStandard);
-      const concentrationMcgPerMl = new Decimal(vial.totalMg).dividedBy(new Decimal(bacWaterMl)).times(1000);
+      return new Decimal(vial.totalMg).times(1000).dividedBy(new Decimal(targetDoseMcgComputed));
+    } catch {
+      return null;
+    }
+  }, [targetDoseMcgComputed, vial.totalMg]);
+
+  const handleDragUnits = (draggedUnits: number) => {
+    if (calculationMode === 'units' && !isRoomTemp) {
+      setTargetSyringeUnits(new Decimal(draggedUnits).toDecimalPlaces(1, Decimal.ROUND_HALF_UP).toString());
+      return;
+    }
+    if (!isPositiveDecimalString(effectiveBacWaterMl)) return;
+    try {
+      const conversionFactor = getVolumePerUnit(syringeStandard);
+      const concentrationMcgPerMl = new Decimal(vial.totalMg).dividedBy(new Decimal(effectiveBacWaterMl)).times(1000);
       const doseMcg = new Decimal(draggedUnits).times(conversionFactor).times(concentrationMcgPerMl);
       const snappedDose = doseMcg.toDecimalPlaces(0, Decimal.ROUND_HALF_UP);
       if (isRoomTemp) {
@@ -209,13 +308,13 @@ export function ReconstituteModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isPositiveDecimalString(bacWaterMl)) return;
+    if (!isPositiveDecimalString(effectiveBacWaterMl)) return;
 
     setError(null);
     startTransition(async () => {
       const result = await reconstituteDryVialAction({
         vialId: vial.id,
-        bacWaterMl,
+        bacWaterMl: effectiveBacWaterMl,
         expiresAt: expiresAt || undefined,
         subjectUserId,
       });
@@ -266,6 +365,74 @@ export function ReconstituteModal({
           )}
 
           <div className="space-y-4">
+            {profile && doseRanges.length > 0 && (
+              <div className="rounded-xl border border-sky-400/20 bg-sky-500/5 p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-sky-500">
+                    Dose ranges
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Tap a range to use it as the target dose.
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {doseRanges.map(({ label, dose }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => applyDoseRange(dose)}
+                      className="rounded-lg border border-white/10 bg-background/40 px-3 py-2 text-left transition-colors hover:border-sky-400/40 hover:bg-sky-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    >
+                      <span className="block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                        {label}
+                      </span>
+                      <span className="mt-1 block font-mono text-sm font-bold text-foreground">
+                        {formatDoseAmount(dose)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!isRoomTemp && (
+              <div>
+                <p className="mb-1 text-xs font-semibold text-foreground/80">Calculate by</p>
+                <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-background/30 p-1">
+                  <button
+                    type="button"
+                    aria-pressed={calculationMode === 'water'}
+                    onClick={() => {
+                      if (reverseCalcResult) setBacWaterMl(formatDecimalInput(reverseCalcResult.bacWaterMl));
+                      setCalculationMode('water');
+                    }}
+                    className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+                      calculationMode === 'water'
+                        ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/20'
+                        : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+                    }`}
+                  >
+                    Water volume
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={calculationMode === 'units'}
+                    onClick={() => {
+                      if (calcResult) setTargetSyringeUnits(displayedUnits.toFixed(1));
+                      setCalculationMode('units');
+                    }}
+                    className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+                      calculationMode === 'units'
+                        ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/20'
+                        : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+                    }`}
+                  >
+                    Syringe units
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Step 1: Reconstitution water quantity */}
             <div>
               <label htmlFor="reconstitute-water" className="block text-xs font-semibold text-foreground/80 mb-1 flex items-center gap-1">
@@ -279,10 +446,21 @@ export function ReconstituteModal({
                 min="0"
                 required
                 placeholder={isRoomTemp ? 'E.g., 10.0' : 'E.g., 2.0'}
-                value={bacWaterMl}
-                onChange={(e) => handleBacWaterChange(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+                value={effectiveBacWaterMl}
+                readOnly={!isRoomTemp && calculationMode === 'units'}
+                onChange={(e) => {
+                  if (!isRoomTemp && calculationMode === 'units') return;
+                  handleBacWaterChange(e.target.value);
+                }}
+                className={`w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500 ${
+                  !isRoomTemp && calculationMode === 'units' ? 'cursor-not-allowed text-sky-200' : ''
+                }`}
               />
+              {!isRoomTemp && calculationMode === 'units' && (
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Water volume updates from the target dose and desired syringe pull.
+                </p>
+              )}
             </div>
 
             {/* Step 2: Protocol Target Dose check */}
@@ -313,6 +491,68 @@ export function ReconstituteModal({
                 className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
               />
             </div>
+
+            {!isRoomTemp && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="reconstitute-syringe-standard" className="block text-xs font-semibold text-foreground/80 mb-1">
+                    Syringe type
+                  </label>
+                  <select
+                    id="reconstitute-syringe-standard"
+                    value={syringeStandard}
+                    onChange={(e) => {
+                      const next = e.target.value as SyringeStandard;
+                      setSyringeStandard(next);
+                      void handleSyringePrefsChange(next, syringeSize);
+                    }}
+                    className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  >
+                    <option value="U100">U-100 insulin</option>
+                    <option value="U40">U-40 insulin</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="reconstitute-syringe-size" className="block text-xs font-semibold text-foreground/80 mb-1">
+                    Syringe capacity
+                  </label>
+                  <select
+                    id="reconstitute-syringe-size"
+                    value={syringeSize}
+                    onChange={(e) => {
+                      const next = e.target.value as SyringeSize;
+                      setSyringeSize(next);
+                      void handleSyringePrefsChange(syringeStandard, next);
+                    }}
+                    className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  >
+                    <option value="0.3">0.3 mL ({syringeStandard === 'U100' ? 30 : 12} U)</option>
+                    <option value="0.5">0.5 mL ({syringeStandard === 'U100' ? 50 : 20} U)</option>
+                    <option value="1.0">1.0 mL ({syringeStandard === 'U100' ? 100 : 40} U)</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {!isRoomTemp && calculationMode === 'units' && (
+              <div>
+                <label htmlFor="target-syringe-units" className="block text-xs font-semibold text-foreground/80 mb-1">
+                  Target syringe pull ({syringeStandard} units)
+                </label>
+                <input
+                  id="target-syringe-units"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max={maxUnits}
+                  required
+                  placeholder={`E.g., ${Math.min(30, maxUnits)}`}
+                  value={targetSyringeUnits}
+                  onChange={(e) => setTargetSyringeUnits(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+            )}
 
             {/* Step 3: Date control */}
             <div>
@@ -362,14 +602,39 @@ export function ReconstituteModal({
             <p className="text-[11px] text-muted-foreground mt-0.5">
               {isRoomTemp
                 ? 'Calculated in real-time based on target dose and vial volume.'
-                : 'Calculated in real-time based on target dose and water.'}
+                : calculationMode === 'units'
+                  ? 'Calculated in real-time from target dose and desired syringe pull.'
+                  : 'Calculated in real-time based on target dose and water.'}
             </p>
           </div>
 
           <div>
             {calcResult ? (
               <div className="space-y-4">
+                {!isRoomTemp && (
+                  <div className="rounded-xl border border-sky-400/20 bg-sky-500/10 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-sky-400">
+                      Mixing summary
+                    </p>
+                    <p className="mt-2 text-lg font-extrabold text-foreground">
+                      Add {effectiveBacWaterMl} mL water
+                    </p>
+                    <p className="mt-1 text-[11px] leading-normal text-muted-foreground">
+                      This makes a {targetDoseMcg || '0'} mcg dose draw{' '}
+                      <span className="font-mono text-foreground">{displayedUnits.toFixed(1)}</span> units on a{' '}
+                      {syringeStandard} syringe. Syringe units are markings, not mcg or mg.
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4 border border-white/10 rounded-lg p-4 bg-background/30">
+                  {!isRoomTemp && (
+                    <div>
+                      <span className="text-[10px] text-muted-foreground uppercase font-medium">Water to Add</span>
+                      <div className="text-sm font-bold text-foreground mt-0.5 font-mono">
+                        {effectiveBacWaterMl} mL
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <span className="text-[10px] text-muted-foreground uppercase font-medium">Concentration</span>
                     <div className="text-sm font-bold text-foreground mt-0.5 font-mono">
@@ -402,6 +667,14 @@ export function ReconstituteModal({
                       <span className="text-[10px] text-muted-foreground uppercase font-medium">Syringe Pull</span>
                       <div className="text-sm font-bold text-foreground mt-0.5 font-mono">
                         {displayedUnits.toFixed(1)} Units
+                      </div>
+                    </div>
+                  )}
+                  {!isRoomTemp && estimatedDosesPerVial && (
+                    <div>
+                      <span className="text-[10px] text-muted-foreground uppercase font-medium">Approx. Doses/Vial</span>
+                      <div className="text-sm font-bold text-foreground mt-0.5 font-mono">
+                        {estimatedDosesPerVial.toFixed(1)}
                       </div>
                     </div>
                   )}
@@ -448,8 +721,8 @@ export function ReconstituteModal({
                       <SyringePreview
                         units={displayedUnits}
                         warnings={warnings}
-                        syringeStandard={initialSyringeStandard}
-                        syringeSize={initialSyringeSize}
+                        syringeStandard={syringeStandard}
+                        syringeSize={syringeSize}
                         onChangeUnits={handleDragUnits}
                       />
                     </div>

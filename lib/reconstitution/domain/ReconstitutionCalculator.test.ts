@@ -43,6 +43,33 @@ describe('ReconstitutionCalculator.calculate', () => {
     });
   });
 
+  describe('water volume from target syringe pull', () => {
+    it('returns 0.75mL water for a 10mg vial, 4000mcg target dose, and 30 U-100 units', () => {
+      const r = ReconstitutionCalculator.calculateWaterForSyringeUnits({
+        totalMg: new Decimal('10'),
+        targetDoseMcg: new Decimal('4000'),
+        targetSyringeUnits: new Decimal('30'),
+        syringeStandard: 'U100',
+      });
+
+      expect(r.bacWaterMl.eq('0.75')).toBe(true);
+      expect(r.injectionVolMl.eq('0.3')).toBe(true);
+      expect(r.concentrationMgPerMl.toDecimalPlaces(8).eq(new Decimal('13.33333333'))).toBe(true);
+      expect(r.syringeUnitsPerDose.eq('30')).toBe(true);
+    });
+
+    it('rejects zero target syringe units', () => {
+      expect(() =>
+        ReconstitutionCalculator.calculateWaterForSyringeUnits({
+          totalMg: new Decimal('10'),
+          targetDoseMcg: new Decimal('4000'),
+          targetSyringeUnits: new Decimal('0'),
+          syringeStandard: 'U100',
+        })
+      ).toThrow('target_syringe_units_must_be_positive');
+    });
+  });
+
   describe('invariants', () => {
     it('rejects zero BAC water', () => {
       expect(() => calc('5', '0', '250')).toThrow('bac_water_must_be_positive');
