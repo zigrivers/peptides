@@ -29,10 +29,6 @@ vi.mock('@/app/actions/reconstitution/save-syringe-preferences', () => ({
   saveSyringePreferencesAction: vi.fn(),
 }));
 
-vi.mock('@/app/actions/reconstitution/set-active-vial', () => ({
-  setActiveVialAction: vi.fn().mockResolvedValue({ ok: true }),
-}));
-
 vi.mock('@/lib/reconstitution/domain/audioSynth', () => ({
   getAudioPlayer: () => ({
     playSwoosh: vi.fn(),
@@ -75,7 +71,6 @@ function renderClient(
       dryVials={[]}
       activeVials={[]}
       inventorySummary={[summary]}
-      reconstitutedVialsByCompound={{}}
       syringeStandard="U100"
       syringeSize="1.0"
     />
@@ -317,7 +312,6 @@ describe('ReconstitutionClient room temperature storage partitioning', () => {
         dryVials={dryVials}
         activeVials={activeVials}
         inventorySummary={[]}
-        reconstitutedVialsByCompound={{}}
         syringeStandard="U100"
         syringeSize="1.0"
       />
@@ -353,7 +347,6 @@ describe('ReconstitutionClient room temperature storage partitioning', () => {
         dryVials={[dryVials[0]]} // Only cold dry
         activeVials={[activeVials[0]]} // Only cold active
         inventorySummary={[]}
-        reconstitutedVialsByCompound={{}}
         syringeStandard="U100"
         syringeSize="1.0"
       />
@@ -378,7 +371,6 @@ describe('ReconstitutionClient room temperature storage partitioning', () => {
         dryVials={dryVials}
         activeVials={activeVials}
         inventorySummary={[]}
-        reconstitutedVialsByCompound={{}}
         syringeStandard="U100"
         syringeSize="1.0"
       />
@@ -406,7 +398,6 @@ describe('ReconstitutionClient room temperature storage partitioning', () => {
         dryVials={dryVials}
         activeVials={activeVials}
         inventorySummary={[]}
-        reconstitutedVialsByCompound={{}}
         syringeStandard="U100"
         syringeSize="1.0"
       />

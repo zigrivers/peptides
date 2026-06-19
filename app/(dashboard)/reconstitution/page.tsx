@@ -78,14 +78,6 @@ export default async function ReconstitutionPage({ searchParams }: PageProps) {
 
   const inventorySummary = await getInventorySummaryByCompound(subjectUserId, protocols, syringeStandard);
 
-  // Reconstituted vials grouped by compound — drives the per-compound "drawing from" selector.
-  const reconstitutedVialsByCompound = serializedActiveVials.reduce<
-    Record<string, typeof serializedActiveVials>
-  >((acc, v) => {
-    (acc[v.compoundId] ??= []).push(v);
-    return acc;
-  }, {});
-
   const compoundsMinimal = compounds.map((c) => ({ id: c.id, name: c.name, slug: c.slug }));
 
   return (
@@ -99,7 +91,6 @@ export default async function ReconstitutionPage({ searchParams }: PageProps) {
         dryVials={serializedDryVials}
         activeVials={serializedActiveVials}
         inventorySummary={inventorySummary}
-        reconstitutedVialsByCompound={reconstitutedVialsByCompound}
         syringeStandard={syringeStandard}
         syringeSize={syringeSize}
         autoReconstituteCompoundId={autoReconstituteCompoundId}
