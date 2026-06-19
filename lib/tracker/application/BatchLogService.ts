@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/shared/prisma';
-import { toUTCDay } from '@/lib/shared/date';
+import { toUTCDay, utcMidnightToday } from '@/lib/shared/date';
 import Decimal from 'decimal.js';
 import { convertDoseToMg, decrementVialInventory } from '@/lib/reconstitution/application/InventoryService';
 import { resolveActiveVial } from '@/lib/reconstitution/application/VialService';
@@ -111,22 +111,25 @@ function calculateLoggedCost(
 
 // Batch log is scoped to the actor's own protocols. Managed users' doses are logged
 // individually via the per-protocol log action — the batch flow is a personal daily ritual.
-export async function getDueTodayForBatch(actorUserId: string): Promise<BatchDueItem[]> {
-  const now = new Date();
-  const todayUTC = toUTCDay(now);
-
+// Callers that already know the viewer's calendar day should pass it explicitly so
+// the batch plan matches the local-day tracker calendar instead of server UTC.
+export async function getDueForBatch(
+  actorUserId: string,
+  scheduledDate: Date = utcMidnightToday()
+): Promise<BatchDueItem[]> {
+  const targetDate = toUTCDay(scheduledDate);
   const allProtocols = await listProtocolsForUser(prisma, actorUserId);
   // Explicit ownership filter in addition to listProtocolsForUser's WHERE clause.
   const dueProtocols = allProtocols.filter(
     (p) =>
       p.userId === actorUserId &&
       p.status === 'ACTIVE' &&
-      isScheduledOn(p.schedule, p.startDate, p.endDate, todayUTC)
+      isScheduledOn(p.schedule, p.startDate, p.endDate, targetDate)
   );
 
   // Bulk dose log lookup — 1 query instead of N
   const protocolIds = dueProtocols.map((p) => p.id);
-  const logsByProtocol = await findDoseLogsForDate(prisma, actorUserId, protocolIds, todayUTC);
+  const logsByProtocol = await findDoseLogsForDate(prisma, actorUserId, protocolIds, targetDate);
 
   // Vial counts — 1 query per unique compound instead of 1 per protocol
   const uniqueCompoundIds = [...new Set(dueProtocols.map((p) => p.compoundId))];
@@ -179,6 +182,10 @@ export async function getDueTodayForBatch(actorUserId: string): Promise<BatchDue
       doseUnits,
     }));
   });
+}
+
+export async function getDueTodayForBatch(actorUserId: string): Promise<BatchDueItem[]> {
+  return getDueForBatch(actorUserId, utcMidnightToday());
 }
 
 type ResolvedBatchProtocol = NonNullable<Awaited<ReturnType<typeof findProtocolByIdForActor>>>;

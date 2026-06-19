@@ -3,11 +3,11 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/shared/prisma';
 import { getProtocolsForUser } from '@/lib/tracker/application/ProtocolService';
-import { getDueTodayForBatch } from '@/lib/tracker/application/BatchLogService';
+import { getDueForBatch } from '@/lib/tracker/application/BatchLogService';
 import { findCompoundsByIds, listCompounds } from '@/lib/reference/infrastructure/CompoundRepo';
 import { getRecentDoseLogsForUser, getDoseLogsRange } from '@/lib/tracker/application/DoseLogService';
 import { resolveActiveVial, getDryVialsForUser, serializeVial } from '@/lib/reconstitution/application/VialService';
-import { utcMidnightToday } from '@/lib/shared/date';
+import { localDayAnchoredUTC } from '@/lib/shared/date';
 import {
   buildLoggedDoseDisplay,
   buildDoseUnitsDisplay,
@@ -30,7 +30,8 @@ export default async function TrackerPage() {
 
   const userId = session.user.id;
   const now = new Date();
-  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const todayLocal = localDayAnchoredUTC(now);
+  const todayDateStr = todayLocal.toISOString().slice(0, 10);
 
   const streakLimitDays = 365;
   const streakSince = new Date();
@@ -39,7 +40,7 @@ export default async function TrackerPage() {
   const [protocols, dueToday, doseLogs, compoundsList, allDoseLogsForStreak, dryVialsRaw] =
     await Promise.all([
       getProtocolsForUser(userId),
-      getDueTodayForBatch(userId),
+      getDueForBatch(userId, todayLocal),
       getRecentDoseLogsForUser(userId),
       listCompounds({ includeArchived: true }),
       getDoseLogsRange(userId, streakSince),
@@ -179,7 +180,7 @@ export default async function TrackerPage() {
   // Dry (un-reconstituted) vials + compound options for the inline "Add inventory" modal.
   // Serialized exactly as the reconstitution page does (mirrors its serializeVial call shape).
   const dryVials = dryVialsRaw.map((v) =>
-    serializeVial(v, utcMidnightToday(), protocols, syringeStandard)
+    serializeVial(v, todayLocal, protocols, syringeStandard)
   );
   const compoundOptions = compoundsList.map((c) => ({
     id: c.id,
@@ -327,7 +328,7 @@ export default async function TrackerPage() {
               doseLogs={serializedDoseLogs}
               compounds={compoundsMap}
               siteSuggestions={siteSuggestions}
-              initialDateISO={todayUTC.toISOString()}
+              initialDateISO={todayLocal.toISOString()}
               followClientToday
               loggedDates={loggedDates}
               doseUnitsByCompoundId={doseUnitsByCompoundId}
@@ -347,10 +348,11 @@ export default async function TrackerPage() {
             variant="sidebar"
             items={serializedDueToday}
             compoundNames={compoundNames}
+            scheduledDate={todayDateStr}
           />
           <BenefitsTimeline
             activeProtocols={serializedActiveProtocolsWithTimeline}
-            currentDateISO={todayUTC.toISOString()}
+            currentDateISO={todayLocal.toISOString()}
           />
         </aside>
       </div>

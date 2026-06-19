@@ -10,6 +10,12 @@ vi.mock('@/app/actions/tracker/batch-log-doses', () => ({
   batchLogDosesAction: vi.fn(),
 }));
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: vi.fn(),
+  }),
+}));
+
 vi.stubGlobal('React', React);
 
 const baseProtocol = {
@@ -188,6 +194,63 @@ describe('BatchLogReview', () => {
             protocolId: 'proto-1',
             doseSlot: 0,
             injectionSite: { bodyPart: 'abdomen-lower', side: 'right' },
+          },
+        ],
+      });
+    });
+  });
+
+  it('sends the visible local plan date when logging selected sidebar doses', async () => {
+    const mockAction = vi.mocked(batchLogDosesAction);
+    mockAction.mockResolvedValue({
+      ok: true,
+      results: [
+        {
+          ok: true,
+          protocolId: 'proto-1',
+          doseSlot: 0,
+          doseLog: {
+            id: 'log-1',
+            protocolId: 'proto-1',
+            userId: 'user-1',
+            vialId: 'vial-1',
+            idempotencyKey: 'user-1:proto-1:2026-05-25:0',
+            loggedAt: new Date('2026-05-25T12:00:00.000Z'),
+            scheduledDate: new Date('2026-05-25T00:00:00.000Z'),
+            doseSlot: 0,
+            amount: { amount: '250', unit: 'mcg' },
+            status: 'LOGGED',
+            injectionSite: null,
+            isBatchLog: true,
+            note: null,
+            loggedByUserId: 'user-1',
+            loggedCost: null,
+            loggedCurrency: null,
+          },
+          warnings: [],
+        },
+      ],
+    });
+
+    render(
+      <BatchLogReview
+        items={[dueItem()]}
+        compoundNames={{ 'compound-bpc': 'BPC-157' }}
+        scheduledDate="2026-05-25"
+      />
+    );
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Log 1 Selected' }));
+
+    await waitFor(() => {
+      expect(mockAction).toHaveBeenCalledWith({
+        scheduledDate: '2026-05-25',
+        selections: [
+          {
+            protocolId: 'proto-1',
+            doseSlot: 0,
+            injectionSite: { bodyPart: 'abdomen-upper', side: 'left' },
           },
         ],
       });

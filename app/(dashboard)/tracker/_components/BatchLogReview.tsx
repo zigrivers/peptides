@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Protocol, DoseLog, InjectionSite, SafetyWarning } from '@/lib/tracker/domain/types';
 import type { DoseUnitsDisplay } from '@/lib/reconstitution/domain/doseUnits';
 import { batchLogDosesAction } from '@/app/actions/tracker/batch-log-doses';
@@ -45,6 +46,8 @@ type Props = {
   items: SerializedBatchDueItem[];
   compoundNames: Record<string, string>; // compoundId → name
   variant?: 'default' | 'sidebar';
+  /** YYYY-MM-DD calendar date represented by this plan. Passed to the batch action. */
+  scheduledDate?: string;
 };
 
 
@@ -98,8 +101,9 @@ function buildInitialSiteSelections(items: SerializedBatchDueItem[]): Record<str
   return selections;
 }
 
-export function BatchLogReview({ items, compoundNames, variant = 'default' }: Props) {
+export function BatchLogReview({ items, compoundNames, variant = 'default', scheduledDate }: Props) {
   const isSidebar = variant === 'sidebar';
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [selectedSites, setSelectedSites] = useState<Record<string, InjectionSite | null>>(
@@ -196,7 +200,10 @@ export function BatchLogReview({ items, compoundNames, variant = 'default' }: Pr
     if (selections.length === 0) return;
 
     startTransition(async () => {
-      const result = await batchLogDosesAction({ selections });
+      const result = await batchLogDosesAction({
+        selections,
+        ...(scheduledDate ? { scheduledDate } : {}),
+      });
 
       if (!result.ok) {
         setError(result.message);
@@ -229,6 +236,7 @@ export function BatchLogReview({ items, compoundNames, variant = 'default' }: Pr
 
       const allDone = items.every((i) => nextStates[itemKey(i)] === 'logged' || nextStates[itemKey(i)] === 'skipped');
       if (allDone) setDone(true);
+      router.refresh();
     });
   }
 

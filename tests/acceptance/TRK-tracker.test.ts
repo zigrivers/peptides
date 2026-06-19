@@ -134,7 +134,7 @@ const { generateScheduleDates, isScheduledOn, getScheduledDatesInRange } = await
   '@/lib/tracker/domain/ScheduleGenerator'
 );
 const { logDose } = await import('@/lib/tracker/application/DoseLogService');
-const { batchLogDoses, getDueTodayForBatch } = await import('@/lib/tracker/application/BatchLogService');
+const { batchLogDoses, getDueForBatch, getDueTodayForBatch } = await import('@/lib/tracker/application/BatchLogService');
 const { getSitesForRoute, suggestNextSite, getSitesMeta } = await import('@/lib/tracker/domain/SiteRotation');
 const { getSiteSuggestion } = await import('@/lib/tracker/application/SiteRotationService');
 const { createCycle, getCyclesForUser, getCurrentWeekInfo, restartCycle } = await import('@/lib/tracker/application/CycleService');
@@ -2027,6 +2027,29 @@ describe('US-TRK-05: Batch Log', () => {
     const items = await getDueTodayForBatch(batchActorUserId);
 
     expect(items).toHaveLength(0); // EOD not due today
+  });
+
+  it('getDueForBatch builds the batch plan for an explicit local calendar date', async () => {
+    const localTomorrow = new Date(Date.UTC(2026, 4, 22));
+    const eodProtocol = {
+      ...makeProtocolRow(proto1Id),
+      schedule: { frequency: 'EOD' },
+      startDate: new Date(Date.UTC(2026, 4, 20)),
+    };
+    mockProtocolFindMany.mockResolvedValue([eodProtocol]);
+    mockVialCount.mockResolvedValue(1);
+    mockDoseLogFindMany.mockResolvedValue([]);
+
+    const items = await getDueForBatch(batchActorUserId, localTomorrow);
+
+    expect(items).toHaveLength(1);
+    expect(mockDoseLogFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          scheduledDate: localTomorrow,
+        }),
+      })
+    );
   });
 
   it('twice-daily: getDueTodayForBatch returns TWO items (slots 0 and 1) with labels; one logged leaves the other pending', async () => {
