@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS launchd agent: runs a full local DB backup once a day.
+
+  Install (copies to ~/Library/LaunchAgents and loads it):
+    cp scripts/com.peptides.db-backup.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.peptides.db-backup.plist
+
+  Uninstall:
+    launchctl bootout gui/$(id -u)/com.peptides.db-backup
+    rm ~/Library/LaunchAgents/com.peptides.db-backup.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.peptides.db-backup</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/kenallred/Developer/peptides/scripts/db-backup.sh</string>
+  </array>
+
+  <!-- Run every day at 12:30 local time (a time the Mac is usually awake). -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>12</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/kenallred/Developer/peptides/backups/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/kenallred/Developer/peptides/backups/launchd.err.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

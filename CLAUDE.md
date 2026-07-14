@@ -42,6 +42,8 @@
 | Prisma Validate | `pnpm prisma:validate` |
 | DB Seed | `pnpm db:seed` |
 | DB Seed (reference catalog only, prod-safe) | `pnpm db:seed:reference` |
+| DB Backup (full pg_dump → `backups/`) | `pnpm db:backup` |
+| DB Restore (from a dump; asks to confirm) | `pnpm db:restore <file>` |
 
 ## Git & PR Workflow (lifecycle + 4.5 PR review)
 1. **Commit**: `type(scope): desc`.
