@@ -27,7 +27,9 @@
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "db:seed": "tsx prisma/seed.ts",
-    "db:seed:reference": "NODE_ENV=production tsx prisma/seed.ts"
+    "db:seed:reference": "NODE_ENV=production tsx prisma/seed.ts",
+    "db:backup": "bash scripts/db-backup.sh",
+    "db:restore": "bash scripts/db-restore.sh"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.79",
