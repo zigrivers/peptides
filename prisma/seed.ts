@@ -1888,17 +1888,37 @@ Semax is like a neural shield and battery booster. It prompts the brain to relea
       administrationRoutes: ['Intranasal', 'SubQ'],
       tags: ['cognitive', 'longevity'],
       profile: {
-        dosingLow: { amount: '100', unit: 'mcg', researchBenefits: 'Mild focus improvement and cognitive support', recommendedFrequency: 'Once daily' },
-        dosingTypical: { amount: '300', unit: 'mcg', researchBenefits: 'Enhanced learning, focus, memory recall, and neuroprotection', recommendedFrequency: 'Once or twice daily' },
-        dosingHigh: { amount: '900', unit: 'mcg', researchBenefits: 'Post-stroke rehabilitation or severe cognitive impairment support', recommendedFrequency: 'Three times daily' },
-        sideEffects: 'Mild temporary hair loss (rare, linked to BDNF kinetics in predisposed subjects). Safety Assessment: Very safe. Non-stimulating, non-addictive. Rare reports of temporary mild hair loss.',
-        stackingNotes: 'Often stacked with Selank to balance cognitive stimulation with anxiolytic relaxation. Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        dosingLow: {
+          amount: '100',
+          unit: 'mcg',
+          researchBenefits:
+            'Research-peptide / DIY starting dose for nasal tolerability and mild focus support; empirical only — no US FDA cognitive label',
+          recommendedFrequency: 'Once daily nasal (start / mild focus)',
+        },
+        dosingTypical: {
+          amount: '300',
+          unit: 'mcg',
+          researchBenefits:
+            'Modal community nootropic administration for learning, focus, and working-memory stacks (~300–600 mcg total/day when 1–2×); still anecdotal / secondary protocol language, not a US RCT label',
+          recommendedFrequency: '1–2× daily nasal (AM ± early afternoon)',
+        },
+        dosingHigh: {
+          amount: '600',
+          unit: 'mcg',
+          researchBenefits:
+            'Upper end of common DIY cognitive-boost charts (sometimes 2–3× daily for short blocks); multi-mg/day Russian acute-stroke product schedules are separate hospital-context regimens and are not this Catalog tier',
+          recommendedFrequency: '1–2× daily nasal (upper DIY; short cycles)',
+        },
+        sideEffects:
+          'Transient nasal irritation, mild headache, occasional insomnia if dosed late; rare temporary hair shedding reports in community. Safety Assessment: Russian clinical literature at registered nasal doses generally reports a mild side-effect profile; research Semax is not FDA-approved. Avoid late-evening doses that may disturb sleep. Not a stimulant in the classic sense, but some users find it activating.',
+        stackingNotes:
+          'Often stacked with Selank (cognitive stimulation + anxiolytic balance) in community protocols — no controlled combination RCTs. Storage: Reconstituted solution is typically refrigerated and used within ~28–30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 30,
-        
+
         fridgeShelfLifeMonths: 12,
-        
+
         freezerShelfLifeMonths: 24,
-        
+
         citations: [
           {
             title: 'Semax regulates BDNF and NGF expression in ischemic brain',

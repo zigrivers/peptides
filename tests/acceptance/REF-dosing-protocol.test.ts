@@ -487,6 +487,56 @@ describe('REF Dosing Protocol Acceptances', () => {
       const validation = validateDosingProtocol(fixture!.profile!);
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
+
+    it('should seed Semax with research-peptide community nasal dosing ranges and BID protocol', () => {
+      // Catalog audience is DIY / research-peptide community: modal nootropic charts use
+      // ~200–600 mcg intranasal (typical ~300 mcg) 1–2× daily on short cycles — not 900 mcg
+      // three times daily framed as the Catalog high without community context.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          dosesPerDay: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+        };
+      }>;
+
+      // Anchor on the compound profile header (demo seed data also mentions NA-Semax earlier).
+      const blockStart = seedSource.indexOf("name: 'Semax',\n      iupacName: null");
+      const blockEnd = seedSource.indexOf("name: 'NA-Semax-Amidate',\n      iupacName:");
+      expect(blockStart).toBeGreaterThan(-1);
+      expect(blockEnd).toBeGreaterThan(blockStart);
+      const semaxBlock = seedSource.slice(blockStart, blockEnd);
+      const lowAmt = semaxBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = semaxBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = semaxBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      expect(lowAmt).toBe('100');
+      expect(typAmt).toBe('300');
+      expect(highAmt).toBe('600');
+      expect(highAmt).not.toBe('900');
+      expect(semaxBlock).toMatch(/1–2× daily nasal/);
+      expect(semaxBlock).toMatch(/community/i);
+
+      const fixture = fixtures.find((f) => f.name === 'Semax');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('DAILY');
+      expect(fixture!.profile!.dosesPerDay).toBe(2);
+      expect(fixture!.profile!.cycleLengthWeeks).toBe(2);
+      expect(fixture!.profile!.restPeriodWeeks).toBe(2);
+      expect(fixture!.profile!.preferredTime).toBe('ANYTIME');
+      expect(fixture!.profile!.timingNotes).toMatch(/community/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/300 mcg/);
+      expect(fixture!.profile!.timingNotes).toMatch(/Not FDA-approved/);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
   });
 
   describe('Phase 2: Database CHECK Constraints (Negative Tests)', () => {
@@ -877,6 +927,40 @@ describe('REF Dosing Protocol Acceptances', () => {
       expect(String(profile.timingNotes).toLowerCase()).toContain('community');
       expect(String(profile.timingNotes).toLowerCase()).toContain('topical');
       expect(String(profile.dosingTypical.recommendedFrequency).toLowerCase()).toMatch(/daily/);
+    });
+
+    it('should seed Semax with community research-peptide nasal tiers and 2/2 BID protocol in the DB', async () => {
+      const compound = await prisma.catalogItem.findFirst({
+        where: { name: 'Semax' },
+        include: { profile: true },
+      });
+      expect(compound).toBeTruthy();
+      const profile = compound!.profile as any;
+      expect(profile).toBeTruthy();
+
+      expect(profile.dosingLow.amount).toBe('100');
+      expect(profile.dosingTypical.amount).toBe('300');
+      expect(profile.dosingHigh.amount).toBe('600');
+      expect(profile.dosingLow.unit).toBe('mcg');
+      expect(profile.dosingTypical.unit).toBe('mcg');
+      expect(profile.dosingHigh.unit).toBe('mcg');
+
+      const typFreq = String(profile.dosingTypical.recommendedFrequency ?? '').toLowerCase();
+      expect(typFreq).toMatch(/1|2|daily|nasal/);
+
+      expect(profile.dosingFrequency).toBe('DAILY');
+      expect(profile.dosesPerDay).toBe(2);
+      expect(profile.cycleLengthWeeks).toBe(2);
+      expect(profile.restPeriodWeeks).toBe(2);
+      expect(profile.preferredTime).toBe('ANYTIME');
+      expect(profile.isFdaApproved).toBe(false);
+
+      const notes = String(profile.timingNotes ?? '');
+      expect(notes.toLowerCase()).toContain('community');
+      expect(notes).toMatch(/300 mcg/);
+      expect(notes).toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
     });
   });
 
