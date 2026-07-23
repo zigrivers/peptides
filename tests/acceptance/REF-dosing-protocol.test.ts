@@ -295,6 +295,53 @@ describe('REF Dosing Protocol Acceptances', () => {
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
 
+    it('should seed TB-500 with research-peptide community dosing ranges and twice-weekly protocol', () => {
+      // Catalog audience is DIY / research-peptide community: modal charts use ~2–2.5 mg SC
+      // twice weekly loading (~4–5 mg/week), not 5 mg typical / 10 mg high as if those were
+      // the standard per-injection sizes (which implied 10–20 mg/week).
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          preferredTime: string | null;
+          timingNotes: string;
+        };
+      }>;
+
+      const tbBlock = seedSource.slice(seedSource.indexOf("name: 'TB-500'"), seedSource.indexOf("name: 'Semaglutide'"));
+      const lowAmt = tbBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = tbBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = tbBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      // Community modal is 2.5 mg typical loading shot (not the old 5.0 typical / 10.0 high).
+      expect(lowAmt).toBe('2.0');
+      expect(typAmt).toBe('2.5');
+      expect(highAmt).toBe('5.0');
+      expect(typAmt).not.toBe('5.0');
+      expect(highAmt).not.toBe('10.0');
+      expect(tbBlock).toMatch(/Twice weekly SC \(loading/);
+      expect(tbBlock).toMatch(/community/i);
+      expect(tbBlock).toMatch(/Not FDA-approved|no FDA-approved/i);
+
+      const fixture = fixtures.find((f) => f.name === 'TB-500');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('TWICE_WEEKLY');
+      expect(fixture!.profile!.cycleLengthWeeks).toBe(6);
+      expect(fixture!.profile!.restPeriodWeeks).toBe(4);
+      expect(fixture!.profile!.preferredTime).toBe('ANYTIME');
+      expect(fixture!.profile!.timingNotes).toMatch(/community/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/2–2\.5 mg/);
+      expect(fixture!.profile!.timingNotes).toMatch(/loading/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/Not FDA-approved/);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
+
     it('should seed BPC-157 with research-peptide community dosing ranges and BID protocol', () => {
       // Catalog audience is DIY / research-peptide community: modal charts use ~250–500 mcg
       // SC 1–2× daily (often ~500 mcg/day, frequently split), 4–8 week on / 2–4 week off —
@@ -684,6 +731,41 @@ describe('REF Dosing Protocol Acceptances', () => {
       const notes = String(profile.timingNotes ?? '');
       expect(notes.toLowerCase()).toContain('community');
       expect(notes).toContain('5 mg');
+      expect(notes).toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+    });
+
+    it('should seed TB-500 with community research-peptide tiers and twice-weekly cycled protocol in the DB', async () => {
+      const compound = await prisma.catalogItem.findFirst({
+        where: { name: 'TB-500' },
+        include: { profile: true },
+      });
+      expect(compound).toBeTruthy();
+      const profile = compound!.profile as any;
+      expect(profile).toBeTruthy();
+
+      expect(profile.dosingLow.amount).toBe('2.0');
+      expect(profile.dosingTypical.amount).toBe('2.5');
+      expect(profile.dosingHigh.amount).toBe('5.0');
+      expect(profile.dosingLow.unit).toBe('mg');
+      expect(profile.dosingTypical.unit).toBe('mg');
+      expect(profile.dosingHigh.unit).toBe('mg');
+
+      const typFreq = String(profile.dosingTypical.recommendedFrequency ?? '').toLowerCase();
+      expect(typFreq).toMatch(/twice weekly|2× weekly|2x weekly/);
+      expect(typFreq).toMatch(/loading/);
+
+      expect(profile.dosingFrequency).toBe('TWICE_WEEKLY');
+      expect(profile.cycleLengthWeeks).toBe(6);
+      expect(profile.restPeriodWeeks).toBe(4);
+      expect(profile.preferredTime).toBe('ANYTIME');
+      expect(profile.isFdaApproved).toBe(false);
+
+      const notes = String(profile.timingNotes ?? '');
+      expect(notes.toLowerCase()).toContain('community');
+      expect(notes).toMatch(/2–2\.5 mg/);
+      expect(notes.toLowerCase()).toContain('loading');
       expect(notes).toContain(
         'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
       );

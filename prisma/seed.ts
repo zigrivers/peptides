@@ -534,17 +534,37 @@ Imagine a cellular assembly line where structural components (actin) are usually
       administrationRoutes: ['SubQ', 'IM'],
       tags: ['healing', 'recovery'],
       profile: {
-        dosingLow: { amount: '2.0', unit: 'mg', researchBenefits: 'Musculoskeletal maintenance, mild systemic repair', recommendedFrequency: 'Twice weekly' },
-        dosingTypical: { amount: '5.0', unit: 'mg', researchBenefits: 'Standard connective tissue, tendon, and ligament repair', recommendedFrequency: 'Twice weekly' },
-        dosingHigh: { amount: '10.0', unit: 'mg', researchBenefits: 'Acute loading dose for severe sports injuries or tears', recommendedFrequency: 'Twice weekly' },
-        sideEffects: 'Occasional fatigue and mild nausea in higher doses. Safety Assessment: High safety profile. Occasional transient fatigue, headache, or mild lethargy reported in higher doses.',
-        stackingNotes: 'Often combined with BPC-157; synergistic healing across tissue types. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        dosingLow: {
+          amount: '2.0',
+          unit: 'mg',
+          researchBenefits:
+            'Conservative research-peptide / DIY exposure for musculoskeletal maintenance or post-loading support; often used as once-weekly maintenance after a loading block',
+          recommendedFrequency: 'Once weekly (maintenance) or 2× weekly conservative',
+        },
+        dosingTypical: {
+          amount: '2.5',
+          unit: 'mg',
+          researchBenefits:
+            'Modal community loading injection for soft-tissue, tendon, and ligament recovery charts (~4–5 mg/week total at 2× weekly); empirical only — no FDA-approved human SC label',
+          recommendedFrequency: 'Twice weekly SC (loading, ~4–6 weeks)',
+        },
+        dosingHigh: {
+          amount: '5.0',
+          unit: 'mg',
+          researchBenefits:
+            'Upper end of common community loading charts (~8–10 mg/week total when split 2× weekly); aggressive acute injury protocols — not a standard 10 mg twice-weekly (20 mg/week) regimen',
+          recommendedFrequency: 'Twice weekly SC (aggressive loading)',
+        },
+        sideEffects:
+          'Occasional fatigue, mild headache, or lethargy reported at higher community doses; injection-site redness/irritation possible. Safety Assessment: Full Tβ4 Phase I IV doses far above community SC mg were well tolerated (read-across only, different route). Research TB-500 is not FDA-approved; WADA-prohibited. Angiogenesis-related theoretical concerns are discussed in literature without clear human causality at DIY doses.',
+        stackingNotes:
+          'Often stacked with BPC-157 (“Wolverine stack”) for complementary localized vs systemic repair pathways — no controlled combination RCTs. Storage: Reconstituted solution is typically refrigerated and used within ~28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 28,
-        
+
         fridgeShelfLifeMonths: 12,
-        
+
         freezerShelfLifeMonths: 24,
-        
+
         citations: [
           {
             title: 'Thymosin beta-4 accelerates wound healing',
