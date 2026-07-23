@@ -783,6 +783,70 @@ describe('REF Dosing Protocol Acceptances', () => {
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
 
+    it('should seed Pinealon with research-peptide community mcg dosing and short bioregulator cycle', () => {
+      // DIY modal band: ~200–1000 mcg once daily for 10–20 days, multi-month rest.
+      // Not FDA-approved; clinic multi-mg charts are minority, not Typical.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          dosesPerDay: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+          isFdaApproved?: boolean;
+          cycleRationale?: string;
+          restPeriodRationale?: string;
+        };
+        citations?: Array<{ title: string; doi?: string | null; pmid?: string | null }>;
+      }>;
+
+      const blockStart = seedSource.indexOf("name: 'Pinealon'");
+      const blockEnd = seedSource.indexOf("name: 'MOTS-c'");
+      expect(blockStart).toBeGreaterThan(-1);
+      expect(blockEnd).toBeGreaterThan(blockStart);
+      const pinealonBlock = seedSource.slice(blockStart, blockEnd);
+      const lowAmt = pinealonBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = pinealonBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = pinealonBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      expect(lowAmt).toBe('200');
+      expect(typAmt).toBe('500');
+      expect(highAmt).toBe('1000');
+      expect(pinealonBlock).toMatch(/unit: 'mcg'/);
+      expect(pinealonBlock).toMatch(/### The Technical Mechanism/);
+      expect(pinealonBlock).toMatch(/### The Analogy/);
+      expect(pinealonBlock).toMatch(/### Clinical Expected Timeline/);
+      expect(pinealonBlock).toMatch(/Glu-Asp-Arg|EDR/);
+      expect(pinealonBlock).toMatch(/community/i);
+      expect(pinealonBlock).toMatch(/33396470/);
+      expect(pinealonBlock).toMatch(/sideEffects:/);
+      expect(pinealonBlock).toMatch(/stackingNotes:/);
+      expect(pinealonBlock).toMatch(/reconstitutedShelfLifeDays: 28/);
+
+      const fixture = fixtures.find((f) => f.name === 'Pinealon');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('DAILY');
+      expect(fixture!.profile!.dosesPerDay).toBe(1);
+      expect(fixture!.profile!.cycleLengthWeeks).toBe(2);
+      expect(fixture!.profile!.restPeriodWeeks).toBe(10);
+      expect(fixture!.profile!.preferredTime).toBe('MORNING');
+      expect(fixture!.profile!.isFdaApproved).toBe(false);
+      expect(fixture!.profile!.timingNotes).toMatch(/community|DIY|research-peptide/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/200|500|1000|1 mg/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/Not FDA-approved/);
+      expect(fixture!.profile!.cycleRationale).toBeTruthy();
+      expect(fixture!.profile!.restPeriodRationale).toBeTruthy();
+      expect(fixture!.citations?.length).toBeGreaterThanOrEqual(1);
+      expect(fixture!.citations?.some((c) => c.pmid === '33396470')).toBe(true);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
+
     it('should seed ARA-290 with research-peptide community SC dosing ranges and 4/8 daily protocol', () => {
       // DIY audience mirrors Phase 2 fixed SC mg charts: 2 / 4 / 8 mg once daily with
       // modal 4 mg × ~28 days; high 8 mg is an upper trial arm, not a default “severe” dose.

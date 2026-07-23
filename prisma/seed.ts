@@ -793,6 +793,72 @@ Epitalon acts like a genetic clock restorer. In every cell, our chromosomes have
       },
     },
     {
+      name: 'Pinealon',
+      iupacName: 'L-α-glutamyl-L-α-aspartyl-L-arginine',
+      synonyms: ['EDR', 'EDR peptide', 'Glu-Asp-Arg', 'Pinealon EDR'],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+A synthetic ultrashort tripeptide (Glu-Asp-Arg, EDR) studied as a neuroprotective bioregulator from the Khavinson short-peptide program (St. Petersburg Institute of Bioregulation and Gerontology). Preclinical and review literature link EDR to reduced neuronal reactive oxygen species, support of antioxidant enzyme expression (including SOD2 and GPX1 themes), modulation of MAPK/ERK-related signaling, and lower pro-apoptotic pressure (e.g. caspase-3 / p53 pathways in model systems). Reviews also discuss possible effects on gene-expression programs relevant to neuronal resilience and Alzheimer’s-disease pathogenesis components (PPARA/PPARG, serotonin, and calmodulin-related themes). It is not a classical monoamine stimulant and has no US FDA-approved cognitive label.
+
+### The Analogy (The Layman Explanation)
+Pinealon acts like a small “brain maintenance chip.” Instead of juicing focus like caffeine, it is framed as helping neurons handle oxidative stress and keep repair and protective gene programs online—so clarity, learning resilience, and age-related neural durability are the usual research goals, not a sharp stimulant buzz.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Course start; early community reports emphasize sleep-architecture curiosity and subtle clarity more than an immediate nootropic “hit.”
+* **Week 2 (Days 8–14)**: End of a typical 10–20 day bioregulator block; spatial-learning and oxidative-stress themes are the literature frame for short courses.
+* **Week 4 (Days 15–28)**: Often into the off-window after a short cycle; residual subjective clarity or sleep quality, if present, is reassessed without continuous dosing.
+* **Week 8 (Days 29–56)**: Mid rest period in common 2–3 month off charts; benefits from a single short course are not expected to require multi-month continuous exposure.
+* **Week 12 (Days 57–84)**: Approaching a possible next short course in annual/biannual bioregulator planning; long-term DIY continuous use is not well characterized.`,
+      administrationRoutes: ['SubQ', 'Intranasal'],
+      tags: ['cognitive', 'longevity'],
+      profile: {
+        dosingLow: {
+          amount: '200',
+          unit: 'mcg',
+          researchBenefits:
+            'Research-peptide / DIY starting band for tolerability and light neuroprotection / circadian-support stacks; empirical only — no FDA-approved human cognitive label',
+          recommendedFrequency: 'Once daily (10–20 day cycle)',
+        },
+        dosingTypical: {
+          amount: '500',
+          unit: 'mcg',
+          researchBenefits:
+            'Modal community research-planning dose inside the common 200 mcg–1 mg once-daily band for cognitive and neural-resilience blocks; still anecdotal / secondary protocol language, not a US RCT label',
+          recommendedFrequency: 'Once daily SubQ or nasal (10–20 day cycle)',
+        },
+        dosingHigh: {
+          amount: '1000',
+          unit: 'mcg',
+          researchBenefits:
+            'Upper end of the modal DIY cognitive band (1 mg once daily); clinic-style multi-mg charts (e.g. 5–10 mg/day) appear in secondary writeups but are not treated as the research-peptide default Typical',
+          recommendedFrequency: 'Once daily (short 10–20 day courses)',
+        },
+        sideEffects:
+          'Limited human safety data. Community reports: mild headache, injection-site redness, vivid dreams or mild insomnia if dosed late, occasional fatigue, dizziness, or mild anxiety; many users report no noticeable effect. Safety Assessment: Preclinical models generally emphasize low overt toxicity, but modern long-term human toxicology is sparse. Not FDA-approved. One small uncontrolled observational report mentioned unexpected prooxidant activity and CD34+ cell changes — clinical meaning unclear and not a validated standard risk label. Avoid late-evening dosing if sleep is disrupted. Theoretical caution with serotonergic drug stacks (no formal interaction trials).',
+        stackingNotes:
+          'Often stacked in community protocols with Epitalon (pineal / circadian + neural bioregulator framing) or with Semax/Selank (focus + calm) — no controlled combination RCTs; do not assume synergy. Storage: lyophilized powder frozen or refrigerated and protected from light; once reconstituted, refrigerate (2–8°C) and use within ~28–30 days; do not freeze the solution.',
+        reconstitutedShelfLifeDays: 28,
+
+        fridgeShelfLifeMonths: 12,
+
+        freezerShelfLifeMonths: 24,
+
+        citations: [
+          {
+            title:
+              'EDR Peptide: Possible Mechanism of Gene Expression and Protein Synthesis Regulation Involved in the Pathogenesis of Alzheimer\'s Disease',
+            doi: '10.3390/molecules26010159',
+            pmid: '33396470',
+          },
+          {
+            title: 'Pinealon protects the rat offspring from prenatal hyperhomocysteinemia',
+            doi: null,
+            pmid: '22567179',
+          },
+        ],
+      },
+    },
+    {
       name: 'MOTS-c',
       iupacName: null,
       synonyms: ['Mitochondrial ORF of the 12S rRNA type-c'],
@@ -3893,6 +3959,50 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       { week: 12, benefits: ['End of the typical short controlled window; robust improvements (6-minute walk, strength) appeared only over much longer open-label dosing; judge over months, not weeks'] },
     ];
   }
+  if (normName.includes('pinealon') || normName === 'edr' || normName.includes('glu-asp-arg')) {
+    return [
+      {
+        week: 1,
+        benefits: [
+          'Short bioregulator course starts (typically 10–20 days total); early community reports favor subtle clarity or sleep-architecture curiosity over a stimulant-like jolt',
+          'Preclinical frame: lower neuronal oxidative-stress pressure and antioxidant-enzyme support themes begin in model systems long before human endpoints are proven',
+          'Tolerability check: watch for mild headache, injection-site irritation, or sleep disruption if dosed late',
+        ],
+      },
+      {
+        week: 2,
+        benefits: [
+          'End of the modal 10–20 day on-block; reassess focus, mood, and sleep without assuming a dramatic nootropic peak',
+          'Literature themes include spatial-learning / cognitive resilience in animal prenatal-stress models — human translation remains limited',
+          'Many users report little or no subjective change; absence of a strong “feel” is common and not proof of effect or lack of effect',
+        ],
+      },
+      {
+        week: 4,
+        benefits: [
+          'Usually into the rest window after a short cycle; residual subjective benefits, if any, are reassessed off-peptide',
+          'Community charts rarely treat Pinealon as a multi-month continuous daily nootropic',
+          'Plan the long rest (often ~2–3 months) before considering another short course',
+        ],
+      },
+      {
+        week: 8,
+        benefits: [
+          'Mid off-period in common 8–12 week rest charts; no requirement for continuous EDR exposure is established',
+          'Track whether sleep quality or cognitive baseline drifted back after the course',
+          'Avoid stacking multiple unproven neuro-peptides without clear attribution',
+        ],
+      },
+      {
+        week: 12,
+        benefits: [
+          'Approaching a possible next short bioregulator course in conservative annual/biannual planning',
+          'Long-term DIY continuous use and multi-mg clinic charts remain poorly characterized versus the modal 200 mcg–1 mg short-course band',
+          'Re-check goals: neuroprotection framing vs expectation of acute stimulant-like cognition',
+        ],
+      },
+    ];
+  }
 
   // Tag-based fallbacks
   if (tags.includes('healing') || tags.includes('recovery')) {
@@ -4010,6 +4120,9 @@ function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: st
   }
   if (normName.includes('semax')) {
     return 'Typically tracked to support cognitive function, memory consolidation, and neuroprotection during mental exertion. It is expected to support brain-derived neurotrophic factor levels.';
+  }
+  if (normName.includes('pinealon') || normName === 'edr') {
+    return 'A Khavinson-group Glu-Asp-Arg (EDR) tripeptide bioregulator tracked for neuroprotection, cognitive resilience, and oxidative-stress defense. Research-peptide / DIY community protocols most often cite ~200–1000 mcg once daily for short 10–20 day courses with multi-month rests; there is no FDA-approved human cognitive label, and high-quality modern RCTs remain limited.';
   }
   if (normName.includes('epitalon') || normName.includes('thymalin') || normName.includes('epithalon')) {
     return 'Expected to support cellular health, telomere maintenance, and sleep quality. It is designed to stimulate melatonin production and support overall cellular longevity pathways.';
