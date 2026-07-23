@@ -872,22 +872,42 @@ KPV is like an anti-inflammatory fire extinguisher. When the immune system overr
       administrationRoutes: ['SubQ', 'Oral', 'Topical'],
       tags: ['healing', 'recovery', 'inflammation'],
       profile: {
-        dosingLow: { amount: '200', unit: 'mcg', researchBenefits: 'Anti-inflammatory, gut barrier repair', recommendedFrequency: 'Once daily' },
-        dosingTypical: { amount: '500', unit: 'mcg', researchBenefits: 'Gut healing, skin recovery, mast cell stabilization', recommendedFrequency: 'Once or twice daily' },
-        dosingHigh: { amount: '1000', unit: 'mcg', researchBenefits: 'Severe systemic inflammatory response modulation', recommendedFrequency: 'Twice daily' },
-        sideEffects: 'Extremely well-tolerated. Rare injection-site irritation or mild flushing. Safety Assessment: Highly safe, non-toxic, and non-melanogenic (does not trigger tanning). Rare localized injection-site itching.',
-        stackingNotes: 'Often stacked with BPC-157 for gut/GI healing and mast cell activation syndrome (MCAS) management. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        dosingLow: {
+          amount: '200',
+          unit: 'mcg',
+          researchBenefits:
+            'Most common research-peptide / DIY community starting dose for tolerance and early anti-inflammatory / gut-barrier support; empirical only — no FDA-approved human label.',
+          recommendedFrequency: 'Once daily SC or oral (start / tolerance)',
+        },
+        dosingTypical: {
+          amount: '500',
+          unit: 'mcg',
+          researchBenefits:
+            'Modal community research-planning dose for gut inflammation, skin recovery, and general NF-κB–oriented anti-inflammatory stacks; still anecdotal / preclinical-extrapolated, not a validated human RCT regimen.',
+          recommendedFrequency: 'Once daily SC or oral (4–8 week blocks)',
+        },
+        dosingHigh: {
+          amount: '1000',
+          unit: 'mcg',
+          researchBenefits:
+            'Upper end of the dose band repeatedly cited for higher-burden inflammation (educator “tier 3” ~1 mg+); some charts split twice daily or push total daily load higher — still research-use only.',
+          recommendedFrequency: 'Once or twice daily SC or oral',
+        },
+        sideEffects:
+          'No completed human safety trial for native KPV. Community and preclinical reports are usually mild: transient injection-site irritation, occasional mild headache, occasional GI upset at higher oral doses. Modeled as non-pigmenting (not a melanotan-class tanning peptide). Safety Assessment: Research use only; not FDA-approved. Long-term human safety is not established.',
+        stackingNotes:
+          'Very often stacked in DIY protocols with BPC-157 (repair) ± TB-500 / GHK-Cu (KLOW-style blends) for gut or soft-tissue inflammation — no controlled combination RCTs; do not assume synergy. Storage: lyophilized powder frozen or refrigerated and protected from light; once reconstituted, refrigerate (2–8°C) and use within ~28–30 days; do not freeze the solution.',
         reconstitutedShelfLifeDays: 28,
-        
+
         fridgeShelfLifeMonths: 12,
-        
+
         freezerShelfLifeMonths: 24,
-        
+
         citations: [
           {
-            title: 'KPV reduces intestinal inflammation in rodent models',
-            doi: '10.1002/ibd.20144',
-            pmid: '17559132',
+            title: 'PepT1-mediated tripeptide KPV uptake reduces intestinal inflammation',
+            doi: '10.1053/j.gastro.2007.10.026',
+            pmid: '18061177',
           },
         ],
       },
@@ -3857,7 +3877,7 @@ function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: st
     return 'Expected to support small fiber neuropathy relief by calming neuropathic discomfort and supporting nerve repair pathways. It typically aims to reduce burning, tingling, and neuroinflammation.';
   }
   if (normName.includes('kpv')) {
-    return 'Typically tracked for anti-inflammatory support in gastrointestinal and skin applications to promote mucosal repair. It is expected to support overall immune modulation and barrier integrity.';
+    return 'An alpha-MSH C-terminal tripeptide tracked for gut-barrier and anti-inflammatory support via PepT1 uptake and NF-κB pathway effects (non-pigmenting). Research-peptide / DIY community protocols most often cite ~200–500 mcg daily SC or oral (modal ~500 mcg; upper ~1,000 mcg); there is no FDA-approved label, and human RCT evidence remains limited.';
   }
   if (normName.includes('mots-c') || normName.includes('mots c')) {
     return 'A mitochondria-derived AMPK-pathway peptide tracked for metabolic flexibility, physical endurance, and cellular energy. Research-peptide / DIY community protocols most often cite ~5 mg SC 2–3× weekly in multi-week cycles (upper community charts ~10 mg); there is no FDA-approved SC label, and human RCT evidence for native MOTS-c remains limited.';

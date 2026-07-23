@@ -295,6 +295,57 @@ describe('REF Dosing Protocol Acceptances', () => {
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
 
+    it('should seed KPV with research-peptide community dosing ranges and daily cycled protocol', () => {
+      // Catalog audience is DIY / research-peptide community: modal charts use 200–500 mcg
+      // daily SC or oral (high ~1,000 mcg), 4–8 week blocks — not MC3/4 melanocortin cycle
+      // rationales or a 4-week-only on-cycle framed as the full standard.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          daysOn: number | null;
+          daysOff: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+          cycleRationale?: string | null;
+          restPeriodRationale?: string | null;
+        };
+      }>;
+
+      const kpvBlock = seedSource.slice(seedSource.indexOf("name: 'KPV'"), seedSource.indexOf("name: 'ARA-290'"));
+      const lowAmt = kpvBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = kpvBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = kpvBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      // Community modal is 200 / 500 / 1000 mcg daily research-planning band.
+      expect(lowAmt).toBe('200');
+      expect(typAmt).toBe('500');
+      expect(highAmt).toBe('1000');
+      expect(kpvBlock).toMatch(/Once daily SC or oral/);
+      expect(kpvBlock).toMatch(/community/i);
+      expect(kpvBlock).toMatch(/PepT1|NF-κB|NF-kB/i);
+
+      const fixture = fixtures.find((f) => f.name === 'KPV');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('DAILY');
+      expect(fixture!.profile!.cycleLengthWeeks).toBe(8);
+      expect(fixture!.profile!.restPeriodWeeks).toBe(4);
+      expect(fixture!.profile!.preferredTime).toBe('MORNING');
+      expect(fixture!.profile!.timingNotes).toMatch(/community/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/200–500 mcg|200-500 mcg/);
+      expect(fixture!.profile!.timingNotes).toMatch(/Not FDA-approved/);
+      // Must not teach incorrect melanocortin MC3/4 cycle rationales.
+      expect(fixture!.profile!.cycleRationale ?? '').not.toMatch(/MC3|MC4|melanocortin receptor/i);
+      expect(fixture!.profile!.restPeriodRationale ?? '').not.toMatch(/melanocortin receptor/i);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
+
     it('should seed TB-500 with research-peptide community dosing ranges and twice-weekly protocol', () => {
       // Catalog audience is DIY / research-peptide community: modal charts use ~2–2.5 mg SC
       // twice weekly loading (~4–5 mg/week), not 5 mg typical / 10 mg high as if those were
@@ -885,6 +936,42 @@ describe('REF Dosing Protocol Acceptances', () => {
       expect(notes).toContain(
         'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
       );
+    });
+
+    it('should seed KPV with community research-peptide tiers and daily cycled protocol in the DB', async () => {
+      const compound = await prisma.catalogItem.findFirst({
+        where: { name: 'KPV' },
+        include: { profile: true },
+      });
+      expect(compound).toBeTruthy();
+      const profile = compound!.profile as any;
+      expect(profile).toBeTruthy();
+
+      expect(profile.dosingLow.amount).toBe('200');
+      expect(profile.dosingTypical.amount).toBe('500');
+      expect(profile.dosingHigh.amount).toBe('1000');
+      expect(profile.dosingLow.unit).toBe('mcg');
+      expect(profile.dosingTypical.unit).toBe('mcg');
+      expect(profile.dosingHigh.unit).toBe('mcg');
+
+      const typFreq = String(profile.dosingTypical.recommendedFrequency ?? '').toLowerCase();
+      expect(typFreq).toMatch(/once daily|daily/);
+      expect(typFreq).toMatch(/sc|oral|subq|subcutaneous/);
+
+      expect(profile.dosingFrequency).toBe('DAILY');
+      expect(profile.cycleLengthWeeks).toBe(8);
+      expect(profile.restPeriodWeeks).toBe(4);
+      expect(profile.preferredTime).toBe('MORNING');
+      expect(profile.isFdaApproved).toBe(false);
+
+      const notes = String(profile.timingNotes ?? '');
+      expect(notes.toLowerCase()).toContain('community');
+      expect(notes).toMatch(/200–500 mcg|200-500 mcg|500 mcg/);
+      expect(notes).toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+      expect(String(profile.cycleRationale ?? '')).not.toMatch(/MC3|MC4|melanocortin receptor/i);
+      expect(String(profile.restPeriodRationale ?? '')).not.toMatch(/melanocortin receptor/i);
     });
 
     it('should seed TB-500 with community research-peptide tiers and twice-weekly cycled protocol in the DB', async () => {

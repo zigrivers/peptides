@@ -194,18 +194,18 @@
   {
     "name": "KPV",
     "profile": {
-      "cycleLengthWeeks": 4,
+      "cycleLengthWeeks": 8,
       "restPeriodWeeks": 4,
       "dosingFrequency": "DAILY",
       "dosesPerDay": 1,
       "customFrequencyDescription": null,
       "daysOn": null,
       "daysOff": null,
-      "preferredTime": "ANYTIME",
-      "timingNotes": "Subcutaneous or oral administration for anti-inflammatory action. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "preferredTime": "MORNING",
+      "timingNotes": "Research-peptide / DIY community protocols most often use 200–500 mcg daily (modal ~500 mcg), subcutaneously for systemic anti-inflammatory work or orally for gut-focused work (PepT1 uptake; empty stomach preferred). Protocol snapshot here is once-daily morning dosing in an 8-week on / 4-week off block. Start/tolerance charts often begin near 200–250 mcg; higher-burden community tiers use ~1,000 mcg once or twice daily. A minority run 500 mcg 5 days on / 2 days off. Topical use is formulation-specific (not a fixed mcg chart). There is no FDA-approved human label dose. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "Used for a 4-week cycle to address acute inflammatory flares (especially GI or dermatological) via MC3/4 receptor signaling.",
-      "restPeriodRationale": "A 4-week washout allows evaluation of immune system homeostasis and prevents potential desensitization of melanocortin receptor pathways."
+      "cycleRationale": "An 8-week on-cycle sits in the middle-to-upper end of the 4–8 week (sometimes 8–12 week) anti-inflammatory research-planning window most often cited in community KPV charts for gut-barrier and systemic NF-κB–oriented work before a planned review.",
+      "restPeriodRationale": "A 4-week rest matches common community off-windows used to reassess gut/skin symptoms and inflammatory load; shorter 2-week rests appear in pulsed flare protocols, while longer rests are more conservative."
     },
     "citations": [
       {
