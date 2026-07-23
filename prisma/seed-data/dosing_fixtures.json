@@ -226,10 +226,10 @@
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "MORNING",
-      "timingNotes": "For neuropathy pain reduction and tissue repair. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "timingNotes": "Research-peptide / DIY community protocols most often mirror Phase 2 SC charts: ~2 mg (conservative) to ~4 mg (modal) once daily for ~28 days / 4 weeks, with 8 mg as an upper trial arm that secondary writeups generally do not treat as superior to 4 mg. Protocol snapshot here uses once-daily dosing over a 4-week on / 8-week off cycle (28-day clinical-course length plus a long reassess window; some charts use 8–12 weeks off before another course). Alternate community schedules include 2 mg 2–3× weekly (cost/spacing) or clinic-style 2 mg twice weekly with possible escalation — less common than daily 4 mg trial-mirroring plans. Ignore outlier blogs that quote microgram-only totals inconsistent with published mg fixed doses. There is no US FDA-approved general neuropathy SC label for research ARA-290 / cibinetide vials (orphan-drug history for sarcoidosis SFN is not a general marketing approval). Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "A 4-week cycle is structured to target the innate repair receptor (IRR) to reduce neuropathic pain and inflammatory neuropathies.",
-      "restPeriodRationale": "An 8-week washout period is recommended to assess persistent neuroprotective benefits and avoid desensitizing cell survival pathways."
+      "cycleRationale": "A 4-week on-cycle matches the ~28-day SC course used in Phase 2 small-fiber neuropathy / diabetes neuropathy research and the modal research-peptide DIY planning block before reassessment.",
+      "restPeriodRationale": "An 8-week rest sits at the low end of the common community 8–12 week off-window used to reassess neuropathic symptoms and limit unproven continuous exposure after a short IRR-agonist course."
     },
     "citations": [
       {

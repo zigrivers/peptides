@@ -933,17 +933,37 @@ ARA-290 is like a specialized emergency response unit for damaged nerves. Regula
       administrationRoutes: ['SubQ', 'IV'],
       tags: ['healing', 'recovery', 'neuropathy'],
       profile: {
-        dosingLow: { amount: '2.0', unit: 'mg', researchBenefits: 'Neuropathic pain relief, anti-inflammation', recommendedFrequency: 'Once daily' },
-        dosingTypical: { amount: '4.0', unit: 'mg', researchBenefits: 'Small fiber neuropathy, sarcoidosis-associated pain', recommendedFrequency: 'Once daily' },
-        dosingHigh: { amount: '8.0', unit: 'mg', researchBenefits: 'Severe peripheral nerve injury recovery', recommendedFrequency: 'Once daily' },
-        sideEffects: 'Mild injection site reaction, occasional transient headache. Safety Assessment: High safety profile. No hematological abnormalities (no red blood cell elevation). Mild local irritation or headache can occur.',
-        stackingNotes: 'Can be stacked with Epitalon or Thymosin Alpha-1 for overall nerve recovery and immune support. Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        dosingLow: {
+          amount: '2.0',
+          unit: 'mg',
+          researchBenefits:
+            'Conservative research-peptide / DIY starting dose for neuropathic discomfort and IRR-pathway exposure; mirrors lower end of Phase 2 SC fixed-dose practice — empirical only; no US FDA general neuropathy label',
+          recommendedFrequency: 'Once daily SC (start / conservative)',
+        },
+        dosingTypical: {
+          amount: '4.0',
+          unit: 'mg',
+          researchBenefits:
+            'Modal Phase 2 and community planning dose for small-fiber neuropathy / sarcoidosis-associated SFN research charts (4 mg SC daily × ~28 days); still investigational — not a US approved product dose for DIY vials',
+          recommendedFrequency: 'Once daily SC (~4-week / 28-day course)',
+        },
+        dosingHigh: {
+          amount: '8.0',
+          unit: 'mg',
+          researchBenefits:
+            'Upper Phase 2 trial arm (1 / 4 / 8 mg daily SC dose-finding); secondary protocol writeups generally report no clear superiority of 8 mg over 4 mg — not a default “more is better” DIY ceiling',
+          recommendedFrequency: 'Once daily SC (upper trial arm; short course)',
+        },
+        sideEffects:
+          'Mild injection-site reaction and occasional transient headache are the most common community and trial-adjacent reports. Safety Assessment: Designed to avoid EPO-like erythropoiesis; published short SC courses did not highlight RBC elevation as a class effect. Not FDA-approved for general neuropathy; research use only. Monitor labs if self-experimenting long-term.',
+        stackingNotes:
+          'Sometimes stacked in community protocols with other recovery/immune peptides (e.g. thymic peptides) — no controlled combination RCTs for neuropathy endpoints. Storage: Reconstituted solution is typically refrigerated and used within a short window (~14 days in prior seed practice); dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 14,
-        
+
         fridgeShelfLifeMonths: 12,
-        
+
         freezerShelfLifeMonths: 24,
-        
+
         citations: [
           {
             title: 'Cibinetide (ARA-290) in small fiber neuropathy associated with sarcoidosis',
