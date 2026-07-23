@@ -2215,10 +2215,28 @@ Think of your pituitary gland as a biological water tower. CJC-1295 No DAC acts 
       administrationRoutes: ['SubQ'],
       tags: ['muscle-building', 'recovery', 'fat-loss'],
       profile: {
-        dosingLow: { amount: '100/100', unit: 'mcg', researchBenefits: 'Mild sleep optimization, subtle recovery increase, and general metabolic support', recommendedFrequency: 'Once daily (before bed)' },
-        dosingTypical: { amount: '100/100', unit: 'mcg', researchBenefits: 'Standard fat loss support, muscle preservation, and enhanced workout recovery', recommendedFrequency: 'Twice daily (morning and before bed)' },
-        dosingHigh: { amount: '150/150', unit: 'mcg', researchBenefits: 'Advanced body composition remodeling and accelerated injury rehabilitation', recommendedFrequency: 'Twice daily' },
-        sideEffects: 'Transient facial flushing, mild headache, injection-site redness, or slight water retention. Notably free from the cortisol and prolactin spikes associated with older secretagogues.',
+        dosingLow: {
+          amount: '100/100',
+          unit: 'mcg',
+          researchBenefits:
+            'Most common research-peptide / DIY beginner entry: 100 mcg CJC-1295 No DAC + 100 mcg Ipamorelin once at night; community-reported for sleep and light recovery support (anecdotal).',
+          recommendedFrequency: 'Once daily (before bed), empty stomach',
+        },
+        dosingTypical: {
+          amount: '100/100',
+          unit: 'mcg',
+          researchBenefits:
+            'Classic community stack dose (100 mcg each) given twice daily — morning + pre-sleep — on a 5-on/2-off pattern; the most-repeated DIY “standard” for this No-DAC blend.',
+          recommendedFrequency: 'Twice daily (morning and before bed), 5 days on / 2 off',
+        },
+        dosingHigh: {
+          amount: '300/300',
+          unit: 'mcg',
+          researchBenefits:
+            'Upper band of research-peptide / clinic-style community protocols (200–300 mcg each per injection; 300/300 at the advanced end), often 2–3× daily on injection days — still empirical and not FDA-labeled.',
+          recommendedFrequency: '2–3× daily on injection days (empty stomach)',
+        },
+        sideEffects: 'Transient facial flushing, mild headache, injection-site redness, or slight water retention. Notably free from the cortisol and prolactin spikes associated with older secretagogues. Neither peptide nor the combo is FDA-approved; compounding/bulk-substance safety concerns have been noted by FDA for related forms.',
         stackingNotes: 'Administered subcutaneously on an empty stomach. Must be fasted for at least 2 hours prior and 30 minutes post-injection to prevent dietary insulin from blunting the growth hormone release pulse. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 28,
         fridgeShelfLifeMonths: 12,

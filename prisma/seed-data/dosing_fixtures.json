@@ -1065,10 +1065,10 @@
       "daysOn": 5,
       "daysOff": 2,
       "preferredTime": "MORNING_AND_NIGHT",
-      "timingNotes": "Inject subcutaneous on an empty stomach. Must be fasted for at least 2 hours prior and 30 minutes after injection to prevent dietary insulin from blunting the growth hormone release pulse. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "timingNotes": "Research-peptide / DIY community protocols for CJC-1295 No DAC (Mod GRF 1-29) + Ipamorelin most often use equal mcg amounts of each (commonly 100 mcg each; advanced charts 200–300 mcg each), injected subcutaneously 1–3× daily — with morning + bedtime as the usual twice-daily pattern and a 5-days-on / 2-days-off weekly rhythm. Always dose on an empty stomach (typically ≥2 hours after food and wait ~30 minutes before eating) so insulin does not blunt the GH pulse; the pre-sleep dose is usually prioritized. Neither peptide nor this combo is FDA-approved for any indication (as of 2025–2026); do not confuse No-DAC multi-daily pulses with long-acting CJC-1295 DAC weekly multi-mg clinical PK regimens. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "Cycled for 12 weeks to optimize GHRH/GHRP synergism for muscle preservation and body composition. Capped at 12 weeks to prevent somatotroph receptor downregulation and maintain endocrine homeostasis.",
-      "restPeriodRationale": "A 4-week washout period is recommended to allow GHRH and GHS receptors to fully resensitize, ensuring the efficacy of subsequent cycles."
+      "cycleRationale": "Community GH-secretagogue stacks commonly run ~8–12 (sometimes up to 16) weeks on; Catalog default is a 12-week on-block reflecting the most-cited DIY cycle length for this blend, after which many users stop or rest rather than dosing indefinitely.",
+      "restPeriodRationale": "A ~4-week washout is the usual community rest after a multi-month run, intended to reassess results and reduce continuous GHS/GHRH receptor stimulation; not a labeled requirement."
     },
     "citations": [
       {
