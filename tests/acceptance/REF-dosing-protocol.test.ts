@@ -295,6 +295,52 @@ describe('REF Dosing Protocol Acceptances', () => {
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
 
+    it('should seed BPC-157 with research-peptide community dosing ranges and BID protocol', () => {
+      // Catalog audience is DIY / research-peptide community: modal charts use ~250–500 mcg
+      // SC 1–2× daily (often ~500 mcg/day, frequently split), 4–8 week on / 2–4 week off —
+      // not 200 mcg low or an 8/4 cycle framed as clinical standard.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          dosesPerDay: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+        };
+      }>;
+
+      const bpcBlock = seedSource.slice(seedSource.indexOf("name: 'BPC-157'"), seedSource.indexOf("name: 'TB-500'"));
+      const lowAmt = bpcBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = bpcBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = bpcBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      expect(lowAmt).toBe('250');
+      expect(typAmt).toBe('500');
+      expect(highAmt).toBe('1000');
+      expect(lowAmt).not.toBe('200');
+      expect(bpcBlock).toMatch(/1–2× daily SC/);
+      expect(bpcBlock).toMatch(/community/i);
+      expect(bpcBlock).toMatch(/Not FDA-approved/);
+
+      const fixture = fixtures.find((f) => f.name === 'BPC-157');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('DAILY');
+      expect(fixture!.profile!.dosesPerDay).toBe(2);
+      expect(fixture!.profile!.cycleLengthWeeks).toBe(6);
+      expect(fixture!.profile!.restPeriodWeeks).toBe(2);
+      expect(fixture!.profile!.preferredTime).toBe('MORNING_AND_NIGHT');
+      expect(fixture!.profile!.timingNotes).toMatch(/community/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/250–500 mcg/);
+      expect(fixture!.profile!.timingNotes).toMatch(/Not FDA-approved/);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
+
     it('should seed CJC-1295 No DAC / Ipamorelin with research-peptide community blend ranges', () => {
       // DIY / research-peptide audience: classic 100/100 mcg tiers with advanced high 300/300,
       // not the prior 150/150 high ceiling.
