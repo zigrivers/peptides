@@ -862,16 +862,16 @@
     "profile": {
       "cycleLengthWeeks": null,
       "restPeriodWeeks": null,
-      "dosingFrequency": "TWICE_WEEKLY",
+      "dosingFrequency": "THRICE_WEEKLY",
       "dosesPerDay": 1,
       "customFrequencyDescription": null,
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "MORNING",
-      "timingNotes": "Inject in the morning; can cause transient chest pressure/nausea. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "timingNotes": "Research-peptide / DIY community SubQ protocols most often use ~50–100 mg per injection two to three times weekly (modal maintenance ~50 mg; upper wellness charts ~100 mg), preferably in the morning. Start low (~25 mg, 1–2× weekly) to assess flush, nausea, or transient chest pressure; inject slowly. Optional short loading phases of 100–200 mg daily for ~7–14 days appear in clinic charts, then step down to 2–3× weekly maintenance — that daily load is not the long-term Typical. Clinic IV infusions (often 250–1,000 mg per multi-hour session) are a different route and dose class and should not be read as home SubQ guidance. Oral NMN/NR charts are separate. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "Intended for continuous or as-needed replenishment of the intracellular NAD+ pool to support mitochondrial ATP production and sirtuin activity.",
-      "restPeriodRationale": "No washout is required; NAD+ is an endogenous coenzyme that depletes naturally with age, making continuous supplementation safe and beneficial."
+      "cycleRationale": "Most community and wellness SubQ charts treat NAD+ as ongoing maintenance (2–3× weekly) rather than a fixed multi-week on/off peptide cycle; optional short loading blocks are followed by indefinite or long maintenance with periodic symptom/lab review.",
+      "restPeriodRationale": "Hard washouts are not universally required in community SubQ charts because NAD+ is an endogenous coenzyme; many users still take pragmatic review breaks or reduce frequency if side effects or diminishing returns appear. Continuous use is empirical, not proven necessary or universally safe at high dose."
     },
     "citations": [
       {

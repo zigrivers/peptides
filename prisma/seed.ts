@@ -2055,11 +2055,31 @@ Think of NAD+ as the essential battery fluid inside every single cell. As we age
       administrationRoutes: ['SubQ', 'IM', 'IV'],
       tags: ['longevity', 'energy', 'cellular-repair'],
       profile: {
-        dosingLow: { amount: '25', unit: 'mg', researchBenefits: 'Mitochondrial support, subtle energy enhancement', recommendedFrequency: 'Twice weekly' },
-        dosingTypical: { amount: '50', unit: 'mg', researchBenefits: 'Enhanced stamina, mental clarity, and longevity support', recommendedFrequency: 'Daily or every other day' },
-        dosingHigh: { amount: '100', unit: 'mg', researchBenefits: 'Advanced cellular regeneration and recovery from severe fatigue', recommendedFrequency: 'Once daily' },
-        sideEffects: 'Temporary flushing sensation, mild nausea, muscle soreness, or injection site irritation.',
-        stackingNotes: 'Often paired with Trimethylglycine (TMG) to support liver methylation pathways. Storage: Reconstituted solution is stable refrigerated for 60 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        dosingLow: {
+          amount: '25',
+          unit: 'mg',
+          researchBenefits:
+            'Common research-peptide / DIY community starting SubQ dose for tolerance (flush, nausea, chest pressure) and early mitochondrial/energy support; empirical only — no FDA-approved SubQ longevity label.',
+          recommendedFrequency: '1–2× weekly SC (start / tolerance)',
+        },
+        dosingTypical: {
+          amount: '50',
+          unit: 'mg',
+          researchBenefits:
+            'Modal community and wellness-clinic SubQ maintenance band mid-point for stamina, mental clarity, and longevity-oriented stacks; still clinic/anecdotal guidance, not a validated longevity RCT regimen.',
+          recommendedFrequency: '2–3× weekly SC (maintenance)',
+        },
+        dosingHigh: {
+          amount: '100',
+          unit: 'mg',
+          researchBenefits:
+            'Upper end of common SubQ wellness self-admin charts (some clinic/DIY protocols go toward 150–200 mg); daily 100–200 mg is usually a short loading phase, not indefinite high maintenance. Not IV clinic gram-scale dosing.',
+          recommendedFrequency: '2–3× weekly SC (upper wellness)',
+        },
+        sideEffects:
+          'Common community/clinic reports: injection-site redness or sting, flushing, mild nausea, headache, transient chest pressure or tightness (often dose-rate related — inject slowly, start low). Safety Assessment: Research / compounded use only for longevity framing; not an FDA-approved SubQ wellness product. Higher doses and IV infusions increase side-effect burden and should not be confused with home SubQ charts.',
+        stackingNotes:
+          'Often paired with trimethylglycine (TMG) or other methyl-support concepts when using high NAD flux (mechanistic only — not universally required). Stacked in DIY mitochondrial stacks with SS-31, MOTS-c, CoQ10, or precursors (NMN/NR) — no controlled combination RCTs. Storage: lyophilized powder frozen or refrigerated and protected from light; once reconstituted, refrigerate (2–8°C); do not freeze the solution.',
         reconstitutedShelfLifeDays: 60,
         fridgeShelfLifeMonths: 12,
         freezerShelfLifeMonths: 24,
@@ -2067,7 +2087,7 @@ Think of NAD+ as the essential battery fluid inside every single cell. As we age
           {
             title: 'NAD+ metabolism and its roles in cellular processes during ageing',
             doi: '10.1038/s41580-020-00313-x',
-            pmid: '33299159',
+            pmid: '33353981',
           },
         ],
       },
@@ -3936,7 +3956,7 @@ function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: st
     return 'Expected to support blood sugar regulation, appetite control, and body weight management. It acts by mimicking incretin hormones to help regulate metabolic signals and food intake.';
   }
   if (normName.includes('nad')) {
-    return 'Expected to support cellular repair, longevity pathways, and energy metabolism. It serves as a vital coenzyme to assist in DNA repair and mitochondrial cellular functioning.';
+    return 'A cellular coenzyme tracked for mitochondrial energy, DNA-repair (PARP), and sirtuin support. Research-peptide / DIY SubQ community protocols most often cite ~50–100 mg SC 2–3× weekly (start ~25 mg; upper wellness ~100 mg); clinic IV sessions are a separate higher-dose class. There is no FDA-approved SubQ longevity label.';
   }
   if (normName.includes('oxytocin')) {
     return 'Typically tracked to support social bonding, stress management, and emotional regulation. It is expected to support neurological responses related to anxiety and social trust.';
