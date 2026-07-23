@@ -75,6 +75,24 @@ describe('AddDryVialsModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps a stable non-filter scrim while form fields update', async () => {
+    render(<AddDryVialsModal compounds={[compound]} onClose={vi.fn()} />);
+
+    expect(await screen.findByRole('dialog', { name: /add dry vials to freezer/i })).toBeTruthy();
+    const scrim = document.querySelector('[data-inventory-modal-scrim]');
+    expect(scrim).toBeTruthy();
+    expect((scrim as HTMLElement).className).not.toMatch(/backdrop-blur|animate-fade-in/);
+
+    fireEvent.change(screen.getByLabelText(/compound/i), { target: { value: compound.id } });
+    fireEvent.change(screen.getByLabelText(/vial size/i), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText(/quantity of vials/i), { target: { value: '2' } });
+
+    const scrimAfter = document.querySelector('[data-inventory-modal-scrim]');
+    expect(scrimAfter).toBe(scrim);
+    expect(document.querySelectorAll('[data-inventory-modal-shell]')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /add vials/i })).toBeTruthy();
+  });
+
   it('auto-populates and updates expiration date unless overridden', async () => {
     const onClose = vi.fn();
     render(<AddDryVialsModal compounds={[compound, compound2]} onClose={onClose} />);

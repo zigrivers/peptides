@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useTransition, useMemo, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import type { Compound } from '@/lib/reference/domain/types';
 import { addDryVialsAction } from '@/app/actions/reconstitution/inventory-actions';
+import { InventoryModalShell } from './InventoryModalShell';
 import { X, AlertTriangle, Snowflake, Plus } from 'lucide-react';
 
 interface Props {
@@ -107,15 +107,13 @@ export function AddDryVialsModal({ compounds, initialCompoundId, subjectUserId, 
 
   const isFormValid = compoundId && totalMg && parseFloat(totalMg) > 0 && parseInt(quantity, 10) >= 1;
 
-  if (!isMounted) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 bg-background/80 backdrop-blur-md animate-fade-in">
+  return (
+    <InventoryModalShell className="overflow-y-auto">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-dry-vials-title"
-        className="relative w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-white/20 dark:border-slate-800/40 bg-white/10 dark:bg-slate-950/20 backdrop-blur-xl shadow-2xl animate-scale-in"
+        className="relative w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-white/20 dark:border-slate-800/40 bg-white/10 dark:bg-slate-950/20 backdrop-blur-xl shadow-2xl"
       >
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="flex justify-between items-start">
@@ -281,7 +279,6 @@ export function AddDryVialsModal({ compounds, initialCompoundId, subjectUserId, 
           </div>
         </form>
       </div>
-    </div>,
-    document.body
+    </InventoryModalShell>
   );
 }
