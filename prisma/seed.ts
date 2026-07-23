@@ -1013,17 +1013,32 @@ Retatrutide is a triple-action fat burner. While other weight loss medications a
       administrationRoutes: ['SubQ'],
       tags: ['weight-loss', 'metabolic'],
       profile: {
-        dosingLow: { amount: '2.0', unit: 'mg', researchBenefits: 'Initiation dose, mild weight reduction', recommendedFrequency: 'Weekly' },
-        dosingTypical: { amount: '4.0', unit: 'mg', researchBenefits: 'Substantial weight loss and insulin resistance reversal', recommendedFrequency: 'Weekly' },
-        dosingHigh: { amount: '12.0', unit: 'mg', researchBenefits: 'Maximum therapeutic weight loss and visceral fat reduction', recommendedFrequency: 'Weekly' },
-        sideEffects: 'Transient mild-to-moderate gastrointestinal events, dose-dependent heart rate elevation. Safety Assessment: Dose-dependent GI distress. Monitor heart rate for mild, transient elevations during early weeks.',
-        stackingNotes: 'Often monitored closely due to potent energy expenditure increase from glucagon receptor activity. Storage: Reconstituted solution is stable refrigerated for 56 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        dosingLow: {
+          amount: '2.0',
+          unit: 'mg',
+          researchBenefits:
+            'Trial-aligned starting dose used in Phase 3 TRIUMPH-style titration and most research-peptide / DIY community charts (some protocols start at 1 mg). Mild early weight-loss exposure while GI tolerability is assessed — investigational only, not FDA-approved.',
+          recommendedFrequency: 'Once weekly SubQ (hold ~4 weeks before escalating)',
+        },
+        dosingTypical: {
+          amount: '8.0',
+          unit: 'mg',
+          researchBenefits:
+            'Common mid-to-high maintenance dose in Phase 2 obesity arms and DIY research-peptide charts after titration (Phase 3 also uses 9 mg as a major target). Substantial weight-loss signal in trials; still empirical outside approved labeling — none exists yet.',
+          recommendedFrequency: 'Once weekly SubQ (after stepwise titration)',
+        },
+        dosingHigh: {
+          amount: '12.0',
+          unit: 'mg',
+          researchBenefits:
+            'Highest dose studied in Phase 2/3 obesity programs and the upper end of community research-use charts. Greatest mean weight-loss in trials with more GI/side-effect burden; not an FDA-approved max dose.',
+          recommendedFrequency: 'Once weekly SubQ (maintenance after full titration)',
+        },
+        sideEffects: 'Dose-dependent GI events (nausea, vomiting, diarrhea, constipation) especially during escalations; possible heart-rate elevation; injection-site reactions. Phase 3 high-dose arms also reported more dysesthesia in secondary sources. Safety Assessment: Investigational triple agonist — no FDA-approved prescribing information. Monitor GI tolerance, hydration, and class-level GLP-1 warnings (e.g. pancreatitis symptoms).',
+        stackingNotes: 'Usually not stacked with other GLP-1/GIP agonists. Storage: Reconstituted solution is stable refrigerated for 56 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 56,
-        
         fridgeShelfLifeMonths: 12,
-        
         freezerShelfLifeMonths: 24,
-        
         citations: [
           {
             title: 'Triple–hormone-receptor agonist retatrutide for obesity — phase 2 trial',

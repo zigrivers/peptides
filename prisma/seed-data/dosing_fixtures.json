@@ -274,10 +274,10 @@
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "ANYTIME",
-      "timingNotes": "Once weekly injection; triple agonist (GLP-1/GIP/glucagon). Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "timingNotes": "Research-peptide / DIY community charts closely track published clinical-trial titration: once-weekly subcutaneous injection on a consistent day (time of day flexible). Common DIY/trial-aligned ladders hold each step ~4 weeks — e.g. Phase 2-style 2→4→8→12 mg, or Phase 3 TRIUMPH-style 2→4→6→9→12 mg (some targets stop at 4 or 9 mg). Catalog low/typical/high map to start (~2 mg), common mid-high maintenance (~8 mg; 9 mg is a major Phase 3 arm), and max studied (~12 mg). Investigational only — not FDA-approved as of mid-2026 secondary sources. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "Designed for chronic, continuous administration as a triple agonist (GLP-1/GIP/Glucagon). Continuous therapy is necessary to maintain appetite suppression and energy expenditure enhancements.",
-      "restPeriodRationale": "No washout period; continuous agonist presence is essential to avoid metabolic reversion and rapid weight rebound."
+      "cycleRationale": "Trial and DIY community practice treat retatrutide as chronic continuous weekly therapy (months of escalation + long maintenance), not a short peptide on/off cycle — weight curves in trials were still moving at 48+ weeks.",
+      "restPeriodRationale": "No planned rest/washout in trial protocols; community guidance aligned with GLP-1 class experience expects weight rebound if stopped, so continuous dosing is the default research-use framing."
     },
     "citations": [
       {

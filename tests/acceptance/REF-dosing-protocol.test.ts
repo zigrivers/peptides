@@ -687,6 +687,55 @@ describe('REF Dosing Protocol Acceptances', () => {
       const validation = validateDosingProtocol(fixture!.profile!);
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
+
+    it('should seed Retatrutide with research-peptide community weekly titration ranges', () => {
+      // DIY charts track trial ladders: start ~2 mg, mid-high maintenance ~8 mg, max ~12 mg
+      // weekly continuous (not the old 4 mg typical as “standard”).
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          dosesPerDay: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+        };
+      }>;
+
+      const blockStart = seedSource.indexOf("name: 'Retatrutide'");
+      const blockEnd = seedSource.indexOf("name: 'Thymosin Alpha-1'");
+      expect(blockStart).toBeGreaterThan(-1);
+      expect(blockEnd).toBeGreaterThan(blockStart);
+      const retaBlock = seedSource.slice(blockStart, blockEnd);
+      const lowAmt = retaBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = retaBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = retaBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      expect(lowAmt).toBe('2.0');
+      expect(typAmt).toBe('8.0');
+      expect(highAmt).toBe('12.0');
+      expect(typAmt).not.toBe('4.0');
+      expect(retaBlock).toMatch(/Once weekly SubQ/);
+
+      const fixture = fixtures.find((f) => f.name === 'Retatrutide');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('WEEKLY');
+      expect(fixture!.profile!.dosesPerDay).toBe(1);
+      expect(fixture!.profile!.cycleLengthWeeks).toBeNull();
+      expect(fixture!.profile!.restPeriodWeeks).toBeNull();
+      expect(fixture!.profile!.preferredTime).toBe('ANYTIME');
+      expect(fixture!.profile!.timingNotes).toMatch(/community|DIY|research-peptide/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/2.*4.*8.*12|titrat/i);
+      expect(fixture!.profile!.timingNotes).toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
   });
 
   describe('Phase 2: Database CHECK Constraints (Negative Tests)', () => {
@@ -1180,6 +1229,40 @@ describe('REF Dosing Protocol Acceptances', () => {
       const notes = String(profile.timingNotes ?? '');
       expect(notes.toLowerCase()).toContain('community');
       expect(notes).toMatch(/Selanc|300 mcg|Russian/i);
+      expect(notes).toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+    });
+
+    it('should seed Retatrutide with community weekly tiers and continuous protocol in the DB', async () => {
+      const compound = await prisma.catalogItem.findFirst({
+        where: { name: 'Retatrutide' },
+        include: { profile: true },
+      });
+      expect(compound).toBeTruthy();
+      const profile = compound!.profile as any;
+      expect(profile).toBeTruthy();
+
+      expect(profile.dosingLow.amount).toBe('2.0');
+      expect(profile.dosingTypical.amount).toBe('8.0');
+      expect(profile.dosingHigh.amount).toBe('12.0');
+      expect(profile.dosingLow.unit).toBe('mg');
+      expect(profile.dosingTypical.unit).toBe('mg');
+      expect(profile.dosingHigh.unit).toBe('mg');
+
+      const typFreq = String(profile.dosingTypical.recommendedFrequency ?? '').toLowerCase();
+      expect(typFreq).toMatch(/weekly/);
+
+      expect(profile.dosingFrequency).toBe('WEEKLY');
+      expect(profile.dosesPerDay).toBe(1);
+      expect(profile.cycleLengthWeeks).toBeNull();
+      expect(profile.restPeriodWeeks).toBeNull();
+      expect(profile.preferredTime).toBe('ANYTIME');
+      expect(profile.isFdaApproved).toBe(false);
+
+      const notes = String(profile.timingNotes ?? '');
+      expect(notes.toLowerCase()).toMatch(/community|diy|research-peptide/);
+      expect(notes).toMatch(/12 mg|titrat/i);
       expect(notes).toContain(
         'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
       );
