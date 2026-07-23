@@ -1173,17 +1173,37 @@ DSIP acts like a lullaby conductor for your brainwaves. Instead of knocking you 
       administrationRoutes: ['SubQ', 'IV'],
       tags: ['sleep', 'cognitive', 'recovery'],
       profile: {
-        dosingLow: { amount: '100', unit: 'mcg', researchBenefits: 'Improved sleep onset and mild stress reduction', recommendedFrequency: 'Nightly (30-60 mins before sleep)' },
-        dosingTypical: { amount: '250', unit: 'mcg', researchBenefits: 'Deep delta-wave sleep induction and muscle recovery', recommendedFrequency: 'Nightly before sleep' },
-        dosingHigh: { amount: '500', unit: 'mcg', researchBenefits: 'Severe sleep disorder mitigation, opioid withdrawal research support', recommendedFrequency: 'Nightly before sleep' },
-        sideEffects: 'Morning grogginess, lethargy, transient dizziness. Safety Assessment: Safe. Main reported issue is morning grogginess or mild lethargy if injected too late in the evening.',
-        stackingNotes: 'Stacks well with Epitalon for comprehensive sleep-wake cycle optimization. Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        dosingLow: {
+          amount: '100',
+          unit: 'mcg',
+          researchBenefits:
+            'Research-peptide / DIY community starting dose for sleep-onset support and tolerance checks; empirical only — no FDA-approved human dose. Historical clinical sleep studies used IV 25 nmol/kg (mg-scale), not this SC microgram chart.',
+          recommendedFrequency: 'Nightly SC, 30–60 min before bed (start / tolerance)',
+        },
+        dosingTypical: {
+          amount: '250',
+          unit: 'mcg',
+          researchBenefits:
+            'Modal community planning mid-point of the common 100–300 mcg SC sleep band for deeper slow-wave / delta-sleep oriented stacks; anecdotal / clinic-protocol language, not a validated human RCT regimen.',
+          recommendedFrequency: 'Nightly SC, 30–60 min before bed',
+        },
+        dosingHigh: {
+          amount: '500',
+          unit: 'mcg',
+          researchBenefits:
+            'Upper end of commonly cited research-peptide SC ranges for stubborn sleep disruption; not a validated ceiling. Some charts stay at ≤300 mcg nightly; others use 300–500 mcg. Intermittent (2–3× weekly) or as-needed nights also appear in community reports.',
+          recommendedFrequency: 'Nightly SC before bed (or 2–3× weekly / as-needed nights)',
+        },
+        sideEffects:
+          'Community reports: morning grogginess or lethargy (especially if injected too late), transient dizziness, vivid dreams. Limited controlled modern human SC data. Safety Assessment: Not FDA-approved; research use only. Do not treat animal or 1980s IV trial tolerability as proof of long-term DIY safety.',
+        stackingNotes:
+          'Often stacked in community sleep protocols with Epitalon (circadian / pineal framing) — complementary rationale only; no controlled combination RCTs. Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 14,
-        
+
         fridgeShelfLifeMonths: 12,
-        
+
         freezerShelfLifeMonths: 24,
-        
+
         citations: [
           {
             title: 'Delta sleep-inducing peptide (DSIP): an overview',
@@ -3940,7 +3960,7 @@ function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: st
     return 'Expected to support cellular health, telomere maintenance, and sleep quality. It is designed to stimulate melatonin production and support overall cellular longevity pathways.';
   }
   if (normName.includes('dsip')) {
-    return 'Expected to support deep sleep induction and physiological stress regulation. It is a delta sleep-inducing peptide designed to support normal sleep architecture and rest.';
+    return 'Tracked for deep / slow-wave sleep support and stress-axis calm in research-peptide / DIY contexts. Community protocols most often cite ~100–300 mcg SC nightly (planning mid ~250 mcg) 30–60 min before bed over multi-week cycles; there is no FDA-approved human dose, and modern high-quality SC RCT evidence remains limited (historical trials used IV nmol/kg doses).';
   }
   if (normName.includes('aod-9604') || normName.includes('aod9604')) {
     return 'A growth-hormone-derived lipolytic fragment tracked for fat metabolism and weight management without the broader hGH/IGF-1 effects. Human efficacy is unproven — the largest trial missed its primary endpoint — and it is not FDA-approved.';

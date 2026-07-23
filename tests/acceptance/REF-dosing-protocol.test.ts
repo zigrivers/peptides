@@ -346,6 +346,52 @@ describe('REF Dosing Protocol Acceptances', () => {
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
 
+    it('should seed DSIP with research-peptide community dosing ranges and nightly protocol', () => {
+      // Catalog audience is DIY / research-peptide community: modal SC charts use ~100–300 mcg
+      // nightly before bed (planning mid ~250; high ~500), cycled ~4 on / 4 off — not a 2-week
+      // on-block framed as clinical standard, and not historical IV 25 nmol/kg as typical.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          dosesPerDay: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+        };
+      }>;
+
+      const dsipBlock = seedSource.slice(seedSource.indexOf("name: 'DSIP'"), seedSource.indexOf("name: 'Hexarelin'"));
+      const lowAmt = dsipBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = dsipBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = dsipBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      expect(lowAmt).toBe('100');
+      expect(typAmt).toBe('250');
+      expect(highAmt).toBe('500');
+      expect(dsipBlock).toMatch(/Nightly SC/);
+      expect(dsipBlock).toMatch(/community/i);
+      expect(dsipBlock).toMatch(/Not FDA-approved/);
+
+      const fixture = fixtures.find((f) => f.name === 'DSIP');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('DAILY');
+      expect(fixture!.profile!.dosesPerDay).toBe(1);
+      expect(fixture!.profile!.cycleLengthWeeks).toBe(4);
+      expect(fixture!.profile!.restPeriodWeeks).toBe(4);
+      expect(fixture!.profile!.preferredTime).toBe('NIGHT');
+      expect(fixture!.profile!.timingNotes).toMatch(/community/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/100–300 mcg/);
+      expect(fixture!.profile!.timingNotes).toMatch(/Not FDA-approved/);
+      expect(fixture!.profile!.cycleLengthWeeks).not.toBe(2);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
+
     it('should seed TB-500 with research-peptide community dosing ranges and twice-weekly protocol', () => {
       // Catalog audience is DIY / research-peptide community: modal charts use ~2–2.5 mg SC
       // twice weekly loading (~4–5 mg/week), not 5 mg typical / 10 mg high as if those were
