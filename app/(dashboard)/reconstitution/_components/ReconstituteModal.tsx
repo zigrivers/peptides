@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo, useTransition, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import Decimal from 'decimal.js';
 import type { SerializedVialData } from '@/lib/reconstitution/application/VialService';
 import type { Compound } from '@/lib/reference/domain/types';
@@ -14,6 +13,7 @@ import { WarningPolicy, type WarningType } from '@/lib/reconstitution/domain/War
 import { reconstituteDryVialAction } from '@/app/actions/reconstitution/inventory-actions';
 import { saveSyringePreferencesAction } from '@/app/actions/reconstitution/save-syringe-preferences';
 import { ProtocolSummaryGrid } from '@/app/(dashboard)/reference/_components/DosingGuidanceRanges';
+import { InventoryModalShell } from './InventoryModalShell';
 import { SyringePreview } from './SyringePreview';
 import { X, AlertTriangle, Calendar, Droplet, Beaker } from 'lucide-react';
 import { getVolumePerUnit } from '@/lib/reconstitution/domain/syringe';
@@ -349,12 +349,9 @@ export function ReconstituteModal({
     });
   };
 
-  if (!isMounted) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col md:flex-row overflow-hidden rounded-2xl border border-white/20 dark:border-slate-800/40 bg-white/10 dark:bg-slate-950/20 backdrop-blur-xl shadow-2xl animate-scale-in">
-        
+  return (
+    <InventoryModalShell>
+      <div className="relative flex w-full max-w-4xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-2xl dark:border-slate-800/40 dark:bg-slate-950/20 md:flex-row backdrop-blur-xl">
         {/* Form Panel */}
         <form onSubmit={handleSubmit} className="flex-1 p-6 overflow-y-auto space-y-6">
           <div className="flex justify-between items-start">
@@ -782,7 +779,6 @@ export function ReconstituteModal({
           </div>
         </div>
       </div>
-    </div>,
-    document.body
+    </InventoryModalShell>
   );
 }

@@ -222,4 +222,23 @@ describe('ReconstituteModal', () => {
     expect(screen.getByText(/30.0 Units/)).toBeTruthy();
     expect(screen.queryByText(/exceeds selected syringe capacity/i)).toBeNull();
   });
+
+  it('keeps a stable non-filter scrim while calculator fields update', () => {
+    renderModal();
+
+    const scrim = document.querySelector('[data-inventory-modal-scrim]');
+    expect(scrim).toBeTruthy();
+    expect((scrim as HTMLElement).className).not.toMatch(/backdrop-blur|animate-fade-in/);
+    expect(document.querySelectorAll('[data-inventory-modal-shell]')).toHaveLength(1);
+
+    fireEvent.change(screen.getByLabelText(/bacteriostatic water volume to add/i), {
+      target: { value: '2' },
+    });
+    fireEvent.change(screen.getByLabelText(/target dose/i), { target: { value: '250' } });
+
+    const scrimAfter = document.querySelector('[data-inventory-modal-scrim]');
+    expect(scrimAfter).toBe(scrim);
+    expect((scrimAfter as HTMLElement).className).not.toMatch(/backdrop-blur|animate-fade-in/);
+    expect(screen.getByText(/Live Reconstitution Metrics/i)).toBeTruthy();
+  });
 });
