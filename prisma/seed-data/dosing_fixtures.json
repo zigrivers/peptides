@@ -569,6 +569,54 @@
     ]
   },
   {
+    "name": "Testosterone Propionate",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "EOD",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Short-ester pharmacokinetics: terminal half-life on the order of ~0.8–1 day (~19 hours cited in short-ester literature), so research-peptide / DIY and short-ester clinic charts favor every-other-day (EOD) or daily injections — not weekly or q2–4 week long-ester schedules. Historical clinical monographs for propionate-class injectables often cited ~10–50 mg IM two to three times weekly for androgen deficiency; modern DIY TRT charts more often use ~25–50 mg EOD (or ~20–25 mg daily microdosing) aiming for physiologic weekly totals similar to other esters (~100–175 mg/week). Commercial US retail TRT today is dominated by cypionate/enanthate/undecanoate — do not invent a current Depo-style package-insert band for propionate when a specific product DailyMed label is unavailable. Keep injection day(s) consistent; time follow-up testosterone labs to the protocol (trough before next dose is especially informative with short esters). Do not treat 100+ mg daily or multi-hundred-mg weekly performance \"blasts\" as labeled TRT. Rotate sites; oil solutions need no peptide-style reconstitution. Injection-site irritation is often reported more with propionate because of higher injection frequency.",
+      "isFdaApproved": true,
+      "cycleRationale": "When used for confirmed hypogonadism, testosterone propionate is still chronic replacement therapy — not a finite peptide-style on/off cycle. The short ester changes injection frequency and level-curve shape, not the fundamental TRT monitoring model (symptoms plus testosterone, hematocrit, blood pressure, prostate-risk context over months). Performance \"blast/cruise\" cycling is a community AAS pattern, not labeled replacement care.",
+      "restPeriodRationale": "No routine multi-week washout is indicated for therapeutic TRT. Because propionate clears faster than long esters, return toward the patient's hypogonadal baseline after stopping may occur sooner — still require clinician planning when fertility recovery or adverse-effect management is the goal. Faster washout is a PK feature, not a reason to cycle unmonitored."
+    },
+    "citations": [
+      {
+        "title": "Pharmacology of testosterone replacement therapy preparations",
+        "doi": "10.21037/tau.2016.07.10"
+      },
+      {
+        "title": "Testosterone Therapy in Men With Hypogonadism: An Endocrine Society Clinical Practice Guideline",
+        "doi": "10.1210/jc.2018-00229",
+        "pmid": "29562364"
+      },
+      {
+        "title": "Evaluation and Management of Testosterone Deficiency: AUA Guideline",
+        "doi": "10.1016/j.juro.2018.03.115",
+        "pmid": "29601923"
+      },
+      {
+        "title": "Cardiovascular Safety of Testosterone-Replacement Therapy",
+        "doi": "10.1056/NEJMoa2215025",
+        "pmid": "37326322"
+      },
+      {
+        "title": "Pharmacokinetic properties of testosterone propionate in normal men",
+        "doi": "10.1210/jcem-63-6-1361",
+        "pmid": "3782423"
+      },
+      {
+        "title": "Short-acting testosterone appears to have lesser effect on male reproductive potential compared to long-acting testosterone in mice (cites propionate terminal half-life ~19 h; injection intervals every 2–3 days)",
+        "doi": "10.1016/j.xfss.2020.03.002",
+        "pmid": "32914138"
+      }
+    ]
+  },
+  {
     "name": "Tadalafil",
     "profile": {
       "cycleLengthWeeks": null,
