@@ -61,10 +61,14 @@ describe('REF bodyDuration catalog coverage', () => {
         failures.push(`${fixture.name}: no half-life or effective duration`);
       }
 
-      // Label path used by Protocol Snapshot must be non-empty for populated data
+      // Label path used by Protocol Snapshot must be plain-language and non-empty
       const label = formatBodyDurationLabel(parsed);
       if (!label || label === 'N/A') {
         failures.push(`${fixture.name}: formatBodyDurationLabel produced N/A`);
+      } else if (label.startsWith('t1/2') || label.startsWith('t1⁄2') || label.startsWith('t\u00bd') || /^half[- ]?life/i.test(label)) {
+        failures.push(`${fixture.name}: label still leads with half-life jargon: ${label}`);
+      } else if (!label.startsWith('Lasts ')) {
+        failures.push(`${fixture.name}: label should start with "Lasts": ${label}`);
       }
 
       // Citation evidence: at least one citation on the fixture
