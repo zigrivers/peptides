@@ -2,18 +2,18 @@
   {
     "name": "BPC-157",
     "profile": {
-      "cycleLengthWeeks": 8,
-      "restPeriodWeeks": 4,
+      "cycleLengthWeeks": 6,
+      "restPeriodWeeks": 2,
       "dosingFrequency": "DAILY",
       "dosesPerDay": 2,
       "customFrequencyDescription": null,
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "MORNING_AND_NIGHT",
-      "timingNotes": "Take on an empty stomach. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "timingNotes": "Research-peptide / DIY community protocols most often use 250–500 mcg SC once or twice daily (modal planning target ~500 mcg/day, frequently split AM/PM near the injury site or abdominal SubQ). Empty stomach is commonly suggested for oral/sublingual gut-focused use; injectable timing is less meal-sensitive. Protocol snapshot here uses twice-daily dosing over a 6-week on / 2-week off cycle (middle of the 4–8 week on and 2–4 week off bands). There is no FDA-approved human SC label dose; oral Phase I Bepecin (mg tablets) is a separate clinical PK design and does not define these mcg charts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "Preclinical models demonstrate that tissue repair and angiogenic stimulation (VEGFR2 upregulation) peak within 8 weeks. Extending cycles beyond this duration shows diminishing returns for acute soft tissue healing.",
-      "restPeriodRationale": "A 4-week washout period is recommended to prevent receptor habituation, clear active peptide residues, and assess baseline tissue healing progress."
+      "cycleRationale": "A 6-week on-cycle sits in the middle of the 4–8 week block most often cited in research-peptide / DIY and clinic BPC-157 charts for soft-tissue recovery before a planned review or rest; acute injuries are sometimes stopped at 4 weeks, chronic work sometimes extended toward 8–12.",
+      "restPeriodRationale": "A 2-week rest matches the low end of the common community 2–4 week off-window used to reassess healing progress and limit unproven continuous exposure; longer rests (4 weeks) are more conservative and also appear in charts."
     },
     "citations": [
       {

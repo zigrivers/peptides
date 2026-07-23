@@ -469,17 +469,37 @@ BPC-157 acts like a biological foreman on a construction site. When a tissue (li
       administrationRoutes: ['SubQ', 'IM', 'Oral'],
       tags: ['healing', 'recovery'],
       profile: {
-        dosingLow: { amount: '200', unit: 'mcg', researchBenefits: 'Mild recovery, digestive lining support', recommendedFrequency: 'Once daily' },
-        dosingTypical: { amount: '500', unit: 'mcg', researchBenefits: 'Standard tendon, muscle, and gut barrier healing', recommendedFrequency: 'Once or twice daily' },
-        dosingHigh: { amount: '1000', unit: 'mcg', researchBenefits: 'Accelerated healing of severe ligament tears or systemic inflammation', recommendedFrequency: 'Twice daily' },
-        sideEffects: 'Generally well-tolerated. Mild injection-site redness reported. Safety Assessment: Highly safe profile with no toxicity observed in animal or human trials.',
-        stackingNotes: 'Commonly stacked with TB-500 for enhanced musculoskeletal healing. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        dosingLow: {
+          amount: '250',
+          unit: 'mcg',
+          researchBenefits:
+            'Research-peptide / DIY community starting dose for tolerance checks and mild soft-tissue or GI-lining support; empirical only — no FDA-approved human dose.',
+          recommendedFrequency: 'Once daily SC (start / tolerance)',
+        },
+        dosingTypical: {
+          amount: '500',
+          unit: 'mcg',
+          researchBenefits:
+            'Modal community daily planning target for tendon, muscle, ligament, and gut-barrier work (often 250 mcg BID or 500 mcg once ≈ 500 mcg/day); anecdotal / clinic-protocol language, not a validated human RCT regimen.',
+          recommendedFrequency: '1–2× daily SC (often split AM/PM)',
+        },
+        dosingHigh: {
+          amount: '1000',
+          unit: 'mcg',
+          researchBenefits:
+            'Upper end of commonly cited daily totals (≈1000 mcg/day), usually planned as 500 mcg twice daily for severe or acute soft-tissue loading; not a validated ceiling. Some charts go higher—less common.',
+          recommendedFrequency: 'Twice daily SC (split 500 mcg × 2; ≈1000 mcg/day total)',
+        },
+        sideEffects:
+          'Limited controlled human data. Community reports: mild injection-site redness or sting, occasional headache or fatigue. Preclinical literature often describes a favorable safety profile, but that does not establish human long-term safety. Safety Assessment: Not FDA-approved; research use only. Avoid assuming zero risk from animal “no toxicity” claims.',
+        stackingNotes:
+          'Commonly stacked in community protocols with TB-500 (“Wolverine” stack) for musculoskeletal recovery — complementary tissue-repair rationale; no controlled human combination RCTs. Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 28,
-        
+
         fridgeShelfLifeMonths: 12,
-        
+
         freezerShelfLifeMonths: 24,
-        
+
         citations: [
           {
             title: 'BPC-157 and wound healing — rodent model',
@@ -3776,7 +3796,7 @@ function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: st
     return 'Expected to support tissue healing, joint flexibility, and localized inflammation reduction in musculoskeletal recovery. It is designed to assist in tendon, muscle, and ligament repair.';
   }
   if (normName.includes('bpc-157') || normName.includes('bpc 157')) {
-    return 'Typically tracked to support soft tissue repair, tendon healing, and gastrointestinal mucosal integrity. It is expected to assist in cellular migration and localized recovery processes.';
+    return 'Tracked for soft-tissue repair, tendon healing, and gastrointestinal mucosal integrity in research-peptide / DIY contexts. Community protocols most often cite ~250–500 mcg SC 1–2× daily (often ~500 mcg/day total, frequently split) over multi-week cycles; there is no FDA-approved human dose, and high-quality human RCT evidence remains limited.';
   }
   if (normName.includes('889') || (normName.includes('fragment') && (normName.includes('tb-500') || normName.includes('tb4') || normName.includes('lkktetq')))) {
     return 'The isolated 889 Da actin-binding fragment (Ac-LKKTETQ) of Thymosin Beta-4, tracked anecdotally for soft-tissue and wound recovery via cell migration and angiogenesis. Evidence is almost entirely preclinical or extrapolated from full-length Tb4; human efficacy and long-term safety for the fragment are unproven, and it is WADA-prohibited.';
