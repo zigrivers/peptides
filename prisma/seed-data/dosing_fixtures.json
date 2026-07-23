@@ -812,18 +812,18 @@
   {
     "name": "Semax",
     "profile": {
-      "cycleLengthWeeks": 4,
-      "restPeriodWeeks": 4,
+      "cycleLengthWeeks": 2,
+      "restPeriodWeeks": 2,
       "dosingFrequency": "DAILY",
-      "dosesPerDay": 1,
+      "dosesPerDay": 2,
       "customFrequencyDescription": null,
       "daysOn": null,
       "daysOff": null,
-      "preferredTime": "MORNING",
-      "timingNotes": "Cognitive enhancer nasal spray. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "preferredTime": "ANYTIME",
+      "timingNotes": "Research-peptide / DIY community protocols most often use intranasal Semax at ~200–600 mcg per administration, commonly 300 mcg once or twice daily (morning and optional early afternoon; avoid late evening). Protocol snapshot here uses twice-daily dosing over a 2-week on / 2-week off cycle (middle of the common 7–14 day on and ~1–2 week off bands; some charts use 10–20 day courses). Upper DIY cognitive blocks may use ~600 mcg 1–2× daily; multi-mg/day Russian 1% acute-stroke product schedules are hospital-context and are not these charts. SubQ charts (e.g. ~0.3–0.8 mg) appear as a minority clinic/DIY alternate route. There is no US FDA-approved cognitive nasal/SC label dose. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "A 4-week cycle is standard to enhance BDNF expression, attention, and neuroprotection during high-stress periods without stimulant-like crashes.",
-      "restPeriodRationale": "A 4-week washout prevents neurological adaptation to elevated BDNF levels and allows the central nervous system to re-establish baseline cognitive processing."
+      "cycleRationale": "A 2-week on-cycle sits in the middle of the 7–14 day (sometimes 10–20 day) block most often cited in research-peptide / DIY nasal Semax charts for focus and cognitive work before a planned break; continuous multi-month use is not well characterized.",
+      "restPeriodRationale": "A 2-week rest matches common community off-windows (often equal to on-time, or 1–2 weeks) used to reassess cognition/sleep and limit unproven continuous exposure after a short course."
     },
     "citations": [
       {
