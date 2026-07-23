@@ -34,6 +34,9 @@ describe('REF bodyDuration live profile path', () => {
       const labels = buildProtocolSnapshotLabels(profile!);
       expect(labels.bodyDurationLabel).not.toBe('N/A');
       expect(labels.bodyDurationLabel.length).toBeGreaterThan(3);
+      expect(labels.bodyDurationLabel.startsWith('Lasts ')).toBe(true);
+      expect(labels.bodyDurationLabel.toLowerCase().includes('half-life')).toBe(false);
+      expect(labels.bodyDurationLabel.startsWith('t')).toBe(false);
       expect(formatBodyDurationLabel(profile!.bodyDuration)).toBe(labels.bodyDurationLabel);
 
       if (c.expectUncertain) {

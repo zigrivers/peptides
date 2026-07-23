@@ -98,62 +98,95 @@ export type ProtocolSnapshotLabels = {
 };
 
 /**
- * Format a hours value for display (e.g. 0.5 → "0.5 h", 168 → "168 h (~7 d)").
+ * Format a duration in hours as plain language for non-technical readers
+ * (e.g. 0.5 → "30 min", 2 → "2 hours", 168 → "7 days").
  */
 export function formatDurationHours(hours: number): string {
-  if (hours >= 48) {
-    const days = hours / 24;
-    const dayStr = Number.isInteger(days) ? `${days}` : days.toFixed(1).replace(/\.0$/, '');
-    return `${hours} h (~${dayStr} d)`;
+  if (hours < 1) {
+    const minutes = Math.max(1, Math.round(hours * 60));
+    return `${minutes} min`;
   }
-  if (hours >= 1) {
-    const hStr = Number.isInteger(hours) ? `${hours}` : hours.toFixed(1).replace(/\.0$/, '');
-    return `${hStr} h`;
+  if (hours < 48) {
+    const h =
+      hours >= 10 || Number.isInteger(hours)
+        ? Math.round(hours)
+        : Number(hours.toFixed(1).replace(/\.0$/, ''));
+    return h === 1 ? '1 hour' : `${h} hours`;
   }
-  const minutes = Math.round(hours * 60);
-  return `${hours} h (~${minutes} min)`;
+  const days = hours / 24;
+  const d = Number.isInteger(days) ? days : Number(days.toFixed(1).replace(/\.0$/, ''));
+  return d === 1 ? '1 day' : `${d} days`;
 }
 
 /**
- * Compact Protocol Snapshot label for body duration (prefers half-life, else effective duration).
+ * Format a low–high duration range in consistent plain units when possible.
+ */
+export function formatDurationRange(low: number, high: number | null): string {
+  if (high === null || high === low) {
+    return formatDurationHours(low);
+  }
+
+  // Prefer a single unit for the range so labels stay scannable.
+  if (low < 1 && high < 1) {
+    const lo = Math.max(1, Math.round(low * 60));
+    const hi = Math.max(lo, Math.round(high * 60));
+    return `${lo}–${hi} min`;
+  }
+  // Multi-day spans (or low near a day and high multi-day): use days
+  if (high >= 48) {
+    const loDays = low / 24;
+    const hiDays = high / 24;
+    const lo = Number.isInteger(loDays) ? loDays : Number(loDays.toFixed(1).replace(/\.0$/, ''));
+    const hi = Number.isInteger(hiDays) ? hiDays : Number(hiDays.toFixed(1).replace(/\.0$/, ''));
+    return `${lo}–${hi} days`;
+  }
+  if (low >= 1) {
+    const lo =
+      low >= 10 || Number.isInteger(low)
+        ? Math.round(low)
+        : Number(low.toFixed(1).replace(/\.0$/, ''));
+    const hi =
+      high >= 10 || Number.isInteger(high)
+        ? Math.round(high)
+        : Number(high.toFixed(1).replace(/\.0$/, ''));
+    return `${lo}–${hi} hours`;
+  }
+
+  // Sub-hour low with multi-hour high: format each side
+  return `${formatDurationHours(low)}–${formatDurationHours(high)}`;
+}
+
+function certaintySuffix(certainty: BodyDuration['certainty']): string {
+  if (certainty === 'ESTABLISHED') return '';
+  if (certainty === 'ESTIMATED') return ' (estimate)';
+  return ' (uncertain)';
+}
+
+/**
+ * Compact Protocol Snapshot label for body duration — plain language first.
+ * Prefers practical “how long it lasts” (effective duration), then half-life as a
+ * stand-in for body stay, without leading “t½” / half-life jargon.
  */
 export function formatBodyDurationLabel(bodyDuration: BodyDuration | null | undefined): string {
   if (!bodyDuration) return 'N/A';
 
-  const pickRange = (
-    low: number | null,
-    high: number | null
-  ): string | null => {
-    if (low === null) return null;
-    if (high !== null && high !== low) {
-      return `${formatDurationHours(low)}–${formatDurationHours(high)}`;
-    }
-    return formatDurationHours(low);
-  };
+  const certainty = certaintySuffix(bodyDuration.certainty);
 
-  const halfLife = pickRange(bodyDuration.halfLifeHours, bodyDuration.halfLifeHoursMax);
-  if (halfLife) {
-    const certainty =
-      bodyDuration.certainty === 'ESTABLISHED'
-        ? ''
-        : bodyDuration.certainty === 'ESTIMATED'
-          ? ' (est.)'
-          : ' (uncertain)';
-    return `t½ ${halfLife}${certainty}`;
+  // Prefer effective duration: “how long it lasts” is what users need for dosing intuition.
+  if (bodyDuration.effectiveDurationHours !== null) {
+    const span = formatDurationRange(
+      bodyDuration.effectiveDurationHours,
+      bodyDuration.effectiveDurationHoursMax
+    );
+    return `Lasts ${span}${certainty}`;
   }
 
-  const effective = pickRange(
-    bodyDuration.effectiveDurationHours,
-    bodyDuration.effectiveDurationHoursMax
-  );
-  if (effective) {
-    const certainty =
-      bodyDuration.certainty === 'ESTABLISHED'
-        ? ''
-        : bodyDuration.certainty === 'ESTIMATED'
-          ? ' (est.)'
-          : ' (uncertain)';
-    return `~${effective} effect${certainty}`;
+  if (bodyDuration.halfLifeHours !== null) {
+    const span = formatDurationRange(
+      bodyDuration.halfLifeHours,
+      bodyDuration.halfLifeHoursMax
+    );
+    return `Lasts ${span}${certainty}`;
   }
 
   return 'N/A';
