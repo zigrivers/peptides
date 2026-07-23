@@ -38,6 +38,7 @@ const compound = {
     preferredTime: null,
     timingNotes: null,
     isFdaApproved: false,
+    bodyDuration: null,
     pairings: [],
     adjuncts: [],
   },

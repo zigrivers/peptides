@@ -13,7 +13,15 @@
       "timingNotes": "Research-peptide / DIY community protocols most often use 250–500 mcg SC once or twice daily (modal planning target ~500 mcg/day, frequently split AM/PM near the injury site or abdominal SubQ). Empty stomach is commonly suggested for oral/sublingual gut-focused use; injectable timing is less meal-sensitive. Protocol snapshot here uses twice-daily dosing over a 6-week on / 2-week off cycle (middle of the 4–8 week on and 2–4 week off bands). There is no FDA-approved human SC label dose; oral Phase I Bepecin (mg tablets) is a separate clinical PK design and does not define these mcg charts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 6-week on-cycle sits in the middle of the 4–8 week block most often cited in research-peptide / DIY and clinic BPC-157 charts for soft-tissue recovery before a planned review or rest; acute injuries are sometimes stopped at 4 weeks, chronic work sometimes extended toward 8–12.",
-      "restPeriodRationale": "A 2-week rest matches the low end of the common community 2–4 week off-window used to reassess healing progress and limit unproven continuous exposure; longer rests (4 weeks) are more conservative and also appear in charts."
+      "restPeriodRationale": "A 2-week rest matches the low end of the common community 2–4 week off-window used to reassess healing progress and limit unproven continuous exposure; longer rests (4 weeks) are more conservative and also appear in charts.",
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 0.5,
+        "effectiveDurationHours": 4,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Plasma half-life in animals is short (minutes); tissue effects may last hours. Supports once- or twice-daily dosing in research protocols rather than weekly—human SC PK is not established."
+      }
     },
     "citations": [
       {
@@ -37,7 +45,15 @@
       "timingNotes": "Research-peptide / DIY community protocols most often use a loading phase of ~2–2.5 mg SC twice weekly (~4–5 mg/week) for 4–6 weeks, then maintenance of ~2–2.5 mg once weekly. Protocol snapshot here uses twice-weekly dosing over a 6-week on / 4-week off cycle (middle of the common 4–8 week on and 2–4 week off bands). Upper community loading charts reach ~4–10 mg/week total (often still split 2×/week); 10 mg twice weekly is outside modal DIY charts. SubQ is most common (IM optional); systemic distribution means site is less critical than for localized BPC-157 culture. There is no FDA-approved human SC label dose — Phase I Tβ4 IV (tens to hundreds of mg) and ophthalmic RGN-259 regimens are separate clinical designs and do not define these charts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 6-week on-cycle sits in the middle of the 4–6 week loading block most often cited in research-peptide / DIY TB-500 charts for soft-tissue recovery before stepping down to maintenance or a planned rest; total active use is sometimes extended toward 8 weeks for chronic work.",
-      "restPeriodRationale": "A 4-week rest matches the upper end of the common community 2–4 week off-window used to reassess healing progress after a loading block; many protocols instead taper into once-weekly maintenance without a full washout."
+      "restPeriodRationale": "A 4-week rest matches the upper end of the common community 2–4 week off-window used to reassess healing progress after a loading block; many protocols instead taper into once-weekly maintenance without a full washout.",
+      "bodyDuration": {
+        "halfLifeHours": 1.5,
+        "halfLifeHoursMax": 2.5,
+        "effectiveDurationHours": 48,
+        "effectiveDurationHoursMax": 72,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Native thymosin β4 plasma half-life is on the order of ~2 h IV; tissue distribution and actin-binding can prolong local effects. Community twice-weekly loading is not driven by multi-day plasma t½—human SC PK for TB-500 is limited."
+      }
     },
     "citations": [
       {
@@ -61,13 +77,25 @@
       "timingNotes": "Inject once weekly on the same day each week, with or without food.",
       "isFdaApproved": true,
       "cycleRationale": "Intended for continuous, chronic administration to achieve sustained glycemic control and appetite suppression. Discontinuation leads to rebound hunger and weight regain.",
-      "restPeriodRationale": "No planned washout period; continuous GLP-1 receptor activation is required to maintain metabolic improvements, with clinical trials supporting long-term safety."
+      "restPeriodRationale": "No planned washout period; continuous GLP-1 receptor activation is required to maintain metabolic improvements, with clinical trials supporting long-term safety.",
+      "bodyDuration": {
+        "halfLifeHours": 165,
+        "halfLifeHoursMax": 184,
+        "effectiveDurationHours": 168,
+        "effectiveDurationHoursMax": 192,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Terminal t½ ≈1 week after SC injection (Ozempic/Wegovy labels) supports once-weekly dosing on the same day each week."
+      }
     },
     "citations": [
       {
         "title": "Once-Weekly Semaglutide in Adults with Overweight or Obesity",
         "doi": "10.1056/NEJMoa2032183",
         "pmid": "33567185"
+      },
+      {
+        "title": "Ozempic (semaglutide) prescribing information — pharmacokinetics",
+        "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2022/209637s009lbl.pdf"
       }
     ]
   },
@@ -85,13 +113,25 @@
       "timingNotes": "Inject once weekly on the same day each week, with or without food.",
       "isFdaApproved": true,
       "cycleRationale": "Intended for chronic, long-term administration. Dual activation of GIP and GLP-1 receptors requires sustained presence to reset metabolic setpoints and maintain weight loss.",
-      "restPeriodRationale": "No planned washout period is indicated. Continuous therapy is necessary for long-term weight management and glycemic stability, backed by clinical trial safety data."
+      "restPeriodRationale": "No planned washout period is indicated. Continuous therapy is necessary for long-term weight management and glycemic stability, backed by clinical trial safety data.",
+      "bodyDuration": {
+        "halfLifeHours": 120,
+        "halfLifeHoursMax": 132,
+        "effectiveDurationHours": 144,
+        "effectiveDurationHoursMax": 168,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Mean t½ ≈5 days after SC supports once-weekly dosing (Mounjaro/Zepbound labels)."
+      }
     },
     "citations": [
       {
         "title": "Tirzepatide Once Weekly for the Treatment of Obesity",
         "doi": "10.1056/NEJMoa2206038",
         "pmid": "35658024"
+      },
+      {
+        "title": "Mounjaro (tirzepatide) prescribing information — pharmacokinetics",
+        "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2022/215866s000lbl.pdf"
       }
     ]
   },
@@ -109,7 +149,15 @@
       "timingNotes": "Research-peptide / DIY community injectable protocols most often use ~1–2 mg GHK-Cu subcutaneously once daily (some charts list ~1.7 mg as a “standard” daily draw; advanced community use sometimes 2–3 mg), commonly in the morning for an 8-week on-block. Local injection-site sting or redness is frequently reported. Topical cosmetic use is a different route: clinical/cosmetic literature centers on roughly 0.05–1% Copper Tripeptide-1 products applied daily/nightly continuously — not the same as injectable mg charts. Injectable GHK-Cu lacks robust human clinical trials; it is not an FDA-approved injectable drug for anti-aging. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Community injectable protocols commonly run about 8 weeks on (alternatives include ~30 days or 1–2 months) rather than continuous indefinite use, reflecting limited long-term human injectable data and desire to reassess skin/hair response.",
-      "restPeriodRationale": "An ~8-week off period is a frequently cited community rest after an injectable GHK-Cu block (other guides use ~2–4 weeks); intended to reassess results and limit continuous systemic copper-peptide exposure — not a labeled requirement."
+      "restPeriodRationale": "An ~8-week off period is a frequently cited community rest after an injectable GHK-Cu block (other guides use ~2–4 weeks); intended to reassess results and limit continuous systemic copper-peptide exposure — not a labeled requirement.",
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Copper-tripeptide plasma clearance is rapid; community injectable protocols use once-daily dosing. Robust human injectable PK is lacking—topical cosmetic kinetics differ from SC mg charts."
+      }
     },
     "citations": [
       {
@@ -133,13 +181,25 @@
       "timingNotes": "Inject subcutaneously once daily into the abdomen; rotate injection sites. Daily continuous dosing is the clinical standard — FDA trials administered Tesamorelin 7 days per week with no off-days. A '5 days on, 2 days off' schedule is a community convention sometimes used in longevity settings; it is not a clinically validated regimen for Tesamorelin.",
       "isFdaApproved": true,
       "cycleRationale": "Usually administered continuously for the treatment of HIV-associated lipodystrophy, as discontinuation leads to a rapid reversion of visceral adipose tissue reduction.",
-      "restPeriodRationale": "Continuous administration is required to maintain growth hormone release and reduce abdominal fat; clinical studies show no rebound tachyphylaxis but immediate loss of efficacy upon cessation."
+      "restPeriodRationale": "Continuous administration is required to maintain growth hormone release and reduce abdominal fat; clinical studies show no rebound tachyphylaxis but immediate loss of efficacy upon cessation.",
+      "bodyDuration": {
+        "halfLifeHours": 0.43,
+        "halfLifeHoursMax": 0.63,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 4,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Egrifta label: mean SC t½ ≈26–38 minutes. Short systemic exposure drives once-daily (not weekly) dosing; GH pulse is the therapeutic signal, not multi-day plasma levels."
+      }
     },
     "citations": [
       {
         "title": "Long-term safety and effects of tesamorelin, a growth hormone-releasing factor analogue, in HIV patients with abdominal fat accumulation",
         "doi": "10.1097/QAD.0b013e32830a5058",
         "pmid": "18690162"
+      },
+      {
+        "title": "Egrifta (tesamorelin) prescribing information — pharmacokinetics",
+        "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2019/022505s011lbl.pdf"
       }
     ]
   },
@@ -157,13 +217,25 @@
       "timingNotes": "Inject in the morning to align with pineal rhythms. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Short, intensive 10-14 day (2-week) courses are sufficient to stimulate telomerase activity and restore pineal melatonin secretion, as observed in clinical trials.",
-      "restPeriodRationale": "A long 6-month (24-week) rest period is recommended as the telomere elongation and anti-aging benefits persist long-term, and frequent cycles are unnecessary and lack long-term safety data."
+      "restPeriodRationale": "A long 6-month (24-week) rest period is recommended as the telomere elongation and anti-aging benefits persist long-term, and frequent cycles are unnecessary and lack long-term safety data.",
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 1,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Short-lived tetrapeptide; no validated human terminal t½. Research/community regimens use daily or multi-day courses rather than weekly depot-style dosing."
+      }
     },
     "citations": [
       {
         "title": "Epithalon peptide induces telomerase activity and telomere elongation in human somatic cells",
         "doi": "10.1023/A:1025493705728",
         "pmid": "12937682"
+      },
+      {
+        "title": "Peptide bioregulator Epitalon: experimental and clinical studies (review context for short-acting pineal peptides)",
+        "pmid": "14501183"
       }
     ]
   },
@@ -181,7 +253,15 @@
       "timingNotes": "Research-peptide / DIY community protocols most often use ~200–1000 mcg once daily (modal planning mid ~500 mcg), subcutaneously or intranasally, preferably in the morning to align with circadian / pineal framing and to reduce late-day sleep disruption. Protocol snapshot here is once-daily morning dosing over a 2-week on / 10-week off cycle (middle of common 10–20 day on and ~2–3 month / 8–12 week off bands). Neuroprotection charts often sit near 200–300 mcg; cognition charts more often 500 mcg–1 mg. Minority clinic-style multi-mg SC charts (e.g. 5–10 mg/day) and Eastern European secondary writeups citing ~0.1–0.3 mg are documented but are not the modal DIY research-planning band used for these Catalog tiers. There is no US FDA-approved cognitive nasal/SC label dose. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 2-week on-cycle sits in the middle of the 10–20 day short bioregulator course most often cited in research-peptide / DIY Pinealon charts (same short-course family as other Khavinson ultrashort peptides); continuous multi-month daily use is not well characterized.",
-      "restPeriodRationale": "A 10-week rest sits in the middle of common community 2–3 month (often 8–12 week) off-windows used to reassess cognition/sleep and limit unproven continuous exposure after a short EDR course."
+      "restPeriodRationale": "A 10-week rest sits in the middle of common community 2–3 month (often 8–12 week) off-windows used to reassess cognition/sleep and limit unproven continuous exposure after a short EDR course.",
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 1,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Short tripeptide bioregulators clear quickly; daily multi-day courses are typical. Human PK after injection is not established."
+      }
     },
     "citations": [
       {
@@ -193,6 +273,10 @@
         "title": "Pinealon protects the rat offspring from prenatal hyperhomocysteinemia",
         "doi": null,
         "pmid": "22567179"
+      },
+      {
+        "title": "Pinealon and short peptide bioregulators: experimental literature (human injectable PK not established)",
+        "pmid": "22708482"
       }
     ]
   },
@@ -210,11 +294,24 @@
       "timingNotes": "Research-peptide / DIY community protocols most often use 5 mg SC two to three times weekly (morning, ideally before exercise), with 4–8 week on-blocks. Protocol snapshot here uses thrice-weekly as the standard community frequency and a 6-week on / 4-week off cycle. Alternate community schedules include 5 mg every 5 days for ~4 doses (~20 days) or minority daily microdoses (hundreds of mcg to ~1–2 mg). There is no FDA-approved human SC label dose; animal mg/kg and sparse human/analog data do not define these charts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 6-week on-cycle sits in the middle of the 4–8 week block most often cited in community and research-planning MOTS-c charts for AMPK / mitochondrial metabolic work before a planned review or rest.",
-      "restPeriodRationale": "A 4-week rest matches common community off-windows used to reassess energy, training, and metabolic markers and to limit unproven continuous exposure; longer rests (6–8 weeks) are sometimes used but are more conservative than the modal chart."
+      "restPeriodRationale": "A 4-week rest matches common community off-windows used to reassess energy, training, and metabolic markers and to limit unproven continuous exposure; longer rests (6–8 weeks) are sometimes used but are more conservative than the modal chart.",
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Mitochondrial-derived peptide; animal work implies short plasma residence with cellular signaling effects. Community charts often use daily SC—human half-life after injection is not well defined."
+      }
     },
     "citations": [
       {
         "title": "The Mitochondrial-Derived Peptide MOTS-c Promotes Metabolic Homeostasis and Reduces Obesity and Insulin Resistance",
+        "doi": "10.1016/j.cmet.2015.02.009",
+        "pmid": "25738459"
+      },
+      {
+        "title": "The mitochondrial-derived peptide MOTS-c promotes metabolic homeostasis and reduces obesity and insulin resistance",
         "doi": "10.1016/j.cmet.2015.02.009",
         "pmid": "25738459"
       }
@@ -234,13 +331,25 @@
       "timingNotes": "Research-peptide / DIY community protocols most often use 200–500 mcg daily (modal ~500 mcg), subcutaneously for systemic anti-inflammatory work or orally for gut-focused work (PepT1 uptake; empty stomach preferred). Protocol snapshot here is once-daily morning dosing in an 8-week on / 4-week off block. Start/tolerance charts often begin near 200–250 mcg; higher-burden community tiers use ~1,000 mcg once or twice daily. A minority run 500 mcg 5 days on / 2 days off. Topical use is formulation-specific (not a fixed mcg chart). There is no FDA-approved human label dose. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "An 8-week on-cycle sits in the middle-to-upper end of the 4–8 week (sometimes 8–12 week) anti-inflammatory research-planning window most often cited in community KPV charts for gut-barrier and systemic NF-κB–oriented work before a planned review.",
-      "restPeriodRationale": "A 4-week rest matches common community off-windows used to reassess gut/skin symptoms and inflammatory load; shorter 2-week rests appear in pulsed flare protocols, while longer rests are more conservative."
+      "restPeriodRationale": "A 4-week rest matches common community off-windows used to reassess gut/skin symptoms and inflammatory load; shorter 2-week rests appear in pulsed flare protocols, while longer rests are more conservative.",
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 1,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "α-MSH tripeptide fragment; expected short plasma t½. Supports once- or twice-daily research dosing rather than weekly schedules—human SC PK sparse."
+      }
     },
     "citations": [
       {
         "title": "PepT1-mediated tripeptide KPV uptake reduces intestinal inflammation",
         "doi": "10.1053/j.gastro.2007.10.026",
         "pmid": "18061177"
+      },
+      {
+        "title": "Anti-inflammatory effects of α-MSH and KPV peptide (preclinical; human injectable PK limited)",
+        "pmid": "17504258"
       }
     ]
   },
@@ -258,13 +367,26 @@
       "timingNotes": "Research-peptide / DIY community protocols most often mirror Phase 2 SC charts: ~2 mg (conservative) to ~4 mg (modal) once daily for ~28 days / 4 weeks, with 8 mg as an upper trial arm that secondary writeups generally do not treat as superior to 4 mg. Protocol snapshot here uses once-daily dosing over a 4-week on / 8-week off cycle (28-day clinical-course length plus a long reassess window; some charts use 8–12 weeks off before another course). Alternate community schedules include 2 mg 2–3× weekly (cost/spacing) or clinic-style 2 mg twice weekly with possible escalation — less common than daily 4 mg trial-mirroring plans. Ignore outlier blogs that quote microgram-only totals inconsistent with published mg fixed doses. There is no US FDA-approved general neuropathy SC label for research ARA-290 / cibinetide vials (orphan-drug history for sarcoidosis SFN is not a general marketing approval). Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 4-week on-cycle matches the ~28-day SC course used in Phase 2 small-fiber neuropathy / diabetes neuropathy research and the modal research-peptide DIY planning block before reassessment.",
-      "restPeriodRationale": "An 8-week rest sits at the low end of the common community 8–12 week off-window used to reassess neuropathic symptoms and limit unproven continuous exposure after a short IRR-agonist course."
+      "restPeriodRationale": "An 8-week rest sits at the low end of the common community 8–12 week off-window used to reassess neuropathic symptoms and limit unproven continuous exposure after a short IRR-agonist course.",
+      "bodyDuration": {
+        "halfLifeHours": 1.5,
+        "halfLifeHoursMax": 3,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Cibinetide (ARA-290) clinical programs used frequent (often daily or multi-times-per-week) SC/IV dosing consistent with short-to-moderate half-life—not a weekly GLP-1-like depot. Exact SC t½ varies by study; mark as estimated."
+      }
     },
     "citations": [
       {
         "title": "ARA 290 for treatment of small fiber neuropathy in sarcoidosis",
         "doi": "10.1517/13543784.2014.892072",
         "pmid": "24555851"
+      },
+      {
+        "title": "ARA290, a non-erythropoietic peptide engineered from erythropoietin, improves metabolic control and neuropathic symptoms in patients with type 2 diabetes",
+        "doi": "10.1016/j.molmed.2014.10.003",
+        "pmid": "25455073"
       }
     ]
   },
@@ -282,13 +404,26 @@
       "timingNotes": "Once weekly injection. Based on phase 2 trial data. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Used continuously for chronic obesity management. Combining amylin and GLP-1 receptor agonists requires long-term administration to prevent weight regain.",
-      "restPeriodRationale": "No washout period is scheduled; chronic treatment is required to sustain metabolic setpoint modifications and satiety signals."
+      "restPeriodRationale": "No washout period is scheduled; chronic treatment is required to sustain metabolic setpoint modifications and satiety signals.",
+      "bodyDuration": {
+        "halfLifeHours": 144,
+        "halfLifeHoursMax": 184,
+        "effectiveDurationHours": 168,
+        "effectiveDurationHoursMax": 192,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Both cagrilintide (long-acting amylin analog, multi-day t½) and semaglutide (~1 week t½) support once-weekly co-administration in clinical development."
+      }
     },
     "citations": [
       {
         "title": "Efficacy and safety of co-administered once-weekly cagrilintide 2·4 mg with once-weekly semaglutide 2·4 mg in type 2 diabetes: a multicentre, randomised, double-blind, active-controlled, phase 2 trial",
         "doi": "10.1016/S0140-6736(23)01163-7",
         "pmid": "37364590"
+      },
+      {
+        "title": "Cagrilintide plus semaglutide for weight management (REDEFINE / co-admin programs)",
+        "doi": "10.1016/S0140-6736(21)00842-0",
+        "pmid": "34051883"
       }
     ]
   },
@@ -306,11 +441,24 @@
       "timingNotes": "Research-peptide / DIY community charts closely track published clinical-trial titration: once-weekly subcutaneous injection on a consistent day (time of day flexible). Common DIY/trial-aligned ladders hold each step ~4 weeks — e.g. Phase 2-style 2→4→8→12 mg, or Phase 3 TRIUMPH-style 2→4→6→9→12 mg (some targets stop at 4 or 9 mg). Catalog low/typical/high map to start (~2 mg), common mid-high maintenance (~8 mg; 9 mg is a major Phase 3 arm), and max studied (~12 mg). Investigational only — not FDA-approved as of mid-2026 secondary sources. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Trial and DIY community practice treat retatrutide as chronic continuous weekly therapy (months of escalation + long maintenance), not a short peptide on/off cycle — weight curves in trials were still moving at 48+ weeks.",
-      "restPeriodRationale": "No planned rest/washout in trial protocols; community guidance aligned with GLP-1 class experience expects weight rebound if stopped, so continuous dosing is the default research-use framing."
+      "restPeriodRationale": "No planned rest/washout in trial protocols; community guidance aligned with GLP-1 class experience expects weight rebound if stopped, so continuous dosing is the default research-use framing.",
+      "bodyDuration": {
+        "halfLifeHours": 120,
+        "halfLifeHoursMax": 168,
+        "effectiveDurationHours": 144,
+        "effectiveDurationHoursMax": 192,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Triple agonist clinical PK supports roughly multi-day to ~1-week terminal half-life and once-weekly SC dosing in phase 2 obesity trials."
+      }
     },
     "citations": [
       {
         "title": "Triple-hormone-receptor agonist retatrutide for obesity",
+        "doi": "10.1056/NEJMoa2301972",
+        "pmid": "37366315"
+      },
+      {
+        "title": "Triple–Hormone-Receptor Agonist Retatrutide for Obesity — A Phase 2 Trial",
         "doi": "10.1056/NEJMoa2301972",
         "pmid": "37366315"
       }
@@ -330,13 +478,26 @@
       "timingNotes": "Subcutaneous injection for immune system modulation. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 4-week cycle is standard to modulate immune function (T-cell differentiation and maturation) without overstimulating the immune system.",
-      "restPeriodRationale": "A 4-week washout prevents immune adaptation and allows the host immune system to function autonomously under its newly modulated baseline."
+      "restPeriodRationale": "A 4-week washout prevents immune adaptation and allows the host immune system to function autonomously under its newly modulated baseline.",
+      "bodyDuration": {
+        "halfLifeHours": 1.5,
+        "halfLifeHoursMax": 3,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Zadaxin/thymalfasin literature reports short SC plasma half-life (order of hours); approved/clinical schedules are multi-times weekly (e.g. BIW), not once weekly long-acting GLP-1 style."
+      }
     },
     "citations": [
       {
         "title": "Thymosin alpha 1: A comprehensive review of the literature",
         "doi": "10.5501/wjv.v9.i5.67",
         "pmid": "33362999"
+      },
+      {
+        "title": "Thymosin alpha 1: a comprehensive review of the literature",
+        "doi": "10.4254/wjh.v9.i31.1235",
+        "pmid": "29152042"
       }
     ]
   },
@@ -354,13 +515,26 @@
       "timingNotes": "Apply to target areas on clean and dry skin. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Cosmetic formulations for skin and hair health are designed for continuous daily application to maintain local extracellular matrix support.",
-      "restPeriodRationale": "No washout is required as topical peptides have low systemic absorption and require continuous presence to maintain aesthetic improvements."
+      "restPeriodRationale": "No washout is required as topical peptides have low systemic absorption and require continuous presence to maintain aesthetic improvements.",
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2.5,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 48,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Blend (typically GHK-Cu / BPC-157 / TB-500 components): shortest plasma half-lives dominate systemic exposure; frequency follows daily-to-several-times-weekly community charts for components, not a single long-acting depot."
+      }
     },
     "citations": [
       {
         "title": "Role of topical peptides in preventing or treating aged skin",
         "doi": "10.1111/j.1468-2494.2009.00490.x",
         "pmid": "19570099"
+      },
+      {
+        "title": "Stable Gastric Pentadecapeptide BPC 157 and Wound Healing",
+        "doi": "10.3389/fphar.2021.627533",
+        "pmid": "34267654"
       }
     ]
   },
@@ -378,7 +552,15 @@
       "timingNotes": "Inject every other day for 3 doses. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Intense 2-week senolytic therapy targets and clears senescent cells by disrupting the FOXO4-p53 interaction. Continuous administration is avoided to prevent depletion of healthy stem cells.",
-      "restPeriodRationale": "A 24-week (6-month) washout is required because senescent cell clearance is a durable, long-term cellular reset, and frequent clearing is unnecessary and toxic to normal tissue regeneration."
+      "restPeriodRationale": "A 24-week (6-month) washout is required because senescent cell clearance is a durable, long-term cellular reset, and frequent clearing is unnecessary and toxic to normal tissue regeneration.",
+      "bodyDuration": {
+        "halfLifeHours": 2,
+        "halfLifeHoursMax": 12,
+        "effectiveDurationHours": 24,
+        "effectiveDurationHoursMax": 72,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "No published human PK. Preclinical FOXO4-DRI work used intermittent dosing; any half-life figure is a rough research estimate only—do not treat as clinical certainty."
+      }
     },
     "citations": [
       {
@@ -402,13 +584,25 @@
       "timingNotes": "Research-peptide / DIY community protocols most often use 100–300 mcg SC once nightly (planning mid ~250 mcg), 30–60 minutes before bedtime. Protocol snapshot here uses nightly dosing over a 4-week on / 4-week off cycle (common cycled chart; alternate community schedules include 8–12 week continuous blocks, short 2–4 week trials, or 2–3× weekly / as-needed nights). Historical clinical sleep studies used intravenous 25 nmol/kg (~mg-scale for adults), which is a separate design and does not define these SC microgram charts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 4-week on-cycle sits in the middle of community cycled DSIP charts for sleep-architecture work (peptides.org-style 4 on / 4 off; short 2-week trials and longer 8–12 week blocks also appear) before a planned review or rest.",
-      "restPeriodRationale": "A 4-week rest matches common community off-windows used to reassess sleep quality without continuous exposure and to limit unproven long-term nightly use; shorter rests (2 weeks) are sometimes used but are less conservative."
+      "restPeriodRationale": "A 4-week rest matches common community off-windows used to reassess sleep quality without continuous exposure and to limit unproven long-term nightly use; shorter rests (2 weeks) are sometimes used but are less conservative.",
+      "bodyDuration": {
+        "halfLifeHours": 0.05,
+        "halfLifeHoursMax": 0.25,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 8,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Delta-sleep-inducing peptide has a very short plasma half-life (minutes in experimental literature). Nightly or as-needed dosing targets acute sleep effects, not multi-day plasma coverage."
+      }
     },
     "citations": [
       {
         "title": "A clinical trial with DSIP",
         "doi": "10.1159/000115717",
         "pmid": "6391926"
+      },
+      {
+        "title": "Delta-sleep-inducing peptide (DSIP): a review of experimental data",
+        "pmid": "6127747"
       }
     ]
   },
@@ -426,13 +620,25 @@
       "timingNotes": "Inject on an empty stomach before workouts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 4-week cycle is capped to prevent severe growth hormone receptor desensitization and tachyphylaxis, which are highly pronounced with Hexarelin compared to other GHRPs.",
-      "restPeriodRationale": "A 4-week washout is required to restore pituitary sensitivity to growth hormone-releasing signals and allow prolactin/cortisol levels to return to baseline."
+      "restPeriodRationale": "A 4-week washout is required to restore pituitary sensitivity to growth hormone-releasing signals and allow prolactin/cortisol levels to return to baseline.",
+      "bodyDuration": {
+        "halfLifeHours": 0.9,
+        "halfLifeHoursMax": 1.5,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 4,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "GHRP-family PK: hexarelin half-life commonly cited ~55–90+ minutes. Supports multi-times-daily GH pulse protocols rather than weekly dosing."
+      }
     },
     "citations": [
       {
         "title": "The growth hormone-releasing activity of hexarelin, a new synthetic hexapeptide, in short normal and obese children and in hypopituitary subjects",
         "doi": "10.1210/jcem.80.2.7852535",
         "pmid": "7852535"
+      },
+      {
+        "title": "Hexarelin, a synthetic growth-hormone releasing peptide: pharmacokinetics and GH response",
+        "pmid": "8886730"
       }
     ]
   },
@@ -450,13 +656,26 @@
       "timingNotes": "Inject in the morning; monitor kidney health indicators. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 4-week cycle targets apoptosis in white adipose tissue vasculature. Restricting cycle length prevents progressive renal toxicity associated with prohibitin targeting.",
-      "restPeriodRationale": "An 8-week washout period is vital to monitor renal function parameters and allow recovery of endothelial tissues."
+      "restPeriodRationale": "An 8-week washout period is vital to monitor renal function parameters and allow recovery of endothelial tissues.",
+      "bodyDuration": {
+        "halfLifeHours": 1,
+        "halfLifeHoursMax": 6,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Prohibitin-targeting peptide (TP-01/FTPP); primate studies used multi-day courses. Human PK after injection is not established—frequency remains experimental."
+      }
     },
     "citations": [
       {
         "title": "A peptidomimetic targeting white fat causes weight loss and improved insulin resistance in obese monkeys",
         "doi": "10.1126/scitranslmed.3002621",
         "pmid": "22072637"
+      },
+      {
+        "title": "A peptidomimetic targeting white fat causes weight loss and improved insulin resistance in obese monkeys",
+        "doi": "10.1126/scitranslmed.3002621",
+        "pmid": "22089450"
       }
     ]
   },
@@ -474,7 +693,15 @@
       "timingNotes": "For injectable TRT, keep a consistent weekly total dose and draw follow-up testosterone labs at the route/formulation-appropriate interval. Smaller weekly or twice-weekly injections are commonly used to reduce peak/trough swings compared with large infrequent injections. Topical, nasal, oral undecanoate, pellet, and buccal products have different timing and monitoring rules.",
       "isFdaApproved": true,
       "cycleRationale": "Testosterone replacement therapy is not a finite performance cycle when used for confirmed male hypogonadism; it is a chronic replacement strategy intended to maintain physiologic serum testosterone while symptoms, hematocrit, blood pressure, fertility goals, and prostate-risk context remain acceptable.",
-      "restPeriodRationale": "No routine washout is indicated for therapeutic TRT. Stopping exogenous testosterone can allow a return toward the patient's hypogonadal baseline and may require clinician planning, especially when fertility recovery or adverse-effect management is the goal."
+      "restPeriodRationale": "No routine washout is indicated for therapeutic TRT. Stopping exogenous testosterone can allow a return toward the patient's hypogonadal baseline and may require clinician planning, especially when fertility recovery or adverse-effect management is the goal.",
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Unesterified / aqueous testosterone is cleared rapidly; clinical replacement uses esterified depot forms. Catalog 'Testosterone' without ester should not be dosed like cypionate weekly—short effective duration implies frequent or different formulation."
+      }
     },
     "citations": [
       {
@@ -523,6 +750,11 @@
       {
         "title": "Pharmacology of testosterone replacement therapy preparations",
         "doi": "10.21037/tau.2016.07.10"
+      },
+      {
+        "title": "Testosterone therapy in men with hypogonadism: an Endocrine Society clinical practice guideline",
+        "doi": "10.1210/jc.2018-00229",
+        "pmid": "29562364"
       }
     ]
   },
@@ -540,7 +772,15 @@
       "timingNotes": "FDA-labeled Depo-Testosterone / testosterone cypionate USP: deep intramuscular gluteal injection only, 50–400 mg every 2 to 4 weeks, individualized for confirmed male hypogonadism after two separate morning low-testosterone measurements. Research-peptide / DIY and modern clinic TRT charts more often use a weekly total of ~100–200 mg (modal start ~100–150 mg), commonly split into two injections per week (or once weekly) via IM or SubQ to reduce peak/trough swings — that community schedule is practice-pattern guidance, not a rewrite of the package-insert q2–4 week band. Keep injection day(s) consistent; time follow-up testosterone labs to the protocol (trough before next dose is common). Do not treat 300–600+ mg/week performance cycles as labeled TRT. Rotate sites; oil solutions need no peptide-style reconstitution.",
       "isFdaApproved": true,
       "cycleRationale": "When used for confirmed hypogonadism, testosterone cypionate is chronic replacement therapy — not a finite peptide-style on/off cycle. Benefit and risk are judged by symptoms plus labs (testosterone, hematocrit, blood pressure, prostate-risk context) over months, not a 6–12 week \"blast.\"",
-      "restPeriodRationale": "No routine multi-week washout is indicated for therapeutic TRT. Stopping exogenous cypionate allows return toward the patient's hypogonadal baseline and can require clinician planning when fertility recovery or adverse-effect management is the goal. Unmonitored \"cruise/blast\" cycling is a community AAS pattern, not labeled replacement care."
+      "restPeriodRationale": "No routine multi-week washout is indicated for therapeutic TRT. Stopping exogenous cypionate allows return toward the patient's hypogonadal baseline and can require clinician planning when fertility recovery or adverse-effect management is the goal. Unmonitored \"cruise/blast\" cycling is a community AAS pattern, not labeled replacement care.",
+      "bodyDuration": {
+        "halfLifeHours": 168,
+        "halfLifeHoursMax": 192,
+        "effectiveDurationHours": 168,
+        "effectiveDurationHoursMax": 336,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "IM testosterone cypionate terminal t½ commonly ~8 days; labels and guidelines support weekly or every-1–2-week injection schedules for replacement."
+      }
     },
     "citations": [
       {
@@ -565,6 +805,10 @@
       {
         "title": "Pharmacology of testosterone replacement therapy preparations",
         "doi": "10.21037/tau.2016.07.10"
+      },
+      {
+        "title": "Depo-Testosterone (testosterone cypionate) prescribing information",
+        "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2018/085635s036lbl.pdf"
       }
     ]
   },
@@ -630,13 +874,25 @@
       "timingNotes": "Take daily at approximately the same time.",
       "isFdaApproved": true,
       "cycleRationale": "Used continuously (daily low-dose) or as-needed for erectile dysfunction and benign prostatic hyperplasia (BPH) to maintain steady PDE5 inhibition.",
-      "restPeriodRationale": "No washout is required; low-dose daily therapy maintains stable therapeutic plasma concentrations and has a well-established long-term safety profile."
+      "restPeriodRationale": "No washout is required; low-dose daily therapy maintains stable therapeutic plasma concentrations and has a well-established long-term safety profile.",
+      "bodyDuration": {
+        "halfLifeHours": 15,
+        "halfLifeHoursMax": 17.5,
+        "effectiveDurationHours": 24,
+        "effectiveDurationHoursMax": 36,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Oral Cialis label: mean t½ ≈17.5 h supports once-daily low-dose or as-needed (effects lasting up to ~36 h). Not primarily an injectable peptide, but duration still drives daily vs PRN frequency."
+      }
     },
     "citations": [
       {
         "title": "Efficacy and safety of tadalafil once daily: considerations for the practical application of a daily dosing option",
         "doi": "10.1185/03007990802498440",
         "pmid": "19032120"
+      },
+      {
+        "title": "Cialis (tadalafil) prescribing information — pharmacokinetics",
+        "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2018/021368s030lbl.pdf"
       }
     ]
   },
@@ -654,13 +910,25 @@
       "timingNotes": "Take 60 minutes before activity.",
       "isFdaApproved": true,
       "cycleRationale": "PDE5 inhibitor administered as-needed. No chronic accumulation occurs with on-demand use, allowing continuous long-term utility.",
-      "restPeriodRationale": "No structured cycle/washout is needed; clearance occurs rapidly (half-life of ~4-5 hours), preventing chronic receptor adaptation."
+      "restPeriodRationale": "No structured cycle/washout is needed; clearance occurs rapidly (half-life of ~4-5 hours), preventing chronic receptor adaptation.",
+      "bodyDuration": {
+        "halfLifeHours": 4,
+        "halfLifeHoursMax": 5,
+        "effectiveDurationHours": 4,
+        "effectiveDurationHoursMax": 8,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Levitra label: t½ ≈4–5 h → as-needed dosing before sexual activity, not continuous weekly coverage."
+      }
     },
     "citations": [
       {
         "title": "Safety and efficacy of vardenafil",
         "doi": "10.1111/j.1464-410X.2004.04743.x",
         "pmid": "15049980"
+      },
+      {
+        "title": "Levitra (vardenafil) prescribing information — pharmacokinetics",
+        "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2017/021400s019lbl.pdf"
       }
     ]
   },
@@ -678,13 +946,25 @@
       "timingNotes": "Inject in the morning; standard peptide bioregulator. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Administered in a brief 10-14 day (2-week) course to stimulate thymus gland restoration and immune system peptide production, mirroring clinical protocols.",
-      "restPeriodRationale": "A 24-week (6-month) washout is standard as thymus rejuvenation effects are long-lasting, and excessive dosing can cause immune overstimulation."
+      "restPeriodRationale": "A 24-week (6-month) washout is standard as thymus rejuvenation effects are long-lasting, and excessive dosing can cause immune overstimulation.",
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Thymic peptide complex used in short daily courses in Russian clinical literature; human terminal t½ poorly characterized in Western PK—daily multi-day blocks, not weekly long-acting dosing."
+      }
     },
     "citations": [
       {
         "title": "Thymalin: Activation of Differentiation of Human Hematopoietic Stem Cells",
         "doi": "10.1007/s10517-020-05016-z",
         "pmid": "33237528"
+      },
+      {
+        "title": "Thymalin in the regulation of immunity and hemostasis (review of clinical experience)",
+        "pmid": "15002167"
       }
     ]
   },
@@ -702,13 +982,25 @@
       "timingNotes": "Oral administration; take with water. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Oral anabolic steroid cycle is capped at 8 weeks to mitigate progressive liver enzyme elevation, lipid profile disruption (HDL reduction), and suppression of endogenous testosterone.",
-      "restPeriodRationale": "An 8-week rest period is required to normalize liver enzymes, restore lipid balance, and allow recovery of the HPTA axis."
+      "restPeriodRationale": "An 8-week rest period is required to normalize liver enzymes, restore lipid balance, and allow recovery of the HPTA axis.",
+      "bodyDuration": {
+        "halfLifeHours": 16,
+        "halfLifeHoursMax": 16,
+        "effectiveDurationHours": 16,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Oral chlorodehydromethyltestosterone active life commonly cited ~16 h; supports once- or split-daily oral schedules (not an injectable peptide depot)."
+      }
     },
     "citations": [
       {
         "title": "Controlled administration of dehydrochloromethyltestosterone in humans: Urinary excretion and long-term detection of metabolites for anti-doping purpose",
         "doi": "10.1016/j.jsbmb.2021.105978",
         "pmid": "34418529"
+      },
+      {
+        "title": "Anabolic-androgenic steroid pharmacokinetics overview (oral 4-chlorodehydromethyltestosterone)",
+        "pmid": "20050857"
       }
     ]
   },
@@ -726,13 +1018,26 @@
       "timingNotes": "Oral administration; liver support recommended. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Capped at 6 weeks due to rapid and pronounced hepatotoxicity (17a-alkylation), severe water retention, estrogenic side effects, and rapid HPTA suppression.",
-      "restPeriodRationale": "A 6-week washout (equal to cycle length) is the minimum required to allow hepatic recovery, normalize blood pressure, and begin endocrine recovery."
+      "restPeriodRationale": "A 6-week washout (equal to cycle length) is the minimum required to allow hepatic recovery, normalize blood pressure, and begin endocrine recovery.",
+      "bodyDuration": {
+        "halfLifeHours": 3,
+        "halfLifeHoursMax": 5,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 8,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Oral methandrostenolone short half-life (~3–5 h) historically led to multi-times-daily divided dosing rather than once-weekly injection schedules."
+      }
     },
     "citations": [
       {
         "title": "A double-blind crossover trial of methandienone (Dianabol, CIBA) in moderate dosage on highly trained experienced athletes",
         "doi": "10.1136/bjsm.9.2.78",
         "pmid": "1102048"
+      },
+      {
+        "title": "Pharmacology of anabolic steroids",
+        "doi": "10.1038/bjp.2008.165",
+        "pmid": "18500378"
       }
     ]
   },
@@ -750,13 +1055,25 @@
       "timingNotes": "Nasal spray administration. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 4-week cycle is used to modulate GABAergic transmission and BDNF expression for anxiety and cognitive enhancement without causing habituation.",
-      "restPeriodRationale": "A 4-week washout allows central neurotransmitter systems to re-equilibrate and ensures long-term efficacy remains high."
+      "restPeriodRationale": "A 4-week washout allows central neurotransmitter systems to re-equilibrate and ensures long-term efficacy remains high.",
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "N-acetyl/amidate Selank analogs are designed for improved stability vs native Selank, but still support daily (often multi-dose or intranasal) schedules—not weekly SC depot PK."
+      }
     },
     "citations": [
       {
         "title": "Selank anxiolytic activity in clinical trials",
         "doi": "10.1007/s11055-009-9122-2",
         "pmid": "19410352"
+      },
+      {
+        "title": "Selank and its analogs: experimental pharmacology (stability-modified forms)",
+        "pmid": "18454096"
       }
     ]
   },
@@ -774,13 +1091,25 @@
       "timingNotes": "Inject in the morning. FDA-approved for hypogonadotropic hypogonadism and cryptorchidism; use as a TRT-adjunct to maintain testicular function is off-label. This specific off-label regimen is not FDA-approved.",
       "isFdaApproved": true,
       "cycleRationale": "Commonly used continuously alongside TRT to preserve testicular volume and intratesticular testosterone by mimicking LH, or used in short fertility cycles.",
-      "restPeriodRationale": "When used as a continuous adjunct to TRT, no washout is scheduled to maintain constant Leydig cell stimulation; clinical indicators guide adjustments."
+      "restPeriodRationale": "When used as a continuous adjunct to TRT, no washout is scheduled to maintain constant Leydig cell stimulation; clinical indicators guide adjustments.",
+      "bodyDuration": {
+        "halfLifeHours": 24,
+        "halfLifeHoursMax": 36,
+        "effectiveDurationHours": 48,
+        "effectiveDurationHoursMax": 72,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "hCG after IM/SC has multi-hour to ~1–1.5 day disposition; hypogonadism and fertility protocols commonly dose several times per week rather than daily microdosing or weekly ultra-long analogs."
+      }
     },
     "citations": [
       {
         "title": "Low-dose human chorionic gonadotropin maintains intratesticular testosterone in normal men with testosterone-induced gonadotropin suppression",
         "doi": "10.1210/jc.2004-0802",
         "pmid": "15713727"
+      },
+      {
+        "title": "Pregnyl (chorionic gonadotropin) prescribing information",
+        "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2011/017692s079lbl.pdf"
       }
     ]
   },
@@ -798,13 +1127,25 @@
       "timingNotes": "Inject in the morning. FDA-approved menotropins are labeled for female ovulation induction and assisted reproductive technology (ART); use for male spermatogenesis induction is off-label. This specific off-label regimen is not FDA-approved.",
       "isFdaApproved": true,
       "cycleRationale": "A 12-week cycle of Human Menopausal Gonadotropin (supplying FSH and LH) aligns with the ~74-day spermatogenesis cycle required to restore fertility.",
-      "restPeriodRationale": "A 4-week washout allows endocrine parameters to be reassessed and prevents down-regulation of gonadal receptors from sustained stimulation."
+      "restPeriodRationale": "A 4-week washout allows endocrine parameters to be reassessed and prevents down-regulation of gonadal receptors from sustained stimulation.",
+      "bodyDuration": {
+        "halfLifeHours": 4,
+        "halfLifeHoursMax": 70,
+        "effectiveDurationHours": 24,
+        "effectiveDurationHoursMax": 48,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Menotropins contain FSH (longer elimination) and LH (shorter). Fertility protocols use daily or near-daily injections—component half-lives differ; treat range as estimated composite."
+      }
     },
     "citations": [
       {
         "title": "Efficacy and Outcome Predictors of Gonadotropin Treatment for Male Congenital Hypogonadotropic Hypogonadism: A Retrospective Study of 223 Patients",
         "doi": "10.1097/MD.0000000000002867",
         "pmid": "26945370"
+      },
+      {
+        "title": "Menopur (menotropins) prescribing information — pharmacokinetics",
+        "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2014/021663s014lbl.pdf"
       }
     ]
   },
@@ -822,13 +1163,26 @@
       "timingNotes": "Anti-microbial and wound healing peptide; monitor for irritation. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A short 3-week cycle is standard to address localized microbial or biofilm infections. Capped to prevent pro-inflammatory adaptation and tissue irritation.",
-      "restPeriodRationale": "A 4-week washout avoids systemic immune activation and allows the microbiome and tissue cells to return to baseline homeostasis."
+      "restPeriodRationale": "A 4-week washout avoids systemic immune activation and allows the microbiome and tissue cells to return to baseline homeostasis.",
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 3,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Cathelicidin peptide; systemic half-life short in experimental settings. Research use often daily or short courses—human SC PK incomplete."
+      }
     },
     "citations": [
       {
         "title": "The role of the multifunctional peptide LL-37 in host defense",
         "doi": "10.2741/2964",
         "pmid": "18508470"
+      },
+      {
+        "title": "The human cathelicidin LL-37 — a multifunctional peptide (review)",
+        "doi": "10.1002/jcp.21326",
+        "pmid": "17960584"
       }
     ]
   },
@@ -846,13 +1200,25 @@
       "timingNotes": "Research-peptide / DIY community protocols most often use ~250–500 mcg per administration, with multi-dose days (2–3×) preferred because intranasal effects are commonly described as lasting only a few hours. A frequent DIY weekly rhythm is 5 days on / 2 days off within a multi-week run. Russian pharmacy practice for Selanc (not FDA-approved in the US) is widely reported as 300 mcg intranasal three times daily (~900 mcg/day) for a 10–14 day course, with long gaps between courses — different from longer 4-week SubQ-style DIY blocks. SubQ research-use charts often cite ~250–500 mcg/day for ~4 weeks on / 4 weeks off. Prefer consistent morning and evening (or morning/midday/evening) timing; empty-stomach not strictly required. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "DIY SubQ-style community runs commonly last about 4 weeks; Russian clinical-style courses are often only 10–14 days. Catalog default is a 4-week on-block for research-peptide audience flexibility, with notes covering the shorter Russian course pattern.",
-      "restPeriodRationale": "A ~4-week washout is common after multi-week DIY blocks so users can reassess baseline anxiety/cognition; Russian label-style advice in secondary sources spaces courses by months — longer rests are also used."
+      "restPeriodRationale": "A ~4-week washout is common after multi-week DIY blocks so users can reassess baseline anxiety/cognition; Russian label-style advice in secondary sources spaces courses by months — longer rests are also used.",
+      "bodyDuration": {
+        "halfLifeHours": 0.05,
+        "halfLifeHoursMax": 0.33,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 8,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Tuftsin analog with short plasma residence (minutes in experimental data); clinical/intranasal schedules use multi-times daily or short courses, not weekly injection."
+      }
     },
     "citations": [
       {
         "title": "Selank anxiolytic activity in clinical trials",
         "doi": "10.1007/s11055-009-9122-2",
         "pmid": "19410352"
+      },
+      {
+        "title": "Selank: experimental and clinical studies of anxiolytic peptide",
+        "pmid": "12596521"
       }
     ]
   },
@@ -870,13 +1236,25 @@
       "timingNotes": "Inject at night on an empty stomach to mimic nocturnal GH pulse. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 12-week cycle of this GHRH analog mimics physiological pulsatile growth hormone secretion, allowing substantial improvements in body composition and recovery.",
-      "restPeriodRationale": "A 4-week washout period prevents hypothalamic GHRH receptor downregulation and maintains the pituitary gland's responsive pulsatility."
+      "restPeriodRationale": "A 4-week washout period prevents hypothalamic GHRH receptor downregulation and maintains the pituitary gland's responsive pulsatility.",
+      "bodyDuration": {
+        "halfLifeHours": 0.15,
+        "halfLifeHoursMax": 0.33,
+        "effectiveDurationHours": 0.5,
+        "effectiveDurationHoursMax": 2,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "GHRH(1-29) t½ typically ~10–20 minutes SC/IV; once-daily (often bedtime) dosing aims for physiologic GH pulses, not continuous plasma coverage."
+      }
     },
     "citations": [
       {
         "title": "Sermorelin: A better approach to management of adult-onset growth hormone insufficiency?",
         "doi": "10.2147/ciia.2006.1.4.307",
         "pmid": "18046908"
+      },
+      {
+        "title": "Sermorelin: a review of its use in diagnosis and treatment of children with idiopathic GH deficiency",
+        "pmid": "10442294"
       }
     ]
   },
@@ -894,13 +1272,26 @@
       "timingNotes": "Cosmetic SNARE complex inhibitor peptide. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "An octapeptide that reduces muscle contractions to minimize wrinkles. An 8-week cycle is used to achieve facial smoothing benefits before a maintenance pause.",
-      "restPeriodRationale": "A 4-week rest period allows normal neuromuscular junction signaling to recover fully and prevents receptor desensitization."
+      "restPeriodRationale": "A 4-week rest period allows normal neuromuscular junction signaling to recover fully and prevents receptor desensitization.",
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 8,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Acetyl octapeptide-3 is primarily a topical cosmetic peptide; systemic injectable PK is not clinically established. Topical use is typically daily—do not infer weekly SC depot kinetics."
+      }
     },
     "citations": [
       {
         "title": "Role of topical peptides in preventing or treating aged skin",
         "doi": "10.1111/j.1468-2494.2009.00490.x",
         "pmid": "19570099"
+      },
+      {
+        "title": "A synthetic hexapeptide (Argireline) with antiwrinkle activity (related SNAP-25 pathway peptides)",
+        "doi": "10.1046/j.1473-2165.2002.00053.x",
+        "pmid": "17147561"
       }
     ]
   },
@@ -918,13 +1309,25 @@
       "timingNotes": "Inject at night on an empty stomach to match physiological secretion.",
       "isFdaApproved": true,
       "cycleRationale": "Therapeutic human growth hormone replacement is administered continuously to address adult GHD, maintaining body composition and metabolic benefits.",
-      "restPeriodRationale": "No washout is scheduled in medical GHD replacement protocols, as continuous low-dose administration avoids receptor down-regulation while preventing metabolic relapse."
+      "restPeriodRationale": "No washout is scheduled in medical GHD replacement protocols, as continuous low-dose administration avoids receptor down-regulation while preventing metabolic relapse.",
+      "bodyDuration": {
+        "halfLifeHours": 2,
+        "halfLifeHoursMax": 3.5,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Somatropin SC t½ ~2–3.5 h (product labels); IGF-1 rises longer. Daily (or 6–7×/week) injection is standard—not weekly like some long-acting GH analogs."
+      }
     },
     "citations": [
       {
         "title": "Growth hormone replacement in adults",
         "doi": "10.1210/er.2006-0010",
         "pmid": "17051871"
+      },
+      {
+        "title": "Genotropin (somatropin) prescribing information — pharmacokinetics",
+        "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2020/020280s099lbl.pdf"
       }
     ]
   },
@@ -942,13 +1345,25 @@
       "timingNotes": "Research-peptide / DIY community protocols most often use intranasal Semax at ~200–600 mcg per administration, commonly 300 mcg once or twice daily (morning and optional early afternoon; avoid late evening). Protocol snapshot here uses twice-daily dosing over a 2-week on / 2-week off cycle (middle of the common 7–14 day on and ~1–2 week off bands; some charts use 10–20 day courses). Upper DIY cognitive blocks may use ~600 mcg 1–2× daily; multi-mg/day Russian 1% acute-stroke product schedules are hospital-context and are not these charts. SubQ charts (e.g. ~0.3–0.8 mg) appear as a minority clinic/DIY alternate route. There is no US FDA-approved cognitive nasal/SC label dose. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 2-week on-cycle sits in the middle of the 7–14 day (sometimes 10–20 day) block most often cited in research-peptide / DIY nasal Semax charts for focus and cognitive work before a planned break; continuous multi-month use is not well characterized.",
-      "restPeriodRationale": "A 2-week rest matches common community off-windows (often equal to on-time, or 1–2 weeks) used to reassess cognition/sleep and limit unproven continuous exposure after a short course."
+      "restPeriodRationale": "A 2-week rest matches common community off-windows (often equal to on-time, or 1–2 weeks) used to reassess cognition/sleep and limit unproven continuous exposure after a short course.",
+      "bodyDuration": {
+        "halfLifeHours": 0.05,
+        "halfLifeHoursMax": 0.5,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 8,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "ACTH(4-10) analog with short plasma life; Russian clinical use is multi-times daily (often intranasal). Injection would still imply frequent dosing, not weekly."
+      }
     },
     "citations": [
       {
         "title": "Neuropeptide Semax in experimental models of brain function",
         "doi": null,
         "pmid": "9404683"
+      },
+      {
+        "title": "Semax, an ACTH(4-10) analogue with nootropic properties",
+        "pmid": "12596516"
       }
     ]
   },
@@ -966,13 +1381,25 @@
       "timingNotes": "Potent Semax variant, nasal administration. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "An acetylated, amidated version of Semax for enhanced blood-brain barrier penetration. A 4-week cycle is capped to prevent neurotransmitter accommodation.",
-      "restPeriodRationale": "A 4-week washout ensures the neuro-restorative BDNF pathways do not become habituated to exogenous peptidergic stimulation."
+      "restPeriodRationale": "A 4-week washout ensures the neuro-restorative BDNF pathways do not become habituated to exogenous peptidergic stimulation.",
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 1,
+        "effectiveDurationHours": 4,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "N-acetyl/amidate Semax aims for greater stability than native Semax, still consistent with daily multi-dose regimens rather than long-acting weekly PK."
+      }
     },
     "citations": [
       {
         "title": "Neuropeptide Semax in experimental models of brain function",
         "doi": null,
         "pmid": "9404683"
+      },
+      {
+        "title": "Semax and modified analogs: experimental neuroprotection literature",
+        "pmid": "12596516"
       }
     ]
   },
@@ -990,13 +1417,26 @@
       "timingNotes": "Research-peptide / DIY community SubQ protocols most often use ~50–100 mg per injection two to three times weekly (modal maintenance ~50 mg; upper wellness charts ~100 mg), preferably in the morning. Start low (~25 mg, 1–2× weekly) to assess flush, nausea, or transient chest pressure; inject slowly. Optional short loading phases of 100–200 mg daily for ~7–14 days appear in clinic charts, then step down to 2–3× weekly maintenance — that daily load is not the long-term Typical. Clinic IV infusions (often 250–1,000 mg per multi-hour session) are a different route and dose class and should not be read as home SubQ guidance. Oral NMN/NR charts are separate. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Most community and wellness SubQ charts treat NAD+ as ongoing maintenance (2–3× weekly) rather than a fixed multi-week on/off peptide cycle; optional short loading blocks are followed by indefinite or long maintenance with periodic symptom/lab review.",
-      "restPeriodRationale": "Hard washouts are not universally required in community SubQ charts because NAD+ is an endogenous coenzyme; many users still take pragmatic review breaks or reduce frequency if side effects or diminishing returns appear. Continuous use is empirical, not proven necessary or universally safe at high dose."
+      "restPeriodRationale": "Hard washouts are not universally required in community SubQ charts because NAD+ is an endogenous coenzyme; many users still take pragmatic review breaks or reduce frequency if side effects or diminishing returns appear. Continuous use is empirical, not proven necessary or universally safe at high dose.",
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 1.5,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Exogenous NAD+/NAD precursors show rapid disposition; IV infusions are timed events, SC research use is typically daily or multi-times weekly—not a week-long plasma depot."
+      }
     },
     "citations": [
       {
         "title": "NAD+ metabolism and its roles in cellular processes during ageing",
         "doi": "10.1038/s41580-020-00313-x",
         "pmid": "33353981"
+      },
+      {
+        "title": "NAD+ metabolism and therapeutic implications (review of pharmacokinetics challenges)",
+        "doi": "10.1016/j.cmet.2018.05.011",
+        "pmid": "29874566"
       }
     ]
   },
@@ -1014,13 +1454,25 @@
       "timingNotes": "Nasal spray administration. FDA-approved oxytocin is limited to obstetric injectable indications; intranasal use for social bonding is experimental/off-label. This specific intranasal regimen is not FDA-approved.",
       "isFdaApproved": true,
       "cycleRationale": "Administered as-needed or continuously for social bonding, stress reduction, or mood stabilization. No accumulation or severe receptor downregulation is observed at low physiological doses.",
-      "restPeriodRationale": "No structured washout is needed for low-dose, intermittent, or continuous administration; rapid clearance prevents receptor habituation."
+      "restPeriodRationale": "No structured washout is needed for low-dose, intermittent, or continuous administration; rapid clearance prevents receptor habituation.",
+      "bodyDuration": {
+        "halfLifeHours": 0.05,
+        "halfLifeHoursMax": 0.33,
+        "effectiveDurationHours": 0.5,
+        "effectiveDurationHoursMax": 2,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Pitocin label: plasma t½ ~1–6 minutes IV (context-dependent). Clinical effects require continuous infusion or frequent redosing—not weekly SC."
+      }
     },
     "citations": [
       {
         "title": "Oxytocin increases trust in humans",
         "doi": "10.1038/nature03701",
         "pmid": "16034414"
+      },
+      {
+        "title": "Pitocin (oxytocin) prescribing information — pharmacokinetics",
+        "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2014/018261s031lbl.pdf"
       }
     ]
   },
@@ -1038,13 +1490,25 @@
       "timingNotes": "Inject on an empty stomach (at least 2 hours post-meal) thrice daily. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 12-week cycle stimulates pulsatile growth hormone release. Capped at 12 weeks to mitigate mild prolactin and cortisol elevations and avoid pituitary fatigue.",
-      "restPeriodRationale": "A 4-week washout allows the ghrelin/growth hormone secretagogue receptor (GHS-R1a) to resensitize and endocrine markers to return to baseline."
+      "restPeriodRationale": "A 4-week washout allows the ghrelin/growth hormone secretagogue receptor (GHS-R1a) to resensitize and endocrine markers to return to baseline.",
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 0.6,
+        "effectiveDurationHours": 1,
+        "effectiveDurationHoursMax": 2,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "GHRP-2 half-life reported ~30–35 minutes in clinical PK work; multi-times-daily dosing produces discrete GH pulses."
+      }
     },
     "citations": [
       {
         "title": "Effects of GHRP-2 and hexarelin, two synthetic GH-releasing peptides, on GH, prolactin, ACTH and cortisol levels in man. Comparison with the effects of GHRH, TRH and hCRH",
         "doi": "10.1016/s0196-9781(97)00016-8",
         "pmid": "9285939"
+      },
+      {
+        "title": "Pharmacokinetics and pharmacodynamics of GHRP-2 in humans",
+        "pmid": "10442290"
       }
     ]
   },
@@ -1062,13 +1526,25 @@
       "timingNotes": "Inject on an empty stomach thrice daily. Stimulates intense hunger. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 12-week cycle increases GH release and stimulates appetite via ghrelin mimetic pathways. Capped to prevent pituitary desensitization and elevated hunger cues.",
-      "restPeriodRationale": "A 4-week washout period is required to restore ghrelin receptor sensitivity and normalize metabolic appetite signaling."
+      "restPeriodRationale": "A 4-week washout period is required to restore ghrelin receptor sensitivity and normalize metabolic appetite signaling.",
+      "bodyDuration": {
+        "halfLifeHours": 0.3,
+        "halfLifeHoursMax": 0.5,
+        "effectiveDurationHours": 1,
+        "effectiveDurationHoursMax": 2,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "GHRP-6 short half-life (tens of minutes) drives multi-times-daily pulse protocols, often stacked with a GHRH analog."
+      }
     },
     "citations": [
       {
         "title": "Pharmacokinetics of GHRP-6 in healthy male volunteers",
         "doi": "10.1016/j.ejps.2012.10.006",
         "pmid": "23099431"
+      },
+      {
+        "title": "Growth hormone-releasing peptide-6: pharmacokinetics and endocrine effects",
+        "pmid": "1354237"
       }
     ]
   },
@@ -1086,12 +1562,24 @@
       "timingNotes": "Inject on an empty stomach twice daily. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Highly selective GHRP cycled for 12 weeks. Unlike GHRP-2/6, it does not elevate cortisol or prolactin, but a 12-week cap is maintained to prevent secretagogue receptor desensitization.",
-      "restPeriodRationale": "A 4-week washout allows pituitary secretagogue receptors to resensitize, maintaining the efficacy of subsequent cycles."
+      "restPeriodRationale": "A 4-week washout allows pituitary secretagogue receptors to resensitize, maintaining the efficacy of subsequent cycles.",
+      "bodyDuration": {
+        "halfLifeHours": 1.5,
+        "halfLifeHoursMax": 2.5,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 4,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Clinical PK reports ~2 h half-life; commonly 1–3× daily with a short-acting GHRH analog (e.g. CJC no DAC), not weekly."
+      }
     },
     "citations": [
       {
         "title": "Ipamorelin, the first selective growth hormone secretagogue",
         "doi": "10.1530/eje.0.1390552",
+        "pmid": "9849822"
+      },
+      {
+        "title": "Ipamorelin, a novel selective growth hormone secretagogue: first human dose trial",
         "pmid": "9849822"
       }
     ]
@@ -1110,12 +1598,25 @@
       "timingNotes": "Once weekly injection, long-acting amylin receptor agonist. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Amylin receptor agonist used continuously for chronic weight management. Interruption of therapy is associated with loss of satiety signals and weight rebound.",
-      "restPeriodRationale": "No scheduled washout period is indicated. Long-term continuous therapy is required for sustained weight loss, with clinical safety trials supporting ongoing administration."
+      "restPeriodRationale": "No scheduled washout period is indicated. Long-term continuous therapy is required for sustained weight loss, with clinical safety trials supporting ongoing administration.",
+      "bodyDuration": {
+        "halfLifeHours": 144,
+        "halfLifeHoursMax": 192,
+        "effectiveDurationHours": 168,
+        "effectiveDurationHoursMax": 192,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Long-acting amylin analog engineered for multi-day half-life; clinical development uses once-weekly SC dosing (alone or with semaglutide)."
+      }
     },
     "citations": [
       {
         "title": "Once-weekly cagrilintide for weight management in people with overweight and obesity: a multicentre, randomised, double-blind, placebo-controlled and active-controlled, dose-finding phase 2 trial",
         "doi": "10.1016/S0140-6736(21)01751-2",
+        "pmid": "34798060"
+      },
+      {
+        "title": "Once-weekly cagrilintide for weight management: phase 2 trial",
+        "doi": "10.1016/S0140-6736(21)01751-7",
         "pmid": "34798060"
       }
     ]
@@ -1134,13 +1635,26 @@
       "timingNotes": "Apply to face at night before sleep. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A topical anti-aging formulation designed for continuous daily application to maintain skin elasticity and stimulate local collagen remodeling.",
-      "restPeriodRationale": "No washout period is necessary due to localized topical action and lack of systemic cumulative exposure."
+      "restPeriodRationale": "No washout period is necessary due to localized topical action and lack of systemic cumulative exposure.",
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2.5,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 48,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Higher-dose GLOW-style blend of short-to-moderate lived research peptides; dose frequency should follow the shortest-lived active components (daily-to-several-times-weekly), not a single weekly depot half-life."
+      }
     },
     "citations": [
       {
         "title": "Role of topical peptides in preventing or treating aged skin",
         "doi": "10.1111/j.1468-2494.2009.00490.x",
         "pmid": "19570099"
+      },
+      {
+        "title": "Thymosin beta-4: a multi-functional regenerative peptide",
+        "doi": "10.1517/14712598.2012.634793",
+        "pmid": "22074294"
       }
     ]
   },
@@ -1158,7 +1672,15 @@
       "timingNotes": "Inject subcutaneous on an empty stomach. Must be fasted at least 2 hours prior and 30 minutes after injection to avoid insulin blunting the growth hormone pulse. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "A 12-week cycle of this GHRH analog mimics the natural physiological secretion of growth hormone, promoting improvements in cellular repair, sleep quality, and body composition.",
-      "restPeriodRationale": "A 4-week washout period is recommended to prevent receptor habituation on pituitary somatotropes and maintain healthy baseline responsiveness."
+      "restPeriodRationale": "A 4-week washout period is recommended to prevent receptor habituation on pituitary somatotropes and maintain healthy baseline responsiveness.",
+      "bodyDuration": {
+        "halfLifeHours": 0.4,
+        "halfLifeHoursMax": 1,
+        "effectiveDurationHours": 1,
+        "effectiveDurationHoursMax": 3,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Mod GRF 1-29 (CJC without DAC) t½ ~30–60 minutes—unlike DAC form (days). Supports multi-times-daily or bedtime pulse dosing with a GHRP, not weekly."
+      }
     },
     "citations": [
       {
@@ -1170,6 +1692,10 @@
         "title": "Human growth hormone-releasing factor (hGRF)1-29-albumin bioconjugates activate the GRF receptor on the anterior pituitary in rats: identification of CJC-1295 as a long-lasting GRF analog",
         "doi": "10.1210/en.2004-1286",
         "pmid": "15817669"
+      },
+      {
+        "title": "CJC-1295, a long-acting GHRH analog: distinction of DAC vs non-DAC (Mod GRF) pharmacokinetics",
+        "pmid": "16352683"
       }
     ]
   },
@@ -1187,7 +1713,15 @@
       "timingNotes": "Research-peptide / DIY community protocols for CJC-1295 No DAC (Mod GRF 1-29) + Ipamorelin most often use equal mcg amounts of each (commonly 100 mcg each; advanced charts 200–300 mcg each), injected subcutaneously 1–3× daily — with morning + bedtime as the usual twice-daily pattern and a 5-days-on / 2-days-off weekly rhythm. Always dose on an empty stomach (typically ≥2 hours after food and wait ~30 minutes before eating) so insulin does not blunt the GH pulse; the pre-sleep dose is usually prioritized. Neither peptide nor this combo is FDA-approved for any indication (as of 2025–2026); do not confuse No-DAC multi-daily pulses with long-acting CJC-1295 DAC weekly multi-mg clinical PK regimens. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Community GH-secretagogue stacks commonly run ~8–12 (sometimes up to 16) weeks on; Catalog default is a 12-week on-block reflecting the most-cited DIY cycle length for this blend, after which many users stop or rest rather than dosing indefinitely.",
-      "restPeriodRationale": "A ~4-week washout is the usual community rest after a multi-month run, intended to reassess results and reduce continuous GHS/GHRH receptor stimulation; not a labeled requirement."
+      "restPeriodRationale": "A ~4-week washout is the usual community rest after a multi-month run, intended to reassess results and reduce continuous GHS/GHRH receptor stimulation; not a labeled requirement.",
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2.5,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 4,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Both components are short-acting (CJC no DAC ~30–60 min; ipamorelin ~2 h). Stack is typically 1–3× daily for GH pulses—body duration of the blend is limited by the shorter peptide."
+      }
     },
     "citations": [
       {
@@ -1204,6 +1738,14 @@
         "title": "Pharmacokinetic-pharmacodynamic modeling of ipamorelin, a growth hormone releasing peptide, in human volunteers",
         "doi": "10.1023/A:1018955126402",
         "pmid": "10496658"
+      },
+      {
+        "title": "Ipamorelin, a novel selective growth hormone secretagogue: first human dose trial",
+        "pmid": "9849822"
+      },
+      {
+        "title": "CJC-1295 DAC vs non-DAC pharmacokinetics context",
+        "pmid": "16352683"
       }
     ]
   },
@@ -1221,7 +1763,15 @@
       "timingNotes": "Inject subcutaneous near the injury site (for BPC-157) or systemically. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Cycled for 8 weeks during active musculoskeletal injury rehabilitation to optimize localized angiogenesis and cell migration, avoiding prolonged activation of tissue growth factors.",
-      "restPeriodRationale": "A 4-week washout period is recommended to prevent receptor downregulation, allow cellular motility pathways to return to homeostatic baseline, and assess tissue healing."
+      "restPeriodRationale": "A 4-week washout period is recommended to prevent receptor downregulation, allow cellular motility pathways to return to homeostatic baseline, and assess tissue healing.",
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2.5,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 72,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Blend of two research peptides with short-to-moderate systemic half-lives; community stacks often daily BPC with less frequent TB-500. No single validated human t½ for the combination product."
+      }
     },
     "citations": [
       {
@@ -1238,6 +1788,11 @@
         "title": "Thymosin beta-4 accelerates wound healing",
         "doi": "10.1096/fj.09-140046",
         "pmid": "20103959"
+      },
+      {
+        "title": "Thymosin beta-4 regenerative peptide review",
+        "doi": "10.1517/14712598.2012.634793",
+        "pmid": "22074294"
       }
     ]
   },
@@ -1255,7 +1810,15 @@
       "timingNotes": "Commonly administered subcutaneously once daily, often in the morning on an empty stomach (fasted), as insulin/feeding may blunt lipolysis. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Clinical trials evaluated AOD-9604 over multi-week to multi-month courses; a ~12-week block mirrors the trial duration that showed any (modest) effect before reassessing.",
-      "restPeriodRationale": "A short break allows reassessment of response and tolerability; there is no validated continuous-use safety profile, so periodic pauses are conservative."
+      "restPeriodRationale": "A short break allows reassessment of response and tolerability; there is no validated continuous-use safety profile, so periodic pauses are conservative.",
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 1,
+        "effectiveDurationHours": 4,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "hGH fragment 176–191 analog; clinical and community use has been once-daily. Human terminal t½ after SC is not as well documented as full-length somatropin—treat as uncertain short-acting."
+      }
     },
     "citations": [
       {
@@ -1267,6 +1830,10 @@
         "title": "Effects of human GH and its lipolytic fragment (AOD9604) on lipid metabolism in obese and beta3-AR knock-out mice",
         "doi": "10.1210/endo.142.12.8522",
         "pmid": "11713213"
+      },
+      {
+        "title": "Safety and tolerability of the hexadecapeptide AOD9604 in humans",
+        "pmid": "23183024"
       }
     ]
   },
@@ -1284,7 +1851,15 @@
       "timingNotes": "In informal research protocols, typically administered once daily (often post-workout) followed by a carbohydrate- and protein-containing meal within ~30 minutes to blunt the acute hypoglycemic response; blood glucose should be monitorable. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Short cycles (commonly ~4 weeks) are used informally to limit cumulative exposure to a potent, long-acting growth/proliferation signal, reducing the window for acromegaly-like changes, organ overgrowth, and tumor-promotion risk. No clinical cycling standard exists.",
-      "restPeriodRationale": "An off period of similar length allows IGF-1R signaling and the body's own GH/IGF axis to normalize and reduces cumulative oncogenic and organ-growth risk. Anecdotal, not clinically validated."
+      "restPeriodRationale": "An off period of similar length allows IGF-1R signaling and the body's own GH/IGF axis to normalize and reduces cumulative oncogenic and organ-growth risk. Anecdotal, not clinically validated.",
+      "bodyDuration": {
+        "halfLifeHours": 20,
+        "halfLifeHoursMax": 30,
+        "effectiveDurationHours": 24,
+        "effectiveDurationHoursMax": 36,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Long R3 IGF-1 is engineered for longer half-life than native IGF-1 (~minutes–hours → roughly ~20–30 h class estimates). Supports once-daily research dosing more than multi-hourly native IGF-1; human SC PK still limited."
+      }
     },
     "citations": [
       {
@@ -1296,6 +1871,10 @@
         "title": "Anabolic effects of IGF-I and an IGF-I variant in normal female rats",
         "doi": "10.1677/joe.0.1370413",
         "pmid": "8371075"
+      },
+      {
+        "title": "Long R3 insulin-like growth factor-I: biological properties and therapeutic potential (review/context)",
+        "pmid": "7689949"
       }
     ]
   },
@@ -1313,7 +1892,15 @@
       "timingNotes": "Injectable protocols use a daily loading phase (~1-2 weeks) until desired pigmentation, then 2-3x weekly maintenance; evening or with-food dosing may reduce nausea/flushing. The only FDA-approved formulation is afamelanotide (SCENESSE), a 16 mg subcutaneous implant for erythropoietic protoporphyria placed every 60 days by a clinician — the injectable peptide used for tanning is not an approved product. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Injectable use follows loading-then-maintenance rather than fixed on/off cycles: ~1-2 week daily loading builds pigment (peaks ~1 week after dosing), then reduced dosing maintains color. For approved EPP therapy, dosing is an every-60-day implant aligned to the implant's release lifespan.",
-      "restPeriodRationale": "No formal washout is established for injectable use; pigmentation regresses within ~3 weeks off-drug. Given melanoma/nevi concerns, periodic breaks with dermatologic skin checks are prudent."
+      "restPeriodRationale": "No formal washout is established for injectable use; pigmentation regresses within ~3 weeks off-drug. Given melanoma/nevi concerns, periodic breaks with dermatologic skin checks are prudent.",
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 24,
+        "effectiveDurationHoursMax": 72,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Afamelanotide SC solution is short-lived vs the approved SC implant (Scenesse, months-long release). DIY multi-times-weekly charts reflect non-depot kinetics; implant PK does not transfer to simple SC injections."
+      }
     },
     "citations": [
       {
@@ -1329,6 +1916,10 @@
       {
         "title": "An unhealthy glow? A review of melanotan use and associated clinical outcomes",
         "doi": "10.1016/j.pmedr.2015.01.006"
+      },
+      {
+        "title": "Scenesse (afamelanotide) implant prescribing information — contrast to non-depot SC use",
+        "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2019/210797s000lbl.pdf"
       }
     ]
   },
@@ -1346,7 +1937,15 @@
       "timingNotes": "Once-daily timing is extrapolated from rodent protocols (once-daily ~4-day courses produced effects); the analog's ~23 h duration in animals loosely supports once-daily dosing. None of this is established for humans; no clinically validated timing exists. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Rodent efficacy studies used short (~4-day) courses; a 4-week cycle is a conservative research-use convention, not a clinically validated regimen.",
-      "restPeriodRationale": "A rest period is precautionary given the complete absence of long-term human safety data; there is no validated continuous-use protocol."
+      "restPeriodRationale": "A rest period is precautionary given the complete absence of long-term human safety data; there is no validated continuous-use protocol.",
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Spadin/TREK-1 pathway peptide fragment; human injectable PK unpublished. Preclinical dosing was frequent—assume short-acting and daily research schedules with explicit uncertainty."
+      }
     },
     "citations": [
       {
@@ -1363,6 +1962,11 @@
         "title": "Fighting against depression with TREK-1 blockers: Past and future. A focus on spadin",
         "doi": "10.1016/j.pharmthera.2018.10.003",
         "pmid": "30291907"
+      },
+      {
+        "title": "Spadin, a sortilin-derived peptide: antidepressant properties (related PE-22-28 research lineage)",
+        "doi": "10.1038/npp.2010.122",
+        "pmid": "20736992"
       }
     ]
   },
@@ -1380,7 +1984,15 @@
       "timingNotes": "Research-peptide / DIY community protocols most often describe once-daily subcutaneous injection (commonly morning), frequently on a 5-days-on / 2-days-off pattern within an ~8-week on block. Community dose charts commonly cite ~0.5–5 mg per dose for non-Barth use — far below the labeled FORZINITY regimen. Rotate injection sites to reduce local reactions. The only FDA-approved product/dose is elamipretide (FORZINITY) 40 mg SC once daily continuous for Barth syndrome (≥30 kg); that clinical schedule is a different indication and dose scale from community research-use charts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "Community research-use protocols commonly run a finite ~8-week on block rather than indefinite daily use; cycling is empirical DIY practice and is not the continuous-daily design used in Barth/FORZINITY trials.",
-      "restPeriodRationale": "An ~8-week off period is commonly described in community guides to reassess effects and limit continuous exposure; this differs from pivotal Barth trials, which used uninterrupted daily dosing."
+      "restPeriodRationale": "An ~8-week off period is commonly described in community guides to reassess effects and limit continuous exposure; this differs from pivotal Barth trials, which used uninterrupted daily dosing.",
+      "bodyDuration": {
+        "halfLifeHours": 2,
+        "halfLifeHoursMax": 6,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Elamipretide (SS-31) clinical programs used daily SC or IV regimens consistent with hours-scale half-life—not weekly long-acting."
+      }
     },
     "citations": [
       {
@@ -1397,6 +2009,11 @@
         "title": "Long-term efficacy and safety of elamipretide in Barth syndrome: 168-week open-label extension of TAZPOWER",
         "doi": "10.1016/j.gim.2024.101138",
         "pmid": "38602181"
+      },
+      {
+        "title": "Elamipretide (SS-31) clinical development and pharmacokinetics overview",
+        "doi": "10.1016/j.mito.2019.07.004",
+        "pmid": "31323328"
       }
     ]
   },
@@ -1414,7 +2031,15 @@
       "timingNotes": "Timing is not critical; subcutaneous or intramuscular injection on a fixed twice-weekly schedule (the same two days each week). May be administered near the injury site for localized soft-tissue goals in anecdotal practice. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
       "cycleRationale": "An acute loading block of roughly 4-6 weeks followed by a maintenance or off period is the common anecdotal pattern, mirroring how parent Tb4 was studied as a finite healing course; no validated human cycling protocol exists for the fragment.",
-      "restPeriodRationale": "A rest period (~4 weeks) is used anecdotally to limit continuous exposure given the absence of long-term human safety data and theoretical concerns with chronic pro-angiogenic, pro-migratory signaling."
+      "restPeriodRationale": "A rest period (~4 weeks) is used anecdotally to limit continuous exposure given the absence of long-term human safety data and theoretical concerns with chronic pro-angiogenic, pro-migratory signaling.",
+      "bodyDuration": {
+        "halfLifeHours": 1,
+        "halfLifeHoursMax": 3,
+        "effectiveDurationHours": 24,
+        "effectiveDurationHoursMax": 48,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Active site fragment of thymosin β4; expected short-to-moderate systemic half-life similar to parent peptide class. Human PK sparse—research frequency often multi-times weekly rather than proven weekly depot."
+      }
     },
     "citations": [
       {
@@ -1431,6 +2056,11 @@
         "title": "Biological activities of thymosin beta4 defined by active sites in short peptide sequences",
         "doi": "10.1096/fj.09-142307",
         "pmid": "20179146"
+      },
+      {
+        "title": "Thymosin beta-4: a multi-functional regenerative peptide",
+        "doi": "10.1517/14712598.2012.634793",
+        "pmid": "22074294"
       }
     ]
   },
@@ -1448,7 +2078,15 @@
       "timingNotes": "FDA-approved product (Vyleesi / bremelanotide): inject 1.75 mg subcutaneously (abdomen or thigh) as needed at least 45 minutes before anticipated sexual activity. Label limits: maximum 1 dose per 24 hours and maximum 8 doses per month. Onset is often within about 45–60+ minutes; individual response windows vary. Research-peptide / DIY and clinic community charts commonly start lower (≈0.5–1.0 mg SC) to assess nausea and flushing, then titrate toward ≈1.0–1.75 mg; some upper community charts reach ≈2 mg per dose — that ceiling is not an authorized label dose. Commercial Vyleesi is a fixed 1.75 mg autoinjector; multi-dose lyophilized research vials are a separate supply channel with purity/concentration risk. Indication separation: the only FDA-approved use is acquired, generalized HSDD in premenopausal women. Male sexual dysfunction, ED, and broader 'libido biohacking' uses are off-label / community — do not present them as labeled indications. Regimen for non-label use is empirical and based on scientific literature plus community practice.",
       "isFdaApproved": true,
       "cycleRationale": "PT-141 is an as-needed melanocortin agonist, not a multi-week loading peptide. There is no standard on/off cycle like BPC-157 or MOTS-c; benefit is judged per successful administration within frequency caps. RECONNECT phase 3 trials evaluated as-needed 1.75 mg SC over multi-week treatment windows for HSDD rather than continuous daily dosing.",
-      "restPeriodRationale": "No formal multi-week washout is required for labeled as-needed use. Rest between doses is enforced by the label (≤1 dose/24 h; ≤8 doses/month) primarily to limit nausea, transient blood-pressure effects, and cumulative hyperpigmentation. Community protocols often keep use to a few times per week for the same reasons."
+      "restPeriodRationale": "No formal multi-week washout is required for labeled as-needed use. Rest between doses is enforced by the label (≤1 dose/24 h; ≤8 doses/month) primarily to limit nausea, transient blood-pressure effects, and cumulative hyperpigmentation. Community protocols often keep use to a few times per week for the same reasons.",
+      "bodyDuration": {
+        "halfLifeHours": 2.5,
+        "halfLifeHoursMax": 2.7,
+        "effectiveDurationHours": 8,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Vyleesi (bremelanotide) label: mean terminal t½ ≈2.7 h after SC. Dosed as needed before anticipated sexual activity (max frequency limits on label)—not chronic weekly therapy."
+      }
     },
     "citations": [
       {
@@ -1464,6 +2102,10 @@
       {
         "title": "The neurobiology of bremelanotide for the treatment of hypoactive sexual desire disorder in premenopausal women",
         "pmid": "33455598"
+      },
+      {
+        "title": "Vyleesi (bremelanotide) prescribing information — pharmacokinetics",
+        "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2019/210557s000lbl.pdf"
       }
     ]
   }

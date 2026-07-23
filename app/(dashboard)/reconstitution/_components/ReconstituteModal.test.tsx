@@ -50,6 +50,7 @@ const richProfile: NonNullable<Compound['profile']> = {
   preferredTime: 'MORNING_AND_NIGHT',
   timingNotes: 'Take on an empty stomach',
   isFdaApproved: false,
+    bodyDuration: null,
   pairings: [],
   adjuncts: [],
 };
@@ -78,6 +79,7 @@ const sparseProfile: NonNullable<Compound['profile']> = {
   preferredTime: null,
   timingNotes: null,
   isFdaApproved: false,
+    bodyDuration: null,
   pairings: [],
   adjuncts: [],
 };

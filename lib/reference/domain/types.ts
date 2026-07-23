@@ -125,6 +125,33 @@ export type PreferredTime =
   | 'ANYTIME'
   | 'AS_NEEDED';
 
+/**
+ * How confident we are in post-injection duration figures.
+ * ESTABLISHED = human PK from labels/pivotal trials.
+ * ESTIMATED = limited human data and/or strong preclinical extrapolation (caveated).
+ * UNCERTAIN = sparse sources; value is a best-effort estimate only.
+ */
+export type BodyDurationCertainty = 'ESTABLISHED' | 'ESTIMATED' | 'UNCERTAIN';
+
+/**
+ * Structured post-injection body duration for a catalog compound.
+ * All numeric fields are in hours (unit fixed in field names for catalog convention parity
+ * with reconstitutedShelfLifeDays / fridgeShelfLifeMonths).
+ */
+export type BodyDuration = {
+  /** Terminal elimination half-life after injection, hours (typical or lower bound). */
+  halfLifeHours: number | null;
+  /** Upper bound of reported half-life range, hours; null when a single value is used. */
+  halfLifeHoursMax: number | null;
+  /** Practical duration of pharmacologic effect after injection, hours. */
+  effectiveDurationHours: number | null;
+  /** Upper bound of effective duration range, hours; null when a single value is used. */
+  effectiveDurationHoursMax: number | null;
+  certainty: BodyDurationCertainty;
+  /** How body duration relates to dosing frequency (required, non-empty). */
+  frequencyImplication: string;
+};
+
 export type CompoundProfile = {
   id: string;
   catalogItemId: string;
@@ -149,6 +176,8 @@ export type CompoundProfile = {
   preferredTime: PreferredTime | null;
   timingNotes: string | null;
   isFdaApproved: boolean;
+  /** Post-injection body duration (half-life / effective duration in hours). */
+  bodyDuration: BodyDuration | null;
   pairings: CompoundPairing[];
   adjuncts: CompoundAdjunctRecommendation[];
   expectedBenefitsSummary?: string | null;
