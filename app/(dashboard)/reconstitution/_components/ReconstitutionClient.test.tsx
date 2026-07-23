@@ -66,7 +66,9 @@ function renderClient(
       userId={overrides.userId ?? 'user-1'}
       actorUserId={overrides.actorUserId ?? 'user-1'}
       managedUsers={overrides.managedUsers ?? []}
-      compounds={[{ id: 'c1', name: 'BPC-157', slug: 'bpc-157', profile: null }]}
+      compounds={[
+        { id: 'c1', name: 'BPC-157', slug: 'bpc-157', profile: null, administrationRoutes: ['SubQ'] },
+      ]}
       compoundsMinimal={[{ id: 'c1', name: 'BPC-157', slug: 'bpc-157' }]}
       dryVials={[]}
       activeVials={[]}
@@ -161,6 +163,7 @@ describe('ReconstitutionClient room temperature storage partitioning', () => {
       id: 'c-cold',
       name: 'Cold Peptide',
       slug: 'cold-peptide',
+      administrationRoutes: ['SubQ'],
       profile: {
         id: 'p-cold',
         catalogItemId: 'c-cold',
@@ -193,6 +196,7 @@ describe('ReconstitutionClient room temperature storage partitioning', () => {
       id: 'c-room',
       name: 'Testosterone',
       slug: 'testosterone',
+      administrationRoutes: ['IM'],
       profile: {
         id: 'p-room',
         catalogItemId: 'c-room',

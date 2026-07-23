@@ -21,7 +21,7 @@ interface Props {
   userId: string;
   actorUserId: string;
   managedUsers: SubjectOption[];
-  compounds: Pick<Compound, 'id' | 'name' | 'profile' | 'slug'>[];
+  compounds: Pick<Compound, 'id' | 'name' | 'profile' | 'slug' | 'administrationRoutes'>[];
   compoundsMinimal: Pick<Compound, 'id' | 'name' | 'slug'>[];
   dryVials: SerializedVialData[];
   activeVials: SerializedVialData[];

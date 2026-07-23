@@ -77,4 +77,27 @@ describe('ProtocolSummaryGrid', () => {
     expect(html).toContain('SubQ');
     expect(html).toContain('IM');
   });
+
+  it('renders modal-density compact variant with the same snapshot fields', () => {
+    const html = renderToString(
+      <ProtocolSummaryGrid
+        compact
+        cycleLabel="8 Weeks"
+        restLabel="4 Weeks Washout"
+        scheduleLabel="2x Daily: 5 Days On / 2 Off"
+        preferredTimeLabel="Morning and Night"
+        routes={['SubQ', 'IM']}
+      />
+    );
+
+    expect(html).toContain('Protocol Snapshot');
+    expect(html).toContain('Schedule');
+    expect(html).toContain('Cycle');
+    expect(html).toContain('Rest');
+    expect(html).toContain('Timing');
+    expect(html).toContain('Route');
+    expect(html).toContain('8 Weeks');
+    expect(html).toContain('2x Daily: 5 Days On / 2 Off');
+    expect(html).toContain('border-sky-400/20');
+  });
 });

@@ -63,6 +63,7 @@ export default async function ReconstitutionPage({ searchParams }: PageProps) {
     name: c.name,
     slug: c.slug,
     profile: c.profile,
+    administrationRoutes: c.administrationRoutes,
   }));
 
   const syringeStandard = (userSettings?.syringeStandard as 'U100' | 'U40') ?? 'U100';

@@ -5,17 +5,28 @@ import { createPortal } from 'react-dom';
 import Decimal from 'decimal.js';
 import type { SerializedVialData } from '@/lib/reconstitution/application/VialService';
 import type { Compound } from '@/lib/reference/domain/types';
+import {
+  buildProtocolSnapshotLabels,
+  hasDisplayFrequency,
+} from '@/lib/reference/domain/protocolLabels';
 import { ReconstitutionCalculator } from '@/lib/reconstitution/domain/ReconstitutionCalculator';
 import { WarningPolicy, type WarningType } from '@/lib/reconstitution/domain/WarningPolicy';
 import { reconstituteDryVialAction } from '@/app/actions/reconstitution/inventory-actions';
 import { saveSyringePreferencesAction } from '@/app/actions/reconstitution/save-syringe-preferences';
+import { ProtocolSummaryGrid } from '@/app/(dashboard)/reference/_components/DosingGuidanceRanges';
 import { SyringePreview } from './SyringePreview';
 import { X, AlertTriangle, Calendar, Droplet, Beaker } from 'lucide-react';
 import { getVolumePerUnit } from '@/lib/reconstitution/domain/syringe';
 
+/** Compound fields the Reconstitute wizard needs for dose + protocol guidance. */
+export type ReconstituteCompound = Pick<
+  Compound,
+  'id' | 'name' | 'profile' | 'slug' | 'administrationRoutes'
+>;
+
 interface Props {
   vial: SerializedVialData;
-  compounds: Pick<Compound, 'id' | 'name' | 'profile' | 'slug'>[];
+  compounds: ReconstituteCompound[];
   initialSyringeStandard?: 'U100' | 'U40';
   initialSyringeSize?: '0.3' | '0.5' | '1.0';
   subjectUserId?: string;
@@ -129,6 +140,11 @@ export function ReconstituteModal({
       { label: 'Typical', dose: profile.dosingTypical },
       { label: 'High', dose: profile.dosingHigh },
     ];
+  }, [profile]);
+
+  const protocolSnapshot = useMemo(() => {
+    if (!profile) return null;
+    return buildProtocolSnapshotLabels(profile);
   }, [profile]);
 
   // Set default expiration date when BAC Water is entered
@@ -371,32 +387,54 @@ export function ReconstituteModal({
 
           <div className="space-y-4">
             {profile && doseRanges.length > 0 && (
-              <div className="rounded-xl border border-sky-400/20 bg-sky-500/5 p-3">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-sky-500">
-                    Dose ranges
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    Tap a range to use it as the target dose.
-                  </p>
+              <div className="space-y-3">
+                <div className="rounded-xl border border-sky-400/20 bg-sky-500/5 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-sky-500">
+                      Dose ranges
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Tap a range to use it as the target dose.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {doseRanges.map(({ label, dose }) => {
+                      const frequency = dose.recommendedFrequency;
+                      const showFrequency = hasDisplayFrequency(frequency);
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => applyDoseRange(dose)}
+                          className="rounded-lg border border-white/10 bg-background/40 px-3 py-2 text-left transition-colors hover:border-sky-400/40 hover:bg-sky-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                        >
+                          <span className="block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                            {label}
+                          </span>
+                          <span className="mt-1 block font-mono text-sm font-bold text-foreground">
+                            {formatDoseAmount(dose)}
+                          </span>
+                          {showFrequency && (
+                            <span className="mt-1 block text-[10px] leading-snug text-muted-foreground">
+                              {frequency}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {doseRanges.map(({ label, dose }) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => applyDoseRange(dose)}
-                      className="rounded-lg border border-white/10 bg-background/40 px-3 py-2 text-left transition-colors hover:border-sky-400/40 hover:bg-sky-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-                    >
-                      <span className="block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                        {label}
-                      </span>
-                      <span className="mt-1 block font-mono text-sm font-bold text-foreground">
-                        {formatDoseAmount(dose)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+
+                {protocolSnapshot && (
+                  <ProtocolSummaryGrid
+                    compact
+                    cycleLabel={protocolSnapshot.cycleLabel}
+                    restLabel={protocolSnapshot.restLabel}
+                    scheduleLabel={protocolSnapshot.scheduleLabel}
+                    preferredTimeLabel={protocolSnapshot.preferredTimeLabel}
+                    routes={selectedCompound?.administrationRoutes ?? []}
+                  />
+                )}
               </div>
             )}
 
