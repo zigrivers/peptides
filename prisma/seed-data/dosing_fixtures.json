@@ -527,6 +527,48 @@
     ]
   },
   {
+    "name": "Testosterone Cypionate",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "TWICE_WEEKLY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "ANYTIME",
+      "timingNotes": "FDA-labeled Depo-Testosterone / testosterone cypionate USP: deep intramuscular gluteal injection only, 50–400 mg every 2 to 4 weeks, individualized for confirmed male hypogonadism after two separate morning low-testosterone measurements. Research-peptide / DIY and modern clinic TRT charts more often use a weekly total of ~100–200 mg (modal start ~100–150 mg), commonly split into two injections per week (or once weekly) via IM or SubQ to reduce peak/trough swings — that community schedule is practice-pattern guidance, not a rewrite of the package-insert q2–4 week band. Keep injection day(s) consistent; time follow-up testosterone labs to the protocol (trough before next dose is common). Do not treat 300–600+ mg/week performance cycles as labeled TRT. Rotate sites; oil solutions need no peptide-style reconstitution.",
+      "isFdaApproved": true,
+      "cycleRationale": "When used for confirmed hypogonadism, testosterone cypionate is chronic replacement therapy — not a finite peptide-style on/off cycle. Benefit and risk are judged by symptoms plus labs (testosterone, hematocrit, blood pressure, prostate-risk context) over months, not a 6–12 week \"blast.\"",
+      "restPeriodRationale": "No routine multi-week washout is indicated for therapeutic TRT. Stopping exogenous cypionate allows return toward the patient's hypogonadal baseline and can require clinician planning when fertility recovery or adverse-effect management is the goal. Unmonitored \"cruise/blast\" cycling is a community AAS pattern, not labeled replacement care."
+    },
+    "citations": [
+      {
+        "title": "Testosterone Cypionate Injection prescribing information (Depo-Testosterone / USP)",
+        "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=cfbb53d4-b868-4a28-8436-f9112eb01c39"
+      },
+      {
+        "title": "Testosterone Therapy in Men With Hypogonadism: An Endocrine Society Clinical Practice Guideline",
+        "doi": "10.1210/jc.2018-00229",
+        "pmid": "29562364"
+      },
+      {
+        "title": "Evaluation and Management of Testosterone Deficiency: AUA Guideline",
+        "doi": "10.1016/j.juro.2018.03.115",
+        "pmid": "29601923"
+      },
+      {
+        "title": "Cardiovascular Safety of Testosterone-Replacement Therapy",
+        "doi": "10.1056/NEJMoa2215025",
+        "pmid": "37326322"
+      },
+      {
+        "title": "Pharmacology of testosterone replacement therapy preparations",
+        "doi": "10.21037/tau.2016.07.10"
+      }
+    ]
+  },
+  {
     "name": "Tadalafil",
     "profile": {
       "cycleLengthWeeks": null,

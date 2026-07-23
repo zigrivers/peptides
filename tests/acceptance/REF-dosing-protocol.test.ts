@@ -971,6 +971,86 @@ describe('REF Dosing Protocol Acceptances', () => {
       const validation = validateDosingProtocol(fixture!.profile!);
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
+
+    it('should seed Testosterone Cypionate with label TRT vs community weekly ranges and FDA-aware protocol', () => {
+      // Label: 50–400 mg deep IM every 2–4 weeks for confirmed hypogonadism.
+      // Clinic/DIY modal: ~100–200 mg/week (often split 2×/week); 50/100/200 weekly tiers.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          dosesPerDay: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+          isFdaApproved?: boolean;
+          cycleRationale?: string | null;
+          restPeriodRationale?: string | null;
+        };
+        citations?: Array<{ title: string; doi?: string; pmid?: string; url?: string }>;
+      }>;
+
+      const blockStart = seedSource.indexOf("name: 'Testosterone Cypionate'");
+      const blockEnd = seedSource.indexOf("name: 'Tadalafil'");
+      expect(blockStart).toBeGreaterThan(-1);
+      expect(blockEnd).toBeGreaterThan(blockStart);
+      const tcBlock = seedSource.slice(blockStart, blockEnd);
+
+      const lowAmt = tcBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = tcBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = tcBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      expect(lowAmt).toBe('50');
+      expect(typAmt).toBe('100');
+      expect(highAmt).toBe('200');
+
+      expect(tcBlock).toMatch(/### The Technical Mechanism/);
+      expect(tcBlock).toMatch(/### The Analogy/);
+      expect(tcBlock).toMatch(/### Clinical Expected Timeline/);
+      expect(tcBlock).toMatch(/Depo-Testosterone|cypionate/i);
+      expect(tcBlock).toMatch(/hypogonadism/i);
+      expect(tcBlock).toMatch(/sideEffects:/);
+      expect(tcBlock).toMatch(/stackingNotes:/);
+      expect(tcBlock).toMatch(/hematocrit|erythrocytosis/i);
+      // Clinical vs community separation — label q2–4 weeks vs weekly DIY/clinic charts
+      expect(tcBlock).toMatch(/50–400|50-400/);
+      expect(tcBlock).toMatch(/community|DIY|clinic/i);
+      expect(tcBlock).toMatch(/supraphysiologic|performance/i);
+
+      const fixture = fixtures.find((f) => f.name === 'Testosterone Cypionate');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('TWICE_WEEKLY');
+      expect(fixture!.profile!.preferredTime).toBe('ANYTIME');
+      expect(fixture!.profile!.dosesPerDay).toBe(1);
+      expect(fixture!.profile!.cycleLengthWeeks).toBeNull();
+      expect(fixture!.profile!.restPeriodWeeks).toBeNull();
+      expect(fixture!.profile!.isFdaApproved).toBe(true);
+      expect(fixture!.profile!.timingNotes).toMatch(/50–400|50-400/);
+      expect(fixture!.profile!.timingNotes).toMatch(/2 to 4 weeks|2–4 weeks|q2/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/100–200|100-200|weekly/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/community|DIY|clinic/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/hypogonadism/i);
+      expect(fixture!.profile!.timingNotes).not.toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+      expect(fixture!.profile!.cycleRationale).toMatch(/chronic|replacement|hypogonadism/i);
+      expect(fixture!.profile!.restPeriodRationale).toMatch(/washout|fertility|baseline/i);
+      expect(fixture!.citations?.length).toBeGreaterThanOrEqual(2);
+      expect(
+        fixture!.citations?.some(
+          (c) =>
+            (c.url && c.url.includes('dailymed')) ||
+            c.pmid === '29562364' ||
+            c.doi?.includes('2018-00229'),
+        ),
+      ).toBe(true);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
   });
 
   describe('Phase 2: Database CHECK Constraints (Negative Tests)', () => {

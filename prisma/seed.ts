@@ -1490,6 +1490,89 @@ Testosterone replacement is like restoring a deficient control signal, not turni
       },
     },
     {
+      name: 'Testosterone Cypionate',
+      iupacName: null,
+      synonyms: [
+        'TC',
+        'Test Cyp',
+        'Testosterone cipionate',
+        'Depo-Testosterone',
+        'Depo Testosterone',
+        'Testosterone 17β-cyclopentylpropionate',
+        'Cypionate',
+      ],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+Testosterone cypionate is a long-acting 17β-cyclopentylpropionate ester of testosterone formulated in an oil vehicle for parenteral use. After deep intramuscular injection (label route) — and in common clinic/DIY practice also subcutaneous injection — the ester forms a slow-release depot. Circulating esterases liberate free testosterone, which binds androgen receptors and can be converted to dihydrotestosterone (DHT) by 5α-reductase or to estradiol by aromatase. Androgen-receptor signaling supports male secondary sex characteristics, sexual function, erythropoiesis, muscle protein turnover, bone maintenance, and fat distribution. Exogenous testosterone suppresses hypothalamic GnRH → pituitary LH/FSH, lowering intratesticular testosterone and spermatogenesis. Practical half-life of the cypionate ester is on the order of ~7–8 days, which is why clinic and research-peptide / DIY TRT charts often use once-weekly or twice-weekly injections rather than the historic large boluses every 2–4 weeks.
+
+### The Analogy (The Layman Explanation)
+Think of testosterone cypionate as a slow-drip oil reservoir of the same hormone your testes normally make. The injection parks a small depot under the muscle (or fat, in many self-injection protocols); the body snips the ester "tag" off over days and releases steady testosterone. That restored signal helps energy, libido, and muscle maintenance when levels were truly low — but flooding the system above normal is more like over-pressurizing a boiler: blood thickens (hematocrit), blood pressure can rise, fertility drops, and skin/hair/estrogen side effects show up.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Serum testosterone begins rising after the first injection; do not judge full symptom response from a single dose. Watch injection-site pain, early edema, acne, blood-pressure change, and sleep-apnea snoring/worsening.
+* **Week 2 (Days 8–14)**: With weekly or twice-weekly schedules, peaks and troughs start to stabilize vs large q2–4 week boluses. Libido or morning-erection changes may appear in responders; nonspecific "energy" is unreliable this early.
+* **Week 4 (Days 15–28)**: Many sexual-function and well-being signals that will occur begin in the 3–6 week window. Plan trough (or protocol-timed) testosterone labs with hematocrit/hemoglobin and blood pressure rather than chasing a single high peak.
+* **Week 8 (Days 29–56)**: Lean-mass and strength trends remain gradual and training/nutrition-dependent. Erythrocytosis risk and fertility suppression become more relevant; reassess estradiol-mediated symptoms (breast tenderness, water retention) if present.
+* **Week 12 (Days 57–84)**: Typical formal TRT follow-up window: symptoms, adverse effects, testosterone concentration, hematocrit, blood pressure, and PSA/prostate-risk context when age/risk appropriate. Bone-density and long-term body-composition endpoints need months to years — not a short "blast" interpretation.`,
+      administrationRoutes: ['IM', 'SubQ'],
+      tags: ['androgen', 'endocrine', 'recovery', 'metabolic', 'fda-approved', 'fertility-impact', 'monitoring-required', 'trt'],
+      profile: {
+        dosingLow: {
+          amount: '50',
+          unit: 'mg',
+          researchBenefits:
+            'Conservative injectable start often used when titrating TRT carefully, and the lower edge of the FDA-labeled 50–400 mg band when doses are given less frequently. Research-peptide / DIY and clinic charts more often express this as ~50–100 mg per week total rather than a single large q2–4 week bolus.',
+          recommendedFrequency: 'Weekly total (often split twice weekly) or per clinician label schedule',
+        },
+        dosingTypical: {
+          amount: '100',
+          unit: 'mg',
+          researchBenefits:
+            'Modal research-peptide / DIY and clinic TRT weekly total for testosterone cypionate (~100–150 mg/week is the common starting band; 100 mg is the planning midpoint). Distinct from the historic label wording of 50–400 mg deep IM every 2–4 weeks — modern practice often uses smaller, more frequent injections to reduce peak/trough swings while still aiming for physiologic (not supraphysiologic) levels.',
+          recommendedFrequency: 'Weekly total dose, commonly split twice weekly',
+        },
+        dosingHigh: {
+          amount: '200',
+          unit: 'mg',
+          researchBenefits:
+            'Upper end of common monitored weekly TRT charts for cypionate (~160–200 mg/week). The FDA label allows up to 400 mg every 2–4 weeks (IM gluteal) for hypogonadism replacement — that is not permission for unmonitored performance "cycles" of 300–600+ mg/week, which are outside labeled TRT and raise hematocrit, BP, infertility, and other androgen risks.',
+          recommendedFrequency: 'Weekly total or 100 mg twice weekly only with clinician-directed labs',
+        },
+        sideEffects:
+          'Common / clinically important: injection-site pain, acne or oily skin, edema/fluid retention, increased blood pressure, increased hematocrit/hemoglobin (erythrocytosis), gynecomastia or breast tenderness from aromatization, male-pattern hair loss in susceptible users, mood changes, worsening untreated sleep apnea, lower urinary tract symptom worsening, testicular atrophy, and infertility from LH/FSH suppression. Safety Assessment: FDA-approved only as testosterone replacement for confirmed male hypogonadism (primary or hypogonadotropic) with low morning testosterone on at least two separate days — not established for age-related "low T" without classical deficiency. Avoid or defer with active prostate or male breast cancer, uncontrolled erythrocytosis, severe untreated OSA, uncontrolled heart failure, recent major CV events, desire for near-term fertility without specialist planning, pregnancy exposure risk, or active AAS misuse. Baseline and follow-up should include testosterone (timed to protocol), hematocrit/hemoglobin, blood pressure, PSA/prostate-risk discussion when appropriate, and symptom review. Schedule III controlled substance.',
+        stackingNotes:
+          'Often discussed with hCG when testicular volume or fertility preservation is a goal during TRT — hCG can raise T and estradiol and still needs semen/hormone monitoring; not automatic. Aromatase inhibitors are not routine stack partners; reserve for clinician-directed estradiol-mediated symptoms or labs. Ancillaries marketed for "PCT" after supraphysiologic cycles are a different use-case from labeled TRT and are not validated as safe DIY combinations. Storage: oil-based sterile solution — does not require bacteriostatic-water reconstitution. Store at controlled room temperature in carton/protected from light per labeling; do not refrigerate or freeze. If crystals form after cold exposure, warm to room temperature and roll/shake as label-directed until dissolved. Once punctured, follow product label or local sterile multi-dose policy (commonly up to ~28 days when no shorter limit applies).',
+        reconstitutedShelfLifeDays: 28,
+        fridgeShelfLifeMonths: null,
+        freezerShelfLifeMonths: null,
+        citations: [
+          {
+            title: 'Testosterone Cypionate Injection prescribing information (Depo-Testosterone / USP)',
+            url: 'https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=cfbb53d4-b868-4a28-8436-f9112eb01c39',
+          },
+          {
+            title: 'Testosterone Therapy in Men With Hypogonadism: An Endocrine Society Clinical Practice Guideline',
+            doi: '10.1210/jc.2018-00229',
+            pmid: '29562364',
+          },
+          {
+            title: 'Evaluation and Management of Testosterone Deficiency: AUA Guideline',
+            doi: '10.1016/j.juro.2018.03.115',
+            pmid: '29601923',
+          },
+          {
+            title: 'Cardiovascular Safety of Testosterone-Replacement Therapy',
+            doi: '10.1056/NEJMoa2215025',
+            pmid: '37326322',
+          },
+          {
+            title: 'Pharmacology of testosterone replacement therapy preparations',
+            doi: '10.21037/tau.2016.07.10',
+          },
+        ],
+      },
+    },
+    {
       name: 'Tadalafil',
       iupacName: null,
       synonyms: ['Cialis'],
@@ -4172,6 +4255,9 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
 function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: string | null): string {
   const normName = name.toLowerCase();
 
+  if (normName.includes('cypionate') && normName.includes('testosterone')) {
+    return 'Injectable testosterone cypionate (Depo-Testosterone class) tracked for confirmed male hypogonadism TRT: oil-ester depot, often ~100–200 mg/week in clinic/DIY charts (label 50–400 mg IM every 2–4 weeks). Supports sexual function, lean mass maintenance, energy, and bone density toward physiologic levels — not supraphysiologic performance cycles. Monitoring: testosterone labs, hematocrit, blood pressure, fertility impact.';
+  }
   if (normName.includes('testosterone')) {
     return 'Typically tracked for testosterone replacement therapy to support muscle maintenance, energy levels, libido, and bone density. It is intended to help restore physiological hormone levels.';
   }
