@@ -204,6 +204,50 @@ describe('REF Dosing Protocol Acceptances', () => {
         }
       }
     });
+
+    it('should seed SS-31 with research-peptide community dosing ranges and cycled protocol', () => {
+      // Catalog audience is DIY / research-peptide community: tiers and schedule
+      // should reflect community-reported charts (0.5/1/5 mg, 5-on/2-off, 8/8 cycle),
+      // not the 40 mg continuous FORZINITY/Barth clinical default as Typical.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          daysOn: number | null;
+          daysOff: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+        };
+      }>;
+
+      const ss31Block = seedSource.slice(seedSource.indexOf("name: 'SS-31'"), seedSource.indexOf("name: 'TB-500 Fragment"));
+      expect(ss31Block).toContain("amount: '0.5'");
+      expect(ss31Block).toContain("amount: '1'");
+      expect(ss31Block).toContain("amount: '5'");
+      expect(ss31Block).not.toMatch(/dosingTypical:[\s\S]*?amount: '40'/);
+      expect(ss31Block).not.toMatch(/dosingHigh:[\s\S]*?amount: '60'/);
+      expect(ss31Block).toMatch(/5 days on \/ 2 days off/);
+
+      const fixture = fixtures.find((f) => f.name === 'SS-31');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('DAILY');
+      expect(fixture!.profile!.daysOn).toBe(5);
+      expect(fixture!.profile!.daysOff).toBe(2);
+      expect(fixture!.profile!.cycleLengthWeeks).toBe(8);
+      expect(fixture!.profile!.restPeriodWeeks).toBe(8);
+      expect(fixture!.profile!.preferredTime).toBe('MORNING');
+      expect(fixture!.profile!.timingNotes).toMatch(/community/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/FORZINITY/);
+      expect(fixture!.profile!.timingNotes).toMatch(/40 mg/);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
   });
 
   describe('Phase 2: Database CHECK Constraints (Negative Tests)', () => {
@@ -427,6 +471,43 @@ describe('REF Dosing Protocol Acceptances', () => {
       const notes = String(profile.timingNotes ?? '').toLowerCase();
       expect(notes).toContain('5 days on, 2 days off');
       expect(notes).toContain('community');
+    });
+
+    it('should seed SS-31 with community research-peptide tiers and 5-on/2-off cycled protocol in the DB', async () => {
+      const compound = await prisma.catalogItem.findFirst({
+        where: { name: 'SS-31' },
+        include: { profile: true },
+      });
+      expect(compound).toBeTruthy();
+      const profile = compound!.profile as any;
+      expect(profile).toBeTruthy();
+
+      expect(profile.dosingLow.amount).toBe('0.5');
+      expect(profile.dosingTypical.amount).toBe('1');
+      expect(profile.dosingHigh.amount).toBe('5');
+      expect(profile.dosingLow.unit).toBe('mg');
+      expect(profile.dosingTypical.unit).toBe('mg');
+      expect(profile.dosingHigh.unit).toBe('mg');
+
+      const typFreq = String(profile.dosingTypical.recommendedFrequency ?? '').toLowerCase();
+      expect(typFreq).toMatch(/5 days on/);
+      expect(typFreq).toMatch(/daily/);
+
+      expect(profile.dosingFrequency).toBe('DAILY');
+      expect(profile.daysOn).toBe(5);
+      expect(profile.daysOff).toBe(2);
+      expect(profile.cycleLengthWeeks).toBe(8);
+      expect(profile.restPeriodWeeks).toBe(8);
+      expect(profile.preferredTime).toBe('MORNING');
+      expect(profile.isFdaApproved).toBe(false);
+
+      const notes = String(profile.timingNotes ?? '');
+      expect(notes.toLowerCase()).toContain('community');
+      expect(notes).toContain('FORZINITY');
+      expect(notes).toContain('40 mg');
+      expect(notes).toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
     });
   });
 

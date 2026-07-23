@@ -1250,18 +1250,18 @@
   {
     "name": "SS-31",
     "profile": {
-      "cycleLengthWeeks": null,
-      "restPeriodWeeks": null,
+      "cycleLengthWeeks": 8,
+      "restPeriodWeeks": 8,
       "dosingFrequency": "DAILY",
       "dosesPerDay": 1,
       "customFrequencyDescription": null,
-      "daysOn": null,
-      "daysOff": null,
-      "preferredTime": "ANYTIME",
-      "timingNotes": "Administered once daily by subcutaneous injection; timing was not strictly time-of-day dependent in trials. Choose a consistent daily time for adherence and rotate injection sites to reduce local reactions. The only FDA-approved formulation is elamipretide (FORZINITY) for Barth syndrome; use for general longevity or mitochondrial support is not an FDA-approved use. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "daysOn": 5,
+      "daysOff": 2,
+      "preferredTime": "MORNING",
+      "timingNotes": "Research-peptide / DIY community protocols most often describe once-daily subcutaneous injection (commonly morning), frequently on a 5-days-on / 2-days-off pattern within an ~8-week on block. Community dose charts commonly cite ~0.5–5 mg per dose for non-Barth use — far below the labeled FORZINITY regimen. Rotate injection sites to reduce local reactions. The only FDA-approved product/dose is elamipretide (FORZINITY) 40 mg SC once daily continuous for Barth syndrome (≥30 kg); that clinical schedule is a different indication and dose scale from community research-use charts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "Trials used continuous daily dosing (28-week controlled phase plus open-label extension to 168 weeks) rather than cycling; benefits accrued with sustained administration, so a fixed cycle length is not applicable.",
-      "restPeriodRationale": "No rest period was used in pivotal trials; the mechanism (continuous cardiolipin stabilization) and gradual cumulative benefit favor uninterrupted daily dosing."
+      "cycleRationale": "Community research-use protocols commonly run a finite ~8-week on block rather than indefinite daily use; cycling is empirical DIY practice and is not the continuous-daily design used in Barth/FORZINITY trials.",
+      "restPeriodRationale": "An ~8-week off period is commonly described in community guides to reassess effects and limit continuous exposure; this differs from pivotal Barth trials, which used uninterrupted daily dosing."
     },
     "citations": [
       {
