@@ -23,6 +23,7 @@ const WHY_STATEMENTS: Record<string, string> = {
   hexarelin: 'Stimulates powerful, pulse-like growth hormone releases to accelerate muscle building, fat loss, and tendon healing, with a notable increase in cardiovascular strength.',
   adipotide: 'An experimental weight loss peptide that targets and restricts the blood supply of white fat cells, prompting rapid reductions in subcutaneous fat deposits.',
   testosterone: 'Replaces deficient androgen signaling in confirmed hypogonadism to support sexual function, lean mass, bone health, and erythropoiesis while requiring hematocrit, blood pressure, fertility, and prostate-risk monitoring.',
+  testosteronepropionate: 'Short-ester injectable testosterone for confirmed hypogonadism TRT that needs every-other-day or daily injections for stable levels, supporting sexual function, lean mass, and energy with hematocrit, blood pressure, and fertility monitoring.',
   tadalafil: 'Supports healthy cardiovascular circulation, workout muscle pumps, and male erectile function by promoting nitric oxide-mediated blood vessel relaxation.',
   vardenafil: 'Promotes rapid blood vessel relaxation and healthy circulation to support workout performance, male erectile health, and arterial wellness.',
   thymalin: 'Supports thymus gland health to regulate immune cell response, balance inflammatory markers, and promote cardiovascular and endocrine system recovery.',

@@ -995,7 +995,7 @@ describe('REF Dosing Protocol Acceptances', () => {
       }>;
 
       const blockStart = seedSource.indexOf("name: 'Testosterone Cypionate'");
-      const blockEnd = seedSource.indexOf("name: 'Tadalafil'");
+      const blockEnd = seedSource.indexOf("name: 'Testosterone Propionate'");
       expect(blockStart).toBeGreaterThan(-1);
       expect(blockEnd).toBeGreaterThan(blockStart);
       const tcBlock = seedSource.slice(blockStart, blockEnd);
@@ -1045,6 +1045,91 @@ describe('REF Dosing Protocol Acceptances', () => {
             (c.url && c.url.includes('dailymed')) ||
             c.pmid === '29562364' ||
             c.doi?.includes('2018-00229'),
+        ),
+      ).toBe(true);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
+
+    it('should seed Testosterone Propionate with short-ester EOD ranges and clinical-vs-community separation', () => {
+      // Short ester (~0.8–1 day half-life): historical ~10–50 mg 2–3×/week; DIY modal ~25–50 mg EOD.
+      // Do not invent a current Depo-style weekly package-insert band when product label is sparse.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          dosesPerDay: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+          isFdaApproved?: boolean;
+          cycleRationale?: string | null;
+          restPeriodRationale?: string | null;
+        };
+        citations?: Array<{ title: string; doi?: string; pmid?: string; url?: string }>;
+      }>;
+
+      const blockStart = seedSource.indexOf("name: 'Testosterone Propionate'");
+      const blockEnd = seedSource.indexOf("name: 'Tadalafil'");
+      expect(blockStart).toBeGreaterThan(-1);
+      expect(blockEnd).toBeGreaterThan(blockStart);
+      const tpBlock = seedSource.slice(blockStart, blockEnd);
+
+      const lowAmt = tpBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = tpBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = tpBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      expect(lowAmt).toBe('25');
+      expect(typAmt).toBe('50');
+      expect(highAmt).toBe('100');
+
+      expect(tpBlock).toMatch(/### The Technical Mechanism/);
+      expect(tpBlock).toMatch(/### The Analogy/);
+      expect(tpBlock).toMatch(/### Clinical Expected Timeline/);
+      expect(tpBlock).toMatch(/propionate/i);
+      expect(tpBlock).toMatch(/hypogonadism/i);
+      expect(tpBlock).toMatch(/sideEffects:/);
+      expect(tpBlock).toMatch(/stackingNotes:/);
+      expect(tpBlock).toMatch(/hematocrit|erythrocytosis/i);
+      // Short-ester PK + clinical vs community separation
+      expect(tpBlock).toMatch(/EOD|every other day|every-other-day/i);
+      expect(tpBlock).toMatch(/half-life|short-acting|short ester/i);
+      expect(tpBlock).toMatch(/community|DIY|clinic/i);
+      expect(tpBlock).toMatch(/supraphysiologic|performance|blast/i);
+      expect(tpBlock).toMatch(/fridgeShelfLifeMonths:\s*null/);
+      expect(tpBlock).toMatch(/freezerShelfLifeMonths:\s*null/);
+      expect(tpBlock).toMatch(/reconstitutedShelfLifeDays:\s*28/);
+
+      const fixture = fixtures.find((f) => f.name === 'Testosterone Propionate');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('EOD');
+      expect(fixture!.profile!.preferredTime).toBe('ANYTIME');
+      expect(fixture!.profile!.dosesPerDay).toBe(1);
+      expect(fixture!.profile!.cycleLengthWeeks).toBeNull();
+      expect(fixture!.profile!.restPeriodWeeks).toBeNull();
+      expect(fixture!.profile!.isFdaApproved).toBe(true);
+      expect(fixture!.profile!.timingNotes).toMatch(/EOD|every other day|every-other-day|daily/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/25–50|25-50|10–50|10-50/);
+      expect(fixture!.profile!.timingNotes).toMatch(/community|DIY|clinic/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/hypogonadism|androgen deficiency/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/half-life|short/i);
+      expect(fixture!.profile!.timingNotes).not.toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+      expect(fixture!.profile!.cycleRationale).toMatch(/chronic|replacement|hypogonadism/i);
+      expect(fixture!.profile!.restPeriodRationale).toMatch(/washout|fertility|baseline/i);
+      expect(fixture!.citations?.length).toBeGreaterThanOrEqual(2);
+      expect(
+        fixture!.citations?.some(
+          (c) =>
+            c.pmid === '3782423' ||
+            c.pmid === '29562364' ||
+            c.doi?.includes('2018-00229') ||
+            c.doi?.includes('tau.2016.07.10'),
         ),
       ).toBe(true);
 

@@ -1573,6 +1573,96 @@ Think of testosterone cypionate as a slow-drip oil reservoir of the same hormone
       },
     },
     {
+      name: 'Testosterone Propionate',
+      iupacName: null,
+      synonyms: [
+        'TP',
+        'Test Prop',
+        'Testosterone propionate',
+        'Propionate',
+        'Testosterone 17β-propionate',
+        'Testoviron',
+        'Propionate ester',
+      ],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+Testosterone propionate is a short-acting 17β-propionate ester of testosterone formulated in an oil vehicle for parenteral use. After intramuscular injection (historical clinical route) — and in research-peptide / DIY practice also subcutaneous injection — the short ester forms a brief depot. Circulating esterases liberate free testosterone, which binds androgen receptors and can be converted to dihydrotestosterone (DHT) by 5α-reductase or to estradiol by aromatase. Androgen-receptor signaling supports male secondary sex characteristics, sexual function, erythropoiesis, muscle protein turnover, bone maintenance, and fat distribution. Exogenous testosterone suppresses hypothalamic GnRH → pituitary LH/FSH, lowering intratesticular testosterone and spermatogenesis. Terminal half-life of the propionate ester is on the order of ~0.8–1 day (often cited ~19–22 hours in PK literature; practical depot residence a few days), which is why stable levels require every-other-day (EOD) or daily injections — not the weekly or q2–4 week schedules used for cypionate/enanthate.
+
+### The Analogy (The Layman Explanation)
+Think of testosterone propionate as a fast-drip oil reservoir of the same hormone your testes normally make. The short ester "tag" means the body snips it off quickly, so levels rise and fall in a day or two rather than over a week. That tighter control can smooth peaks and troughs when you inject often — but if you inject prop like a long ester (once weekly), you get a roller coaster. Restoring a truly low signal helps libido, energy, and muscle maintenance; over-pressurizing still thickens blood, raises blood pressure, tanks fertility, and brings skin/hair/estrogen sides.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Serum testosterone responds within hours to a day after each injection; because clearance is rapid, missed doses drop levels quickly. Watch injection-site pain (propionate is often reported as more irritating than longer esters), early edema, acne, blood-pressure change, and sleep-apnea snoring/worsening.
+* **Week 2 (Days 8–14)**: With daily or EOD schedules, peaks and troughs stabilize much faster than large infrequent long-ester boluses. Libido or morning-erection changes may appear in responders; nonspecific "energy" remains unreliable this early.
+* **Week 4 (Days 15–28)**: Many sexual-function and well-being signals that will occur begin in the 3–6 week window. Plan trough (or protocol-timed) testosterone labs with hematocrit/hemoglobin and blood pressure rather than chasing a single post-injection peak.
+* **Week 8 (Days 29–56)**: Lean-mass and strength trends remain gradual and training/nutrition-dependent. Erythrocytosis risk and fertility suppression become more relevant; reassess estradiol-mediated symptoms if present. Short ester does not reduce class androgen risks — only changes the level curve shape.
+* **Week 12 (Days 57–84)**: Typical formal TRT follow-up window: symptoms, adverse effects, testosterone concentration, hematocrit, blood pressure, and PSA/prostate-risk context when age/risk appropriate. Bone-density and long-term body-composition endpoints need months to years — not a short "blast" interpretation.`,
+      administrationRoutes: ['IM', 'SubQ'],
+      tags: ['androgen', 'endocrine', 'recovery', 'metabolic', 'fda-approved', 'fertility-impact', 'monitoring-required', 'trt'],
+      profile: {
+        dosingLow: {
+          amount: '25',
+          unit: 'mg',
+          researchBenefits:
+            'Conservative short-ester start often aligned with historical clinical bands of ~10–50 mg IM two to three times weekly for androgen deficiency, and the lower edge of research-peptide / DIY charts (~20–25 mg daily or ~25 mg EOD). Titrate to symptoms and correctly timed serum troughs — not supraphysiologic peaks.',
+          recommendedFrequency: 'Every other day (EOD) or 2–3× weekly; some DIY microdose charts use daily',
+        },
+        dosingTypical: {
+          amount: '50',
+          unit: 'mg',
+          researchBenefits:
+            'Modal research-peptide / DIY and short-ester clinic chart for testosterone propionate: ~25–50 mg every other day (often ~100–175 mg/week total when counted weekly). Distinct from long-ester TRT charts that express ~100–200 mg once or twice weekly — propionate needs more frequent injections because of its short half-life. Not a rewrite of sparse/historical package-insert language into a modern weekly "label dose."',
+          recommendedFrequency: 'Every other day (modal DIY short-ester TRT chart)',
+        },
+        dosingHigh: {
+          amount: '100',
+          unit: 'mg',
+          researchBenefits:
+            'Upper end of common monitored short-ester charts (~50–100 mg EOD, roughly ~175–350 mg/week total). Performance "blast" patterns of 100+ mg daily or multi-hundred-mg weekly propionate stacks are outside therapeutic replacement and raise hematocrit, BP, infertility, and other androgen risks — do not treat those as labeled TRT.',
+          recommendedFrequency: 'EOD only with clinician-directed labs; never once-weekly boluses for this ester',
+        },
+        sideEffects:
+          'Common / clinically important: injection-site pain or irritation (often more frequent with propionate than longer esters because of more injections and the short ester/vehicle), acne or oily skin, edema/fluid retention, increased blood pressure, increased hematocrit/hemoglobin (erythrocytosis), gynecomastia or breast tenderness from aromatization, male-pattern hair loss in susceptible users, mood changes, worsening untreated sleep apnea, lower urinary tract symptom worsening, testicular atrophy, and infertility from LH/FSH suppression. Safety Assessment: Parenteral testosterone products are FDA-approved as replacement for confirmed male hypogonadism (primary or hypogonadotropic) with low morning testosterone on at least two separate days — not established for age-related "low T" without classical deficiency. Commercial US retail TRT today is dominated by longer esters (cypionate/enanthate/undecanoate); propionate appears more often as historical USP/branded injectables, compounding-pharmacy products, or research-peptide / DIY supply — do not invent a current Depo-style package-insert weekly band for propionate when a specific product label is unavailable. Avoid or defer with active prostate or male breast cancer, uncontrolled erythrocytosis, severe untreated OSA, uncontrolled heart failure, recent major CV events, desire for near-term fertility without specialist planning, pregnancy exposure risk, or active AAS misuse. Baseline and follow-up should include testosterone (timed to protocol; troughs matter more with short esters), hematocrit/hemoglobin, blood pressure, PSA/prostate-risk discussion when appropriate, and symptom review. Schedule III controlled substance.',
+        stackingNotes:
+          'Often discussed with hCG when testicular volume or fertility preservation is a goal during TRT — hCG can raise T and estradiol and still needs semen/hormone monitoring; not automatic. Aromatase inhibitors are not routine stack partners; reserve for clinician-directed estradiol-mediated symptoms or labs. Short-ester propionate is sometimes preferred in community charts when users want faster washout or finer day-to-day control vs cypionate — that is a practical PK preference, not a safety free pass. Ancillaries marketed for "PCT" after supraphysiologic cycles are a different use-case from labeled TRT and are not validated as safe DIY combinations. Storage: oil-based sterile solution — does not require bacteriostatic-water reconstitution. Store at controlled room temperature in carton/protected from light per labeling; do not refrigerate or freeze. If crystals form after cold exposure, warm to room temperature and roll/shake as label-directed until dissolved. Once punctured, follow product label or local sterile multi-dose policy (commonly up to ~28 days when no shorter limit applies).',
+        reconstitutedShelfLifeDays: 28,
+        fridgeShelfLifeMonths: null,
+        freezerShelfLifeMonths: null,
+        citations: [
+          {
+            title: 'Pharmacology of testosterone replacement therapy preparations',
+            doi: '10.21037/tau.2016.07.10',
+          },
+          {
+            title: 'Testosterone Therapy in Men With Hypogonadism: An Endocrine Society Clinical Practice Guideline',
+            doi: '10.1210/jc.2018-00229',
+            pmid: '29562364',
+          },
+          {
+            title: 'Evaluation and Management of Testosterone Deficiency: AUA Guideline',
+            doi: '10.1016/j.juro.2018.03.115',
+            pmid: '29601923',
+          },
+          {
+            title: 'Cardiovascular Safety of Testosterone-Replacement Therapy',
+            doi: '10.1056/NEJMoa2215025',
+            pmid: '37326322',
+          },
+          {
+            title: 'Pharmacokinetic properties of testosterone propionate in normal men',
+            doi: '10.1210/jcem-63-6-1361',
+            pmid: '3782423',
+          },
+          {
+            title:
+              'Short-acting testosterone appears to have lesser effect on male reproductive potential compared to long-acting testosterone in mice (cites propionate terminal half-life ~19 h; injection intervals every 2–3 days)',
+            doi: '10.1016/j.xfss.2020.03.002',
+            pmid: '32914138',
+          },
+        ],
+      },
+    },
+    {
       name: 'Tadalafil',
       iupacName: null,
       synonyms: ['Cialis'],
@@ -4257,6 +4347,9 @@ function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: st
 
   if (normName.includes('cypionate') && normName.includes('testosterone')) {
     return 'Injectable testosterone cypionate (Depo-Testosterone class) tracked for confirmed male hypogonadism TRT: oil-ester depot, often ~100–200 mg/week in clinic/DIY charts (label 50–400 mg IM every 2–4 weeks). Supports sexual function, lean mass maintenance, energy, and bone density toward physiologic levels — not supraphysiologic performance cycles. Monitoring: testosterone labs, hematocrit, blood pressure, fertility impact.';
+  }
+  if (normName.includes('propionate') && normName.includes('testosterone')) {
+    return 'Injectable short-ester testosterone propionate tracked for confirmed male hypogonadism TRT: oil vehicle with ~0.8–1 day half-life, so clinic/DIY charts favor EOD or daily injections (~25–50 mg EOD modal; historical monographs often 10–50 mg 2–3×/week). Supports sexual function, lean mass, energy, and bone density toward physiologic levels — not supraphysiologic performance blasts. Monitoring: trough testosterone, hematocrit, blood pressure, fertility impact.';
   }
   if (normName.includes('testosterone')) {
     return 'Typically tracked for testosterone replacement therapy to support muscle maintenance, energy levels, libido, and bone density. It is intended to help restore physiological hormone levels.';
