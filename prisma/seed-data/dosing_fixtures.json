@@ -719,15 +719,15 @@
       "cycleLengthWeeks": 4,
       "restPeriodWeeks": 4,
       "dosingFrequency": "DAILY",
-      "dosesPerDay": 1,
+      "dosesPerDay": 2,
       "customFrequencyDescription": null,
-      "daysOn": null,
-      "daysOff": null,
-      "preferredTime": "MORNING",
-      "timingNotes": "Inject or administer nasally in the morning. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "daysOn": 5,
+      "daysOff": 2,
+      "preferredTime": "MORNING_AND_NIGHT",
+      "timingNotes": "Research-peptide / DIY community protocols most often use ~250–500 mcg per administration, with multi-dose days (2–3×) preferred because intranasal effects are commonly described as lasting only a few hours. A frequent DIY weekly rhythm is 5 days on / 2 days off within a multi-week run. Russian pharmacy practice for Selanc (not FDA-approved in the US) is widely reported as 300 mcg intranasal three times daily (~900 mcg/day) for a 10–14 day course, with long gaps between courses — different from longer 4-week SubQ-style DIY blocks. SubQ research-use charts often cite ~250–500 mcg/day for ~4 weeks on / 4 weeks off. Prefer consistent morning and evening (or morning/midday/evening) timing; empty-stomach not strictly required. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "Anxiolytic peptide cycled for 4 weeks to stabilize enkephalin-degrading enzymes and modulate immune cytokines without benzodiazepine-like withdrawal symptoms.",
-      "restPeriodRationale": "A 4-week washout period ensures receptor sensitivity is maintained and lets the user evaluate baseline anxiety levels."
+      "cycleRationale": "DIY SubQ-style community runs commonly last about 4 weeks; Russian clinical-style courses are often only 10–14 days. Catalog default is a 4-week on-block for research-peptide audience flexibility, with notes covering the shorter Russian course pattern.",
+      "restPeriodRationale": "A ~4-week washout is common after multi-week DIY blocks so users can reassess baseline anxiety/cognition; Russian label-style advice in secondary sources spaces courses by months — longer rests are also used."
     },
     "citations": [
       {

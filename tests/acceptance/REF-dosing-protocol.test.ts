@@ -488,6 +488,59 @@ describe('REF Dosing Protocol Acceptances', () => {
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
 
+    it('should seed Selank with research-peptide community multi-dose ranges and 5-on/2-off protocol', () => {
+      // DIY audience: typical 300 mcg (Russian Selanc-style per-dose) 2–3× daily,
+      // not a single morning-only 500 mcg snapshot; high 500 mcg not 1000 mcg per dose.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          dosesPerDay: number | null;
+          daysOn: number | null;
+          daysOff: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+        };
+      }>;
+
+      const blockStart = seedSource.indexOf("name: 'Selank'");
+      const blockEnd = seedSource.indexOf("name: 'Sermorelin'");
+      expect(blockStart).toBeGreaterThan(-1);
+      expect(blockEnd).toBeGreaterThan(blockStart);
+      const selankBlock = seedSource.slice(blockStart, blockEnd);
+      const lowAmt = selankBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = selankBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = selankBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      expect(lowAmt).toBe('250');
+      expect(typAmt).toBe('300');
+      expect(highAmt).toBe('500');
+      expect(highAmt).not.toBe('1000');
+      expect(selankBlock).toMatch(/2–3× daily/);
+
+      const fixture = fixtures.find((f) => f.name === 'Selank');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('DAILY');
+      expect(fixture!.profile!.dosesPerDay).toBe(2);
+      expect(fixture!.profile!.daysOn).toBe(5);
+      expect(fixture!.profile!.daysOff).toBe(2);
+      expect(fixture!.profile!.cycleLengthWeeks).toBe(4);
+      expect(fixture!.profile!.restPeriodWeeks).toBe(4);
+      expect(fixture!.profile!.preferredTime).toBe('MORNING_AND_NIGHT');
+      expect(fixture!.profile!.timingNotes).toMatch(/community/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/Selanc|300 mcg|Russian/i);
+      expect(fixture!.profile!.timingNotes).toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
+
     it('should seed Semax with research-peptide community nasal dosing ranges and BID protocol', () => {
       // Catalog audience is DIY / research-peptide community: modal nootropic charts use
       // ~200–600 mcg intranasal (typical ~300 mcg) 1–2× daily on short cycles — not 900 mcg
@@ -958,6 +1011,42 @@ describe('REF Dosing Protocol Acceptances', () => {
       const notes = String(profile.timingNotes ?? '');
       expect(notes.toLowerCase()).toContain('community');
       expect(notes).toMatch(/300 mcg/);
+      expect(notes).toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+    });
+
+    it('should seed Selank with community multi-dose tiers and 5-on/2-off protocol in the DB', async () => {
+      const compound = await prisma.catalogItem.findFirst({
+        where: { name: 'Selank' },
+        include: { profile: true },
+      });
+      expect(compound).toBeTruthy();
+      const profile = compound!.profile as any;
+      expect(profile).toBeTruthy();
+
+      expect(profile.dosingLow.amount).toBe('250');
+      expect(profile.dosingTypical.amount).toBe('300');
+      expect(profile.dosingHigh.amount).toBe('500');
+      expect(profile.dosingLow.unit).toBe('mcg');
+      expect(profile.dosingTypical.unit).toBe('mcg');
+      expect(profile.dosingHigh.unit).toBe('mcg');
+
+      const typFreq = String(profile.dosingTypical.recommendedFrequency ?? '').toLowerCase();
+      expect(typFreq).toMatch(/2|3|daily/);
+
+      expect(profile.dosingFrequency).toBe('DAILY');
+      expect(profile.dosesPerDay).toBe(2);
+      expect(profile.daysOn).toBe(5);
+      expect(profile.daysOff).toBe(2);
+      expect(profile.cycleLengthWeeks).toBe(4);
+      expect(profile.restPeriodWeeks).toBe(4);
+      expect(profile.preferredTime).toBe('MORNING_AND_NIGHT');
+      expect(profile.isFdaApproved).toBe(false);
+
+      const notes = String(profile.timingNotes ?? '');
+      expect(notes.toLowerCase()).toContain('community');
+      expect(notes).toMatch(/Selanc|300 mcg|Russian/i);
       expect(notes).toContain(
         'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
       );
