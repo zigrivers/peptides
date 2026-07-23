@@ -782,6 +782,55 @@ describe('REF Dosing Protocol Acceptances', () => {
       const validation = validateDosingProtocol(fixture!.profile!);
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
+
+    it('should seed ARA-290 with research-peptide community SC dosing ranges and 4/8 daily protocol', () => {
+      // DIY audience mirrors Phase 2 fixed SC mg charts: 2 / 4 / 8 mg once daily with
+      // modal 4 mg × ~28 days; high 8 mg is an upper trial arm, not a default “severe” dose.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          dosesPerDay: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+        };
+      }>;
+
+      const blockStart = seedSource.indexOf("name: 'ARA-290'");
+      const blockEnd = seedSource.indexOf("name: 'Cagrilintide/Semaglutide'");
+      expect(blockStart).toBeGreaterThan(-1);
+      expect(blockEnd).toBeGreaterThan(blockStart);
+      const araBlock = seedSource.slice(blockStart, blockEnd);
+      const lowAmt = araBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = araBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = araBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      expect(lowAmt).toBe('2.0');
+      expect(typAmt).toBe('4.0');
+      expect(highAmt).toBe('8.0');
+      expect(araBlock).toMatch(/Once daily SC/);
+      expect(araBlock).toMatch(/community|Phase 2|trial/i);
+      expect(araBlock).toMatch(/no clear superiority|not a default/i);
+
+      const fixture = fixtures.find((f) => f.name === 'ARA-290');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('DAILY');
+      expect(fixture!.profile!.dosesPerDay).toBe(1);
+      expect(fixture!.profile!.cycleLengthWeeks).toBe(4);
+      expect(fixture!.profile!.restPeriodWeeks).toBe(8);
+      expect(fixture!.profile!.preferredTime).toBe('MORNING');
+      expect(fixture!.profile!.timingNotes).toMatch(/community/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/4 mg/);
+      expect(fixture!.profile!.timingNotes).toMatch(/28 days|4-week/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/Not FDA-approved/);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
   });
 
   describe('Phase 2: Database CHECK Constraints (Negative Tests)', () => {
@@ -1276,6 +1325,41 @@ describe('REF Dosing Protocol Acceptances', () => {
       const notes = String(profile.timingNotes ?? '');
       expect(notes.toLowerCase()).toContain('community');
       expect(notes).toMatch(/300 mcg/);
+      expect(notes).toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+    });
+
+    it('should seed ARA-290 with community research-peptide SC tiers and 4/8 daily protocol in the DB', async () => {
+      const compound = await prisma.catalogItem.findFirst({
+        where: { name: 'ARA-290' },
+        include: { profile: true },
+      });
+      expect(compound).toBeTruthy();
+      const profile = compound!.profile as any;
+      expect(profile).toBeTruthy();
+
+      expect(profile.dosingLow.amount).toBe('2.0');
+      expect(profile.dosingTypical.amount).toBe('4.0');
+      expect(profile.dosingHigh.amount).toBe('8.0');
+      expect(profile.dosingLow.unit).toBe('mg');
+      expect(profile.dosingTypical.unit).toBe('mg');
+      expect(profile.dosingHigh.unit).toBe('mg');
+
+      const typFreq = String(profile.dosingTypical.recommendedFrequency ?? '').toLowerCase();
+      expect(typFreq).toMatch(/daily/);
+      expect(typFreq).toMatch(/4-week|28|sc/);
+
+      expect(profile.dosingFrequency).toBe('DAILY');
+      expect(profile.dosesPerDay).toBe(1);
+      expect(profile.cycleLengthWeeks).toBe(4);
+      expect(profile.restPeriodWeeks).toBe(8);
+      expect(profile.preferredTime).toBe('MORNING');
+      expect(profile.isFdaApproved).toBe(false);
+
+      const notes = String(profile.timingNotes ?? '');
+      expect(notes.toLowerCase()).toContain('community');
+      expect(notes).toMatch(/4 mg/);
       expect(notes).toContain(
         'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
       );
