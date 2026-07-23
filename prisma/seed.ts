@@ -757,21 +757,41 @@ MOTS-c acts like a cellular personal trainer. It tells your muscle cells to wake
       administrationRoutes: ['SubQ', 'IV'],
       tags: ['longevity', 'metabolic', 'cognitive'],
       profile: {
-        dosingLow: { amount: '5.0', unit: 'mg', researchBenefits: 'Mitochondrial efficiency, insulin sensitivity support', recommendedFrequency: 'Once or twice weekly' },
-        dosingTypical: { amount: '10.0', unit: 'mg', researchBenefits: 'Metabolic adaptation, athletic endurance enhancement', recommendedFrequency: 'Twice weekly (4-6 week cycle)' },
-        dosingHigh: { amount: '15.0', unit: 'mg', researchBenefits: 'Intensive metabolic restoration and insulin resistance treatment', recommendedFrequency: 'Three times weekly' },
-        sideEffects: 'Limited human data; rodent studies show excellent tolerability. Transient fatigue/muscle soreness. Safety Assessment: Well-tolerated. Transient fatigue, muscle soreness, or mild headache can occur post-injection.',
-        stackingNotes: 'Storage: Reconstituted solution is stable refrigerated for 28 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        dosingLow: {
+          amount: '5.0',
+          unit: 'mg',
+          researchBenefits:
+            'Most common research-peptide / DIY community starting dose for tolerance checks (histamine/flushing) and early mitochondrial / insulin-sensitivity support; empirical only — no FDA-approved human SC label.',
+          recommendedFrequency: '1–2× weekly SC (start / tolerance)',
+        },
+        dosingTypical: {
+          amount: '5.0',
+          unit: 'mg',
+          researchBenefits:
+            'Modal community research-planning injection size for metabolic flexibility, AMPK signaling, and exercise-capacity stacks; still anecdotal / clinic-protocol language, not a validated human RCT regimen.',
+          recommendedFrequency: '2–3× weekly SC (4–6 week cycle)',
+        },
+        dosingHigh: {
+          amount: '10.0',
+          unit: 'mg',
+          researchBenefits:
+            'Upper end of the dose band repeatedly cited in community and research-planning charts (some clinic writeups go higher on weekly frequency); not a standard “15 mg per shot” protocol.',
+          recommendedFrequency: '2–3× weekly SC (6–8 week cycle)',
+        },
+        sideEffects:
+          'Limited human data for native MOTS-c; CB4211 analog Phase 1 was reported well tolerated (read-across only). Common community reports: injection-site redness/sting, flushing or histamine-type warmth, transient fatigue, mild headache. USADA materials also list palpitations, insomnia, and fever among online-user reports. Safety Assessment: Not FDA-approved; research use only. WADA-prohibited (AMPK activator). Avoid stacking casually with other strong glucose-lowering agents without clinical oversight.',
+        stackingNotes:
+          'Often stacked in community protocols with mitochondrial adjuncts (SS-31, NAD+ precursors, CoQ10) or metabolic agents (e.g. retatrutide) — no controlled combination RCTs; do not assume synergy. Storage: lyophilized powder frozen or refrigerated and protected from light for long-term stability; once reconstituted, refrigerate (2–8°C) and use within a short window (community sources often ~2–4 weeks); do not freeze the solution.',
         reconstitutedShelfLifeDays: 28,
-        
+
         fridgeShelfLifeMonths: 6,
-        
+
         freezerShelfLifeMonths: 12,
-        
+
         citations: [
           {
-            title: 'MOTS-c regulates insulin resistance and metabolic homeostasis',
-            doi: '10.1016/j.cmet.2015.03.009',
+            title: 'The Mitochondrial-Derived Peptide MOTS-c Promotes Metabolic Homeostasis and Reduces Obesity and Insulin Resistance',
+            doi: '10.1016/j.cmet.2015.02.009',
             pmid: '25738459',
           },
         ],
@@ -3732,7 +3752,7 @@ function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: st
     return 'Typically tracked for anti-inflammatory support in gastrointestinal and skin applications to promote mucosal repair. It is expected to support overall immune modulation and barrier integrity.';
   }
   if (normName.includes('mots-c') || normName.includes('mots c')) {
-    return 'Expected to support metabolic function, physical endurance, and cellular energy production during lifestyle adaptation. It is typically monitored for mitochondrial health and vitality.';
+    return 'A mitochondria-derived AMPK-pathway peptide tracked for metabolic flexibility, physical endurance, and cellular energy. Research-peptide / DIY community protocols most often cite ~5 mg SC 2–3× weekly in multi-week cycles (upper community charts ~10 mg); there is no FDA-approved SC label, and human RCT evidence for native MOTS-c remains limited.';
   }
   if ((normName.includes('bpc-157') || normName.includes('bpc 157')) && (normName.includes('tb-500') || normName.includes('tb 500'))) {
     return 'Expected to support tissue healing, joint flexibility, and localized inflammation reduction in musculoskeletal recovery. It is designed to assist in tendon, muscle, and ligament repair.';
