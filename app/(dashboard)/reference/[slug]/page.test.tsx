@@ -111,6 +111,15 @@ describe('Catalog compound detail page', () => {
         preferredTime: 'MORNING_AND_NIGHT',
         timingNotes: 'Take on an empty stomach',
         isFdaApproved: false,
+        bodyDuration: {
+          halfLifeHours: 0.25,
+          halfLifeHoursMax: 0.5,
+          effectiveDurationHours: 4,
+          effectiveDurationHoursMax: 12,
+          certainty: 'UNCERTAIN',
+          frequencyImplication:
+            'Plasma half-life is short; supports once- or twice-daily research dosing.',
+        },
         pairings: [],
         adjuncts: [],
       },
@@ -133,5 +142,9 @@ describe('Catalog compound detail page', () => {
     expect(html).toContain('2x Daily: 5 Days On / 2 Off');
     expect(html).toContain('Morning and Night');
     expect(html).toContain('SubQ, IM');
+    expect(html).toContain('Body Duration');
+    // React SSR encodes & as &amp; in text content
+    expect(html).toMatch(/Body Duration &amp; Frequency|Body Duration & Frequency/);
+    expect(html).toContain('supports once- or twice-daily research dosing');
   });
 });

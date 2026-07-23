@@ -83,6 +83,17 @@ function FormattedMechanismOfAction({ text }: { text: string }) {
   );
 }
 function ProtocolNotes({ profile }: { profile: CompoundProfile }) {
+  const bodyDurationText = profile.bodyDuration
+    ? [
+        profile.bodyDuration.frequencyImplication,
+        profile.bodyDuration.certainty !== 'ESTABLISHED'
+          ? `(Evidence: ${profile.bodyDuration.certainty.toLowerCase()})`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : null;
+
   const notes = [
     profile.cycleRationale
       ? { label: 'Cycle Rationale', text: profile.cycleRationale }
@@ -92,6 +103,9 @@ function ProtocolNotes({ profile }: { profile: CompoundProfile }) {
       : null,
     profile.timingNotes && profile.timingNotes.trim().length > 0
       ? { label: 'Timing Protocol', text: profile.timingNotes }
+      : null,
+    bodyDurationText
+      ? { label: 'Body Duration & Frequency', text: bodyDurationText }
       : null,
   ].filter((note): note is { label: string; text: string } => Boolean(note));
 
@@ -105,7 +119,7 @@ function ProtocolNotes({ profile }: { profile: CompoundProfile }) {
           Protocol Notes
         </h2>
       </div>
-      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {notes.map((note) => (
           <article key={note.label} className="rounded-lg border border-border bg-background p-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{note.label}</h3>

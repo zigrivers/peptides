@@ -51,6 +51,7 @@ describe('ReconstitutionCalculatorForm UI Warnings', () => {
         preferredTime: null,
         timingNotes: null,
         isFdaApproved: false,
+    bodyDuration: null,
         pairings: [],
         adjuncts: [],
       },

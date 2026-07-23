@@ -15,7 +15,7 @@ import type {
   PreferredTime,
   RevisionStatus,
 } from '../domain/types';
-import { parseCompoundDosing, parseBenefitTimeline } from '../domain/validation';
+import { parseCompoundDosing, parseBenefitTimeline, parseBodyDuration } from '../domain/validation';
 
 const sourcePairingsInclude = {
   include: {
@@ -151,6 +151,7 @@ function mapCatalogItem(raw: PrismaCatalogItemResult): CatalogItem {
           preferredTime: raw.profile.preferredTime as PreferredTime | null,
           timingNotes: raw.profile.timingNotes,
           isFdaApproved: raw.profile.isFdaApproved,
+          bodyDuration: parseBodyDuration(raw.profile.bodyDuration),
           expectedBenefitsSummary: raw.profile.expectedBenefitsSummary,
           pairings: sourcePairings.map((pairing) => ({
             id: pairing.id,

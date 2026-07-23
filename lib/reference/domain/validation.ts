@@ -88,6 +88,73 @@ export const PreferredTimeSchema = z.enum([
   'AS_NEEDED',
 ]);
 
+/** Certainty of post-injection body-duration figures (hours). */
+export const BodyDurationCertaintySchema = z.enum(['ESTABLISHED', 'ESTIMATED', 'UNCERTAIN']);
+
+/**
+ * Structured post-injection duration. Units are always hours.
+ * At least one of half-life or effective duration must be present; frequencyImplication is required.
+ */
+export const BodyDurationSchema = z
+  .object({
+    halfLifeHours: z.number().positive().nullable(),
+    halfLifeHoursMax: z.number().positive().nullable(),
+    effectiveDurationHours: z.number().positive().nullable(),
+    effectiveDurationHoursMax: z.number().positive().nullable(),
+    certainty: BodyDurationCertaintySchema,
+    frequencyImplication: z.string().trim().min(1),
+  })
+  .superRefine((val, ctx) => {
+    const hasHalfLife = val.halfLifeHours !== null;
+    const hasEffective = val.effectiveDurationHours !== null;
+    if (!hasHalfLife && !hasEffective) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'bodyDuration requires halfLifeHours and/or effectiveDurationHours',
+        path: ['halfLifeHours'],
+      });
+    }
+    if (
+      val.halfLifeHours !== null &&
+      val.halfLifeHoursMax !== null &&
+      val.halfLifeHoursMax < val.halfLifeHours
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'halfLifeHoursMax must be >= halfLifeHours',
+        path: ['halfLifeHoursMax'],
+      });
+    }
+    if (
+      val.effectiveDurationHours !== null &&
+      val.effectiveDurationHoursMax !== null &&
+      val.effectiveDurationHoursMax < val.effectiveDurationHours
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'effectiveDurationHoursMax must be >= effectiveDurationHours',
+        path: ['effectiveDurationHoursMax'],
+      });
+    }
+  });
+
+export function parseBodyDuration(json: unknown): import('./types').BodyDuration | null {
+  if (json === null || json === undefined) return null;
+  try {
+    let value: unknown = json;
+    if (typeof value === 'string') {
+      value = JSON.parse(value);
+    }
+    const result = BodyDurationSchema.safeParse(value);
+    if (result.success) {
+      return result.data;
+    }
+  } catch (err) {
+    console.error('Error parsing bodyDuration:', err);
+  }
+  return null;
+}
+
 export const DosingProtocolInputSchema = z.object({
   cycleLengthWeeks: z.number().int().min(1).max(104).nullable().optional(),
   restPeriodWeeks: z.number().int().min(1).max(104).nullable().optional(),

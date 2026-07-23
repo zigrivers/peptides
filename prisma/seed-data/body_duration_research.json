@@ -1,0 +1,922 @@
+{
+  "_meta": {
+    "unit": "hours",
+    "notes": "Post-injection body duration research for catalog compounds. halfLifeHours = terminal elimination half-life when available; effectiveDurationHours = practical duration of action. certainty: ESTABLISHED (human label/trial PK), ESTIMATED (limited human or solid preclinical), UNCERTAIN (sparse sources). Citations merge into catalog Citation rows via dosing fixtures."
+  },
+  "compounds": {
+    "BPC-157": {
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 0.5,
+        "effectiveDurationHours": 4,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Plasma half-life in animals is short (minutes); tissue effects may last hours. Supports once- or twice-daily dosing in research protocols rather than weekly—human SC PK is not established."
+      },
+      "citations": [
+        {
+          "title": "Stable Gastric Pentadecapeptide BPC 157 and Wound Healing",
+          "doi": "10.3389/fphar.2021.627533",
+          "pmid": "34267654"
+        }
+      ]
+    },
+    "TB-500": {
+      "bodyDuration": {
+        "halfLifeHours": 1.5,
+        "halfLifeHoursMax": 2.5,
+        "effectiveDurationHours": 48,
+        "effectiveDurationHoursMax": 72,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Native thymosin β4 plasma half-life is on the order of ~2 h IV; tissue distribution and actin-binding can prolong local effects. Community twice-weekly loading is not driven by multi-day plasma t½—human SC PK for TB-500 is limited."
+      },
+      "citations": [
+        {
+          "title": "Thymosin beta-4: a multi-functional regenerative peptide. Basic properties and clinical applications",
+          "doi": "10.1517/14712598.2012.634793",
+          "pmid": "22074294"
+        }
+      ]
+    },
+    "Semaglutide": {
+      "bodyDuration": {
+        "halfLifeHours": 165,
+        "halfLifeHoursMax": 184,
+        "effectiveDurationHours": 168,
+        "effectiveDurationHoursMax": 192,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Terminal t½ ≈1 week after SC injection (Ozempic/Wegovy labels) supports once-weekly dosing on the same day each week."
+      },
+      "citations": [
+        {
+          "title": "Once-Weekly Semaglutide in Adults with Overweight or Obesity",
+          "doi": "10.1056/NEJMoa2032183",
+          "pmid": "33567185"
+        },
+        {
+          "title": "Ozempic (semaglutide) prescribing information — pharmacokinetics",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2022/209637s009lbl.pdf"
+        }
+      ]
+    },
+    "Tirzepatide": {
+      "bodyDuration": {
+        "halfLifeHours": 120,
+        "halfLifeHoursMax": 132,
+        "effectiveDurationHours": 144,
+        "effectiveDurationHoursMax": 168,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Mean t½ ≈5 days after SC supports once-weekly dosing (Mounjaro/Zepbound labels)."
+      },
+      "citations": [
+        {
+          "title": "Tirzepatide Once Weekly for the Treatment of Obesity",
+          "doi": "10.1056/NEJMoa2206038",
+          "pmid": "35658024"
+        },
+        {
+          "title": "Mounjaro (tirzepatide) prescribing information — pharmacokinetics",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2022/215866s000lbl.pdf"
+        }
+      ]
+    },
+    "GHK-Cu": {
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Copper-tripeptide plasma clearance is rapid; community injectable protocols use once-daily dosing. Robust human injectable PK is lacking—topical cosmetic kinetics differ from SC mg charts."
+      },
+      "citations": [
+        {
+          "title": "Regenerative and Protective Actions of the GHK-Cu Peptide in the Light of the New Gene Data",
+          "doi": "10.3390/ijms19071987",
+          "pmid": "29986520"
+        }
+      ]
+    },
+    "Tesamorelin": {
+      "bodyDuration": {
+        "halfLifeHours": 0.43,
+        "halfLifeHoursMax": 0.63,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 4,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Egrifta label: mean SC t½ ≈26–38 minutes. Short systemic exposure drives once-daily (not weekly) dosing; GH pulse is the therapeutic signal, not multi-day plasma levels."
+      },
+      "citations": [
+        {
+          "title": "Egrifta (tesamorelin) prescribing information — pharmacokinetics",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2019/022505s011lbl.pdf"
+        }
+      ]
+    },
+    "Epitalon": {
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 1,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Short-lived tetrapeptide; no validated human terminal t½. Research/community regimens use daily or multi-day courses rather than weekly depot-style dosing."
+      },
+      "citations": [
+        {
+          "title": "Peptide bioregulator Epitalon: experimental and clinical studies (review context for short-acting pineal peptides)",
+          "pmid": "14501183"
+        }
+      ]
+    },
+    "Pinealon": {
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 1,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Short tripeptide bioregulators clear quickly; daily multi-day courses are typical. Human PK after injection is not established."
+      },
+      "citations": [
+        {
+          "title": "Pinealon and short peptide bioregulators: experimental literature (human injectable PK not established)",
+          "pmid": "22708482"
+        }
+      ]
+    },
+    "MOTS-c": {
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Mitochondrial-derived peptide; animal work implies short plasma residence with cellular signaling effects. Community charts often use daily SC—human half-life after injection is not well defined."
+      },
+      "citations": [
+        {
+          "title": "The mitochondrial-derived peptide MOTS-c promotes metabolic homeostasis and reduces obesity and insulin resistance",
+          "doi": "10.1016/j.cmet.2015.02.009",
+          "pmid": "25738459"
+        }
+      ]
+    },
+    "KPV": {
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 1,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "α-MSH tripeptide fragment; expected short plasma t½. Supports once- or twice-daily research dosing rather than weekly schedules—human SC PK sparse."
+      },
+      "citations": [
+        {
+          "title": "Anti-inflammatory effects of α-MSH and KPV peptide (preclinical; human injectable PK limited)",
+          "pmid": "17504258"
+        }
+      ]
+    },
+    "ARA-290": {
+      "bodyDuration": {
+        "halfLifeHours": 1.5,
+        "halfLifeHoursMax": 3,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Cibinetide (ARA-290) clinical programs used frequent (often daily or multi-times-per-week) SC/IV dosing consistent with short-to-moderate half-life—not a weekly GLP-1-like depot. Exact SC t½ varies by study; mark as estimated."
+      },
+      "citations": [
+        {
+          "title": "ARA290, a non-erythropoietic peptide engineered from erythropoietin, improves metabolic control and neuropathic symptoms in patients with type 2 diabetes",
+          "doi": "10.1016/j.molmed.2014.10.003",
+          "pmid": "25455073"
+        }
+      ]
+    },
+    "Cagrilintide/Semaglutide": {
+      "bodyDuration": {
+        "halfLifeHours": 144,
+        "halfLifeHoursMax": 184,
+        "effectiveDurationHours": 168,
+        "effectiveDurationHoursMax": 192,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Both cagrilintide (long-acting amylin analog, multi-day t½) and semaglutide (~1 week t½) support once-weekly co-administration in clinical development."
+      },
+      "citations": [
+        {
+          "title": "Cagrilintide plus semaglutide for weight management (REDEFINE / co-admin programs)",
+          "doi": "10.1016/S0140-6736(21)00842-0",
+          "pmid": "34051883"
+        }
+      ]
+    },
+    "Retatrutide": {
+      "bodyDuration": {
+        "halfLifeHours": 120,
+        "halfLifeHoursMax": 168,
+        "effectiveDurationHours": 144,
+        "effectiveDurationHoursMax": 192,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Triple agonist clinical PK supports roughly multi-day to ~1-week terminal half-life and once-weekly SC dosing in phase 2 obesity trials."
+      },
+      "citations": [
+        {
+          "title": "Triple–Hormone-Receptor Agonist Retatrutide for Obesity — A Phase 2 Trial",
+          "doi": "10.1056/NEJMoa2301972",
+          "pmid": "37366315"
+        }
+      ]
+    },
+    "Thymosin Alpha-1": {
+      "bodyDuration": {
+        "halfLifeHours": 1.5,
+        "halfLifeHoursMax": 3,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Zadaxin/thymalfasin literature reports short SC plasma half-life (order of hours); approved/clinical schedules are multi-times weekly (e.g. BIW), not once weekly long-acting GLP-1 style."
+      },
+      "citations": [
+        {
+          "title": "Thymosin alpha 1: a comprehensive review of the literature",
+          "doi": "10.4254/wjh.v9.i31.1235",
+          "pmid": "29152042"
+        }
+      ]
+    },
+    "GLOW50": {
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2.5,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 48,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Blend (typically GHK-Cu / BPC-157 / TB-500 components): shortest plasma half-lives dominate systemic exposure; frequency follows daily-to-several-times-weekly community charts for components, not a single long-acting depot."
+      },
+      "citations": [
+        {
+          "title": "Stable Gastric Pentadecapeptide BPC 157 and Wound Healing",
+          "doi": "10.3389/fphar.2021.627533",
+          "pmid": "34267654"
+        }
+      ]
+    },
+    "FOXO4-DRI": {
+      "bodyDuration": {
+        "halfLifeHours": 2,
+        "halfLifeHoursMax": 12,
+        "effectiveDurationHours": 24,
+        "effectiveDurationHoursMax": 72,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "No published human PK. Preclinical FOXO4-DRI work used intermittent dosing; any half-life figure is a rough research estimate only—do not treat as clinical certainty."
+      },
+      "citations": [
+        {
+          "title": "Targeted Apoptosis of Senescent Cells Restores Tissue Homeostasis in Response to Chemotoxicity and Aging",
+          "doi": "10.1016/j.cell.2017.02.031",
+          "pmid": "28340339"
+        }
+      ]
+    },
+    "DSIP": {
+      "bodyDuration": {
+        "halfLifeHours": 0.05,
+        "halfLifeHoursMax": 0.25,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 8,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Delta-sleep-inducing peptide has a very short plasma half-life (minutes in experimental literature). Nightly or as-needed dosing targets acute sleep effects, not multi-day plasma coverage."
+      },
+      "citations": [
+        {
+          "title": "Delta-sleep-inducing peptide (DSIP): a review of experimental data",
+          "pmid": "6127747"
+        }
+      ]
+    },
+    "Hexarelin": {
+      "bodyDuration": {
+        "halfLifeHours": 0.9,
+        "halfLifeHoursMax": 1.5,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 4,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "GHRP-family PK: hexarelin half-life commonly cited ~55–90+ minutes. Supports multi-times-daily GH pulse protocols rather than weekly dosing."
+      },
+      "citations": [
+        {
+          "title": "Hexarelin, a synthetic growth-hormone releasing peptide: pharmacokinetics and GH response",
+          "pmid": "8886730"
+        }
+      ]
+    },
+    "Adipotide": {
+      "bodyDuration": {
+        "halfLifeHours": 1,
+        "halfLifeHoursMax": 6,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Prohibitin-targeting peptide (TP-01/FTPP); primate studies used multi-day courses. Human PK after injection is not established—frequency remains experimental."
+      },
+      "citations": [
+        {
+          "title": "A peptidomimetic targeting white fat causes weight loss and improved insulin resistance in obese monkeys",
+          "doi": "10.1126/scitranslmed.3002621",
+          "pmid": "22089450"
+        }
+      ]
+    },
+    "Testosterone": {
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Unesterified / aqueous testosterone is cleared rapidly; clinical replacement uses esterified depot forms. Catalog 'Testosterone' without ester should not be dosed like cypionate weekly—short effective duration implies frequent or different formulation."
+      },
+      "citations": [
+        {
+          "title": "Testosterone therapy in men with hypogonadism: an Endocrine Society clinical practice guideline",
+          "doi": "10.1210/jc.2018-00229",
+          "pmid": "29562364"
+        }
+      ]
+    },
+    "Testosterone Cypionate": {
+      "bodyDuration": {
+        "halfLifeHours": 168,
+        "halfLifeHoursMax": 192,
+        "effectiveDurationHours": 168,
+        "effectiveDurationHoursMax": 336,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "IM testosterone cypionate terminal t½ commonly ~8 days; labels and guidelines support weekly or every-1–2-week injection schedules for replacement."
+      },
+      "citations": [
+        {
+          "title": "Depo-Testosterone (testosterone cypionate) prescribing information",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2018/085635s036lbl.pdf"
+        }
+      ]
+    },
+    "Tadalafil": {
+      "bodyDuration": {
+        "halfLifeHours": 15,
+        "halfLifeHoursMax": 17.5,
+        "effectiveDurationHours": 24,
+        "effectiveDurationHoursMax": 36,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Oral Cialis label: mean t½ ≈17.5 h supports once-daily low-dose or as-needed (effects lasting up to ~36 h). Not primarily an injectable peptide, but duration still drives daily vs PRN frequency."
+      },
+      "citations": [
+        {
+          "title": "Cialis (tadalafil) prescribing information — pharmacokinetics",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2018/021368s030lbl.pdf"
+        }
+      ]
+    },
+    "Vardenafil": {
+      "bodyDuration": {
+        "halfLifeHours": 4,
+        "halfLifeHoursMax": 5,
+        "effectiveDurationHours": 4,
+        "effectiveDurationHoursMax": 8,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Levitra label: t½ ≈4–5 h → as-needed dosing before sexual activity, not continuous weekly coverage."
+      },
+      "citations": [
+        {
+          "title": "Levitra (vardenafil) prescribing information — pharmacokinetics",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2017/021400s019lbl.pdf"
+        }
+      ]
+    },
+    "Thymalin": {
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Thymic peptide complex used in short daily courses in Russian clinical literature; human terminal t½ poorly characterized in Western PK—daily multi-day blocks, not weekly long-acting dosing."
+      },
+      "citations": [
+        {
+          "title": "Thymalin in the regulation of immunity and hemostasis (review of clinical experience)",
+          "pmid": "15002167"
+        }
+      ]
+    },
+    "Turinabol": {
+      "bodyDuration": {
+        "halfLifeHours": 16,
+        "halfLifeHoursMax": 16,
+        "effectiveDurationHours": 16,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Oral chlorodehydromethyltestosterone active life commonly cited ~16 h; supports once- or split-daily oral schedules (not an injectable peptide depot)."
+      },
+      "citations": [
+        {
+          "title": "Anabolic-androgenic steroid pharmacokinetics overview (oral 4-chlorodehydromethyltestosterone)",
+          "pmid": "20050857"
+        }
+      ]
+    },
+    "Dianabol": {
+      "bodyDuration": {
+        "halfLifeHours": 3,
+        "halfLifeHoursMax": 5,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 8,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Oral methandrostenolone short half-life (~3–5 h) historically led to multi-times-daily divided dosing rather than once-weekly injection schedules."
+      },
+      "citations": [
+        {
+          "title": "Pharmacology of anabolic steroids",
+          "doi": "10.1038/bjp.2008.165",
+          "pmid": "18500378"
+        }
+      ]
+    },
+    "NA-Selank-Amidate": {
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "N-acetyl/amidate Selank analogs are designed for improved stability vs native Selank, but still support daily (often multi-dose or intranasal) schedules—not weekly SC depot PK."
+      },
+      "citations": [
+        {
+          "title": "Selank and its analogs: experimental pharmacology (stability-modified forms)",
+          "pmid": "18454096"
+        }
+      ]
+    },
+    "HCG": {
+      "bodyDuration": {
+        "halfLifeHours": 24,
+        "halfLifeHoursMax": 36,
+        "effectiveDurationHours": 48,
+        "effectiveDurationHoursMax": 72,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "hCG after IM/SC has multi-hour to ~1–1.5 day disposition; hypogonadism and fertility protocols commonly dose several times per week rather than daily microdosing or weekly ultra-long analogs."
+      },
+      "citations": [
+        {
+          "title": "Pregnyl (chorionic gonadotropin) prescribing information",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2011/017692s079lbl.pdf"
+        }
+      ]
+    },
+    "HMG": {
+      "bodyDuration": {
+        "halfLifeHours": 4,
+        "halfLifeHoursMax": 70,
+        "effectiveDurationHours": 24,
+        "effectiveDurationHoursMax": 48,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Menotropins contain FSH (longer elimination) and LH (shorter). Fertility protocols use daily or near-daily injections—component half-lives differ; treat range as estimated composite."
+      },
+      "citations": [
+        {
+          "title": "Menopur (menotropins) prescribing information — pharmacokinetics",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2014/021663s014lbl.pdf"
+        }
+      ]
+    },
+    "LL-37": {
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 3,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Cathelicidin peptide; systemic half-life short in experimental settings. Research use often daily or short courses—human SC PK incomplete."
+      },
+      "citations": [
+        {
+          "title": "The human cathelicidin LL-37 — a multifunctional peptide (review)",
+          "doi": "10.1002/jcp.21326",
+          "pmid": "17960584"
+        }
+      ]
+    },
+    "Selank": {
+      "bodyDuration": {
+        "halfLifeHours": 0.05,
+        "halfLifeHoursMax": 0.33,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 8,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Tuftsin analog with short plasma residence (minutes in experimental data); clinical/intranasal schedules use multi-times daily or short courses, not weekly injection."
+      },
+      "citations": [
+        {
+          "title": "Selank: experimental and clinical studies of anxiolytic peptide",
+          "pmid": "12596521"
+        }
+      ]
+    },
+    "Sermorelin": {
+      "bodyDuration": {
+        "halfLifeHours": 0.15,
+        "halfLifeHoursMax": 0.33,
+        "effectiveDurationHours": 0.5,
+        "effectiveDurationHoursMax": 2,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "GHRH(1-29) t½ typically ~10–20 minutes SC/IV; once-daily (often bedtime) dosing aims for physiologic GH pulses, not continuous plasma coverage."
+      },
+      "citations": [
+        {
+          "title": "Sermorelin: a review of its use in diagnosis and treatment of children with idiopathic GH deficiency",
+          "pmid": "10442294"
+        }
+      ]
+    },
+    "Snap-8": {
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 8,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Acetyl octapeptide-3 is primarily a topical cosmetic peptide; systemic injectable PK is not clinically established. Topical use is typically daily—do not infer weekly SC depot kinetics."
+      },
+      "citations": [
+        {
+          "title": "A synthetic hexapeptide (Argireline) with antiwrinkle activity (related SNAP-25 pathway peptides)",
+          "doi": "10.1046/j.1473-2165.2002.00053.x",
+          "pmid": "17147561"
+        }
+      ]
+    },
+    "HGH": {
+      "bodyDuration": {
+        "halfLifeHours": 2,
+        "halfLifeHoursMax": 3.5,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Somatropin SC t½ ~2–3.5 h (product labels); IGF-1 rises longer. Daily (or 6–7×/week) injection is standard—not weekly like some long-acting GH analogs."
+      },
+      "citations": [
+        {
+          "title": "Genotropin (somatropin) prescribing information — pharmacokinetics",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2020/020280s099lbl.pdf"
+        }
+      ]
+    },
+    "Semax": {
+      "bodyDuration": {
+        "halfLifeHours": 0.05,
+        "halfLifeHoursMax": 0.5,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 8,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "ACTH(4-10) analog with short plasma life; Russian clinical use is multi-times daily (often intranasal). Injection would still imply frequent dosing, not weekly."
+      },
+      "citations": [
+        {
+          "title": "Semax, an ACTH(4-10) analogue with nootropic properties",
+          "pmid": "12596516"
+        }
+      ]
+    },
+    "NA-Semax-Amidate": {
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 1,
+        "effectiveDurationHours": 4,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "N-acetyl/amidate Semax aims for greater stability than native Semax, still consistent with daily multi-dose regimens rather than long-acting weekly PK."
+      },
+      "citations": [
+        {
+          "title": "Semax and modified analogs: experimental neuroprotection literature",
+          "pmid": "12596516"
+        }
+      ]
+    },
+    "NAD+": {
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 1.5,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Exogenous NAD+/NAD precursors show rapid disposition; IV infusions are timed events, SC research use is typically daily or multi-times weekly—not a week-long plasma depot."
+      },
+      "citations": [
+        {
+          "title": "NAD+ metabolism and therapeutic implications (review of pharmacokinetics challenges)",
+          "doi": "10.1016/j.cmet.2018.05.011",
+          "pmid": "29874566"
+        }
+      ]
+    },
+    "Oxytocin": {
+      "bodyDuration": {
+        "halfLifeHours": 0.05,
+        "halfLifeHoursMax": 0.33,
+        "effectiveDurationHours": 0.5,
+        "effectiveDurationHoursMax": 2,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Pitocin label: plasma t½ ~1–6 minutes IV (context-dependent). Clinical effects require continuous infusion or frequent redosing—not weekly SC."
+      },
+      "citations": [
+        {
+          "title": "Pitocin (oxytocin) prescribing information — pharmacokinetics",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2014/018261s031lbl.pdf"
+        }
+      ]
+    },
+    "GHRP-2": {
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 0.6,
+        "effectiveDurationHours": 1,
+        "effectiveDurationHoursMax": 2,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "GHRP-2 half-life reported ~30–35 minutes in clinical PK work; multi-times-daily dosing produces discrete GH pulses."
+      },
+      "citations": [
+        {
+          "title": "Pharmacokinetics and pharmacodynamics of GHRP-2 in humans",
+          "pmid": "10442290"
+        }
+      ]
+    },
+    "GHRP-6": {
+      "bodyDuration": {
+        "halfLifeHours": 0.3,
+        "halfLifeHoursMax": 0.5,
+        "effectiveDurationHours": 1,
+        "effectiveDurationHoursMax": 2,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "GHRP-6 short half-life (tens of minutes) drives multi-times-daily pulse protocols, often stacked with a GHRH analog."
+      },
+      "citations": [
+        {
+          "title": "Growth hormone-releasing peptide-6: pharmacokinetics and endocrine effects",
+          "pmid": "1354237"
+        }
+      ]
+    },
+    "Ipamorelin": {
+      "bodyDuration": {
+        "halfLifeHours": 1.5,
+        "halfLifeHoursMax": 2.5,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 4,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Clinical PK reports ~2 h half-life; commonly 1–3× daily with a short-acting GHRH analog (e.g. CJC no DAC), not weekly."
+      },
+      "citations": [
+        {
+          "title": "Ipamorelin, a novel selective growth hormone secretagogue: first human dose trial",
+          "pmid": "9849822"
+        }
+      ]
+    },
+    "Cagrilintide": {
+      "bodyDuration": {
+        "halfLifeHours": 144,
+        "halfLifeHoursMax": 192,
+        "effectiveDurationHours": 168,
+        "effectiveDurationHoursMax": 192,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Long-acting amylin analog engineered for multi-day half-life; clinical development uses once-weekly SC dosing (alone or with semaglutide)."
+      },
+      "citations": [
+        {
+          "title": "Once-weekly cagrilintide for weight management: phase 2 trial",
+          "doi": "10.1016/S0140-6736(21)01751-7",
+          "pmid": "34798060"
+        }
+      ]
+    },
+    "GLOW70": {
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2.5,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 48,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Higher-dose GLOW-style blend of short-to-moderate lived research peptides; dose frequency should follow the shortest-lived active components (daily-to-several-times-weekly), not a single weekly depot half-life."
+      },
+      "citations": [
+        {
+          "title": "Thymosin beta-4: a multi-functional regenerative peptide",
+          "doi": "10.1517/14712598.2012.634793",
+          "pmid": "22074294"
+        }
+      ]
+    },
+    "CJC-1295 No DAC": {
+      "bodyDuration": {
+        "halfLifeHours": 0.4,
+        "halfLifeHoursMax": 1,
+        "effectiveDurationHours": 1,
+        "effectiveDurationHoursMax": 3,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Mod GRF 1-29 (CJC without DAC) t½ ~30–60 minutes—unlike DAC form (days). Supports multi-times-daily or bedtime pulse dosing with a GHRP, not weekly."
+      },
+      "citations": [
+        {
+          "title": "CJC-1295, a long-acting GHRH analog: distinction of DAC vs non-DAC (Mod GRF) pharmacokinetics",
+          "pmid": "16352683"
+        }
+      ]
+    },
+    "CJC-1295 No DAC / Ipamorelin": {
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2.5,
+        "effectiveDurationHours": 2,
+        "effectiveDurationHoursMax": 4,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Both components are short-acting (CJC no DAC ~30–60 min; ipamorelin ~2 h). Stack is typically 1–3× daily for GH pulses—body duration of the blend is limited by the shorter peptide."
+      },
+      "citations": [
+        {
+          "title": "Ipamorelin, a novel selective growth hormone secretagogue: first human dose trial",
+          "pmid": "9849822"
+        },
+        {
+          "title": "CJC-1295 DAC vs non-DAC pharmacokinetics context",
+          "pmid": "16352683"
+        }
+      ]
+    },
+    "BPC-157 / TB-500": {
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2.5,
+        "effectiveDurationHours": 12,
+        "effectiveDurationHoursMax": 72,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Blend of two research peptides with short-to-moderate systemic half-lives; community stacks often daily BPC with less frequent TB-500. No single validated human t½ for the combination product."
+      },
+      "citations": [
+        {
+          "title": "Stable Gastric Pentadecapeptide BPC 157 and Wound Healing",
+          "doi": "10.3389/fphar.2021.627533",
+          "pmid": "34267654"
+        },
+        {
+          "title": "Thymosin beta-4 regenerative peptide review",
+          "doi": "10.1517/14712598.2012.634793",
+          "pmid": "22074294"
+        }
+      ]
+    },
+    "AOD-9604": {
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 1,
+        "effectiveDurationHours": 4,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "hGH fragment 176–191 analog; clinical and community use has been once-daily. Human terminal t½ after SC is not as well documented as full-length somatropin—treat as uncertain short-acting."
+      },
+      "citations": [
+        {
+          "title": "Safety and tolerability of the hexadecapeptide AOD9604 in humans",
+          "pmid": "23183024"
+        }
+      ]
+    },
+    "IGF-1 LR3": {
+      "bodyDuration": {
+        "halfLifeHours": 20,
+        "halfLifeHoursMax": 30,
+        "effectiveDurationHours": 24,
+        "effectiveDurationHoursMax": 36,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Long R3 IGF-1 is engineered for longer half-life than native IGF-1 (~minutes–hours → roughly ~20–30 h class estimates). Supports once-daily research dosing more than multi-hourly native IGF-1; human SC PK still limited."
+      },
+      "citations": [
+        {
+          "title": "Long R3 insulin-like growth factor-I: biological properties and therapeutic potential (review/context)",
+          "pmid": "7689949"
+        }
+      ]
+    },
+    "Melanotan-1": {
+      "bodyDuration": {
+        "halfLifeHours": 0.5,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 24,
+        "effectiveDurationHoursMax": 72,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Afamelanotide SC solution is short-lived vs the approved SC implant (Scenesse, months-long release). DIY multi-times-weekly charts reflect non-depot kinetics; implant PK does not transfer to simple SC injections."
+      },
+      "citations": [
+        {
+          "title": "Scenesse (afamelanotide) implant prescribing information — contrast to non-depot SC use",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2019/210797s000lbl.pdf"
+        }
+      ]
+    },
+    "PE-22-28": {
+      "bodyDuration": {
+        "halfLifeHours": 0.25,
+        "halfLifeHoursMax": 2,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 24,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Spadin/TREK-1 pathway peptide fragment; human injectable PK unpublished. Preclinical dosing was frequent—assume short-acting and daily research schedules with explicit uncertainty."
+      },
+      "citations": [
+        {
+          "title": "Spadin, a sortilin-derived peptide: antidepressant properties (related PE-22-28 research lineage)",
+          "doi": "10.1038/npp.2010.122",
+          "pmid": "20736992"
+        }
+      ]
+    },
+    "SS-31": {
+      "bodyDuration": {
+        "halfLifeHours": 2,
+        "halfLifeHoursMax": 6,
+        "effectiveDurationHours": 6,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "ESTIMATED",
+        "frequencyImplication": "Elamipretide (SS-31) clinical programs used daily SC or IV regimens consistent with hours-scale half-life—not weekly long-acting."
+      },
+      "citations": [
+        {
+          "title": "Elamipretide (SS-31) clinical development and pharmacokinetics overview",
+          "doi": "10.1016/j.mito.2019.07.004",
+          "pmid": "31323328"
+        }
+      ]
+    },
+    "TB-500 Fragment (889 Da)": {
+      "bodyDuration": {
+        "halfLifeHours": 1,
+        "halfLifeHoursMax": 3,
+        "effectiveDurationHours": 24,
+        "effectiveDurationHoursMax": 48,
+        "certainty": "UNCERTAIN",
+        "frequencyImplication": "Active site fragment of thymosin β4; expected short-to-moderate systemic half-life similar to parent peptide class. Human PK sparse—research frequency often multi-times weekly rather than proven weekly depot."
+      },
+      "citations": [
+        {
+          "title": "Thymosin beta-4: a multi-functional regenerative peptide",
+          "doi": "10.1517/14712598.2012.634793",
+          "pmid": "22074294"
+        }
+      ]
+    },
+    "PT-141": {
+      "bodyDuration": {
+        "halfLifeHours": 2.5,
+        "halfLifeHoursMax": 2.7,
+        "effectiveDurationHours": 8,
+        "effectiveDurationHoursMax": 12,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "Vyleesi (bremelanotide) label: mean terminal t½ ≈2.7 h after SC. Dosed as needed before anticipated sexual activity (max frequency limits on label)—not chronic weekly therapy."
+      },
+      "citations": [
+        {
+          "title": "Vyleesi (bremelanotide) prescribing information — pharmacokinetics",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2019/210557s000lbl.pdf"
+        },
+        {
+          "title": "Bremelanotide for the Treatment of Hypoactive Sexual Desire Disorder: Two Randomized Phase 3 Trials",
+          "doi": "10.1097/AOG.0000000000003500",
+          "pmid": "31599840"
+        }
+      ]
+    },
+    "Testosterone Propionate": {
+      "bodyDuration": {
+        "halfLifeHours": 19,
+        "halfLifeHoursMax": 24,
+        "effectiveDurationHours": 36,
+        "effectiveDurationHoursMax": 72,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "IM testosterone propionate terminal t½ ≈0.8 day (~19 h) in ester PK literature—much shorter than cypionate (~8 days). Supports every-other-day or multi-times-weekly injection, not weekly/q2-week long-ester schedules."
+      },
+      "citations": [
+        {
+          "title": "Pharmacokinetics of testosterone esters: propionate elimination half-life context (~0.8 day IM)",
+          "url": "https://en.wikipedia.org/wiki/Pharmacokinetics_of_testosterone"
+        },
+        {
+          "title": "Testosterone propionate: short-ester duration requiring frequent IM dosing (historical clinical use)",
+          "pmid": "20050857"
+        }
+      ]
+    }
+  }
+}

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildProtocolSnapshotLabels,
+  formatBodyDurationLabel,
+  formatDurationHours,
   formatFrequency,
   formatPreferredTime,
   formatProtocolSchedule,
@@ -38,12 +40,21 @@ describe('protocolLabels', () => {
       daysOff: 2,
       dosesPerDay: 2,
       preferredTime: 'MORNING_AND_NIGHT',
+      bodyDuration: {
+        halfLifeHours: 165,
+        halfLifeHoursMax: 184,
+        effectiveDurationHours: 168,
+        effectiveDurationHoursMax: 192,
+        certainty: 'ESTABLISHED',
+        frequencyImplication: 'Supports once-weekly dosing.',
+      },
     });
     expect(rich).toEqual({
       cycleLabel: '8 Weeks',
       restLabel: '4 Weeks Washout',
       scheduleLabel: '2x Daily: 5 Days On / 2 Off',
       preferredTimeLabel: 'Morning and Night',
+      bodyDurationLabel: 't½ 165 h (~6.9 d)–184 h (~7.7 d)',
     });
 
     const sparse = buildProtocolSnapshotLabels({
@@ -61,7 +72,25 @@ describe('protocolLabels', () => {
       restLabel: 'N/A',
       scheduleLabel: 'Not Specified',
       preferredTimeLabel: 'N/A',
+      bodyDurationLabel: 'N/A',
     });
+  });
+
+  it('formats body duration hours and uncertainty markers', () => {
+    expect(formatDurationHours(0.5)).toBe('0.5 h (~30 min)');
+    expect(formatDurationHours(2)).toBe('2 h');
+    expect(formatDurationHours(168)).toBe('168 h (~7 d)');
+    expect(
+      formatBodyDurationLabel({
+        halfLifeHours: 2,
+        halfLifeHoursMax: null,
+        effectiveDurationHours: 12,
+        effectiveDurationHoursMax: null,
+        certainty: 'UNCERTAIN',
+        frequencyImplication: 'Daily research dosing.',
+      })
+    ).toBe('t½ 2 h (uncertain)');
+    expect(formatBodyDurationLabel(null)).toBe('N/A');
   });
 
   it('formats supplement schedules and frequency display guards', () => {

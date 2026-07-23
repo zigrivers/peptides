@@ -251,6 +251,9 @@ model CompoundProfile {
   timingNotes                String?
   isFdaApproved              Boolean          @default(false)
   expectedBenefitsSummary    String?
+  /// Structured post-injection body duration (hours). Parsed via BodyDurationSchema.
+  /// Units are always hours: half-life and/or effective duration of action after injection.
+  bodyDuration               Json?
 }
 
 model SupplementProfile {

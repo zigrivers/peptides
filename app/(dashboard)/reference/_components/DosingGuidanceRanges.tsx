@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarDays, Clock3, Gauge, MapPin, RotateCcw, Route } from 'lucide-react';
+import { CalendarDays, Clock3, Gauge, Hourglass, MapPin, RotateCcw, Route } from 'lucide-react';
 import type { DoseAmount } from '@/lib/reference/domain/types';
 
 type DoseTier = {
@@ -117,6 +117,7 @@ type ProtocolSummaryGridProps = {
   scheduleLabel?: string | null;
   restLabel?: string | null;
   preferredTimeLabel?: string | null;
+  bodyDurationLabel?: string | null;
   routes?: string[];
   /** Denser layout for constrained surfaces (e.g. Reconstitute modal). */
   compact?: boolean;
@@ -127,6 +128,7 @@ const protocolItems = [
   { key: 'cycleLabel', label: 'Cycle', icon: Gauge },
   { key: 'restLabel', label: 'Rest', icon: RotateCcw },
   { key: 'preferredTimeLabel', label: 'Timing', icon: Clock3 },
+  { key: 'bodyDurationLabel', label: 'Body Duration', icon: Hourglass },
 ] as const;
 
 export function ProtocolSummaryGrid({
@@ -134,6 +136,7 @@ export function ProtocolSummaryGrid({
   scheduleLabel,
   restLabel,
   preferredTimeLabel,
+  bodyDurationLabel,
   routes = [],
   compact = false,
 }: ProtocolSummaryGridProps) {
@@ -142,6 +145,7 @@ export function ProtocolSummaryGrid({
     scheduleLabel: scheduleLabel || 'Not specified',
     restLabel: restLabel || 'N/A',
     preferredTimeLabel: preferredTimeLabel || 'N/A',
+    bodyDurationLabel: bodyDurationLabel || 'N/A',
   };
   const routeLabel = routes.length > 0 ? routes.join(', ') : 'Not specified';
 
@@ -200,7 +204,7 @@ export function ProtocolSummaryGrid({
         </h2>
       </div>
 
-      <dl className="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-5">
+      <dl className="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
         {protocolItems.map((item) => {
           const Icon = item.icon;
           return (
