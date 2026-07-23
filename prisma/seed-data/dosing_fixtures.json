@@ -362,7 +362,7 @@
   {
     "name": "DSIP",
     "profile": {
-      "cycleLengthWeeks": 2,
+      "cycleLengthWeeks": 4,
       "restPeriodWeeks": 4,
       "dosingFrequency": "DAILY",
       "dosesPerDay": 1,
@@ -370,10 +370,10 @@
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "NIGHT",
-      "timingNotes": "Inject 30-60 minutes before bedtime. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "timingNotes": "Research-peptide / DIY community protocols most often use 100–300 mcg SC once nightly (planning mid ~250 mcg), 30–60 minutes before bedtime. Protocol snapshot here uses nightly dosing over a 4-week on / 4-week off cycle (common cycled chart; alternate community schedules include 8–12 week continuous blocks, short 2–4 week trials, or 2–3× weekly / as-needed nights). Historical clinical sleep studies used intravenous 25 nmol/kg (~mg-scale for adults), which is a separate design and does not define these SC microgram charts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "A short 2-week cycle is used to normalize sleep architecture and modulate the LH/ACTH axis in chronic insomnia.",
-      "restPeriodRationale": "A 4-week washout is essential to prevent endocrine adaptations and ensure the central nervous system does not develop tolerance to delta sleep-inducing signals."
+      "cycleRationale": "A 4-week on-cycle sits in the middle of community cycled DSIP charts for sleep-architecture work (peptides.org-style 4 on / 4 off; short 2-week trials and longer 8–12 week blocks also appear) before a planned review or rest.",
+      "restPeriodRationale": "A 4-week rest matches common community off-windows used to reassess sleep quality without continuous exposure and to limit unproven long-term nightly use; shorter rests (2 weeks) are sometimes used but are less conservative."
     },
     "citations": [
       {
