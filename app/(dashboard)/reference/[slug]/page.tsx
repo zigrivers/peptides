@@ -5,7 +5,12 @@ import { AlertTriangle, BookOpen } from 'lucide-react';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/shared/prisma';
 import { getCompoundBySlug } from '@/lib/reference/application/CompoundService';
-import type { Citation, BenefitTimelineItem, CompoundProfile, SupplementProfile } from '@/lib/reference/domain/types';
+import type { Citation, BenefitTimelineItem, CompoundProfile } from '@/lib/reference/domain/types';
+import {
+  buildProtocolSnapshotLabels,
+  formatPreferredTime,
+  formatSupplementSchedule,
+} from '@/lib/reference/domain/protocolLabels';
 import { getSerializedVialsForCompound } from '@/lib/reconstitution/application/VialService';
 import { CompoundInventoryManager } from '../_components/CompoundInventoryManager';
 import { DosingReconstitutionPlanner } from '../_components/DosingReconstitutionPlanner';
@@ -77,62 +82,6 @@ function FormattedMechanismOfAction({ text }: { text: string }) {
     </div>
   );
 }
-function formatFrequency(freq: string | null): string {
-  if (!freq) return 'Not Specified';
-  switch (freq) {
-    case 'DAILY': return 'Daily';
-    case 'EOD': return 'Every Other Day';
-    case 'THRICE_WEEKLY': return 'Thrice Weekly';
-    case 'WEEKLY': return 'Once Weekly';
-    case 'TWICE_WEEKLY': return 'Twice Weekly';
-    case 'EVERY_TWO_WEEKS': return 'Every Two Weeks';
-    case 'EVERY_FOUR_WEEKS': return 'Every Four Weeks';
-    case 'AS_NEEDED': return 'As Needed';
-    case 'CUSTOM': return 'Custom Protocol';
-    default: return freq;
-  }
-}
-
-function formatPreferredTime(time: string | null): string {
-  if (!time) return 'N/A';
-  switch (time) {
-    case 'MORNING': return 'Morning';
-    case 'AFTERNOON': return 'Afternoon';
-    case 'NIGHT': return 'Nighttime';
-    case 'PRE_WORKOUT': return 'Pre-Workout';
-    case 'POST_WORKOUT': return 'Post-Workout';
-    case 'MORNING_AND_NIGHT': return 'Morning and Night';
-    case 'MORNING_AFTERNOON_NIGHT': return 'Morning, Afternoon, and Night';
-    case 'PRE_AND_POST_WORKOUT': return 'Pre and Post-Workout';
-    case 'ANYTIME': return 'Anytime';
-    case 'AS_NEEDED': return 'As Needed';
-    default: return time;
-  }
-}
-
-function formatProtocolSchedule(profile: CompoundProfile): string {
-  if (profile.dosingFrequency === 'CUSTOM') {
-    return profile.customFrequencyDescription || 'Custom Protocol';
-  }
-
-  if (profile.dosingFrequency === 'DAILY') {
-    if (profile.daysOn && profile.daysOff) {
-      return `${profile.dosesPerDay && profile.dosesPerDay > 1 ? `${profile.dosesPerDay}x Daily: ` : ''}${profile.daysOn} Days On / ${profile.daysOff} Off`;
-    }
-    return `${profile.dosesPerDay && profile.dosesPerDay > 1 ? `${profile.dosesPerDay}x ` : ''}Daily`;
-  }
-
-  return `${formatFrequency(profile.dosingFrequency)}${
-    profile.dosesPerDay && profile.dosesPerDay > 1 ? ` (${profile.dosesPerDay}x per admin day)` : ''
-  }`;
-}
-
-function formatSupplementSchedule(profile: SupplementProfile): string {
-  return `${formatFrequency(profile.dosingFrequency)}${
-    profile.dosesPerDay && profile.dosesPerDay > 1 ? ` (${profile.dosesPerDay}x daily)` : ''
-  }`;
-}
-
 function ProtocolNotes({ profile }: { profile: CompoundProfile }) {
   const notes = [
     profile.cycleRationale
@@ -275,10 +224,7 @@ export default async function CompoundProfilePage({
             }}
           />
           <ProtocolSummaryGrid
-            cycleLabel={profile.cycleLengthWeeks ? `${profile.cycleLengthWeeks} Weeks` : 'Continuous'}
-            restLabel={profile.restPeriodWeeks ? `${profile.restPeriodWeeks} Weeks Washout` : 'N/A'}
-            scheduleLabel={formatProtocolSchedule(profile)}
-            preferredTimeLabel={formatPreferredTime(profile.preferredTime)}
+            {...buildProtocolSnapshotLabels(profile)}
             routes={compound.administrationRoutes}
           />
           <ProtocolNotes profile={profile} />
