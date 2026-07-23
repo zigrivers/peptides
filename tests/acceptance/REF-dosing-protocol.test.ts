@@ -248,6 +248,52 @@ describe('REF Dosing Protocol Acceptances', () => {
       const validation = validateDosingProtocol(fixture!.profile!);
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
+
+    it('should seed MOTS-c with research-peptide community dosing ranges and thrice-weekly protocol', () => {
+      // Catalog audience is DIY / research-peptide community: modal charts use 5 mg SC
+      // 2–3× weekly (high tier ~10 mg), not 10 mg typical / 15 mg high as if those were the
+      // standard per-injection sizes.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          daysOn: number | null;
+          daysOff: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+        };
+      }>;
+
+      const motsBlock = seedSource.slice(seedSource.indexOf("name: 'MOTS-c'"), seedSource.indexOf("name: 'KPV'"));
+      const lowAmt = motsBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = motsBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = motsBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      // Community modal is 5 mg typical (not the old 10 mg typical / 15 mg high).
+      expect(lowAmt).toBe('5.0');
+      expect(typAmt).toBe('5.0');
+      expect(highAmt).toBe('10.0');
+      expect(typAmt).not.toBe('10.0');
+      expect(highAmt).not.toBe('15.0');
+      expect(motsBlock).toMatch(/2–3× weekly/);
+
+      const fixture = fixtures.find((f) => f.name === 'MOTS-c');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('THRICE_WEEKLY');
+      expect(fixture!.profile!.cycleLengthWeeks).toBe(6);
+      expect(fixture!.profile!.restPeriodWeeks).toBe(4);
+      expect(fixture!.profile!.preferredTime).toBe('MORNING');
+      expect(fixture!.profile!.timingNotes).toMatch(/community/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/5 mg/);
+      expect(fixture!.profile!.timingNotes).toMatch(/Not FDA-approved/);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
   });
 
   describe('Phase 2: Database CHECK Constraints (Negative Tests)', () => {
@@ -505,6 +551,41 @@ describe('REF Dosing Protocol Acceptances', () => {
       expect(notes.toLowerCase()).toContain('community');
       expect(notes).toContain('FORZINITY');
       expect(notes).toContain('40 mg');
+      expect(notes).toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+    });
+
+    it('should seed MOTS-c with community research-peptide tiers and thrice-weekly cycled protocol in the DB', async () => {
+      const compound = await prisma.catalogItem.findFirst({
+        where: { name: 'MOTS-c' },
+        include: { profile: true },
+      });
+      expect(compound).toBeTruthy();
+      const profile = compound!.profile as any;
+      expect(profile).toBeTruthy();
+
+      expect(profile.dosingLow.amount).toBe('5.0');
+      expect(profile.dosingTypical.amount).toBe('5.0');
+      expect(profile.dosingHigh.amount).toBe('10.0');
+      expect(profile.dosingLow.unit).toBe('mg');
+      expect(profile.dosingTypical.unit).toBe('mg');
+      expect(profile.dosingHigh.unit).toBe('mg');
+
+      const typFreq = String(profile.dosingTypical.recommendedFrequency ?? '').toLowerCase();
+      expect(typFreq).toMatch(/2/);
+      expect(typFreq).toMatch(/3/);
+      expect(typFreq).toMatch(/week/);
+
+      expect(profile.dosingFrequency).toBe('THRICE_WEEKLY');
+      expect(profile.cycleLengthWeeks).toBe(6);
+      expect(profile.restPeriodWeeks).toBe(4);
+      expect(profile.preferredTime).toBe('MORNING');
+      expect(profile.isFdaApproved).toBe(false);
+
+      const notes = String(profile.timingNotes ?? '');
+      expect(notes.toLowerCase()).toContain('community');
+      expect(notes).toContain('5 mg');
       expect(notes).toContain(
         'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
       );

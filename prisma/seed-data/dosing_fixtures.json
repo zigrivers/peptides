@@ -170,18 +170,18 @@
   {
     "name": "MOTS-c",
     "profile": {
-      "cycleLengthWeeks": 4,
-      "restPeriodWeeks": 8,
-      "dosingFrequency": "TWICE_WEEKLY",
+      "cycleLengthWeeks": 6,
+      "restPeriodWeeks": 4,
+      "dosingFrequency": "THRICE_WEEKLY",
       "dosesPerDay": 1,
       "customFrequencyDescription": null,
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "MORNING",
-      "timingNotes": "Inject in the morning, prior to physical activity. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "timingNotes": "Research-peptide / DIY community protocols most often use 5 mg SC two to three times weekly (morning, ideally before exercise), with 4–8 week on-blocks. Protocol snapshot here uses thrice-weekly as the standard community frequency and a 6-week on / 4-week off cycle. Alternate community schedules include 5 mg every 5 days for ~4 doses (~20 days) or minority daily microdoses (hundreds of mcg to ~1–2 mg). There is no FDA-approved human SC label dose; animal mg/kg and sparse human/analog data do not define these charts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "A 4-week cycle is typically used to restore mitochondrial function and AMPK pathway activation, which regulate cellular energy homeostasis and insulin sensitivity.",
-      "restPeriodRationale": "An 8-week rest period prevents cellular adaptation to exogenous mitochondrial-derived peptides and allows tracking of endogenous metabolic adaptation."
+      "cycleRationale": "A 6-week on-cycle sits in the middle of the 4–8 week block most often cited in community and research-planning MOTS-c charts for AMPK / mitochondrial metabolic work before a planned review or rest.",
+      "restPeriodRationale": "A 4-week rest matches common community off-windows used to reassess energy, training, and metabolic markers and to limit unproven continuous exposure; longer rests (6–8 weeks) are sometimes used but are more conservative than the modal chart."
     },
     "citations": [
       {
