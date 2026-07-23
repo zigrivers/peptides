@@ -895,6 +895,82 @@ describe('REF Dosing Protocol Acceptances', () => {
       const validation = validateDosingProtocol(fixture!.profile!);
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
+
+    it('should seed PT-141 with label 1.75 mg typical, community start/high, and as-needed FDA-aware protocol', () => {
+      // Vyleesi label: 1.75 mg SC as-needed for premenopausal HSDD (max 1/24h, 8/month).
+      // Community charts start lower (~0.5 mg) and sometimes cite ~2 mg high — separate from label.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          dosesPerDay: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+          isFdaApproved?: boolean;
+          cycleRationale?: string | null;
+          restPeriodRationale?: string | null;
+        };
+        citations?: Array<{ title: string; doi?: string; pmid?: string }>;
+      }>;
+
+      const blockStart = seedSource.indexOf("name: 'PT-141'");
+      const blockEnd = seedSource.indexOf('const fixturesPath');
+      expect(blockStart).toBeGreaterThan(-1);
+      expect(blockEnd).toBeGreaterThan(blockStart);
+      const ptBlock = seedSource.slice(blockStart, blockEnd);
+
+      const lowAmt = ptBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = ptBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = ptBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      expect(lowAmt).toBe('0.5');
+      expect(typAmt).toBe('1.75');
+      expect(highAmt).toBe('2');
+
+      expect(ptBlock).toMatch(/### The Technical Mechanism/);
+      expect(ptBlock).toMatch(/### The Analogy/);
+      expect(ptBlock).toMatch(/### Clinical Expected Timeline/);
+      expect(ptBlock).toMatch(/Bremelanotide|Vyleesi/i);
+      expect(ptBlock).toMatch(/MC4R|melanocortin/i);
+      expect(ptBlock).toMatch(/sideEffects:/);
+      expect(ptBlock).toMatch(/stackingNotes:/);
+      expect(ptBlock).toMatch(/reconstitutedShelfLifeDays:\s*30/);
+      expect(ptBlock).toMatch(/pmid: '31599840'|pmid: '12851303'|pmid: '33455598'/);
+      // Clinical vs community separation — do not invent a male/ED label indication
+      expect(ptBlock).toMatch(/HSDD/);
+      expect(ptBlock).toMatch(/off-label|Not an FDA-authorized|not FDA-approved/i);
+      expect(ptBlock).toMatch(/community|Research-peptide|DIY/i);
+
+      const fixture = fixtures.find((f) => f.name === 'PT-141');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('AS_NEEDED');
+      expect(fixture!.profile!.preferredTime).toBe('AS_NEEDED');
+      expect(fixture!.profile!.dosesPerDay).toBe(1);
+      expect(fixture!.profile!.cycleLengthWeeks).toBeNull();
+      expect(fixture!.profile!.restPeriodWeeks).toBeNull();
+      expect(fixture!.profile!.isFdaApproved).toBe(true);
+      expect(fixture!.profile!.timingNotes).toMatch(/1\.75 mg/);
+      expect(fixture!.profile!.timingNotes).toMatch(/45 minutes|45 min/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/8 doses per month|8\/month/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/HSDD/);
+      expect(fixture!.profile!.timingNotes).toMatch(/community|DIY|research-peptide/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/premenopausal|women/i);
+      // FDA-approved compounds must not carry the generic non-FDA disclaimer string
+      expect(fixture!.profile!.timingNotes).not.toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+      expect(fixture!.profile!.cycleRationale).toMatch(/as-needed|as needed/i);
+      expect(fixture!.profile!.restPeriodRationale).toMatch(/8 doses|24 h|hyperpigmentation/i);
+      expect(fixture!.citations?.length).toBeGreaterThanOrEqual(2);
+      expect(fixture!.citations?.some((c) => c.pmid === '31599840' || c.doi?.includes('3500'))).toBe(true);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
   });
 
   describe('Phase 2: Database CHECK Constraints (Negative Tests)', () => {
