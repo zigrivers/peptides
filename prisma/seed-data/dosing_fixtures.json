@@ -1343,5 +1343,38 @@
         "pmid": "20179146"
       }
     ]
+  },
+  {
+    "name": "PT-141",
+    "profile": {
+      "cycleLengthWeeks": null,
+      "restPeriodWeeks": null,
+      "dosingFrequency": "AS_NEEDED",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "AS_NEEDED",
+      "timingNotes": "FDA-approved product (Vyleesi / bremelanotide): inject 1.75 mg subcutaneously (abdomen or thigh) as needed at least 45 minutes before anticipated sexual activity. Label limits: maximum 1 dose per 24 hours and maximum 8 doses per month. Onset is often within about 45–60+ minutes; individual response windows vary. Research-peptide / DIY and clinic community charts commonly start lower (≈0.5–1.0 mg SC) to assess nausea and flushing, then titrate toward ≈1.0–1.75 mg; some upper community charts reach ≈2 mg per dose — that ceiling is not an authorized label dose. Commercial Vyleesi is a fixed 1.75 mg autoinjector; multi-dose lyophilized research vials are a separate supply channel with purity/concentration risk. Indication separation: the only FDA-approved use is acquired, generalized HSDD in premenopausal women. Male sexual dysfunction, ED, and broader 'libido biohacking' uses are off-label / community — do not present them as labeled indications. Regimen for non-label use is empirical and based on scientific literature plus community practice.",
+      "isFdaApproved": true,
+      "cycleRationale": "PT-141 is an as-needed melanocortin agonist, not a multi-week loading peptide. There is no standard on/off cycle like BPC-157 or MOTS-c; benefit is judged per successful administration within frequency caps. RECONNECT phase 3 trials evaluated as-needed 1.75 mg SC over multi-week treatment windows for HSDD rather than continuous daily dosing.",
+      "restPeriodRationale": "No formal multi-week washout is required for labeled as-needed use. Rest between doses is enforced by the label (≤1 dose/24 h; ≤8 doses/month) primarily to limit nausea, transient blood-pressure effects, and cumulative hyperpigmentation. Community protocols often keep use to a few times per week for the same reasons."
+    },
+    "citations": [
+      {
+        "title": "PT-141: a melanocortin agonist for the treatment of sexual dysfunction",
+        "doi": "10.1196/annals.1286.028",
+        "pmid": "12851303"
+      },
+      {
+        "title": "Bremelanotide for the Treatment of Hypoactive Sexual Desire Disorder: Two Randomized Phase 3 Trials",
+        "doi": "10.1097/AOG.0000000000003500",
+        "pmid": "31599840"
+      },
+      {
+        "title": "The neurobiology of bremelanotide for the treatment of hypoactive sexual desire disorder in premenopausal women",
+        "pmid": "33455598"
+      }
+    ]
   }
 ]

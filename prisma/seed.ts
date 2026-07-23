@@ -2853,6 +2853,79 @@ Think of full-length Thymosin Beta-4 as a complete multi-tool and this fragment 
         ],
       },
     },
+    {
+      name: 'PT-141',
+      iupacName: null,
+      synonyms: [
+        'Bremelanotide',
+        'Vyleesi',
+        'BMT',
+        'Bremelanotide acetate',
+        'Ac-Nle-c[Asp-His-D-Phe-Arg-Trp-Lys]-OH',
+        'PT141',
+      ],
+      mechanismOfAction:
+        `### The Technical Mechanism (The Science)
+PT-141 (bremelanotide) is a synthetic cyclic heptapeptide lactam analog of alpha-melanocyte-stimulating hormone (alpha-MSH), historically derived from melanocortin research that also produced Melanotan II. It is a nonselective agonist at melanocortin receptors (MC1R–MC5R except MC2R), with therapeutic sexual-desire effects attributed primarily to central MC4R (and MC3R) activation in hypothalamic circuits — notably the medial preoptic area. MC4R agonism increases cAMP signaling and is linked to increased dopaminergic tone in pathways that drive sexual motivation and arousal. Unlike PDE5 inhibitors (e.g., sildenafil, tadalafil), bremelanotide does not act principally on genital vascular smooth muscle; it targets central desire/arousal circuitry. Residual MC1R activity explains the label-relevant risk of cutaneous hyperpigmentation with frequent dosing. The only FDA-approved product is Vyleesi (bremelanotide injection) for acquired, generalized hypoactive sexual desire disorder (HSDD) in premenopausal women.
+
+### The Analogy (The Layman Explanation)
+Most ED pills open the 'plumbing' (blood flow) so an erection can happen once desire is already there. PT-141 is more like turning up the brain's desire dimmer switch: it presses melanocortin buttons in the hypothalamus that make sexual motivation and arousal more available. That is why people describe it as a libido/desire peptide rather than a pure blood-flow drug — and also why side effects like nausea and flushing (whole-body melanocortin signals) are common.
+
+### Clinical Expected Timeline
+* **Week 1 (Days 1–7)**: Effects are per-dose, not cumulative loading: onset often ~45–60+ minutes after a subcutaneous injection, with desire/arousal changes lasting hours in responders. First-use nausea, facial flushing, and injection-site reactions are the main early events; many community protocols start below the 1.75 mg label dose to assess tolerability.
+* **Week 2 (Days 8–14)**: Pattern recognition — which dose works vs which dose only causes nausea. Label use remains as-needed (max 1 dose/24 h; max 8 doses/month). No steady-state 'build-up' like daily GHRH peptides.
+* **Week 4 (Days 15–28)**: In RECONNECT-style HSDD trials, desire and related distress endpoints were assessed over multi-week as-needed treatment windows; individual benefit is judged across several successful uses, not a single injection.
+* **Week 8 (Days 29–56)**: Continued as-needed use within monthly frequency caps. Watch for cumulative melanocortin effects (skin darkening) if dosing is frequent.
+* **Week 12 (Days 57–84)**: Sustained response in labeled HSDD use is on-demand rather than progressive weekly remodeling. Men / ED / research-peptide uses remain off-label; long-term safety outside the studied premenopausal HSDD population and beyond labeled frequency limits is less characterized.`,
+      administrationRoutes: ['SubQ'],
+      tags: ['libido', 'sexual-health', 'melanocortin'],
+      profile: {
+        dosingLow: {
+          amount: '0.5',
+          unit: 'mg',
+          researchBenefits:
+            'Research-peptide / DIY and clinic community starter/tolerability dose (often 0.5–1.0 mg) used to assess nausea, flushing, and blood-pressure response before escalating. Below the FDA-approved Vyleesi 1.75 mg single dose.',
+          recommendedFrequency: 'As needed (start low; max 1 dose/24 h in label-aligned practice)',
+        },
+        dosingTypical: {
+          amount: '1.75',
+          unit: 'mg',
+          researchBenefits:
+            'FDA-approved Vyleesi on-label dose for premenopausal women with acquired, generalized HSDD: 1.75 mg SC as needed ≥45 minutes before anticipated sexual activity (max 1 dose/24 h; max 8 doses/month). Also the modal clinic/community target once tolerability is established.',
+          recommendedFrequency: 'As needed, ≥45 min before activity (label: ≤8 doses/month)',
+        },
+        dosingHigh: {
+          amount: '2',
+          unit: 'mg',
+          researchBenefits:
+            'Upper end of research-peptide / DIY and some clinic single-dose charts (~2 mg). Not an FDA-authorized dose — the approved product is fixed at 1.75 mg; higher amounts increase nausea and other melanocortin adverse effects without a labeled efficacy benefit.',
+          recommendedFrequency: 'As needed only if tolerated; still respect 24 h and monthly frequency ceilings',
+        },
+        sideEffects:
+          'Very common: nausea (≈40% in pivotal HSDD trials; often strongest on first doses), facial flushing, injection-site reactions (pain, erythema, pruritus), headache, vomiting, fatigue, paresthesia, dizziness, nasal congestion. Transient blood-pressure increases and heart-rate decreases can occur after dosing. Focal hyperpigmentation (face, gums, breasts, or other sites) may develop with frequent use and can be lasting. Safety Assessment: Vyleesi has an FDA-reviewed safety profile only for the approved HSDD indication and labeled dose/frequency. Do not use in uncontrolled hypertension or significant cardiovascular disease without clinical oversight; avoid exceeding 1 dose/24 h or 8 doses/month (label) to limit CV and pigmentation risk. Research-peptide vials are unregulated for purity vs the commercial autoinjector. Off-label male/ED use and doses outside 1.75 mg are not FDA-approved.',
+        stackingNotes:
+          'Often discussed with PDE5 inhibitors (e.g., tadalafil or sildenafil) because mechanisms are complementary — central melanocortin desire pathways vs peripheral nitric-oxide/cGMP blood flow — but controlled combination RCTs are limited; do not assume additive safety. Distinct from Melanotan-1/2 (broader tanning/pigment goals); combining melanocortin agonists increases pigmentation and AE burden and is not a standard stack. Storage: lyophilized research powder is most stable frozen (≤ −20°C) protected from light; refrigerated lyophilized vials are acceptable short-term. Reconstitute with bacteriostatic water, refrigerate (2–8°C), use within ~28–30 days, do not freeze the solution; commercial Vyleesi autoinjectors follow manufacturer storage instructions (not the same as multi-dose research vials).',
+        reconstitutedShelfLifeDays: 30,
+        fridgeShelfLifeMonths: 3,
+        freezerShelfLifeMonths: 24,
+        citations: [
+          {
+            title: 'PT-141: a melanocortin agonist for the treatment of sexual dysfunction',
+            doi: '10.1196/annals.1286.028',
+            pmid: '12851303',
+          },
+          {
+            title: 'Bremelanotide for the Treatment of Hypoactive Sexual Desire Disorder: Two Randomized Phase 3 Trials',
+            doi: '10.1097/AOG.0000000000003500',
+            pmid: '31599840',
+          },
+          {
+            title: 'The neurobiology of bremelanotide for the treatment of hypoactive sexual desire disorder in premenopausal women',
+            pmid: '33455598',
+          },
+        ],
+      },
+    },
   ];
 
   const fixturesPath = path.join(__dirname, 'seed-data/dosing_fixtures.json');
@@ -4003,6 +4076,50 @@ function getBenefitTimelineForSeed(name: string, tags: string[], moa: string | n
       },
     ];
   }
+  if (normName.includes('pt-141') || normName.includes('pt 141') || normName.includes('bremelanotide') || normName.includes('vyleesi')) {
+    return [
+      {
+        week: 1,
+        benefits: [
+          'Per-dose onset: desire/arousal changes often begin ~45–60+ minutes after subcutaneous injection in responders (not a multi-day loading peptide)',
+          'Tolerability check: nausea, facial flushing, and injection-site reactions are the main first-use events; community charts often start at 0.5–1.0 mg before the 1.75 mg label dose',
+          'Safety window: respect max 1 dose/24 h; watch for transient blood-pressure increases',
+        ],
+      },
+      {
+        week: 2,
+        benefits: [
+          'Dose finding: identify the lowest effective as-needed dose that improves desire without intolerable nausea',
+          'Label pattern: approved HSDD use remains on-demand (Vyleesi 1.75 mg SC), not daily continuous therapy',
+          'No cumulative "build-up" like GHRH or healing peptides — each administration is assessed on its own',
+        ],
+      },
+      {
+        week: 4,
+        benefits: [
+          'Multi-use assessment window: RECONNECT-style HSDD outcomes were judged across weeks of as-needed treatment, not a single injection',
+          'Frequency discipline: stay within monthly caps (label ≤8 doses/month) to limit pigmentation and CV-related adverse effects',
+          'Off-label male/ED or research-peptide use remains outside the FDA indication even if subjective benefit appears',
+        ],
+      },
+      {
+        week: 8,
+        benefits: [
+          'Sustained on-demand utility if tolerability holds; benefit does not require progressive weekly remodeling',
+          'Hyperpigmentation surveillance: facial, gum, or other site darkening can appear with frequent melanocortin exposure and may persist',
+          'Reassess whether residual desire/distress goals still justify ongoing as-needed use',
+        ],
+      },
+      {
+        week: 12,
+        benefits: [
+          'Longer open-label HSDD experience supports continued as-needed benefit in responders without a chronic daily schedule',
+          'Keep the clinical vs community distinction: only premenopausal acquired generalized HSDD at 1.75 mg SC is FDA-approved',
+          'Research-peptide vial users still face purity/concentration risk not present with commercial autoinjectors',
+        ],
+      },
+    ];
+  }
 
   // Tag-based fallbacks
   if (tags.includes('healing') || tags.includes('recovery')) {
@@ -4144,6 +4261,9 @@ function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: st
   }
   if (normName.includes('ss-31') || normName.includes('elamipretide')) {
     return 'A cardiolipin-targeting mitochondrial peptide tracked for cellular energy, longevity, and cardiovascular support; the FDA approved it (FORZINITY/elamipretide) specifically for Barth syndrome at 40 mg SC daily continuous. Research-peptide / DIY community protocols more often cite ~0.5–5 mg on a cycled schedule (commonly 5 on / 2 off within ~8-week blocks). Uses outside Barth syndrome remain investigational; the main reported issue is injection-site reactions.';
+  }
+  if (normName.includes('pt-141') || normName.includes('pt 141') || normName.includes('bremelanotide') || normName.includes('vyleesi')) {
+    return 'A central melanocortin (primarily MC4R) agonist tracked for sexual desire and arousal. FDA-approved as Vyleesi (bremelanotide) 1.75 mg SC as-needed for premenopausal women with acquired, generalized HSDD (max 1 dose/24 h; max 8 doses/month). Research-peptide / DIY community charts often start ~0.5–1.0 mg and titrate toward ~1.0–1.75 mg (upper charts ~2 mg); male/ED uses are off-label. Common effects include nausea, flushing, and injection-site reactions; frequent use can cause lasting hyperpigmentation.';
   }
 
   // Tag-based fallbacks
