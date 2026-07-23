@@ -1728,17 +1728,32 @@ Selank is like a biological buffer against stress. It doesn't sedate you like a 
       administrationRoutes: ['Intranasal', 'SubQ'],
       tags: ['cognitive', 'anxiolytic'],
       profile: {
-        dosingLow: { amount: '250', unit: 'mcg', researchBenefits: 'Mild anxiety mitigation', recommendedFrequency: 'Once daily' },
-        dosingTypical: { amount: '500', unit: 'mcg', researchBenefits: 'Anxiety relief, cognitive stability, and mood enhancement', recommendedFrequency: 'Once or twice daily' },
-        dosingHigh: { amount: '1000', unit: 'mcg', researchBenefits: 'Severe anxiety control, post-stress cognitive stabilization', recommendedFrequency: 'Twice daily' },
-        sideEffects: 'Excellent tolerability profile. Rare local nasal discomfort. Safety Assessment: Non-sedating anxiolytic. High safety. Nasal irritation is rare.',
-        stackingNotes: 'Often stacked with BPC-157 for gut-brain axis normalization. Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        dosingLow: {
+          amount: '250',
+          unit: 'mcg',
+          researchBenefits:
+            'Common research-peptide / DIY introductory amount (often once daily SubQ or as a single nasal session); mild anxiolytic/nootropic experimentation — anecdotal, not FDA-labeled.',
+          recommendedFrequency: 'Once daily (morning)',
+        },
+        dosingTypical: {
+          amount: '300',
+          unit: 'mcg',
+          researchBenefits:
+            'Matches the per-dose size most often cited for Russian Selanc-style practice (300 mcg) and multi-dose DIY charts; community protocols usually split 2–3× daily because effects are short-lived (~3–6 h). Not FDA-approved.',
+          recommendedFrequency: '2–3× daily (intranasal or SubQ)',
+        },
+        dosingHigh: {
+          amount: '500',
+          unit: 'mcg',
+          researchBenefits:
+            'Upper common per-administration amount in DIY / clinic-style community charts (often 2–3× daily; total daily exposure can approach ~1–1.5 mg). Empirical research-use only.',
+          recommendedFrequency: '2–3× daily',
+        },
+        sideEffects: 'Excellent reported tolerability. Occasional local nasal discomfort with sprays; rare injection-site irritation with SubQ. Safety Assessment: Non-sedating anxiolytic profile in Russian clinical descriptions; no FDA approval. Nasal irritation is uncommon.',
+        stackingNotes: 'Often stacked anecdotally with Semax (cognitive) or BPC-157 (gut-brain themes); no controlled combination data. Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 30,
-        
         fridgeShelfLifeMonths: 12,
-        
         freezerShelfLifeMonths: 24,
-        
         citations: [
           {
             title: 'Selank heptapeptide reduces anxiety: clinical and animal studies',
