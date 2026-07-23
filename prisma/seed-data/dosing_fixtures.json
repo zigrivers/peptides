@@ -168,6 +168,35 @@
     ]
   },
   {
+    "name": "Pinealon",
+    "profile": {
+      "cycleLengthWeeks": 2,
+      "restPeriodWeeks": 10,
+      "dosingFrequency": "DAILY",
+      "dosesPerDay": 1,
+      "customFrequencyDescription": null,
+      "daysOn": null,
+      "daysOff": null,
+      "preferredTime": "MORNING",
+      "timingNotes": "Research-peptide / DIY community protocols most often use ~200–1000 mcg once daily (modal planning mid ~500 mcg), subcutaneously or intranasally, preferably in the morning to align with circadian / pineal framing and to reduce late-day sleep disruption. Protocol snapshot here is once-daily morning dosing over a 2-week on / 10-week off cycle (middle of common 10–20 day on and ~2–3 month / 8–12 week off bands). Neuroprotection charts often sit near 200–300 mcg; cognition charts more often 500 mcg–1 mg. Minority clinic-style multi-mg SC charts (e.g. 5–10 mg/day) and Eastern European secondary writeups citing ~0.1–0.3 mg are documented but are not the modal DIY research-planning band used for these Catalog tiers. There is no US FDA-approved cognitive nasal/SC label dose. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "isFdaApproved": false,
+      "cycleRationale": "A 2-week on-cycle sits in the middle of the 10–20 day short bioregulator course most often cited in research-peptide / DIY Pinealon charts (same short-course family as other Khavinson ultrashort peptides); continuous multi-month daily use is not well characterized.",
+      "restPeriodRationale": "A 10-week rest sits in the middle of common community 2–3 month (often 8–12 week) off-windows used to reassess cognition/sleep and limit unproven continuous exposure after a short EDR course."
+    },
+    "citations": [
+      {
+        "title": "EDR Peptide: Possible Mechanism of Gene Expression and Protein Synthesis Regulation Involved in the Pathogenesis of Alzheimer's Disease",
+        "doi": "10.3390/molecules26010159",
+        "pmid": "33396470"
+      },
+      {
+        "title": "Pinealon protects the rat offspring from prenatal hyperhomocysteinemia",
+        "doi": null,
+        "pmid": "22567179"
+      }
+    ]
+  },
+  {
     "name": "MOTS-c",
     "profile": {
       "cycleLengthWeeks": 6,

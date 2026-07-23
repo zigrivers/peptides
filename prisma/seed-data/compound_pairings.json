@@ -112,5 +112,43 @@
       { "title": "Ipamorelin, the first selective growth hormone secretagogue", "doi": "10.1080/09208390701416390", "pmid": "9865611" },
       { "title": "Sermorelin (GRF 1-29) in aging: growth hormone secretagogue overview", "doi": "10.2147/cia.s113", "pmid": "18728706" }
     ]
+  },
+  {
+    "sourceCompound": "Pinealon",
+    "pairedCompound": "Epitalon",
+    "benefitGoal": "pineal neural bioregulation",
+    "rationale": "Pinealon is discussed as a neural / EDR bioregulator for oxidative-stress defense and cognitive resilience, while Epitalon is framed around pineal melatonin and telomere-related longevity signaling.",
+    "expectedSynergy": "Complementary short-course bioregulator themes: neural resilience (Pinealon) plus circadian / pineal framing (Epitalon) without assuming a validated dual-drug effect.",
+    "evidenceQuality": "mechanistic",
+    "safetyCaveats": "No controlled human combination trial for Pinealon + Epitalon. Both are research peptides without US FDA cognitive/longevity labels; stack only as research metadata.",
+    "avoidIf": "Pregnancy, known hypersensitivity to either peptide, or clinician-advised avoidance of experimental peptides.",
+    "timingOrSequencingNotes": "Community charts often place both in short 10–20 day morning courses with long rests; do not encode exact co-dosing.",
+    "bestOverall": true,
+    "partnerExistsInCatalog": true,
+    "missingCompoundAction": "none",
+    "sortOrder": 0,
+    "citationRefs": [
+      { "title": "EDR Peptide: Possible Mechanism of Gene Expression and Protein Synthesis Regulation Involved in the Pathogenesis of Alzheimer's Disease", "doi": "10.3390/molecules26010159", "pmid": "33396470" },
+      { "title": "Epithalon peptide induces telomerase activity and telomere elongation in human somatic cells", "doi": "10.1023/A:1025493705728", "pmid": "12937682" }
+    ]
+  },
+  {
+    "sourceCompound": "Pinealon",
+    "pairedCompound": "Semax",
+    "benefitGoal": "cognitive support",
+    "rationale": "Semax is commonly stacked for BDNF-linked focus and learning, while Pinealon is positioned as slower background neuroprotection and oxidative-stress support.",
+    "expectedSynergy": "Acute cognitive signaling (Semax) plus ultrashort bioregulator neuroprotection themes (Pinealon); theoretical only.",
+    "evidenceQuality": "mechanistic",
+    "safetyCaveats": "No controlled combination RCTs. Semax can be activating for some users; avoid late dosing if sleep is disrupted. Neither has a US FDA cognitive label.",
+    "avoidIf": "Pregnancy, seizure-disorder caution without clinician input, or hypersensitivity to either peptide.",
+    "timingOrSequencingNotes": "Render as a paired research note; do not encode exact co-dosing or assume superior bioavailability of either route.",
+    "bestOverall": false,
+    "partnerExistsInCatalog": true,
+    "missingCompoundAction": "none",
+    "sortOrder": 1,
+    "citationRefs": [
+      { "title": "EDR Peptide: Possible Mechanism of Gene Expression and Protein Synthesis Regulation Involved in the Pathogenesis of Alzheimer's Disease", "doi": "10.3390/molecules26010159", "pmid": "33396470" },
+      { "title": "Semax regulates BDNF and NGF expression in ischemic brain", "doi": "10.1007/s10517-009-0714-3", "pmid": "19707613" }
+    ]
   }
 ]
