@@ -130,7 +130,7 @@
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "MORNING",
-      "timingNotes": "Inject subcutaneously once daily into the abdomen; rotate injection sites.",
+      "timingNotes": "Inject subcutaneously once daily into the abdomen; rotate injection sites. Daily continuous dosing is the clinical standard — FDA trials administered Tesamorelin 7 days per week with no off-days. A '5 days on, 2 days off' schedule is a community convention sometimes used in longevity settings; it is not a clinically validated regimen for Tesamorelin.",
       "isFdaApproved": true,
       "cycleRationale": "Usually administered continuously for the treatment of HIV-associated lipodystrophy, as discontinuation leads to a rapid reversion of visceral adipose tissue reduction.",
       "restPeriodRationale": "Continuous administration is required to maintain growth hormone release and reduce abdominal fat; clinical studies show no rebound tachyphylaxis but immediate loss of efficacy upon cessation."

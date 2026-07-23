@@ -677,9 +677,9 @@ Tesamorelin acts like a biological cheerleader for the pituitary gland. Instead 
       administrationRoutes: ['SubQ'],
       tags: ['longevity', 'metabolic', 'cognitive'],
       profile: {
-        dosingLow: { amount: '1.0', unit: 'mg', researchBenefits: 'Fat reduction, general body composition maintenance', recommendedFrequency: 'Daily (5 days on, 2 days off)' },
-        dosingTypical: { amount: '2.0', unit: 'mg', researchBenefits: 'Standard therapeutic GHRH stimulation and visceral fat loss', recommendedFrequency: 'Daily (5 days on, 2 days off)' },
-        dosingHigh: { amount: '2.0', unit: 'mg', researchBenefits: 'Maximum approved pituitary stimulation dose', recommendedFrequency: 'Daily' },
+        dosingLow: { amount: '1.0', unit: 'mg', researchBenefits: 'Conservative community-range dose for general body-composition maintenance and fat-loss support', recommendedFrequency: 'Daily' },
+        dosingTypical: { amount: '1.4', unit: 'mg', researchBenefits: 'Current FDA-approved on-label dose (Egrifta SV, 2 mg/vial formulation) — bioequivalent to the original 2 mg Egrifta dose; standard therapeutic GHRH stimulation for visceral fat reduction', recommendedFrequency: 'Daily' },
+        dosingHigh: { amount: '2.0', unit: 'mg', researchBenefits: 'Original Egrifta (1 mg/vial) trial dose — the highest dose studied; doses above 2 mg have not been evaluated', recommendedFrequency: 'Daily' },
         sideEffects: 'Fluid retention, joint pain, injection-site reactions. Safety Assessment: Side effects include fluid retention, joint pain, muscle stiffness, and transient increases in blood glucose. Contraindicated in active cancer.',
         stackingNotes: 'Storage: Reconstituted solution is stable refrigerated for 14 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 14,

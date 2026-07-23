@@ -394,6 +394,40 @@ describe('REF Dosing Protocol Acceptances', () => {
       expect(finalCount).toBe(countBefore);
       expect(finalProfileCount).toBe(profileCountBefore);
     });
+
+    it('should seed Tesamorelin with a 1.4 mg typical dose and continuous-daily as the default (5/2 surfaced only as a community convention)', async () => {
+      const compound = await prisma.catalogItem.findFirst({
+        where: { name: 'Tesamorelin' },
+        include: { profile: true },
+      });
+      expect(compound).toBeTruthy();
+      const profile = compound!.profile as any;
+      expect(profile).toBeTruthy();
+
+      // Dose-tier amounts: Low 1.0 / Typical 1.4 (current FDA on-label, Egrifta SV) / High 2.0 (original trial dose, documented ceiling)
+      expect(profile.dosingLow.amount).toBe('1.0');
+      expect(profile.dosingTypical.amount).toBe('1.4');
+      expect(profile.dosingHigh.amount).toBe('2.0');
+
+      // Continuous daily is the documented default — no tier should bake "5 days on / 2 days off" into its frequency label
+      const lowFreq = String(profile.dosingLow.recommendedFrequency ?? '').toLowerCase();
+      const typFreq = String(profile.dosingTypical.recommendedFrequency ?? '').toLowerCase();
+      const highFreq = String(profile.dosingHigh.recommendedFrequency ?? '').toLowerCase();
+      expect(lowFreq).not.toMatch(/5 days on/);
+      expect(typFreq).not.toMatch(/5 days on/);
+      expect(highFreq).not.toMatch(/5 days on/);
+      expect(typFreq).toContain('daily');
+
+      // Global protocol snapshot must read continuous daily (not a 5/2 schedule)
+      expect(profile.dosingFrequency).toBe('DAILY');
+      expect(profile.daysOn).toBeNull();
+      expect(profile.daysOff).toBeNull();
+
+      // The 5/2 pattern is surfaced only as an optional community convention in timing notes
+      const notes = String(profile.timingNotes ?? '').toLowerCase();
+      expect(notes).toContain('5 days on, 2 days off');
+      expect(notes).toContain('community');
+    });
   });
 
   describe('Phase 4: UI Fallbacks & Disclaimer Conditional Rendering', () => {
