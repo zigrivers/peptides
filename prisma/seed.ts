@@ -677,17 +677,32 @@ GHK-Cu is like an armored delivery truck carrying vital building supplies (coppe
       administrationRoutes: ['SubQ', 'Topical'],
       tags: ['skin', 'healing', 'longevity'],
       profile: {
-        dosingLow: { amount: '1.0', unit: 'mg', researchBenefits: 'Skin hydration and cosmetic maintenance', recommendedFrequency: 'Once daily' },
-        dosingTypical: { amount: '2.0', unit: 'mg', researchBenefits: 'Advanced dermal collagen promotion and systemic healing', recommendedFrequency: 'Once daily' },
-        dosingHigh: { amount: '3.0', unit: 'mg', researchBenefits: 'Maximum subcutaneous dose for systematic tissue repair', recommendedFrequency: 'Once daily' },
-        sideEffects: 'Skin flushing at injection site; generally well-tolerated topically. Safety Assessment: Well-tolerated. SubQ injections often cause a transient stinging sensation and localized redness. High doses may alter zinc-copper balance.',
-        stackingNotes: 'Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
+        dosingLow: {
+          amount: '1.0',
+          unit: 'mg',
+          researchBenefits:
+            'Common research-peptide / DIY introductory injectable dose for general skin and wellness-oriented SubQ use; community wellness charts often cite ~0.5–1.5 mg (anecdotal; not a labeled drug dose).',
+          recommendedFrequency: 'Once daily SubQ',
+        },
+        dosingTypical: {
+          amount: '2.0',
+          unit: 'mg',
+          researchBenefits:
+            'Upper half of the most-repeated community injectable band (1–2 mg daily SubQ; some DIY charts list ~1.7 mg as “standard”). Empirical research-use guidance only — human injectable trials are essentially absent.',
+          recommendedFrequency: 'Once daily SubQ (morning common in community protocols)',
+        },
+        dosingHigh: {
+          amount: '3.0',
+          unit: 'mg',
+          researchBenefits:
+            'Advanced end of community injectable charts (often 2–3 mg daily; some users go higher). Higher copper exposure and injection-site burden; still anecdotal, not FDA-labeled.',
+          recommendedFrequency: 'Once daily SubQ',
+        },
+        sideEffects: 'Skin flushing or sting at injection site; generally well-tolerated topically. Safety Assessment: Topical cosmetic use has a long safety history at low % strengths. SubQ research-peptide use lacks controlled human safety trials; common issues are local redness/pain. High or prolonged injectable copper exposure may theoretically affect zinc-copper balance; avoid if Wilson’s disease. Not FDA-approved as an injectable drug.',
+        stackingNotes: 'Often stacked in community protocols with BPC-157 or TB-500 for repair themes (no controlled combo data). Storage: Reconstituted solution is stable refrigerated for 30 days; dry lyophilized powder is stable frozen (-20°C) for up to 2 years.',
         reconstitutedShelfLifeDays: 30,
-        
         fridgeShelfLifeMonths: 12,
-        
         freezerShelfLifeMonths: 24,
-        
         citations: [
           {
             title: 'GHK-Cu and skin remodelling — review',

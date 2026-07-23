@@ -98,18 +98,18 @@
   {
     "name": "GHK-Cu",
     "profile": {
-      "cycleLengthWeeks": 6,
-      "restPeriodWeeks": 4,
+      "cycleLengthWeeks": 8,
+      "restPeriodWeeks": 8,
       "dosingFrequency": "DAILY",
       "dosesPerDay": 1,
       "customFrequencyDescription": null,
       "daysOn": null,
       "daysOff": null,
-      "preferredTime": "NIGHT",
-      "timingNotes": "Subcutaneous injection, can cause local injection site pain. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "preferredTime": "MORNING",
+      "timingNotes": "Research-peptide / DIY community injectable protocols most often use ~1–2 mg GHK-Cu subcutaneously once daily (some charts list ~1.7 mg as a “standard” daily draw; advanced community use sometimes 2–3 mg), commonly in the morning for an 8-week on-block. Local injection-site sting or redness is frequently reported. Topical cosmetic use is a different route: clinical/cosmetic literature centers on roughly 0.05–1% Copper Tripeptide-1 products applied daily/nightly continuously — not the same as injectable mg charts. Injectable GHK-Cu lacks robust human clinical trials; it is not an FDA-approved injectable drug for anti-aging. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "A 6-week cycle is standard for collagen synthesis and tissue remodeling. Limits cumulative systemic copper accumulation and local injection site irritation.",
-      "restPeriodRationale": "A 4-week rest period allows systemic copper levels to normalize and prevents intracellular copper transport saturation."
+      "cycleRationale": "Community injectable protocols commonly run about 8 weeks on (alternatives include ~30 days or 1–2 months) rather than continuous indefinite use, reflecting limited long-term human injectable data and desire to reassess skin/hair response.",
+      "restPeriodRationale": "An ~8-week off period is a frequently cited community rest after an injectable GHK-Cu block (other guides use ~2–4 weeks); intended to reassess results and limit continuous systemic copper-peptide exposure — not a labeled requirement."
     },
     "citations": [
       {

@@ -439,6 +439,54 @@ describe('REF Dosing Protocol Acceptances', () => {
       const validation = validateDosingProtocol(fixture!.profile!);
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
+
+    it('should seed GHK-Cu with research-peptide community injectable dosing and 8/8 cycle', () => {
+      // DIY audience: SubQ tiers stay in the 1–3 mg community band; protocol moves to
+      // the commonly cited 8-week on / 8-week off injectable cycle (was 6/4).
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          dosesPerDay: number | null;
+          preferredTime: string | null;
+          timingNotes: string;
+        };
+      }>;
+
+      const blockStart = seedSource.indexOf("name: 'GHK-Cu'");
+      const blockEnd = seedSource.indexOf("name: 'Tesamorelin'");
+      expect(blockStart).toBeGreaterThan(-1);
+      expect(blockEnd).toBeGreaterThan(blockStart);
+      const ghkBlock = seedSource.slice(blockStart, blockEnd);
+      const lowAmt = ghkBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = ghkBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = ghkBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      expect(lowAmt).toBe('1.0');
+      expect(typAmt).toBe('2.0');
+      expect(highAmt).toBe('3.0');
+      expect(ghkBlock).toMatch(/Once daily SubQ/);
+
+      const fixture = fixtures.find((f) => f.name === 'GHK-Cu');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('DAILY');
+      expect(fixture!.profile!.dosesPerDay).toBe(1);
+      expect(fixture!.profile!.cycleLengthWeeks).toBe(8);
+      expect(fixture!.profile!.restPeriodWeeks).toBe(8);
+      expect(fixture!.profile!.preferredTime).toBe('MORNING');
+      expect(fixture!.profile!.timingNotes).toMatch(/community/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/topical/i);
+      expect(fixture!.profile!.timingNotes).toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
   });
 
   describe('Phase 2: Database CHECK Constraints (Negative Tests)', () => {
@@ -805,6 +853,30 @@ describe('REF Dosing Protocol Acceptances', () => {
       expect(notes).toContain(
         'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
       );
+    });
+
+    it('should seed GHK-Cu with community injectable tiers and 8/8 protocol in the DB', async () => {
+      const compound = await prisma.catalogItem.findFirst({
+        where: { name: 'GHK-Cu' },
+        include: { profile: true },
+      });
+      expect(compound).toBeTruthy();
+      const profile = compound!.profile as any;
+      expect(profile).toBeTruthy();
+
+      expect(profile.dosingLow.amount).toBe('1.0');
+      expect(profile.dosingTypical.amount).toBe('2.0');
+      expect(profile.dosingHigh.amount).toBe('3.0');
+      expect(profile.dosingLow.unit).toBe('mg');
+      expect(profile.dosingFrequency).toBe('DAILY');
+      expect(profile.dosesPerDay).toBe(1);
+      expect(profile.cycleLengthWeeks).toBe(8);
+      expect(profile.restPeriodWeeks).toBe(8);
+      expect(profile.preferredTime).toBe('MORNING');
+      expect(profile.isFdaApproved).toBe(false);
+      expect(String(profile.timingNotes).toLowerCase()).toContain('community');
+      expect(String(profile.timingNotes).toLowerCase()).toContain('topical');
+      expect(String(profile.dosingTypical.recommendedFrequency).toLowerCase()).toMatch(/daily/);
     });
   });
 
