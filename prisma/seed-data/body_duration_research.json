@@ -897,6 +897,26 @@
           "pmid": "31599840"
         }
       ]
+    },
+    "Testosterone Propionate": {
+      "bodyDuration": {
+        "halfLifeHours": 19,
+        "halfLifeHoursMax": 24,
+        "effectiveDurationHours": 36,
+        "effectiveDurationHoursMax": 72,
+        "certainty": "ESTABLISHED",
+        "frequencyImplication": "IM testosterone propionate terminal t½ ≈0.8 day (~19 h) in ester PK literature—much shorter than cypionate (~8 days). Supports every-other-day or multi-times-weekly injection, not weekly/q2-week long-ester schedules."
+      },
+      "citations": [
+        {
+          "title": "Pharmacokinetics of testosterone esters: propionate elimination half-life context (~0.8 day IM)",
+          "url": "https://en.wikipedia.org/wiki/Pharmacokinetics_of_testosterone"
+        },
+        {
+          "title": "Testosterone propionate: short-ester duration requiring frequent IM dosing (historical clinical use)",
+          "pmid": "20050857"
+        }
+      ]
     }
   }
 }
