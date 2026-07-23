@@ -34,10 +34,10 @@
       "daysOn": null,
       "daysOff": null,
       "preferredTime": "ANYTIME",
-      "timingNotes": "Subcutaneous injection, can be taken anytime. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
+      "timingNotes": "Research-peptide / DIY community protocols most often use a loading phase of ~2–2.5 mg SC twice weekly (~4–5 mg/week) for 4–6 weeks, then maintenance of ~2–2.5 mg once weekly. Protocol snapshot here uses twice-weekly dosing over a 6-week on / 4-week off cycle (middle of the common 4–8 week on and 2–4 week off bands). Upper community loading charts reach ~4–10 mg/week total (often still split 2×/week); 10 mg twice weekly is outside modal DIY charts. SubQ is most common (IM optional); systemic distribution means site is less critical than for localized BPC-157 culture. There is no FDA-approved human SC label dose — Phase I Tβ4 IV (tens to hundreds of mg) and ophthalmic RGN-259 regimens are separate clinical designs and do not define these charts. Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.",
       "isFdaApproved": false,
-      "cycleRationale": "A 6-week cycle is sufficient to promote cellular migration (fibroblasts and keratinocytes via G-actin binding) during active healing phases. Avoids prolonged exposure to angiogenic stimulants.",
-      "restPeriodRationale": "A 4-week washout allows cell motility pathways to return to baseline and prevents downregulation of angiogenesis response signaling."
+      "cycleRationale": "A 6-week on-cycle sits in the middle of the 4–6 week loading block most often cited in research-peptide / DIY TB-500 charts for soft-tissue recovery before stepping down to maintenance or a planned rest; total active use is sometimes extended toward 8 weeks for chronic work.",
+      "restPeriodRationale": "A 4-week rest matches the upper end of the common community 2–4 week off-window used to reassess healing progress after a loading block; many protocols instead taper into once-weekly maintenance without a full washout."
     },
     "citations": [
       {
