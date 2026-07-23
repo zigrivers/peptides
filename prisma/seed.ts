@@ -2472,11 +2472,29 @@ Each cell's mitochondria are power plants whose inner walls fold like an accordi
       administrationRoutes: ['SubQ'],
       tags: ['longevity', 'mitochondrial', 'cardiovascular'],
       profile: {
-        dosingLow: { amount: '10', unit: 'mg', researchBenefits: 'Lower exploratory dose for mitochondrial support, below the dose used in pivotal Barth-syndrome trials; limited efficacy data at this level.', recommendedFrequency: 'Once daily, subcutaneous' },
-        dosingTypical: { amount: '40', unit: 'mg', researchBenefits: 'Dose used in the TAZPOWER Barth-syndrome trial and FORZINITY label-aligned regimen; associated over long-term open-label dosing with improvements in 6-minute walk distance and knee-extensor strength.', recommendedFrequency: 'Once daily, subcutaneous' },
-        dosingHigh: { amount: '60', unit: 'mg', researchBenefits: 'Upper end of subcutaneous dosing explored in some studies; no clear added benefit over 40 mg and higher injection-site burden expected.', recommendedFrequency: 'Once daily, subcutaneous' },
+        dosingLow: {
+          amount: '0.5',
+          unit: 'mg',
+          researchBenefits:
+            'Most commonly cited research-peptide / DIY community starting dose (500 mcg) for general mitochondrial or longevity-oriented use; anecdotal only and far below the 40 mg FORZINITY/Barth clinical dose.',
+          recommendedFrequency: 'Once daily SC, 5 days on / 2 days off',
+        },
+        dosingTypical: {
+          amount: '1',
+          unit: 'mg',
+          researchBenefits:
+            'Common community step-up above 500 mcg in research-use protocols; still empirical DIY guidance, not a labeled regimen and not equivalent to Barth-trial dosing.',
+          recommendedFrequency: 'Once daily SC, 5 days on / 2 days off',
+        },
+        dosingHigh: {
+          amount: '5',
+          unit: 'mg',
+          researchBenefits:
+            'Upper end of the dose band frequently repeated in research-peptide and educational community writeups for non-Barth use; clinic-style pages sometimes go higher (toward 10 mg) — still not the 40 mg labeled Barth dose.',
+          recommendedFrequency: 'Once daily SC (often still 5 on / 2 off in community protocols)',
+        },
         sideEffects: 'Most common: injection-site reactions (erythema, induration, bruising, pruritus, pain, occasional urticaria), usually mild-to-moderate, often starting with the first dose and resolving after the last; rotating sites helps. Asymptomatic eosinophilia has been observed starting ~day 28 without reported systemic symptoms. Safety Assessment: Generally well tolerated across hundreds of patients with no serious systemic adverse events attributable to the drug in published trials; the main real-world limitation is local injection-site tolerability. FDA-approved only for Barth syndrome; all other uses are investigational and long-term safety outside studied populations is not established.',
-        stackingNotes: 'Conceptually paired in research with broader mitochondrial support (e.g., CoQ10, NAD+ precursors), though no controlled combination data exist; do not assume synergy. Avoid co-injecting irritants at the same site. Storage: lyophilized powder kept frozen or refrigerated and protected from light for long-term stability; once reconstituted, refrigerate (2-8C) and use within the short reconstituted window; do not freeze the solution.',
+        stackingNotes: 'Conceptually paired in research and community stacks with broader mitochondrial support (e.g., CoQ10, NAD+ precursors, MOTS-c), though no controlled combination data exist; do not assume synergy. Avoid co-injecting irritants at the same site. Storage: lyophilized powder kept frozen or refrigerated and protected from light for long-term stability; once reconstituted, refrigerate (2-8C) and use within the short reconstituted window; do not freeze the solution.',
         reconstitutedShelfLifeDays: 30,
         fridgeShelfLifeMonths: 3,
         freezerShelfLifeMonths: 24,
@@ -3789,7 +3807,7 @@ function getExpectedBenefitsSummaryForSeed(name: string, tags: string[], moa: st
     return 'A spadin-derived TREK-1 channel blocker investigated as a fast-acting antidepressant candidate, tracked for mood and neuroprotection. All evidence is preclinical (rodent) — there is no human efficacy or safety data, and it is not approved by any regulator (research use only).';
   }
   if (normName.includes('ss-31') || normName.includes('elamipretide')) {
-    return 'A cardiolipin-targeting mitochondrial peptide tracked for cellular energy, longevity, and cardiovascular support; the FDA approved it (FORZINITY/elamipretide) specifically for Barth syndrome. Benefits accrue gradually over months of continuous dosing, and uses outside Barth syndrome remain investigational with the main reported issue being injection-site reactions.';
+    return 'A cardiolipin-targeting mitochondrial peptide tracked for cellular energy, longevity, and cardiovascular support; the FDA approved it (FORZINITY/elamipretide) specifically for Barth syndrome at 40 mg SC daily continuous. Research-peptide / DIY community protocols more often cite ~0.5–5 mg on a cycled schedule (commonly 5 on / 2 off within ~8-week blocks). Uses outside Barth syndrome remain investigational; the main reported issue is injection-site reactions.';
   }
 
   // Tag-based fallbacks
