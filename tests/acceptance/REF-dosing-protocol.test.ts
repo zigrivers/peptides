@@ -346,6 +346,52 @@ describe('REF Dosing Protocol Acceptances', () => {
       expect(validation.success, JSON.stringify(validation.error)).toBe(true);
     });
 
+    it('should seed NAD+ with research-peptide community SubQ dosing ranges and thrice-weekly protocol', () => {
+      // Catalog audience is DIY / research-peptide community SubQ: modal charts use ~50–100 mg
+      // SC 2–3× weekly (start ~25 mg), not daily/EOD as Typical and not IV 250–1000 mg sessions
+      // as home SubQ guidance.
+      const seedPath = path.join(__dirname, '../../prisma/seed.ts');
+      const fixturePath = path.join(__dirname, '../../prisma/seed-data/dosing_fixtures.json');
+      const seedSource = fs.readFileSync(seedPath, 'utf-8');
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as Array<{
+        name: string;
+        profile?: {
+          cycleLengthWeeks: number | null;
+          restPeriodWeeks: number | null;
+          dosingFrequency: string;
+          preferredTime: string | null;
+          timingNotes: string;
+          restPeriodRationale?: string | null;
+        };
+      }>;
+
+      const nadBlock = seedSource.slice(seedSource.indexOf("name: 'NAD+'"), seedSource.indexOf("name: 'Oxytocin'"));
+      const lowAmt = nadBlock.match(/dosingLow:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const typAmt = nadBlock.match(/dosingTypical:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      const highAmt = nadBlock.match(/dosingHigh:\s*\{[\s\S]*?amount: '([^']+)'/)?.[1];
+      expect(lowAmt).toBe('25');
+      expect(typAmt).toBe('50');
+      expect(highAmt).toBe('100');
+      expect(nadBlock).toMatch(/2–3× weekly SC/);
+      expect(nadBlock).not.toMatch(/recommendedFrequency: 'Daily or every other day'/);
+      expect(nadBlock).not.toMatch(/recommendedFrequency: 'Once daily'/);
+      expect(nadBlock).toMatch(/community/i);
+
+      const fixture = fixtures.find((f) => f.name === 'NAD+');
+      expect(fixture?.profile).toBeDefined();
+      expect(fixture!.profile!.dosingFrequency).toBe('THRICE_WEEKLY');
+      expect(fixture!.profile!.preferredTime).toBe('MORNING');
+      expect(fixture!.profile!.timingNotes).toMatch(/community/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/50–100 mg|50-100 mg|50 mg/);
+      expect(fixture!.profile!.timingNotes).toMatch(/SubQ|subcutaneous/i);
+      expect(fixture!.profile!.timingNotes).toMatch(/IV/);
+      expect(fixture!.profile!.timingNotes).toMatch(/Not FDA-approved/);
+      expect(fixture!.profile!.restPeriodRationale ?? '').not.toMatch(/safe and beneficial/i);
+
+      const validation = validateDosingProtocol(fixture!.profile!);
+      expect(validation.success, JSON.stringify(validation.error)).toBe(true);
+    });
+
     it('should seed DSIP with research-peptide community dosing ranges and nightly protocol', () => {
       // Catalog audience is DIY / research-peptide community: modal SC charts use ~100–300 mcg
       // nightly before bed (planning mid ~250; high ~500), cycled ~4 on / 4 off — not a 2-week
@@ -1067,6 +1113,43 @@ describe('REF Dosing Protocol Acceptances', () => {
       );
       expect(String(profile.cycleRationale ?? '')).not.toMatch(/MC3|MC4|melanocortin receptor/i);
       expect(String(profile.restPeriodRationale ?? '')).not.toMatch(/melanocortin receptor/i);
+    });
+
+    it('should seed NAD+ with community SubQ research-peptide tiers and thrice-weekly protocol in the DB', async () => {
+      const compound = await prisma.catalogItem.findFirst({
+        where: { name: 'NAD+' },
+        include: { profile: true },
+      });
+      expect(compound).toBeTruthy();
+      const profile = compound!.profile as any;
+      expect(profile).toBeTruthy();
+
+      expect(profile.dosingLow.amount).toBe('25');
+      expect(profile.dosingTypical.amount).toBe('50');
+      expect(profile.dosingHigh.amount).toBe('100');
+      expect(profile.dosingLow.unit).toBe('mg');
+      expect(profile.dosingTypical.unit).toBe('mg');
+      expect(profile.dosingHigh.unit).toBe('mg');
+
+      const typFreq = String(profile.dosingTypical.recommendedFrequency ?? '').toLowerCase();
+      expect(typFreq).toMatch(/2/);
+      expect(typFreq).toMatch(/3/);
+      expect(typFreq).toMatch(/week/);
+      expect(typFreq).not.toMatch(/daily or every other day/);
+      expect(typFreq).not.toMatch(/^once daily$/);
+
+      expect(profile.dosingFrequency).toBe('THRICE_WEEKLY');
+      expect(profile.preferredTime).toBe('MORNING');
+      expect(profile.isFdaApproved).toBe(false);
+
+      const notes = String(profile.timingNotes ?? '');
+      expect(notes.toLowerCase()).toContain('community');
+      expect(notes).toMatch(/50–100 mg|50-100 mg|50 mg/);
+      expect(notes).toMatch(/IV/);
+      expect(notes).toContain(
+        'Regimen is empirical and based on scientific literature, including preclinical studies and early clinical research. Not FDA-approved.',
+      );
+      expect(String(profile.restPeriodRationale ?? '')).not.toMatch(/safe and beneficial/i);
     });
 
     it('should seed TB-500 with community research-peptide tiers and twice-weekly cycled protocol in the DB', async () => {
