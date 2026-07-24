@@ -425,10 +425,7 @@ export function ReconstituteModal({
                 {protocolSnapshot && (
                   <ProtocolSummaryGrid
                     compact
-                    cycleLabel={protocolSnapshot.cycleLabel}
-                    restLabel={protocolSnapshot.restLabel}
-                    scheduleLabel={protocolSnapshot.scheduleLabel}
-                    preferredTimeLabel={protocolSnapshot.preferredTimeLabel}
+                    {...protocolSnapshot}
                     routes={selectedCompound?.administrationRoutes ?? []}
                   />
                 )}
