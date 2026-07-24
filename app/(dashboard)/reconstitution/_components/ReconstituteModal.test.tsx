@@ -50,7 +50,15 @@ const richProfile: NonNullable<Compound['profile']> = {
   preferredTime: 'MORNING_AND_NIGHT',
   timingNotes: 'Take on an empty stomach',
   isFdaApproved: false,
-    bodyDuration: null,
+  bodyDuration: {
+    halfLifeHours: 0.25,
+    halfLifeHoursMax: 0.5,
+    effectiveDurationHours: 4,
+    effectiveDurationHoursMax: 12,
+    certainty: 'ESTIMATED',
+    frequencyImplication:
+      'Tissue effects may last hours; supports once- or twice-daily research dosing.',
+  },
   pairings: [],
   adjuncts: [],
 };
@@ -79,7 +87,7 @@ const sparseProfile: NonNullable<Compound['profile']> = {
   preferredTime: null,
   timingNotes: null,
   isFdaApproved: false,
-    bodyDuration: null,
+  bodyDuration: null,
   pairings: [],
   adjuncts: [],
 };
@@ -173,6 +181,7 @@ describe('ReconstituteModal', () => {
     expect(screen.getByText('Once or twice daily')).toBeTruthy();
     expect(screen.getByText('Twice daily')).toBeTruthy();
 
+    // Full Protocol Snapshot facets (Catalog parity via buildProtocolSnapshotLabels spread)
     expect(screen.getByText('Protocol Snapshot')).toBeTruthy();
     expect(screen.getByText('Schedule')).toBeTruthy();
     expect(screen.getByText('2x Daily: 5 Days On / 2 Off')).toBeTruthy();
@@ -182,6 +191,8 @@ describe('ReconstituteModal', () => {
     expect(screen.getByText('4 Weeks Washout')).toBeTruthy();
     expect(screen.getByText('Timing')).toBeTruthy();
     expect(screen.getByText('Morning and Night')).toBeTruthy();
+    expect(screen.getByText('Body Duration')).toBeTruthy();
+    expect(screen.getByText('Lasts 4–12 hours (estimate)')).toBeTruthy();
     expect(screen.getByText('Route')).toBeTruthy();
     expect(screen.getByText('SubQ, IM')).toBeTruthy();
   });
